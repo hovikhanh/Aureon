@@ -412,6 +412,15 @@ issue chưa được xử lý.
 
 ---
 
+# Git & Version Control Rules
+
+- Luôn dùng **Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), format `<type>(<scope>): <subject>`.
+- **TUYỆT ĐỐI KHÔNG** commit file chứa secret (`.env`, API key, `*.pem`, `*.key`) hoặc thư mục `node_modules/`.
+- Trước khi commit **phải** chạy `git status` và tóm tắt những gì sắp được commit.
+- Chỉ **push** lên remote khi người dùng yêu cầu rõ ràng hoặc khi hoàn thành một task lớn (Phase/Sprint).
+
+---
+
 # Version
 
 - **CLAUDE.md version:** 1.1.0
