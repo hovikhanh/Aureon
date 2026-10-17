@@ -10,6 +10,3 @@ allowBuilds:
   # next-intl transitive deps (message-extraction tooling only, not used at runtime/build)
   '@parcel/watcher': false
   '@swc/core': false
-
-minimumReleaseAgeExclude:
-  - lucide-react@1.59.0
