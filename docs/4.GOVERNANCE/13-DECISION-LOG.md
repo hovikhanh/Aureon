@@ -131,18 +131,22 @@ Các quyết định dưới đây đã nằm trong `CLAUDE.md` v1.1.0 (hợp đ
 
 Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. Cột "Đề xuất mặc định" là gợi ý của spec gốc, **chưa có hiệu lực**, trừ khi spec ghi rằng đang tạm dùng mặc định trong lúc chờ. Ngày raise của tất cả DEC trong mục này: 2026-10-17. Người quyết: — (chờ human).
 
+> **Cập nhật 2026-10-18 — Gate B đã ĐẠT.** Toàn bộ 10 DEC `open` + `blocking=true` của §5 đã được human resolve theo gói đề xuất (uỷ quyền captain ghi nhận). Các dòng tương ứng trong §4.1–§4.4 đã chuyển `status = resolved`, `blocking = false`. Các DEC `open` còn lại trong §4 đều có `blocking = false` nên **không chặn task nào**. Chi tiết quyết định và việc đồng bộ tài liệu còn nợ: xem §5.
+>
+> Từ đây mọi task S0–S4 được phép bắt đầu; không cần chờ human cho Gate B nữa.
+
 ### 4.1. Phạm vi, dữ liệu demo, IDP, dashboard (DEC-030 → DEC-059)
 
 | ID | Tiêu đề | Bối cảnh (nguồn) | Lựa chọn | Đề xuất mặc định | Rationale / hệ quả nếu chưa chốt | Status | Blocking | Ảnh hưởng |
 |---|---|---|---|---|---|---|---|---|
-| DEC-030 | Kỳ đối chiếu XD-01: BCTC Q3 vs hóa đơn T9 | 01 §8 yêu cầu doanh thu #1 (Q3) = SUM(#2, T9) — khác kỳ. 04 OQ-12 = 08 OQ-01 (gộp) | A: so doanh thu **tháng 9** trong BCTC (`revenue_by_month`) với SUM(subtotal) T9, ±0,5% (04 §12.1) · B: mở rộng #2 thành hóa đơn cả Q3 · C: sửa 01 §8 | **A** (08 đã seed theo A: T9 = 8.500.000.000) | Spec mâu thuẫn với 01 nên phải có human (CLAUDE.md Escalation). Chưa chốt thì không được code rule XD-01 và test UC-07 bước 5 | open | **true** | 01 §8, 04 §12.1, 08 §3–4, task IDP cross-check, test UC-07 |
+| DEC-030 | Kỳ đối chiếu XD-01: BCTC Q3 vs hóa đơn T9 | 01 §8 yêu cầu doanh thu #1 (Q3) = SUM(#2, T9) — khác kỳ. 04 OQ-12 = 08 OQ-01 (gộp) | A: so doanh thu **tháng 9** trong BCTC (`revenue_by_month`) với SUM(subtotal) T9, ±0,5% (04 §12.1) · B: mở rộng #2 thành hóa đơn cả Q3 · C: sửa 01 §8 | **A** (08 đã seed theo A: T9 = 8.500.000.000) | Spec mâu thuẫn với 01 nên phải có human (CLAUDE.md Escalation). Chưa chốt thì không được code rule XD-01 và test UC-07 bước 5 | **resolved** 2026-10-18 · @CyEyes | false | 01 §8, 04 §12.1, 08 §3–4, task IDP cross-check, test UC-07 |
 | DEC-031 | Thời hạn undo 7 ngày, khóa Review 15 phút | 04 OQ-08 | Giữ / đổi số | Giữ 7 ngày / 15 phút | Chỉ là giá trị cấu hình | open | false | 04, 10 (EP-29, EP-33) |
 | DEC-032 | Xác nhận ngưỡng vàng/đỏ 18 metric | 03 OQ-02, 08 OQ-05 | Giữ / business chỉnh | Giữ ngưỡng 03 §2 làm seed | Chỉ là seed; đổi ngưỡng thì phải tính lại alert demo ở 08 §5.1 | open | false | 03, 08 |
 | DEC-033 | Xác nhận ngưỡng confidence (0,70/0,80/0,90/0,95) và dung sai XD-01 ±0,5% | 04 OQ-03 | Giữ / chỉnh | Giữ (đang chạy theo DEC-014) | Có thể cấu hình theo doc type | open | false | 04, 08 |
 | DEC-034 | Seed lịch sử: kỳ gốc NRR, rolling 12 tháng (CUS-04, HR-01, HR-02) | 03 OQ-03, 05 OQ-07, 08 OQ-03, OQ-06 | A: seed thẳng `business_records`/`metric_values` với `computation='SEED'` · B: tạo thêm file tài liệu lịch sử | A (08 §5.2 đã seed) | Không chặn: 08 đã có số liệu đầu vào | open | false | 03, 05, 08 |
 | DEC-035 | Nguồn NPS (METRIC-CUS-05) | 03 OQ-04, 08 OQ-04 | A: field `nps_score` trong DOC-03 và DOC-07 · B: thêm loại tài liệu khảo sát | A | Thêm doc type là đổi scope | open | false | 03, 04, 08 |
 | DEC-036 | Mapping field → METRIC cụ thể | 04 OQ-11 (chờ 03) | — | Hoàn thiện theo 03 §2 (đã Approved) + 08 §5.1 | 03 đã Approved; chỉ cần đồng bộ lại 04 | open | false | 04 |
-| DEC-037 | Action Registry chưa có action ghi `DECISION`, `FINANCIAL_LINE`, `OPPORTUNITY`, `BUDGET_LINE`, `PROJECT`, `SURVEY_RESPONSE` | 05 OQ-02 | A: mở rộng side effect của action hiện có · B: thêm action mới | A | Thêm action làm đổi contract của 04 và 10 | open | **true** | 04 §10.2, 05, 10 (EP-31), task Action Registry |
+| DEC-037 | Action Registry chưa có action ghi `DECISION`, `FINANCIAL_LINE`, `OPPORTUNITY`, `BUDGET_LINE`, `PROJECT`, `SURVEY_RESPONSE` | 05 OQ-02 | A: mở rộng side effect của action hiện có · B: thêm action mới | A | Thêm action làm đổi contract của 04 và 10 | **resolved** 2026-10-18 · @CyEyes | false | 04 §10.2, 05, 10 (EP-31), task Action Registry |
 | DEC-038 | Entity khách hàng riêng cho XD-02 | 04 OQ-02, 03 OQ-01 | A: `record_type=CUSTOMER` trong `business_records` (DEC-016) · B: so tên/MST trực tiếp | A (đã có ở 05) | Phần lớn đã giải quyết bởi DEC-016; chỉ còn xác nhận quy tắc khớp tên | open | false | 04, 05 |
 | DEC-039 | Lineage `uuid[]` không FK có chấp nhận được không | 05 OQ-05 | A: `uuid[]` + GIN + test toàn vẹn · B: thêm bảng liên kết (bảng thứ 13) | A (đang chạy theo DEC-018) | Chọn B nghĩa là đổi schema | open | false | 05, 10 |
 | DEC-040 | Nguồn "tổng chi phí nhân sự / quỹ lương" cho CFO (view-agg) | 05 OQ-04, review t29 | A: dòng `FINANCIAL_LINE PAYROLL_COST` từ #1 · B: SUM(salary) từ #6, chỉ trả tổng | A, fallback B | Liên quan tới dữ liệu lương (DEC-008) | open | false | 02, 05, 10 |
@@ -156,7 +160,7 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 | DEC-048 | Phân phối ALERT-OPS (HR chỉ nhận ALERT-HR-*; Sales không nhận ALERT-OPS) | 03 OQ-07, 08 OQ-07, review t29 | A: giữ theo 02 §3.3 · B: mở rộng | A | 10 EP-10 đã lọc theo A | open | false | 02, 03, 10 |
 | DEC-049 | Chế độ offline demo | 04 OQ-06 | A: fixture/replay extraction cho 7 tài liệu + PaddleOCR self-host · B: model local | A | B cần dependency mới | open | false | 04, 07, 08 |
 | DEC-050 | STT cho kênh C2 voice | 04 OQ-07 | A: coi C2 voice là P1 · B: chọn provider ngay | A | Provider mới = dependency mới, phải có DEC | open | false | 04, 07 |
-| DEC-051 | ZIP upload trong UC-07 | 04 OQ-09, 10 OQ-10 | A: hỗ trợ ZIP · B: không (EP-20 trả 415) | Hiện 10 chọn B; 04 đề xuất A | 04 và 10 đang lệch nhau, cần chốt một hướng | open | **true** | 04, 10 (EP-20, EP-40), task upload |
+| DEC-051 | ZIP upload trong UC-07 | 04 OQ-09, 10 OQ-10 | A: hỗ trợ ZIP · B: không (EP-20 trả 415) | **Chốt B — không hỗ trợ ZIP trong MVP**: giữ 10 (EP-20 trả `415` với `.zip`), đồng bộ 04 | 04 và 10 lệch nhau; chọn B vì 10 là contract nguồn duy nhất, không phải sửa API | **resolved** 2026-10-18 · @CyEyes | false | 04, 10 (EP-20, EP-40), task upload |
 | DEC-052 | `DEMO_REFERENCE_DATE` = 2026-10-20 | 08 OQ-08 | A: biến env `DEMO_REFERENCE_DATE` · B: hằng số trong code | A | Mọi metric phụ thuộc ngày (FIN-05, OPS-01..03) đều tính theo mốc này; thiếu thì alert demo lệch | open | false | 07, 08, 10, seed |
 | DEC-053 | Seed không có tài liệu gốc (HL-001, T7/T8, 12 tháng, 66 task, doanh thu T10, KH T9) | 08 OQ-09 | A: gắn nhãn "Dữ liệu seed lịch sử" trong panel nguồn · B: tạo tài liệu nguồn | A | Ảnh hưởng nguyên tắc P01: drill-down dừng ở bản ghi seed | open | false | 03 §4, 05, 06, 08 |
 | DEC-054 | Bổ sung còn thiếu ở 08 | 08 OQ-10; review t37 | — | Bổ sung khi viết script seed: danh sách đủ 45 NV, 15 action item và 5 quyết định DOC-05, số liệu 12 tháng chi tiết, bộ tài liệu lệch số để demo MISMATCH. Ghi chú review t37: hợp đồng Minh Phát hết hạn 30/09/2026 nhưng hóa đơn T9 vẫn áp điều khoản 60 ngày (cần xác nhận hoặc gia hạn hợp đồng); 04 nên thêm field `sales_target` cho `SALES_REPORT` | Thiếu thì task seed không đủ ground truth cho test MISMATCH | open | false | 04, 08, task seed |
@@ -169,24 +173,24 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 |---|---|---|---|---|---|---|---|---|
 | DEC-060 | Đồng bộ câu chữ 01 §9 "Celery (hoặc ARQ)" với CLAUDE.md | 07 OQ-01 | A: sửa 01 §9 bỏ "ARQ" · B: giữ | A (stack đã chốt ở DEC-002) | Chỉ sửa tài liệu; 01 do human sửa | open | false | 01 |
 | DEC-061 | LLM provider: 01 "Claude + GPT" vs CLAUDE.md "OpenAI / DeepSeek / Claude / Gemini" | 07 OQ-02 | A: theo CLAUDE.md, tất cả route qua OmniRoute · B: rút gọn | A | Code chỉ gọi ModelGateway nên không chặn | open | false | 01, 07 |
-| DEC-062 | Lệnh seed: `pnpm db:seed` hay `uv run python -m app.seed` | 07 OQ-03, 08 OQ-02 | A: `uv run python -m app.seed` (seed ở backend) · B: `pnpm db:seed` gọi wrapper | A | CLAUDE.md đang mâu thuẫn nội bộ; 09 cần một lệnh duy nhất cho task seed | open | **true** | CLAUDE.md, 07, 08, 09, task seed |
+| DEC-062 | Lệnh seed: `pnpm db:seed` hay `uv run python -m app.seed` | 07 OQ-03, 08 OQ-02 | A: `uv run python -m app.seed` (seed ở backend) · B: `pnpm db:seed` gọi wrapper | A | CLAUDE.md đang mâu thuẫn nội bộ; 09 cần một lệnh duy nhất cho task seed | **resolved** 2026-10-18 · @CyEyes | false | CLAUDE.md, 07, 08, 09, task seed |
 | DEC-063 | PaddleOCR chạy service riêng hay in-process; có dùng Google Vision | 07 OQ-04 | A: in-process trong worker, không dùng Google Vision · B: service riêng | A | Ảnh hưởng docker-compose | open | false | 07 |
-| DEC-064 | Thư viện i18n và thư viện chart cho Next.js | 06 OQ-02, 07 OQ-05 | Chọn thư viện cụ thể (VD: next-intl / Recharts) | Đề xuất ở 07 (cần human chọn) | Dependency mới phải có DEC (CLAUDE.md Cấm tự quyết #4); CLAUDE.md cấm hard-code tiếng Việt nên i18n là bắt buộc | open | **true** | 06, 07, task FE dashboard |
+| DEC-064 | Thư viện i18n và thư viện chart cho Next.js | 06 OQ-02, 07 OQ-05 | **Chốt: `next-intl` (i18n) + `Recharts` (chart)** | `next-intl` hợp App Router/Server Component theo SCR của 06; `Recharts` theo brief Phase 2 | Dependency mới phải có DEC (CLAUDE.md Cấm tự quyết #4); CLAUDE.md cấm hard-code tiếng Việt nên i18n là bắt buộc | **resolved** 2026-10-18 · @CyEyes | false | 06, 07, task FE dashboard |
 | DEC-065 | Realtime: polling hay SSE/WebSocket | 07 OQ-06, 10 OQ-08 | A: polling · B: SSE | A (10 đang giả định polling ở EP-25, EP-41, EP-11) | Đổi sang B thì phải thêm endpoint | open | false | 07, 10 |
 | DEC-066 | Bảng `model_call_log` / job tracking có trong 12 entity không | 07 OQ-07 | A: log vào `audit_logs` hoặc log file · B: bảng mới | A | B nghĩa là đổi schema | open | false | 05, 07 |
 | DEC-067 | Version Python/PostgreSQL: "3.12"/"16" (01) vs "3.12+"/"16+" (CLAUDE.md) | 07 OQ-08 | Pin 3.12 / 16 trong Docker, cho phép "+" | Pin trong Docker | Chỉ là câu chữ | open | false | 01, 07 |
 | DEC-068 | Bản nháp 09 còn NestJS/Prisma | 07 OQ-09, 11 OQ-08 | Sinh lại 09 ở Phase 4 theo stack DEC-001 và template 11 §7 | Sinh lại | 09 cũ mâu thuẫn CLAUDE.md, không được dùng. **Đã resolved 2026-10-17 (t25):** 09 đã sinh lại đúng stack CLAUDE.md, Approved (t26), không còn chặn | resolved | false | 09 | 2026-10-17 · Spec Approved (09, t26) |
 | DEC-069 | Embedding model cho pgvector/LlamaIndex; offline | 07 OQ-10, 05 OQ-06 | A: MVP không dùng embedding, chỉ bật extension · B: embedding qua ModelGateway | A | Không cần trong 18 metric/IDP MVP | open | false | 05, 07 |
 | DEC-070 | Encryption at rest AES-256, TLS 1.3 có bắt buộc cho demo | 07 OQ-11 | A: không bắt buộc ở dev, ghi là khuyến nghị prod · B: bắt buộc | A | Không đổi code ứng dụng | open | false | 07 |
-| DEC-071 | Module Python `app.*` vs cấu trúc `apps/api/src/...` | 07 OQ-12 | A: package `app` nằm trong `apps/api/src/app` · B: đổi lệnh trong CLAUDE.md | A | Lệnh uvicorn/celery/mypy/pytest phụ thuộc vào đây; scaffold không làm được nếu chưa chốt | open | **true** | CLAUDE.md, 07, task scaffold BE |
-| DEC-072 | Panel AI (hỏi đáp) có thuộc MVP không | 07 OQ-13, 06 U2, 10 OQ-09 | A: chỉ có tóm tắt AI read-only (EP-10 `summary`) · B: Panel AI hỏi đáp đầy đủ | A | Chọn B thì phải thêm endpoint và scope (01 §2–3 không có) | open | **true** | 01, 03, 06, 07, 10 |
-| DEC-073 | Cơ chế chuyển vai trò demo + JWT | 02 OQ-6, 07 OQ-14 + §8.1.1–8.1.2, 05 M6, 10 OQ-11 | A: 5 user seed; khi `DEMO_MODE=true` backend cấp JWT mới cho user đích, ghi audit `role.switch`; khi tắt, endpoint trả 404; HS256 `JWT_SECRET` · B: một user, đổi claim role | A (05, 08, 10 đã bám theo) | Chọn thư viện JWT Python là dependency mới, phải có DEC; ảnh hưởng EP-04 | open | **true** | 02, 05, 07, 08, 10 (EP-03..05), task auth |
+| DEC-071 | Module Python `app.*` vs cấu trúc `apps/api/src/...` | 07 OQ-12 | A: package `app` nằm trong `apps/api/src/app` · B: đổi lệnh trong CLAUDE.md | A | Lệnh uvicorn/celery/mypy/pytest phụ thuộc vào đây; scaffold không làm được nếu chưa chốt | **resolved** 2026-10-18 · @CyEyes | false | CLAUDE.md, 07, task scaffold BE |
+| DEC-072 | Panel AI (hỏi đáp) có thuộc MVP không | 07 OQ-13, 06 U2, 10 OQ-09 | A: chỉ có tóm tắt AI read-only (EP-10 `summary`) · B: Panel AI hỏi đáp đầy đủ | **A — loại Panel AI hỏi đáp khỏi MVP**; chỉ giữ `summary` AI read-only ở EP-10 | Chọn B thì phải thêm endpoint và scope (01 §2–3 không có) | **resolved** 2026-10-18 · @CyEyes | false | 01, 03, 06, 07, 10 |
+| DEC-073 | Cơ chế chuyển vai trò demo + JWT | 02 OQ-6, 07 OQ-14 + §8.1.1–8.1.2, 05 M6, 10 OQ-11 | A: 5 user seed; khi `DEMO_MODE=true` backend cấp JWT mới cho user đích, ghi audit `role.switch`; khi tắt, endpoint trả 404; HS256 `JWT_SECRET` · B: một user, đổi claim role | **A (05, 08, 10 đã bám theo) + thư viện verify là `PyJWT` (HS256)** | Chọn thư viện JWT Python là dependency mới, phải có DEC; ảnh hưởng EP-04 | **resolved** 2026-10-18 · @CyEyes | false | 02, 05, 07, 08, 10 (EP-03..05), task auth |
 
 ### 4.3. Auth, API, UI/UX (DEC-080 → DEC-099)
 
 | ID | Tiêu đề | Bối cảnh (nguồn) | Lựa chọn | Đề xuất mặc định | Rationale / hệ quả nếu chưa chốt | Status | Blocking | Ảnh hưởng |
 |---|---|---|---|---|---|---|---|---|
-| DEC-080 | Public endpoint = {health, login}, ngoại lệ so với CLAUDE.md | 10 OQ-13 | A: chấp nhận EP-01 + EP-02 public, có rate limit và audit `auth.login` · B: login qua NextAuth ở FE | A | CLAUDE.md ghi "trừ health check" — lệch hợp đồng nên cần human xác nhận | open | **true** | CLAUDE.md, 10 (EP-01, EP-02), task auth |
+| DEC-080 | Public endpoint = {health, login}, ngoại lệ so với CLAUDE.md | 10 OQ-13 | A: chấp nhận EP-01 + EP-02 public, có rate limit và audit `auth.login` · B: login qua NextAuth ở FE | A | CLAUDE.md ghi "trừ health check" — lệch hợp đồng nên cần human xác nhận | **resolved** 2026-10-18 · @CyEyes | false | CLAUDE.md, 10 (EP-01, EP-02), task auth |
 | DEC-081 | Quyền đọc EP-50 (extraction schema) cho ROLE-01..05 | 10 OQ-06 | A: `require_role(ROLE-01..05)`; ROLE-01..04 phải truyền `doc_type`, ẩn field SALARY · B: chỉ ROLE-05 | A | 02 §3.6 chưa có dòng này; nếu chọn A thì phải sửa 02 | open | false | 02, 06, 10 (EP-50) |
 | DEC-082 | Quyền đọc cấu hình AI (EP-51, SCR-15) và ai chỉnh autonomy/kill switch | 10 OQ-01, 06 OQ-01, 04 OQ-04 | A: chỉ đọc (ROLE-01, ROLE-05), chỉnh qua seed · B: cho CFO chỉnh trụ FIN qua UI | A | B cần thêm endpoint ghi và quyền mới trong 02 | open | false | 02, 04, 06, 10 |
 | DEC-083 | `value_state` / `not_computable_reason` tính khi đọc hay lưu cột | 10 OQ-02 | A: tính khi đọc · B: thêm cột ở `metric_values` | A | B nghĩa là đổi schema 05 | open | false | 05, 10 |
@@ -206,7 +210,7 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 | ID | Tiêu đề | Bối cảnh (nguồn) | Lựa chọn | Đề xuất mặc định | Rationale / hệ quả nếu chưa chốt | Status | Blocking | Ảnh hưởng |
 |---|---|---|---|---|---|---|---|---|
 | DEC-100 | Gate A/B/C = "N/A" cho task sinh tài liệu Phase 1–2 | 11 OQ-01 | A: cho phép N/A khi chưa có governance, chỉ với task sinh tài liệu · B: luôn bắt buộc | A (captain đã áp dụng trong lúc sinh tài liệu) | Lệch contract doc-reviewer; từ Phase 4 và với mọi task code, gate là bắt buộc | open | false | 11, 12, review |
-| DEC-101 | Định nghĩa lệnh `pnpm contract:validate` | 11 OQ-02, CLAUDE.md § Commit | A: validate OpenAPI sinh từ FastAPI so với 10 · B: bỏ khỏi điều kiện commit | A | Lệnh này là điều kiện bắt buộc trước commit nhưng chưa tồn tại → mọi commit code đều bị chặn | open | **true** | CLAUDE.md, 09, 10, task CI |
+| DEC-101 | Định nghĩa lệnh `pnpm contract:validate` | 11 OQ-02, CLAUDE.md § Commit | A: validate OpenAPI sinh từ FastAPI so với 10 · B: bỏ khỏi điều kiện commit | A | Lệnh này là điều kiện bắt buộc trước commit nhưng chưa tồn tại → mọi commit code đều bị chặn | **resolved** 2026-10-18 · @CyEyes | false | CLAUDE.md, 09, 10, task CI |
 | DEC-102 | Đưa OpenRouter (fallback Ưu tiên 3) vào bảng Tech Stack | 11 OQ-05 | A: ghi vào Khung vận hành, chỉ cho agent build, không dùng runtime · B: không dùng | A | Hiện chưa dùng (`OPENROUTER_API_KEY` chưa thiết lập); DEC-021 đã cho phép theo điều kiện | open | false | CLAUDE.md, 11 |
 | DEC-103 | Ai cấp số DEC | 11 OQ-03 | A: maintainer file 13 (captain / @CyEyes) cấp; agent chỉ đề xuất · B: agent tự tăng số | A (§2.1 đang áp dụng) | Tránh trùng số khi nhiều agent chạy song song | open | false | 11, 13 |
 | DEC-104 | Budget chi phí model | 11 OQ-04 | Human đặt ngưỡng theo sprint | — | Chưa có ngưỡng thì không áp dụng được rule "Chi phí > budget" | open | false | 11, captain |
@@ -224,20 +228,40 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 
 ## 5. Tóm tắt DEC open + blocking (dùng cho Gate B)
 
-| ID | Tiêu đề ngắn | Task/khối bị chặn | Đề xuất mặc định |
-|---|---|---|---|
-| DEC-030 | Kỳ đối chiếu XD-01 Q3 vs T9 | Rule cross-check IDP, test UC-07 bước 5, seed DOC-01/02 | So tháng 9 với tháng 9 (04 §12.1) |
-| DEC-037 | Action Registry thiếu action cho 6 `record_type` | Task Action Registry / commit IDP | Mở rộng side effect của action hiện có |
-| DEC-051 | ZIP upload (04 và 10 lệch nhau) | Task upload (EP-20, EP-40) | Chốt một hướng, sau đó sửa 04 hoặc 10 |
-| DEC-062 | Lệnh seed pnpm vs uv | Task seed, 09 | `uv run python -m app.seed` |
-| DEC-064 | Thư viện i18n + chart (dependency mới) | Task FE dashboard | Human chọn thư viện |
-| DEC-071 | Module `app` vs `apps/api/src` | Scaffold backend, mọi lệnh BE | `apps/api/src/app` |
-| DEC-072 | Panel AI có thuộc MVP | 06 Panel AI, 10 endpoint AI | Chỉ tóm tắt AI read-only |
-| DEC-073 | Cơ chế role switch + thư viện JWT | Task auth, EP-03..05 | 5 user seed + JWT mới khi `DEMO_MODE=true` |
-| DEC-080 | Public endpoint {health, login} | Task auth, EP-01/EP-02 | Chấp nhận, có rate limit và audit |
-| DEC-101 | `pnpm contract:validate` chưa định nghĩa | Mọi commit code, CI | Validate OpenAPI so với 10 |
+### 5.1. Trạng thái hiện tại: **0 DEC open + blocking → Gate B ĐẠT**
 
-Tổng: **10 DEC open + blocking** (DEC-068 đã resolved ở t25/t26, xem §4.2). Không có DEC blocking nào chặn việc tiếp tục sinh và review tài liệu Phase 3 — tất cả đã hoàn tất. Phần lớn sẽ chặn task build Phase 5 (code) nếu chưa được resolve.
+Toàn bộ 10 DEC `open` + `blocking=true` đã được human (@CyEyes) resolve ngày **2026-10-18** theo gói đề xuất; captain ghi nhận. Từ đây mọi task S0–S4 được phép bắt đầu mà không cần chờ human cho Gate B.
+
+| ID | Tiêu đề ngắn | **Quyết định đã chốt** | Ngày · Người quyết |
+|---|---|---|---|
+| DEC-030 | Kỳ đối chiếu XD-01 Q3 vs T9 | **A** — so doanh thu **tháng 9** trong BCTC (`revenue_by_month['2026-09']`) với SUM(`subtotal`) 47 hoá đơn T9, dung sai ±0,5% (04 §12.1) | 2026-10-18 · @CyEyes |
+| DEC-037 | Action Registry thiếu action cho 6 `record_type` | **A** — mở rộng side effect của action hiện có; **không** thêm action mới (không đổi contract 04/10) | 2026-10-18 · @CyEyes |
+| DEC-051 | ZIP upload (04 và 10 lệch nhau) | **B** — **không** hỗ trợ ZIP trong MVP; giữ 10 (EP-20 trả `415` với `.zip`); đồng bộ 04 | 2026-10-18 · @CyEyes |
+| DEC-062 | Lệnh seed pnpm vs uv | **A** — lệnh duy nhất `uv run python -m app.seed` (và `uv run python -m app.reset`); gỡ `pnpm db:seed` | 2026-10-18 · @CyEyes |
+| DEC-064 | Thư viện i18n + chart (dependency mới) | **`next-intl`** cho i18n + **`Recharts`** cho chart | 2026-10-18 · @CyEyes |
+| DEC-071 | Module `app` vs `apps/api/src` | **A** — package Python `app` đặt tại `apps/api/src/app`; giữ nguyên mọi lệnh uvicorn/celery/mypy/pytest của CLAUDE.md | 2026-10-18 · @CyEyes |
+| DEC-072 | Panel AI có thuộc MVP | **A** — loại Panel AI hỏi đáp khỏi MVP; chỉ giữ `summary` AI read-only ở EP-10 | 2026-10-18 · @CyEyes |
+| DEC-073 | Cơ chế role switch + thư viện JWT | **A** — 5 user seed; khi `DEMO_MODE=true` backend cấp JWT mới qua EP-04 + audit `role.switch`; thư viện verify **`PyJWT`** (HS256) | 2026-10-18 · @CyEyes |
+| DEC-080 | Public endpoint {health, login} | **A** — chấp nhận đúng {EP-01, EP-02} là ngoại lệ của CLAUDE.md § API, có rate limit + audit `auth.login` | 2026-10-18 · @CyEyes |
+| DEC-101 | `pnpm contract:validate` chưa định nghĩa | **A** — script pytest `-m contract`: sinh OpenAPI từ FastAPI và so với 10 (envelope, error code, `response_model`, `require_role`) | 2026-10-18 · @CyEyes |
+
+### 5.2. Nợ đồng bộ tài liệu (không chặn build)
+
+Các quyết định dưới đây **không đổi schema (05) hay API contract (10)**, nên chỉ cần sửa câu chữ khi human chạm file tương ứng:
+
+| DEC | File cần đồng bộ | Nội dung cần sửa |
+|---|---|---|
+| DEC-030 | 01 §8 | Ghi rõ kỳ đối chiếu là tháng 9 ↔ tháng 9 |
+| DEC-051 | 04 §2, 04 OQ-09 | Bỏ nhánh ZIP; ghi EP-20 trả `415` với `.zip` |
+| DEC-062 | CLAUDE.md § Commands | Gỡ `pnpm db:seed` |
+| DEC-064 | CLAUDE.md § Tech Stack, 07 §2 | Ghi `next-intl`, `Recharts` |
+| DEC-072 | 06 §U2, 07 §9 | Bỏ Panel AI khỏi MVP |
+| DEC-073 | CLAUDE.md § Tech Stack, 07 §8.1.2 | Ghi `PyJWT` |
+| DEC-080 | CLAUDE.md § API | Ghi ngoại lệ {EP-01, EP-02} |
+
+> **Cảnh báo Gate A:** khi human sửa nội dung các file trên, phải cân nhắc đánh dấu `stale` các file phụ thuộc (12 §4 bước 5) rồi re-review. Hiện **chưa file nào bị đánh dấu** → Gate A vẫn ĐẠT.
+
+> **Ghi chú lịch sử:** DEC-068 đã resolved ở t25/t26 (§4.2) trước đợt này.
 
 ---
 
@@ -259,6 +283,7 @@ Theo DEC-021 / DEC-022. Captain ghi tiếp một dòng mỗi lần đổi model/
 | 10 | 2026-10-17 | t25 (sinh 09) | writer-c `cc/claude-opus-5-5` → writer-f `kiro/auto` → writer-g `omni-route/agent-execution` | Opus 429; `kiro/auto` 429 | writer-g hoàn thành 09 (pass) |
 | 11 | 2026-10-17 | t26 (review 09) | → reviewer-e `omni-route/agent-execution` | Route agent-execution ổn định sau #10 | Review pass |
 | 12 | 2026-10-17 | t27 (đồng bộ governance) | writer-f `omni-route auto` → writer-g `omni-route/agent-execution` | writer-f gặp 402 limit giữa chừng | writer-g hoàn thành t27 |
+| 13 | 2026-10-18 | Gate B unblock (10 DEC) + chuyển sang orchestration đa agent | Captain giữ `xplabs/deepseek-v4.1-flash-uncensored`; sub-agent định tuyến qua `omni-route`: `agent-architecture` (planner), `agent-coding` (coder), `cc/claude-sonnet-5` (reviewer), `agent-execution` (tester) | Brief v2 của user: Orchestrator chạy xplabs trực tiếp, sub-agent chạy qua OmniRoute theo combo có sẵn | 4/4 route verify HTTP 200 (`agent-architecture`→claude-opus-5-5, `agent-coding`→gpt-6-luna-high, `cc/claude-sonnet-5`→claude-sonnet-5, `agent-execution`→claude-sonnet-5-5) |
 
 **Bài học (đã đưa vào DEC-022):**
 - Stall do **kích thước output mỗi lượt**, không do model. Cách xử lý là chia nhỏ lượt ghi chứ không phải đổi model.
@@ -291,7 +316,7 @@ Ghi chú: 05 M1–M6 là quyết định thiết kế của 05, được ghi ở
 | # | Câu hỏi | Đề xuất |
 |---|---|---|
 | OQ-01 | Các DEC "resolved" lấy từ spec Approved (Người quyết = "Spec Approved") có cần @CyEyes ký xác nhận lại không? | Human rà soát nhanh §3 một lần; DEC nào không đồng ý thì chuyển thành `superseded` |
-| OQ-02 | Một số OQ đã có mặc định đang được dùng tạm (DEC-030, DEC-073…). Agent có được code theo mặc định khi DEC còn blocking không? | Không — theo Gate B, chờ human resolve |
+| OQ-02 | Một số OQ đã có mặc định đang được dùng tạm (DEC-030, DEC-073…). Agent có được code theo mặc định khi DEC còn blocking không? | Không — theo Gate B, chờ human resolve. **Đã áp dụng 2026-10-18:** agent dừng ở Gate B, trình gói 10 DEC và chờ human chốt trước khi viết dòng code đầu tiên |
 | OQ-03 | Sau khi 09 được sinh (Phase 4), cột "Ảnh hưởng" cần bổ sung mã `T-xxx` cụ thể | Captain cập nhật khi 09 Approved |
 
 ---
