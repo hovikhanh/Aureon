@@ -41,3 +41,7 @@ Thumbs.db
 
 # Local Claude settings
 .claude/settings.local.json
+
+# Internal reference & agent logs (not published)
+_reference/
+.agent-teams/
