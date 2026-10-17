@@ -215,7 +215,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-IDP-032 | integration | pytest | EP-27 trả presigned URL hết hạn ≤ 15 phút + `pages[]`; tài liệu ảo C1 → `manual_info`, không `url`; mở tài liệu `contains_pii` → audit `document.open_pii` | EP-27; FR-DC-18, FR-DC-20; NFR-IDP-04 | T-213 | Planned |
 | TC-IDP-033 | e2e | Playwright | SCR-06: phím tắt, click field → SourceViewer cuộn + highlight, field vàng tự focus, field đỏ chặn Approve; toast "Đã ghi · METRIC-xx cập nhật" | FR-DC-18, FR-DC-19; US-DC-012; SCR-06 | T-219; T-220 | Planned |
 | TC-IDP-034 | unit | pytest | State machine 04 §8.2: mọi chuyển trạng thái hợp lệ thành công, chuyển không hợp lệ → `CONFLICT_STATE` (bảng tham số hóa 14 trạng thái) | EP-29..35; ENT-SourceDocument | T-202 | Planned |
-| TC-IDP-035 | integration | pytest | Celery task `process_document` idempotent theo `celery_task_id`; có `time_limit`/`soft_time_limit`; retry không tạo `extracted_fields` trùng | 07 §5.1; ENT-ExtractionJob | T-007; T-211 | Planned |
+| TC-IDP-035 | integration | pytest | Celery task `process_document` idempotent theo `celery_task_id`; có `time_limit`/`soft_time_limit`; retry không tạo `extracted_fields` trùng | 07 §5.1; ENT-ExtractionJob | T-007; T-211 | Implemented |
 | TC-IDP-036 | integration | pytest | Mọi LLM call qua `ModelGateway` (mock gateway đếm call; import trực tiếp SDK provider → test fail); `MODEL_GATEWAY_MODE=fixture` trả kết quả replay 7 tài liệu | 07 §5.2; NFR-IDP-05 | T-006 | Planned |
 | TC-IDP-037 | integration | pytest | EP-50: ROLE-05 không `doc_type` → tất cả schema; ROLE-01..04 thiếu `doc_type` → 400 `BAD_REQUEST`; ROLE-01..04 có `doc_type=EMPLOYEE_LIST` → field `sensitivity=SALARY` bị ẩn; trả `field_set_version` | EP-50; FR-DC-02; ROLE-01..05 | T-207; T-223 | Planned |
 | TC-IDP-038 | integration | pytest | EP-51 ROLE-01/05 đọc `kill_switch`, `doc_types`, `thresholds`, `source=SEED`; ROLE-02..04 → 403; không có method ghi (PUT/PATCH → 405) | EP-51; FR-DC-21; SCR-15 | T-217; T-223 | Planned |
@@ -461,6 +461,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-17 | t27 (đồng bộ governance sau 09) | Điền cột Task `T-xxx` từ 09 cho toàn bộ TC và ma trận §3; thêm T-207 (US-DC-007), T-213 (EP-34); đóng GAP-02; không đổi nội dung TC |
 | 2026-10-18 | T-001, T-003, T-002 (Phase 1 đợt 1–2) | TC-UI-005 → Passed (`apps/web/src/lib/no-hardcoded-vietnamese.test.ts`, đã kiểm bằng file probe vi phạm); TC-SYS-001 → Passed (`apps/api/tests/test_health.py`, 5 test; kiểm live: 200 `ok`, tắt postgres → 503 `degraded`). Coverage backend 78% |
 | 2026-10-18 | T-004 | TC-DATA-001 → Passed (`apps/api/tests/db/test_migrations.py`, upgrade head → downgrade base → upgrade head trên Postgres thật); TC-DATA-002 → Passed (`apps/api/tests/db/metadata_checker.py` + `test_metadata_conventions.py`, có case âm thiếu index FK). Metadata thật hiện rỗng — checker tự áp dụng khi T-101+ thêm model |
+| 2026-10-18 | T-007 | TC-IDP-035 → Implemented (phần T-007: `apps/api/tests/workers/test_worker.py` — config `soft_time_limit`/`time_limit`/`result_expires`, base `IdempotentTask` chạy cùng `task_id` 2 lần chỉ 1 side effect, integration Redis thật). Phần "không tạo `extracted_fields` trùng" chờ T-211 → giữ Implemented, chưa Passed |
 
 ---
 
