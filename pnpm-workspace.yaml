@@ -11,3 +11,5 @@ allowBuilds:
   '@parcel/watcher': false
   '@swc/core': false
 
+minimumReleaseAgeExclude:
+  - lucide-react@1.59.0
