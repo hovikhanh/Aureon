@@ -105,7 +105,7 @@ Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planne
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-SYS-001 | integration | pytest | EP-01 không cần JWT trả 200 `status=ok` + `checks`; DB down → 503 `degraded`; body không chứa connection string/key | EP-01 | T-002; T-003 | Planned |
+| TC-SYS-001 | integration | pytest | EP-01 không cần JWT trả 200 `status=ok` + `checks`; DB down → 503 `degraded`; body không chứa connection string/key | EP-01 | T-002; T-003 | Passed |
 | TC-SYS-002 | contract | pytest | Mọi endpoint trả envelope `{data, meta?}` / `{error:{code,message,details}}` và `X-Request-Id`; mã lỗi thuộc bảng 10 §1.3 | EP-01..52 (10 §1.2–1.3) | T-005 | Planned |
 | TC-SYS-003 | contract | pytest | Duyệt OpenAPI: mọi route trừ EP-01, EP-02 có dependency `require_role`; mọi route khai báo `response_model` | EP-03..52 (10 §1.4) | T-009 | Planned |
 | TC-SYS-004 | integration | pytest | Mutation gọi 2 lần cùng `Idempotency-Key` + cùng body → cùng response, 1 bản ghi; body khác → 409 `IDEMPOTENCY_CONFLICT`; thiếu header ở EP bắt buộc → 400 | EP-20..23, 30..34, 36, 40 (10 §1.6) | T-005 | Planned |
@@ -262,7 +262,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-UI-002 | unit | Vitest | MetricCard render đủ trạng thái 06 §4.1: bình thường, cảnh báo, nguy cấp (icon + chữ), `NO_DATA` (`—`), `NOT_COMPUTABLE` (`N/A` + "Không tính được", không màu ngưỡng) | 06 §4.1; 10 §1.9 | T-109 | Planned |
 | TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Planned |
 | TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Planned |
-| TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Implemented |
+| TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Passed |
 | TC-UI-006 | e2e | Playwright + axe | Quét a11y WCAG 2.1 AA trên SCR-01, 05, 06, 08, 09, 10, 12, 13: 0 vi phạm serious/critical | 06 §9 | T-108; T-218; T-406 | Planned |
 | TC-UI-007 | e2e | Playwright | Responsive: viewport 375/768/1280 cho SCR-01, SCR-06, SCR-08; PWA manifest + offline banner | 06 §8 | T-221; T-222; T-406 | Planned |
 | TC-UI-008 | e2e | Playwright | Mọi số trên SCR-01..04 click được (không số "mồ côi") | P01; 06 U3 | T-111; T-309; T-310 | Planned |
@@ -459,6 +459,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 |---|---|---|
 | 2026-10-17 | t20 (sinh tài liệu Phase 3) | Giữ nguyên T-DOC-REVIEWER-001, T-GEN-SPEC-001, T-CLAUDE-GOV-001; thêm quy ước §1, 155 TC §2, ma trận §3, coverage §4, gap §5 |
 | 2026-10-17 | t27 (đồng bộ governance sau 09) | Điền cột Task `T-xxx` từ 09 cho toàn bộ TC và ma trận §3; thêm T-207 (US-DC-007), T-213 (EP-34); đóng GAP-02; không đổi nội dung TC |
+| 2026-10-18 | T-001, T-003, T-002 (Phase 1 đợt 1–2) | TC-UI-005 → Passed (`apps/web/src/lib/no-hardcoded-vietnamese.test.ts`, đã kiểm bằng file probe vi phạm); TC-SYS-001 → Passed (`apps/api/tests/test_health.py`, 5 test; kiểm live: 200 `ok`, tắt postgres → 503 `degraded`). Coverage backend 78% |
 
 ---
 

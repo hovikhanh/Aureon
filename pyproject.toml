@@ -1,0 +1,61 @@
+# Root uv workspace — lets every backend command in CLAUDE.md § Commands run from repo root
+# (`uv run uvicorn app.main:app`, `uv run pytest`, `uv run alembic ...`). DEC-071: package `app`
+# lives in apps/api/src/app.
+
+[project]
+name = "aureon"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["aureon-api"]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
+    "ruff==0.17.1",
+    "mypy==2.4.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["apps/api"]
+
+[tool.uv.sources]
+aureon-api = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["apps/api/tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "contract: API contract checks against docs/3.EXECUTION/10-API-SPECIFICATION.md (pnpm contract:validate)",
+    "integration: needs docker compose services (postgres/redis/minio)",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["apps/api/src", "apps/api/tests"]
+extend-exclude = ["node_modules", ".venv", "apps/web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is the pytest idiom; tests use throwaway literal secrets.
+"apps/api/tests/**" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "apps/api/src"
+files = ["apps/api/src/app"]
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
