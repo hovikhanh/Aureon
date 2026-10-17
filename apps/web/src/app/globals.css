@@ -1,0 +1,149 @@
+/*
+ * Design tokens — docs/2.PRODUCT/06-UI-UX-SPEC.md §6 (Tailwind v4, CSS-first config).
+ * Hex values are the §6.2 suggestions (06 OQ-04 / DEC-090: use suggested values until
+ * an official Aureon brand palette exists). Light theme only; dark mode is P1 (§6.1).
+ * HARD RULE (§6.3, CLAUDE.md): --ai must differ from --primary; AI content never uses
+ * --primary, and status colors are never used for AI content (§6.2).
+ */
+@import "tailwindcss";
+
+:root {
+  /* Neutral scale (§6.2 --neutral-*) */
+  --neutral-50: #fafafa;
+  --neutral-100: #f4f4f5;
+  --neutral-200: #e4e4e7;
+  --neutral-300: #d4d4d8;
+  --neutral-400: #a1a1aa;
+  --neutral-500: #71717a;
+  --neutral-600: #52525b;
+  --neutral-700: #3f3f46;
+  --neutral-800: #27272a;
+  --neutral-900: #18181b;
+
+  /* shadcn/ui base surface tokens */
+  --background: #ffffff;
+  --foreground: var(--neutral-900);
+  --card: #ffffff;
+  --card-foreground: var(--neutral-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--neutral-900);
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--neutral-900);
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-600);
+  --accent: var(--neutral-100);
+  --accent-foreground: var(--neutral-900);
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --radius: 0.5rem;
+
+  /* §6.2 --primary: user actions, buttons, links, focus (Aureon brand blue) */
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --ring: #1d4ed8;
+
+  /* §6.2/§6.3 --ai: every AI-produced content/action (violet, distinct from --primary) */
+  --ai: #7c3aed;
+  --ai-foreground: #ffffff;
+  --ai-muted: #f5f3ff;
+  --ai-muted-foreground: #7c3aed;
+
+  /* §6.2 metric/confidence status colors (never for AI content) */
+  --status-ok: #15803d;
+  --status-warn: #b45309;
+  --status-critical: #b91c1c;
+  --status-foreground: #ffffff;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+
+  /* §6.1 fonts (font files are loaded by a later task; stacks fall back safely) */
+  --font-ui: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-ai-muted: var(--ai-muted);
+  --color-ai-muted-foreground: var(--ai-muted-foreground);
+
+  --color-status-ok: var(--status-ok);
+  --color-status-warn: var(--status-warn);
+  --color-status-critical: var(--status-critical);
+  --color-status-foreground: var(--status-foreground);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-data);
+
+  /* §6.4 typography scale */
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--font-weight: 600;
+  --text-h1: 1.5rem;
+  --text-h1--line-height: 2rem;
+  --text-h1--font-weight: 600;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.75rem;
+  --text-h2--font-weight: 600;
+  --text-h3: 1rem;
+  --text-h3--line-height: 1.5rem;
+  --text-h3--font-weight: 600;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* §6.1: tabular numbers for numeric columns/cells */
+  .tabular-nums,
+  td[data-numeric="true"] {
+    font-variant-numeric: tabular-nums;
+  }
+}

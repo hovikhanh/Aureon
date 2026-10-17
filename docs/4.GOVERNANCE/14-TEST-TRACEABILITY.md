@@ -258,7 +258,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-UI-001 | unit | Vitest | Helper format P04: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` | 06 §7.1; P04 | T-008 | Planned |
+| TC-UI-001 | unit | Vitest | Helper format P04: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` | 06 §7.1; P04 | T-008 | Passed |
 | TC-UI-002 | unit | Vitest | MetricCard render đủ trạng thái 06 §4.1: bình thường, cảnh báo, nguy cấp (icon + chữ), `NO_DATA` (`—`), `NOT_COMPUTABLE` (`N/A` + "Không tính được", không màu ngưỡng) | 06 §4.1; 10 §1.9 | T-109 | Planned |
 | TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Planned |
 | TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Planned |
@@ -464,6 +464,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-007 | TC-IDP-035 → Implemented (phần T-007: `apps/api/tests/workers/test_worker.py` — config `soft_time_limit`/`time_limit`/`result_expires`, base `IdempotentTask` chạy cùng `task_id` 2 lần chỉ 1 side effect, integration Redis thật). Phần "không tạo `extracted_fields` trùng" chờ T-211 → giữ Implemented, chưa Passed |
 | 2026-10-18 | T-005 | TC-SYS-002, TC-SYS-004, TC-SYS-006 → Implemented (`apps/api/tests/core/`: envelope + `X-Request-Id` cho success/error/422/404/500, bảng `ErrorCode` = 10 §1.3 (contract), idempotency replay/409/400 + Redis thật, phân trang `page_size>100` → 400). Giữ Implemented tới khi có endpoint thật áp dụng (EP-13+, EP-20+). Coverage module core 88–100% |
 | 2026-10-18 | T-006 | TC-IDP-036 → Passed (`apps/api/tests/model_gateway/test_single_entry_point.py` quét AST ~22 SDK LLM + chuỗi `chat/completions`, 0 ngoại lệ ngoài gateway — đã sửa probe EP-01 đi qua `ModelGateway.ping()`; fixture mode replay + đếm call). TC-IDP-030 → Implemented (phần gateway: retry 3 lần backoff 2/8/30 s → fallback → `IDP-E06`; phần EP-34/IDP-E02 chờ T-211/T-216). Coverage gateway 99% |
+| 2026-10-18 | T-008 | TC-UI-001 → Passed (`apps/web/src/lib/format.test.ts`: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` + biên null/âm/làm tròn; đơn vị lấy từ `messages/vi.json`). TC-UI-005 vẫn Passed sau khi thêm i18n. Thêm test token `--ai` ≠ `--primary` (`design-tokens.test.ts`) và test khoá i18n tồn tại (`messages.test.ts`) |
 
 ---
 

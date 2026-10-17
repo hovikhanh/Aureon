@@ -1,0 +1,27 @@
+{
+  "app": {
+    "name": "Aureon",
+    "title": "Aureon — CEO Dashboard",
+    "description": "4-pillar CEO dashboard and intelligent document processing (IDP)"
+  },
+  "home": {
+    "heading": "Aureon",
+    "subtitle": "CEO dashboard and intelligent document processing"
+  },
+  "format": {
+    "currencySuffix": "VND",
+    "million": "M",
+    "billion": "B",
+    "monthPrefix": "M",
+    "quarterPrefix": "Q",
+    "placeholder": "—"
+  },
+  "ai": {
+    "state": {
+      "off": "AI off",
+      "suggest": "AI suggestion",
+      "draft": "AI draft · awaiting confirmation",
+      "done": "Done by AI"
+    }
+  }
+}

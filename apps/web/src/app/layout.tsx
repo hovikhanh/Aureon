@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import "./globals.css";
 
-export const metadata = {
-  title: "Aureon",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("app");
+  return { title: t("title"), description: t("description") };
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="vi">
-      <body>{children}</body>
+    <html lang={locale}>
+      <body className="min-h-screen antialiased">
+        <NextIntlClientProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

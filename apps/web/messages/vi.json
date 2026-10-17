@@ -1,0 +1,27 @@
+{
+  "app": {
+    "name": "Aureon",
+    "title": "Aureon — Dashboard CEO",
+    "description": "Dashboard CEO 4 trụ và xử lý tài liệu thông minh (IDP)"
+  },
+  "home": {
+    "heading": "Aureon",
+    "subtitle": "Dashboard CEO và xử lý tài liệu thông minh"
+  },
+  "format": {
+    "currencySuffix": "đ",
+    "million": "tr",
+    "billion": "tỷ",
+    "monthPrefix": "T",
+    "quarterPrefix": "Q",
+    "placeholder": "—"
+  },
+  "ai": {
+    "state": {
+      "off": "AI tắt",
+      "suggest": "AI gợi ý",
+      "draft": "AI soạn · chờ xác nhận",
+      "done": "AI đã làm"
+    }
+  }
+}
