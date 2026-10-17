@@ -7,6 +7,7 @@ import redis
 from sqlalchemy import create_engine, text
 
 from app.core.config import ConfigService
+from app.core.model_gateway import ModelGateway
 
 Probe = Callable[[], bool]
 PROBE_TIMEOUT_S = 2.0
@@ -47,20 +48,12 @@ def make_probes(config: ConfigService) -> dict[str, Probe]:
         return resp.status_code == 200
 
     def model_gateway() -> bool:
-        # Fixture mode replays recorded outputs, so the gateway is always available (07 §5.2).
-        if config.model_gateway_mode == "fixture":
-            return True
-        resp = httpx.post(
-            f"{config.omniroute_base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {config.omniroute_api_key.get_secret_value()}"},
-            json={
-                "model": config.model_classify,
-                "messages": [{"role": "user", "content": "ping"}],
-                "max_tokens": 1,
-            },
-            timeout=PROBE_TIMEOUT_S,
-        )
-        return resp.status_code == 200
+        # TC-IDP-036: only ModelGateway may call the LLM; fixture mode is always available.
+        gateway = ModelGateway(config, timeout_s=PROBE_TIMEOUT_S)
+        try:
+            return gateway.ping()
+        finally:
+            gateway.close()
 
     return {
         "database": database,
