@@ -106,11 +106,11 @@ Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planne
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
 | TC-SYS-001 | integration | pytest | EP-01 không cần JWT trả 200 `status=ok` + `checks`; DB down → 503 `degraded`; body không chứa connection string/key | EP-01 | T-002; T-003 | Passed |
-| TC-SYS-002 | contract | pytest | Mọi endpoint trả envelope `{data, meta?}` / `{error:{code,message,details}}` và `X-Request-Id`; mã lỗi thuộc bảng 10 §1.3 | EP-01..52 (10 §1.2–1.3) | T-005 | Planned |
+| TC-SYS-002 | contract | pytest | Mọi endpoint trả envelope `{data, meta?}` / `{error:{code,message,details}}` và `X-Request-Id`; mã lỗi thuộc bảng 10 §1.3 | EP-01..52 (10 §1.2–1.3) | T-005 | Implemented |
 | TC-SYS-003 | contract | pytest | Duyệt OpenAPI: mọi route trừ EP-01, EP-02 có dependency `require_role`; mọi route khai báo `response_model` | EP-03..52 (10 §1.4) | T-009 | Planned |
-| TC-SYS-004 | integration | pytest | Mutation gọi 2 lần cùng `Idempotency-Key` + cùng body → cùng response, 1 bản ghi; body khác → 409 `IDEMPOTENCY_CONFLICT`; thiếu header ở EP bắt buộc → 400 | EP-20..23, 30..34, 36, 40 (10 §1.6) | T-005 | Planned |
+| TC-SYS-004 | integration | pytest | Mutation gọi 2 lần cùng `Idempotency-Key` + cùng body → cùng response, 1 bản ghi; body khác → 409 `IDEMPOTENCY_CONFLICT`; thiếu header ở EP bắt buộc → 400 | EP-20..23, 30..34, 36, 40 (10 §1.6) | T-005 | Implemented |
 | TC-SYS-005 | integration | pytest | Mọi mutation ghi `audit_logs` trong cùng transaction (rollback → không có audit); không có API sửa/xóa audit | 10 §1.7; ENT-AuditLog; FR-DC-22 | T-102; T-404 | Planned |
-| TC-SYS-006 | contract | pytest | Phân trang `page`/`page_size` (>100 → 400) và `meta {page,page_size,total,total_pages}` | EP-13, 15, 24, 28, 52 (10 §1.5) | T-005 | Planned |
+| TC-SYS-006 | contract | pytest | Phân trang `page`/`page_size` (>100 → 400) và `meta {page,page_size,total,total_pages}` | EP-13, 15, 24, 28, 52 (10 §1.5) | T-005 | Implemented |
 | TC-AUTH-001 | integration | pytest | EP-02 đúng credential (5 user seed, mật khẩu từ env/seed) → 200 + JWT có `sub, role, iat, exp, iss, aud` HS256 | EP-02; ROLE-01..05 | T-103; T-106 | Planned |
 | TC-AUTH-002 | integration | pytest | EP-02 sai mật khẩu và email không tồn tại → **cùng** 401 `INVALID_CREDENTIALS`, cùng message (không tiết lộ email tồn tại) | EP-02 | T-103 | Planned |
 | TC-AUTH-003 | integration | pytest | EP-02 vượt ngưỡng tần suất → 429 `RATE_LIMITED` | EP-02 | T-103 | Planned |
@@ -462,6 +462,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-001, T-003, T-002 (Phase 1 đợt 1–2) | TC-UI-005 → Passed (`apps/web/src/lib/no-hardcoded-vietnamese.test.ts`, đã kiểm bằng file probe vi phạm); TC-SYS-001 → Passed (`apps/api/tests/test_health.py`, 5 test; kiểm live: 200 `ok`, tắt postgres → 503 `degraded`). Coverage backend 78% |
 | 2026-10-18 | T-004 | TC-DATA-001 → Passed (`apps/api/tests/db/test_migrations.py`, upgrade head → downgrade base → upgrade head trên Postgres thật); TC-DATA-002 → Passed (`apps/api/tests/db/metadata_checker.py` + `test_metadata_conventions.py`, có case âm thiếu index FK). Metadata thật hiện rỗng — checker tự áp dụng khi T-101+ thêm model |
 | 2026-10-18 | T-007 | TC-IDP-035 → Implemented (phần T-007: `apps/api/tests/workers/test_worker.py` — config `soft_time_limit`/`time_limit`/`result_expires`, base `IdempotentTask` chạy cùng `task_id` 2 lần chỉ 1 side effect, integration Redis thật). Phần "không tạo `extracted_fields` trùng" chờ T-211 → giữ Implemented, chưa Passed |
+| 2026-10-18 | T-005 | TC-SYS-002, TC-SYS-004, TC-SYS-006 → Implemented (`apps/api/tests/core/`: envelope + `X-Request-Id` cho success/error/422/404/500, bảng `ErrorCode` = 10 §1.3 (contract), idempotency replay/409/400 + Redis thật, phân trang `page_size>100` → 400). Giữ Implemented tới khi có endpoint thật áp dụng (EP-13+, EP-20+). Coverage module core 88–100% |
 
 ---
 
