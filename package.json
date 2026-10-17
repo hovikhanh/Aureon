@@ -1,0 +1,23 @@
+{
+  "name": "aureon",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm run --parallel \"/^dev:(web|api|worker)$/\"",
+    "dev:web": "pnpm --filter @aureon/web dev",
+    "dev:api": "uv run uvicorn app.main:app --reload --port 4000",
+    "dev:worker": "uv run celery -A app.worker worker --loglevel=info",
+    "build": "pnpm -r run build",
+    "build:web": "pnpm --filter @aureon/web build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm test:web",
+    "test:web": "pnpm --filter @aureon/web test",
+    "test:e2e": "pnpm --filter @aureon/web test:e2e",
+    "contract:validate": "uv run pytest -m contract"
+  }
+}

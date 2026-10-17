@@ -223,6 +223,7 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 | DEC-111 | Nơi ghi nhận cập nhật cột Task (`TBD-09`) của 14 sau khi 09 Approved | 09 OQ-05 · 12 OQ-03 | A: agent cập nhật 14 ngay khi 09 Approved (CLAUDE.md cho phép) · B: human cập nhật | A | Đã thực hiện ở t27 (2026-10-17): 155/155 TC có `T-xxx`; cần human xác nhận theo A | open | false | 14, 09 |
 | DEC-112 | Phạm vi test mobile C4 (T-222): thiết bị thật hay giả lập viewport | 09 OQ-06 · 14 TC-IDP-006 | A: giả lập viewport trong Playwright, thiết bị thật là manual · B: bắt buộc thiết bị thật | A | Ảnh hưởng chi phí QA và độ tin cậy của TC-IDP-006 | open | false | 04, 14, 09 |
 | DEC-113 | Task/TC đo "Field accuracy ≥ 90%" và "STP ≥ 50%" (01 §4) chưa có trong 14/09 | 09 OQ-07 · 01 §4 · 14 §5 | A: thêm TC-KPI và task đo vào 14/09 · B: chỉ đo thủ công khi demo | A | Hai KPI này chưa kiểm chứng được nếu không có TC; hiện ghi nhận như test gap, chưa tạo task mới | open | false | 01, 14, 09 |
+| DEC-114 | Nguồn image MinIO cho Docker Compose dev | T-003 (2026-10-18): `minio/minio` (Docker Hub), `quay.io/minio/minio`, `ghcr.io/minio/minio`, `bitnami/minio` đều không pull được (denied/not found) | A: `cgr.dev/chainguard/minio:latest` (cùng binary MinIO server, healthcheck `mc ready local`) · B: build image MinIO từ binary chính thức · C: đổi storage dev | A (đang dùng tạm trong `docker-compose.yml`) | Chỉ đổi nguồn image, **không** đổi stack (vẫn là MinIO dev / S3 prod theo CLAUDE.md); API S3 không đổi nên không ảnh hưởng code | open | false | 07 §6.2, T-003 |
 
 ---
 

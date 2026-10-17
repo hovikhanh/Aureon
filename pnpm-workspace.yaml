@@ -1,0 +1,9 @@
+packages:
+  - "apps/web"
+  - "packages/*"
+
+# Packages allowed to run install scripts (native binaries for build/lint tooling)
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+  sharp: true

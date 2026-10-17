@@ -262,7 +262,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-UI-002 | unit | Vitest | MetricCard render đủ trạng thái 06 §4.1: bình thường, cảnh báo, nguy cấp (icon + chữ), `NO_DATA` (`—`), `NOT_COMPUTABLE` (`N/A` + "Không tính được", không màu ngưỡng) | 06 §4.1; 10 §1.9 | T-109 | Planned |
 | TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Planned |
 | TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Planned |
-| TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Planned |
+| TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Implemented |
 | TC-UI-006 | e2e | Playwright + axe | Quét a11y WCAG 2.1 AA trên SCR-01, 05, 06, 08, 09, 10, 12, 13: 0 vi phạm serious/critical | 06 §9 | T-108; T-218; T-406 | Planned |
 | TC-UI-007 | e2e | Playwright | Responsive: viewport 375/768/1280 cho SCR-01, SCR-06, SCR-08; PWA manifest + offline banner | 06 §8 | T-221; T-222; T-406 | Planned |
 | TC-UI-008 | e2e | Playwright | Mọi số trên SCR-01..04 click được (không số "mồ côi") | P01; 06 U3 | T-111; T-309; T-310 | Planned |

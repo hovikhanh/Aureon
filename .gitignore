@@ -17,6 +17,10 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
 coverage/
 .coverage
 htmlcov/
