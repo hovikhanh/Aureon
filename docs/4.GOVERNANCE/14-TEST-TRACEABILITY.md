@@ -237,8 +237,8 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-DATA-001 | integration | pytest | `alembic upgrade head` rồi `downgrade base` rồi `upgrade head` không lỗi (migration reversible) | 12 ENT; 05 §12 | T-004 | Planned |
-| TC-DATA-002 | unit | pytest | Mọi bảng có `id` uuid, `created_at`, `updated_at`; entity nghiệp vụ có `deleted_at`; mọi FK có index (kiểm metadata SQLAlchemy) | 12 ENT; CLAUDE.md § Database | T-004 | Planned |
+| TC-DATA-001 | integration | pytest | `alembic upgrade head` rồi `downgrade base` rồi `upgrade head` không lỗi (migration reversible) | 12 ENT; 05 §12 | T-004 | Passed |
+| TC-DATA-002 | unit | pytest | Mọi bảng có `id` uuid, `created_at`, `updated_at`; entity nghiệp vụ có `deleted_at`; mọi FK có index (kiểm metadata SQLAlchemy) | 12 ENT; CLAUDE.md § Database | T-004 | Passed |
 | TC-DATA-003 | integration | pytest | ENT-User: `email` unique (partial `deleted_at IS NULL`), lowercase; `password_hash` không có trong mọi response model | ENT-User | T-101 | Planned |
 | TC-DATA-004 | integration | pytest | ENT-Role: seed đúng 5 role `ROLE-01..05` với `pillar_scope`, `pillar_agg_scope`, `review_pillars`, `can_view_salary` theo 05 §4.2 | ENT-Role; ROLE-01..05 | T-101; T-402 | Planned |
 | TC-DATA-005 | integration | pytest | ENT-SourceDocument: `contains_salary` tự bật khi `doc_type=EMPLOYEE_LIST` hoặc có field SALARY; `undo_deadline = committed_at + 7 ngày` | ENT-SourceDocument | T-201 | Planned |
@@ -460,6 +460,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-17 | t20 (sinh tài liệu Phase 3) | Giữ nguyên T-DOC-REVIEWER-001, T-GEN-SPEC-001, T-CLAUDE-GOV-001; thêm quy ước §1, 155 TC §2, ma trận §3, coverage §4, gap §5 |
 | 2026-10-17 | t27 (đồng bộ governance sau 09) | Điền cột Task `T-xxx` từ 09 cho toàn bộ TC và ma trận §3; thêm T-207 (US-DC-007), T-213 (EP-34); đóng GAP-02; không đổi nội dung TC |
 | 2026-10-18 | T-001, T-003, T-002 (Phase 1 đợt 1–2) | TC-UI-005 → Passed (`apps/web/src/lib/no-hardcoded-vietnamese.test.ts`, đã kiểm bằng file probe vi phạm); TC-SYS-001 → Passed (`apps/api/tests/test_health.py`, 5 test; kiểm live: 200 `ok`, tắt postgres → 503 `degraded`). Coverage backend 78% |
+| 2026-10-18 | T-004 | TC-DATA-001 → Passed (`apps/api/tests/db/test_migrations.py`, upgrade head → downgrade base → upgrade head trên Postgres thật); TC-DATA-002 → Passed (`apps/api/tests/db/metadata_checker.py` + `test_metadata_conventions.py`, có case âm thiếu index FK). Metadata thật hiện rỗng — checker tự áp dụng khi T-101+ thêm model |
 
 ---
 
