@@ -10,6 +10,7 @@ from app.core.model_gateway import ModelGateway
 
 
 @pytest.mark.integration
+@pytest.mark.live
 def test_live_json_completion_via_omniroute() -> None:
     gw = ModelGateway(
         get_config(),

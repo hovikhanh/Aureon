@@ -1,0 +1,135 @@
+# T-009 — CI for Aureon Demo.
+#   web: lint + typecheck + unit test + Next.js build.
+#   api: ruff + mypy + alembic migrate + seed + pytest (minus the live OmniRoute smoke) + the
+#        contract suite (`pnpm contract:validate`).
+# No secrets are used: every value below is a non-sensitive CI test placeholder (CLAUDE.md § secrets).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web:
+    name: web (lint / typecheck / test / build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm build:web
+
+  api:
+    name: api (ruff / mypy / migrate / seed / pytest / contract)
+    runs-on: ubuntu-latest
+
+    # Non-secret CI test values only — never real credentials, never a committed .env.
+    env:
+      DATABASE_URL: postgresql+psycopg://aureon:ci-test-pass@localhost:5432/aureon
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      JWT_SECRET: ci-test-secret
+      JWT_ISSUER: aureon-demo
+      JWT_AUDIENCE: aureon-api
+      MODEL_GATEWAY_MODE: fixture
+      OMNIROUTE_BASE_URL: http://localhost:20128/v1
+      OMNIROUTE_API_KEY: ci-test-key
+      DEMO_MODE: "true"
+      DEMO_CEO_PASSWORD: ci-test-pass
+      DEMO_CFO_PASSWORD: ci-test-pass
+      DEMO_SALES_PASSWORD: ci-test-pass
+      DEMO_HR_PASSWORD: ci-test-pass
+      DEMO_REVIEWER_PASSWORD: ci-test-pass
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aureon
+          POSTGRES_PASSWORD: ci-test-pass
+          POSTGRES_DB: aureon
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aureon -d aureon"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm is needed only to run the `contract:validate` package.json script (it shells out to
+      # `uv run pytest -m contract`); no JS install is required for the api job.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy
+
+      # DB must be migrated and seeded before pytest: the auth/audit integration tests
+      # seed-reset the database and expect the 5 demo roles/users to exist.
+      - name: Alembic migrate
+        run: uv run alembic upgrade head
+
+      - name: Seed demo data
+        run: uv run python -m app.seed
+
+      - name: Pytest (excluding live OmniRoute smoke)
+        run: uv run pytest -m "not live"
+
+      - name: Contract validation
+        run: pnpm contract:validate

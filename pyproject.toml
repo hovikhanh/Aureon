@@ -32,6 +32,7 @@ addopts = "-ra --strict-markers"
 markers = [
     "contract: API contract checks against docs/3.EXECUTION/10-API-SPECIFICATION.md (pnpm contract:validate)",
     "integration: needs docker compose services (postgres/redis/minio)",
+    "live: hits a live external service (OmniRoute localhost:20128); excluded in CI via -m 'not live'",
 ]
 
 [tool.coverage.run]
