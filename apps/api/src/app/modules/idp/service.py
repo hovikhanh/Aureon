@@ -4,8 +4,12 @@ Implements file validation, streaming SHA-256 calculation, deduplication, MinIO 
 and audit logging per 04-IDP-FEATURE-SPEC.md and 10-API-SPECIFICATION.md.
 """
 
+import csv
 import hashlib
+import io
 import re
+import xml.etree.ElementTree as ET
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -34,6 +38,12 @@ from app.modules.idp.enums import (
     SourceLocationKind,
 )
 from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
+from app.modules.idp.schemas import (
+    ColumnConfirmItem,
+    ColumnMappingSuggestionItem,
+    MappingSuggestion,
+    RowErrorItem,
+)
 
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB (04 §14 IDP-E01)
 MAX_PDF_PAGES = 50  # 50 pages (04 §14 IDP-E01)
@@ -446,4 +456,431 @@ def handle_natural_language_create(
     db.commit()
     db.refresh(doc)
     return doc
+
+
+HEADER_MAPPINGS: dict[str, tuple[str, float]] = {
+    "stt": ("stt", 0.90),
+    "số hđ": ("invoice_number", 0.98),
+    "số hóa đơn": ("invoice_number", 0.98),
+    "so hd": ("invoice_number", 0.95),
+    "so hoa don": ("invoice_number", 0.95),
+    "invoice_number": ("invoice_number", 0.99),
+    "invoice_no": ("invoice_number", 0.99),
+    "ngày": ("issue_date", 0.95),
+    "ngay": ("issue_date", 0.95),
+    "ngày hđ": ("issue_date", 0.98),
+    "ngày xuất": ("issue_date", 0.98),
+    "issue_date": ("issue_date", 0.99),
+    "khách hàng": ("customer_name", 0.98),
+    "tên khách hàng": ("customer_name", 0.98),
+    "khach hang": ("customer_name", 0.95),
+    "customer": ("customer_name", 0.99),
+    "customer_name": ("customer_name", 0.99),
+    "mst khách": ("customer_tax_code", 0.98),
+    "mst": ("customer_tax_code", 0.95),
+    "mã số thuế": ("customer_tax_code", 0.98),
+    "tax_code": ("customer_tax_code", 0.99),
+    "subtotal (vnd)": ("subtotal", 0.98),
+    "subtotal": ("subtotal", 0.99),
+    "tiền trước thuế": ("subtotal", 0.98),
+    "thành tiền": ("subtotal", 0.95),
+    "vat %": ("vat_rate", 0.98),
+    "vat": ("vat_rate", 0.90),
+    "thuế suất": ("vat_rate", 0.98),
+    "vat_rate": ("vat_rate", 0.99),
+    "đã thu (vnd)": ("paid_amount", 0.98),
+    "đã thu": ("paid_amount", 0.98),
+    "da thu": ("paid_amount", 0.95),
+    "paid_amount": ("paid_amount", 0.99),
+    "hạn tt": ("due_date", 0.98),
+    "hạn thanh toán": ("due_date", 0.98),
+    "han tt": ("due_date", 0.95),
+    "due_date": ("due_date", 0.99),
+    "trạng thái": ("status", 0.95),
+    "trang thai": ("status", 0.90),
+    "status": ("status", 0.99),
+}
+
+
+def index_to_col_letter(col_idx: int) -> str:
+    """Convert 0-based column index to Excel column letter (0 -> A, 25 -> Z, 26 -> AA)."""
+    result = ""
+    col_idx += 1
+    while col_idx > 0:
+        col_idx, remainder = divmod(col_idx - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
+def col_letter_to_index(col_letter: str) -> int:
+    """Convert Excel column letter to 0-based column index (A -> 0, Z -> 25, AA -> 26)."""
+    result = 0
+    for char in col_letter.upper():
+        if "A" <= char <= "Z":
+            result = result * 26 + (ord(char) - ord("A") + 1)
+    return result - 1
+
+
+def parse_spreadsheet_rows(file_bytes: bytes, filename: str) -> tuple[str, list[list[str]]]:
+    """Parse XLSX or CSV bytes into list of row values."""
+    ext = Path(filename).suffix.lower()
+    if ext == ".csv":
+        text = ""
+        for enc in ("utf-8-sig", "utf-8", "latin1"):
+            try:
+                text = file_bytes.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        reader = csv.reader(io.StringIO(text))
+        rows = [row for row in reader if any(cell.strip() for cell in row)]
+        return "Sheet1", rows
+
+    if ext == ".xlsx":
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+                shared_strings: list[str] = []
+                if "xl/sharedStrings.xml" in zf.namelist():
+                    tree = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # noqa: S314 -- internal xlsx parsing without entity resolution (DEC-051)
+                    for si in (
+                        tree.findall(
+                            ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si"
+                        )
+                        or tree.findall(".//si")
+                    ):
+                        t_elems = si.findall(
+                            ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t"
+                        ) or si.findall(".//t")
+                        shared_strings.append("".join(t.text or "" for t in t_elems))
+
+                sheet_path = "xl/worksheets/sheet1.xml"
+                if sheet_path not in zf.namelist():
+                    for name in zf.namelist():
+                        if name.startswith("xl/worksheets/sheet") and name.endswith(".xml"):
+                            sheet_path = name
+                            break
+
+                tree = ET.fromstring(zf.read(sheet_path))  # noqa: S314 -- internal xlsx parsing without entity resolution (DEC-051)
+                ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+                rows_data: list[list[str]] = []
+                for row_elem in tree.findall(f".//{ns}row") or tree.findall(".//row"):
+                    row_cells: dict[int, str] = {}
+                    max_col = -1
+                    cells = row_elem.findall(f".//{ns}c") or row_elem.findall(".//c")
+                    for c in cells:
+                        ref = c.get("r", "")
+                        match = re.match(r"([A-Za-z]+)(\d+)", ref)
+                        col_idx = col_letter_to_index(match.group(1)) if match else len(row_cells)
+                        max_col = max(max_col, col_idx)
+
+                        t = c.get("t")
+                        v_elem = c.find(f"{ns}v")
+                        if v_elem is None:
+                            v_elem = c.find("v")
+                        val = ""
+                        if v_elem is not None and v_elem.text:
+                            if t == "s":
+                                idx = int(v_elem.text)
+                                val = shared_strings[idx] if idx < len(shared_strings) else ""
+                            else:
+                                val = v_elem.text
+                        elif t == "inlineStr":
+                            is_elem = c.find(f".//{ns}t")
+                            if is_elem is None:
+                                is_elem = c.find(".//t")
+                            if is_elem is not None and is_elem.text:
+                                val = is_elem.text
+                        row_cells[col_idx] = val.strip()
+
+                    if max_col >= 0:
+                        row_list = [row_cells.get(i, "") for i in range(max_col + 1)]
+                        if any(row_list):
+                            rows_data.append(row_list)
+                return "Sheet1", rows_data
+        except Exception as exc:
+            raise ApiError(
+                ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                f"Corrupted or invalid Excel file: {exc}",
+            ) from exc
+
+    raise ApiError(
+        ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+        f"File format '{ext}' is not supported for import",
+    )
+
+
+def generate_mapping_suggestion(
+    headers: list[str], sheet_name: str = "Sheet1"
+) -> MappingSuggestion:
+    """Generate AI / rule-based column mapping suggestions for import file headers."""
+    items: list[ColumnMappingSuggestionItem] = []
+    for idx, header in enumerate(headers):
+        col_letter = index_to_col_letter(idx)
+        clean_hdr = header.strip().lower()
+        suggested_key, confidence = HEADER_MAPPINGS.get(clean_hdr, (None, 0.0))
+        if not suggested_key:
+            # Partial match check
+            for pattern, (key, conf) in HEADER_MAPPINGS.items():
+                if pattern in clean_hdr or clean_hdr in pattern:
+                    suggested_key, confidence = key, conf * 0.95
+                    break
+        items.append(
+            ColumnMappingSuggestionItem(
+                column=col_letter,
+                header=header.strip(),
+                suggested_field_key=suggested_key,
+                confidence=confidence,
+            )
+        )
+    return MappingSuggestion(sheet_name=sheet_name, header_row=1, columns=items)
+
+
+def handle_spreadsheet_upload(
+    db: Session,
+    current_user: User,
+    file_bytes: bytes,
+    filename: str,
+    doc_type_hint: DocType | None = None,
+    batch_id: UUID | None = None,
+) -> tuple[SourceDocument, MappingSuggestion]:
+    """EP-23: Upload XLSX/CSV file, validate line count <= 5000, generate mapping suggestion."""
+    ext = Path(filename).suffix.lower()
+    if ext not in (".xlsx", ".csv"):
+        raise ApiError(
+            ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+            f"Unsupported spreadsheet format '{ext}'. Allowed: ['.xlsx', '.csv']",
+        )
+
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise ApiError(ErrorCode.FILE_TOO_LARGE, "File size exceeds 20MB limit")
+
+    sheet_name, rows = parse_spreadsheet_rows(file_bytes, filename)
+    if not rows:
+        raise ApiError(ErrorCode.VALIDATION_ERROR, "Spreadsheet is empty or has no readable rows")
+
+    headers = rows[0]
+    data_rows = rows[1:]
+
+    # Rule: <= 5,000 data rows (IDP-E11, 10 §4 EP-23)
+    if len(data_rows) > 5000:
+        raise ApiError(
+            ErrorCode.VALIDATION_ERROR,
+            f"Spreadsheet exceeds maximum of 5,000 rows (got {len(data_rows)} rows)",
+            details={"actual_rows": len(data_rows), "max_rows": 5000},
+        )
+
+    mapping_suggestion = generate_mapping_suggestion(headers, sheet_name=sheet_name)
+
+    doc_id = uuid4()
+    storage_key = f"documents/{doc_id}/{filename}"
+    storage = get_storage_service()
+    content_type = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        if ext == ".xlsx"
+        else "text/csv"
+    )
+    storage.put_object(storage_key, file_bytes, content_type=content_type)
+
+    hasher = hashlib.sha256()
+    hasher.update(file_bytes)
+    sha256_hex = hasher.hexdigest()
+
+    doc_type = doc_type_hint or DocType.INVOICE
+    pillars = DOC_TYPE_PILLARS.get(doc_type, ["FIN"])
+
+    doc = SourceDocument(
+        id=doc_id,
+        batch_id=batch_id,
+        channel=InputChannel.C5,
+        kind=DocumentKind.FILE,
+        original_filename=filename,
+        mime_type=content_type,
+        size_bytes=len(file_bytes),
+        page_count=1,
+        storage_key=storage_key,
+        sha256=sha256_hex,
+        doc_type=doc_type,
+        pillars=pillars,
+        status=DocumentStatus.UPLOADED,
+        autonomy_level=AutonomyLevel.L1,
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.now(UTC),
+    )
+    db.add(doc)
+    db.flush()
+
+    # Record audit log
+    record_audit(
+        db=db,
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        action="document.import_upload",
+        target_type="source_documents",
+        target_id=doc.id,
+        source_document_id=doc.id,
+        after={
+            "id": str(doc.id),
+            "filename": filename,
+            "row_count": len(data_rows),
+            "channel": InputChannel.C5.value,
+        },
+    )
+
+    db.commit()
+    db.refresh(doc)
+    return doc, mapping_suggestion
+
+
+def handle_import_mapping_confirm(
+    db: Session,
+    current_user: User,
+    doc_id: UUID,
+    doc_type: DocType,
+    columns: list[ColumnConfirmItem],
+) -> tuple[SourceDocument, list[RowErrorItem]]:
+    """EP-36: Confirm column mapping and extract fields per row.
+
+    Record row errors without blocking valid rows (IDP-E11).
+    """
+    doc = db.get(SourceDocument, doc_id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, "Document not found")
+
+    # Only uploader can confirm mapping (10 §4 EP-36, TC-IDP-007)
+    if doc.uploaded_by_id != current_user.id:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE,
+            "Only the user who uploaded the document can confirm column mapping",
+        )
+
+    if doc.status not in (DocumentStatus.UPLOADED, DocumentStatus.PREPROCESSING):
+        raise ApiError(
+            ErrorCode.CONFLICT_STATE,
+            f"Cannot confirm mapping for document in status {doc.status.value}",
+        )
+
+    if not doc.storage_key:
+        raise ApiError(ErrorCode.CONFLICT_STATE, "Document has no storage file to parse")
+
+    storage = get_storage_service()
+    file_bytes = storage.get_object(doc.storage_key)
+    sheet_name, rows = parse_spreadsheet_rows(file_bytes, doc.original_filename or "data.xlsx")
+
+    data_rows = rows[1:]  # Skip header row
+
+    # Build mapping: col_index -> field_key
+    col_mapping: dict[int, str] = {}
+    for item in columns:
+        col_idx = col_letter_to_index(item.column)
+        col_mapping[col_idx] = item.field_key
+
+    job = ExtractionJob(
+        source_document_id=doc.id,
+        attempt_no=1,
+        doc_type=doc_type,
+        status=JobStatus.SUCCEEDED,
+        routing_decision=RoutingDecision.REVIEW,
+        routing_reason="C5 bulk import requires review queue verification",
+        avg_confidence=0.95,
+    )
+    db.add(job)
+    db.flush()
+
+    row_errors: list[RowErrorItem] = []
+
+    # 1-based index: header is row 1, data starts at row 2
+    for row_idx, row_data in enumerate(data_rows, start=2):
+        # Check validation on row
+        row_has_error = False
+        row_fields: list[tuple[str, Any, str, int]] = []  # (field_key, value, raw_text, col_idx)
+
+        for col_idx, field_key in col_mapping.items():
+            raw_val = row_data[col_idx] if col_idx < len(row_data) else ""
+            clean_val = raw_val.strip()
+
+            # Format validation per field
+            if "tax_code" in field_key.lower() and clean_val:
+                if not validate_tax_code(clean_val):
+                    row_errors.append(
+                        RowErrorItem(
+                            row_index=row_idx,
+                            field_key=field_key,
+                            code="INVALID_TAX_CODE",
+                            message=f"Mã số thuế '{clean_val}' không đúng định dạng",
+                        )
+                    )
+                    row_has_error = True
+
+            # Convert numeric/date values if possible
+            val: Any = clean_val
+            if any(
+                m in field_key.lower()
+                for m in ("subtotal", "amount", "vat_amount", "paid_amount")
+            ):
+                try:
+                    num_str = clean_val.replace(".", "").replace(",", "")
+                    if num_str:
+                        val = int(num_str)
+                except ValueError:
+                    pass
+
+            row_fields.append((field_key, val, clean_val, col_idx))
+
+        # IDP-E11: Row errors do not block valid rows or valid fields
+        if not row_has_error:
+            for field_key, val, raw_val, col_idx in row_fields:
+                col_letter = index_to_col_letter(col_idx)
+                vtype = infer_field_value_type(field_key, val)
+                sensitivity = (
+                    SensitivityLabel.SALARY
+                    if "salary" in field_key.lower()
+                    else SensitivityLabel.NONE
+                )
+                field = ExtractedField(
+                    extraction_job_id=job.id,
+                    source_document_id=doc.id,
+                    field_key=field_key,
+                    value=val,
+                    raw_text=raw_val,
+                    value_type=vtype,
+                    confidence=0.95,
+                    source_location={
+                        "kind": "cell",
+                        "sheet": sheet_name,
+                        "row": row_idx,
+                        "col": col_letter,
+                    },
+                    source_kind=SourceLocationKind.CELL,
+                    record_group=str(row_idx),
+                    sensitivity=sensitivity,
+                )
+                db.add(field)
+
+    doc.status = DocumentStatus.NEEDS_REVIEW
+    doc.doc_type = doc_type
+
+    # Record audit log
+    record_audit(
+        db=db,
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        action="document.import_mapping_confirm",
+        target_type="source_documents",
+        target_id=doc.id,
+        source_document_id=doc.id,
+        after={
+            "id": str(doc.id),
+            "doc_type": doc_type.value,
+            "columns": [c.model_dump() for c in columns],
+            "total_rows": len(data_rows),
+            "error_rows": len(row_errors),
+        },
+    )
+
+    db.commit()
+    db.refresh(doc)
+    return doc, row_errors
+
 

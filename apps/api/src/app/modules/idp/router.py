@@ -21,14 +21,17 @@ from app.modules.idp.schemas import (
     BatchCreateRequest,
     BatchCreateResponse,
     DocumentOut,
+    ImportMappingConfirmRequest,
     ManualDocumentCreateRequest,
     NaturalLanguageDocumentCreateRequest,
     UserBrief,
 )
 from app.modules.idp.service import (
     handle_document_upload,
+    handle_import_mapping_confirm,
     handle_manual_document_create,
     handle_natural_language_create,
+    handle_spreadsheet_upload,
     process_upload_stream,
 )
 
@@ -246,4 +249,77 @@ def create_natural_language_document(
     )
     doc_out = serialize_document_out(doc, current_user)
     return Envelope(data=doc_out)
+
+
+@router.post(
+    "/documents/import",
+    response_model=Envelope[DocumentOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Import spreadsheet file C5 - Step 1: upload & mapping suggestion (EP-23)",
+)
+async def import_document(
+    file: UploadFile,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    doc_type: Annotated[DocType | None, Form()] = None,
+    batch_id: Annotated[UUID | None, Form()] = None,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[DocumentOut]:
+    """EP-23: Bulk spreadsheet import (C5) - step 1.
+
+    Reads XLSX/CSV file up to 5,000 rows, produces AI column mapping suggestion (L1).
+    """
+    file_bytes = await file.read()
+    filename = file.filename or "import.xlsx"
+    doc, mapping_suggestion = handle_spreadsheet_upload(
+        db=db,
+        current_user=current_user,
+        file_bytes=file_bytes,
+        filename=filename,
+        doc_type_hint=doc_type,
+        batch_id=batch_id,
+    )
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out, meta={"mapping_suggestion": mapping_suggestion.model_dump()})
+
+
+@router.post(
+    "/documents/{id}/import-mapping",
+    response_model=Envelope[DocumentOut],
+    status_code=status.HTTP_200_OK,
+    summary="Confirm spreadsheet column mapping C5 - Step 2 (EP-36)",
+)
+def confirm_import_mapping(
+    id: UUID,
+    payload: ImportMappingConfirmRequest,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[DocumentOut]:
+    """EP-36: Bulk spreadsheet import (C5) - step 2.
+
+    Applies column mapping to extract ExtractedField rows with source_location.kind=cell.
+    Row errors are collected and reported in meta.row_errors without blocking valid rows (IDP-E11).
+    Restricted to the user who uploaded the document (FORBIDDEN_SCOPE).
+    """
+    doc, row_errors = handle_import_mapping_confirm(
+        db=db,
+        current_user=current_user,
+        doc_id=id,
+        doc_type=payload.doc_type,
+        columns=payload.columns,
+    )
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out, meta={"row_errors": [e.model_dump() for e in row_errors]})
+
 

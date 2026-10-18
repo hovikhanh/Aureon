@@ -112,3 +112,44 @@ class NaturalLanguageDocumentCreateRequest(BaseModel):
     text: str = Field(..., max_length=2000)
     batch_id: UUID | None = None
 
+
+class ColumnMappingSuggestionItem(BaseModel):
+    """One suggested column-to-field mapping in EP-23."""
+
+    column: str
+    header: str
+    suggested_field_key: str | None = None
+    confidence: float = 0.0
+
+
+class MappingSuggestion(BaseModel):
+    """AI suggested column mapping in EP-23."""
+
+    sheet_name: str = "Sheet1"
+    header_row: int = 1
+    columns: list[ColumnMappingSuggestionItem]
+
+
+class ColumnConfirmItem(BaseModel):
+    """One confirmed column mapping in EP-36."""
+
+    column: str
+    field_key: str
+
+
+class ImportMappingConfirmRequest(BaseModel):
+    """Request payload for EP-36 POST /api/v1/documents/{id}/import-mapping."""
+
+    doc_type: DocType = DocType.INVOICE
+    columns: list[ColumnConfirmItem]
+
+
+class RowErrorItem(BaseModel):
+    """One row error in EP-36 import processing."""
+
+    row_index: int
+    field_key: str
+    code: str
+    message: str | None = None
+
+
