@@ -21,6 +21,7 @@ from app.core.errors import ApiError, ErrorCode
 from app.db.enums import ActorType
 from app.modules.audit.service import record_audit
 from app.modules.auth.models import Role, User
+from app.modules.idp.cross_doc import run_cross_document_checks
 from app.modules.idp.enums import (
     DocType,
     DocumentStatus,
@@ -401,6 +402,9 @@ def extract_document_fields(
 
     # FR-DC-13: Validate internal rules and update field confidences
     validate_internal_rules(db, doc.id, job.id)
+
+    # FR-DC-14: Cross-document consistency checks (XD-01..05)
+    run_cross_document_checks(db, doc.id, job.id)
 
     avg_conf = sum(confidences) / len(confidences) if confidences else 0.85
     job.status = JobStatus.SUCCEEDED
