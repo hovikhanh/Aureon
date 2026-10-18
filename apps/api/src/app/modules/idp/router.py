@@ -4,7 +4,7 @@ EP-20..EP-27, EP-34, EP-36, EP-40, EP-50 per 10-API-SPECIFICATION.md §4, §6.
 """
 
 import math
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Form, Header, Query, Response, UploadFil
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import ConfigService, get_config
 from app.core.envelope import Envelope, Page
 from app.core.errors import ApiError, ErrorCode
 from app.core.pagination import PageParams, get_page_params, paginate
@@ -22,7 +23,10 @@ from app.modules.audit.models import AuditLog
 from app.modules.audit.service import record_audit
 from app.modules.auth.deps import require_role
 from app.modules.auth.models import User
-from app.modules.idp.action_registry import execute_action
+from app.modules.idp.action_registry import (
+    build_action_payload_from_doc,
+    execute_action,
+)
 from app.modules.idp.cross_doc import run_cross_document_checks
 from app.modules.idp.enums import (
     DocType,
@@ -46,11 +50,17 @@ from app.modules.idp.models import (
     SourceDocument,
 )
 from app.modules.idp.preprocessing import split_multi_document
+from app.modules.idp.routing import (
+    get_all_doc_type_autonomies,
+    get_doc_type_autonomy,
+)
 from app.modules.idp.schemas import (
+    AiConfigOut,
     BatchChecklistItem,
     BatchCreateRequest,
     BatchCreateResponse,
     CommitActionResult,
+    DocTypeAutonomyOut,
     DocumentAffectedOut,
     DocumentDetailOut,
     DocumentOut,
@@ -61,6 +71,7 @@ from app.modules.idp.schemas import (
     ExtractionSchemaOut,
     ImportMappingConfirmRequest,
     JobOut,
+    KillSwitchConfigOut,
     ManualDocumentCreateRequest,
     ManualInfoOut,
     NaturalLanguageDocumentCreateRequest,
@@ -79,6 +90,7 @@ from app.modules.idp.schemas import (
     RollbackDocumentRequest,
     RollbackOut,
     StatusTimelineItem,
+    ThresholdsConfigOut,
     UpdateDocumentFieldsRequest,
     UserBrief,
 )
@@ -123,6 +135,34 @@ def check_document_in_role_scope(doc: SourceDocument, user: User) -> bool:
     return False
 
 
+def compute_ai_state(doc: SourceDocument, cfg: ConfigService | None = None) -> str:
+    """Compute P02 AI state badge level (L0..L3) for DocumentOut."""
+    if cfg is None:
+        cfg = get_config()
+
+    if cfg.ai_kill_switch and cfg.ai_kill_switch_mode == "L0":
+        return "L0"
+
+    if doc.channel == InputChannel.C1:
+        return "L0"
+
+    effective_autonomy = doc.autonomy_level or get_doc_type_autonomy(doc.doc_type)
+
+    if cfg.ai_kill_switch and cfg.ai_kill_switch_mode == "L2":
+        if effective_autonomy == "L3":
+            effective_autonomy = "L2"
+
+    if doc.status == DocumentStatus.AUTO_APPROVED:
+        return "L3"
+
+    if doc.status == DocumentStatus.COMMITTED and (
+        doc.status_reason and "STP" in doc.status_reason
+    ):
+        return "L3"
+
+    return effective_autonomy
+
+
 def serialize_document_out(doc: SourceDocument, user: User) -> DocumentOut:
     """Map SQLAlchemy SourceDocument to DocumentOut schema."""
     uploader_name = user.full_name if doc.uploaded_by_id == user.id else "Demo User"
@@ -161,6 +201,12 @@ def serialize_document_out(doc: SourceDocument, user: User) -> DocumentOut:
 
     contains_salary = bool(doc.contains_salary or doc.doc_type == DocType.EMPLOYEE_LIST)
 
+    cfg = get_config()
+    ai_state = compute_ai_state(doc, cfg)
+    autonomy_level = doc.autonomy_level or get_doc_type_autonomy(doc.doc_type)
+    if cfg.ai_kill_switch and cfg.ai_kill_switch_mode == "L2" and autonomy_level == "L3":
+        autonomy_level = "L2"
+
     return DocumentOut(
         id=doc.id,
         batch_id=doc.batch_id,
@@ -174,8 +220,8 @@ def serialize_document_out(doc: SourceDocument, user: User) -> DocumentOut:
         pillars=doc.pillars,
         status=doc.status,
         status_reason=doc.status_reason,
-        ai_state=None,
-        autonomy_level=doc.autonomy_level,
+        ai_state=ai_state,
+        autonomy_level=autonomy_level,
         contains_salary=contains_salary,
         contains_pii=doc.contains_pii,
         duplicate_of_id=doc.duplicate_of_id,
@@ -1472,166 +1518,6 @@ def release_document_review(
     return Envelope(data=doc_out)
 
 
-def build_action_payload_from_doc(
-    doc: SourceDocument, job: ExtractionJob | None
-) -> tuple[str, dict[str, Any]]:
-    """Build action name and typed payload dict from document's extracted fields."""
-    fields: dict[str, Any] = {}
-    if job and job.fields:
-        for f in job.fields:
-            fields[f.field_key] = f.corrected_value if f.corrected else f.value
-
-    if doc.manual_payload:
-        for k, v in doc.manual_payload.items():
-            if k not in fields or fields[k] is None:
-                fields[k] = v
-
-    doc_type = doc.doc_type or DocType.INVOICE
-
-    if doc_type == DocType.INVOICE:
-        action_name = "invoice.create"
-        subtotal = int(float(fields.get("subtotal") or fields.get("total_amount") or 0))
-        vat_rate = float(fields.get("vat_rate") or 0.1)
-        vat_amount = int(float(fields.get("vat_amount") or (subtotal * vat_rate)))
-        total_amount = int(float(fields.get("total_amount") or (subtotal + vat_amount)))
-        paid_amount = int(float(fields.get("paid_amount") or 0))
-
-        issue_date_raw = fields.get("issue_date")
-        if isinstance(issue_date_raw, date):
-            issue_d = issue_date_raw
-        elif isinstance(issue_date_raw, str):
-            issue_d = date.fromisoformat(issue_date_raw[:10])
-        else:
-            issue_d = date.today()
-
-        due_date_raw = fields.get("due_date")
-        if isinstance(due_date_raw, date):
-            due_d = due_date_raw
-        elif isinstance(due_date_raw, str):
-            due_d = date.fromisoformat(due_date_raw[:10])
-        else:
-            due_d = issue_d + timedelta(days=30)
-
-        payload = {
-            "invoice_number": str(fields.get("invoice_number") or f"INV-{doc.id.hex[:6].upper()}"),
-            "issue_date": issue_d,
-            "due_date": due_d,
-            "customer_name": str(
-                fields.get("customer_name") or fields.get("buyer_name") or "Khách hàng"
-            ),
-            "subtotal": subtotal,
-            "vat_rate": vat_rate,
-            "vat_amount": vat_amount,
-            "total_amount": total_amount,
-            "paid_amount": paid_amount,
-            "seller_name": str(fields.get("seller_name") or "Công ty TNHH TM&DV ABC"),
-            "seller_tax_code": str(fields.get("seller_tax_code") or "0101234567"),
-            "customer_tax_code": str(fields.get("customer_tax_code") or "0109999999"),
-            "status": str(
-                fields.get("status") or ("PAID" if paid_amount >= total_amount else "UNPAID")
-            ),
-        }
-        return action_name, payload
-
-    if doc_type == DocType.CONTRACT:
-        action_name = "contract.create"
-        effective_raw = fields.get("start_date") or fields.get("effective_date")
-        effective_d = (
-            effective_raw
-            if isinstance(effective_raw, date)
-            else (date.fromisoformat(str(effective_raw)[:10]) if effective_raw else date.today())
-        )
-        expiry_raw = fields.get("end_date") or fields.get("expiry_date")
-        expiry_d = (
-            expiry_raw
-            if isinstance(expiry_raw, date)
-            else (
-                date.fromisoformat(str(expiry_raw)[:10])
-                if expiry_raw
-                else (effective_d + timedelta(days=365))
-            )
-        )
-        payload = {
-            "contract_number": str(
-                fields.get("contract_number") or f"CTR-{doc.id.hex[:6].upper()}"
-            ),
-            "party_b_name": str(
-                fields.get("party_b_name") or fields.get("customer_name") or "Đối tác B"
-            ),
-            "effective_date": effective_d,
-            "expiry_date": expiry_d,
-            "total_value": int(
-                float(fields.get("total_value") or fields.get("contract_value") or 0)
-            ),
-            "status": str(fields.get("status") or "ACTIVE"),
-        }
-        return action_name, payload
-
-    if doc_type == DocType.MEETING_MINUTES:
-        action_name = "task.create_from_minutes"
-        m_raw = fields.get("meeting_date")
-        m_date = (
-            m_raw
-            if isinstance(m_raw, date)
-            else (date.fromisoformat(str(m_raw)[:10]) if m_raw else date.today())
-        )
-        payload = {
-            "title": str(
-                fields.get("title")
-                or fields.get("meeting_title")
-                or f"Biên bản họp {doc.original_filename}"
-            ),
-            "assignee": fields.get("assignee"),
-            "due_date": m_date + timedelta(days=7),
-            "decision_text": fields.get("decision_text") or fields.get("conclusion"),
-            "project_name": fields.get("project_name"),
-        }
-        return action_name, payload
-
-    if doc_type == DocType.EMPLOYEE_LIST:
-        action_name = "employee.upsert"
-        salary_val = fields.get("salary") or fields.get("base_salary")
-        payload = {
-            "employee_code": str(fields.get("employee_code") or f"EMP-{doc.id.hex[:4].upper()}"),
-            "full_name": str(fields.get("full_name") or "Nhân viên"),
-            "department": str(fields.get("department") or "Phòng ban"),
-            "title": str(fields.get("title") or "Nhân viên"),
-            "salary": int(float(salary_val)) if salary_val is not None else None,
-        }
-        return action_name, payload
-
-    if doc_type in (DocType.FINANCIAL_REPORT, DocType.SALES_REPORT):
-        action_name = "metric_value.upsert"
-        payload = {
-            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
-            "period": str(fields.get("period") or "2026-Q3"),
-            "value": float(
-                fields.get("value") or fields.get("revenue") or fields.get("total_amount") or 0.0
-            ),
-            "value_kind": "ACTUAL",
-            "line_description": fields.get("line_description") or doc.original_filename,
-        }
-        return action_name, payload
-
-    if doc_type == DocType.KPI_OKR:
-        action_name = "metric_target.upsert"
-        payload = {
-            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
-            "period": str(fields.get("period") or "2026"),
-            "target_value": float(fields.get("target_value") or 100000000.0),
-            "budget_line": fields.get("budget_line"),
-        }
-        return action_name, payload
-
-    return "metric_value.upsert", {
-        "metric_code": "METRIC-FIN-01",
-        "period": "2026-Q3",
-        "value": 0.0,
-        "value_kind": "ACTUAL",
-        "line_description": doc.original_filename,
-    }
-
-
 @router.post(
     "/documents/{id}/review/approve",
     response_model=Envelope[ReviewApproveOut],
@@ -2020,5 +1906,52 @@ def rollback_document(
         data=RollbackOut(
             document=doc_out,
             affected_metric_codes=affected_metrics,
+        )
+    )
+
+
+@router.get(
+    "/ai-config",
+    response_model=Envelope[AiConfigOut],
+    summary="Get AI configuration (EP-51, read-only)",
+)
+def get_ai_config(
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-05")),
+    ],
+) -> Envelope[AiConfigOut]:
+    """EP-51: Cấu hình AI chỉ đọc (SCR-15).
+
+    - Quyền: require_role(ROLE-01, ROLE-05) - chỉ đọc.
+    - ROLE-02..04 -> 403 FORBIDDEN_ROLE.
+    - Trả về kill_switch, doc_types, thresholds, source="SEED".
+    """
+    cfg = get_config()
+    kill_switch_out = KillSwitchConfigOut(
+        enabled=cfg.ai_kill_switch,
+        mode=cfg.ai_kill_switch_mode if cfg.ai_kill_switch else None,
+    )
+    doc_types_raw = get_all_doc_type_autonomies()
+    doc_types_out = [
+        DocTypeAutonomyOut(
+            doc_type=dt["doc_type"],
+            autonomy_level=dt["autonomy_level"],
+            max_autonomy_level=dt["max_autonomy_level"],
+        )
+        for dt in doc_types_raw
+    ]
+    thresholds_out = ThresholdsConfigOut(
+        field_high=0.90,
+        field_low=0.70,
+        classification_min=0.80,
+        stp_classification=0.95,
+    )
+    return Envelope(
+        data=AiConfigOut(
+            kill_switch=kill_switch_out,
+            doc_types=doc_types_out,
+            thresholds=thresholds_out,
+            source="SEED",
         )
     )

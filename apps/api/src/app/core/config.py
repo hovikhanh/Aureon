@@ -46,6 +46,8 @@ class ConfigService(BaseSettings):
     max_file_size_mb: int = 20
     max_pages: int = 50
     ai_kill_switch: bool = False
+    ai_kill_switch_mode: str = "L0"
+    invoice_autonomy_level: str = "L2"
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
     # Demo account passwords (08 §2) — read only by `app.seed`, hashed with argon2id, never logged.

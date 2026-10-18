@@ -11,15 +11,22 @@ Coordinates:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.core.config import get_config
+from app.db.enums import ActorType
 from app.db.session import SessionLocal
-from app.modules.idp.enums import DocumentStatus, JobStatus
+from app.modules.audit.service import record_audit
+from app.modules.idp.action_registry import (
+    build_action_payload_from_doc,
+    execute_action,
+)
+from app.modules.idp.enums import DocumentStatus, JobStatus, RoutingDecision
 from app.modules.idp.extraction import classify_document, extract_document_fields
 from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
 from app.modules.idp.preprocessing import preprocess_document
@@ -56,6 +63,22 @@ def run_document_pipeline(
             "document_id": str(doc.id),
             "status": doc.status.value,
             "error_code": "IDP-E02",
+        }
+
+    # Check kill switch L0 (TC-IDP-028: do not call model, move to NEEDS_REVIEW)
+    cfg = get_config()
+    is_kill_switch_l0 = kill_switch_override is True or (
+        cfg.ai_kill_switch and cfg.ai_kill_switch_mode == "L0"
+    )
+    if is_kill_switch_l0:
+        doc.status = DocumentStatus.NEEDS_REVIEW
+        doc.status_reason = "AI đã bị tắt bởi kill switch L0 - chuyển nhập tay/review"
+        db.commit()
+        return {
+            "document_id": str(doc.id),
+            "status": doc.status.value,
+            "routing_decision": "REVIEW",
+            "routing_reason": "KILL_SWITCH_L0_ACTIVE",
         }
 
     # Step 1: Preprocessing & OCR
@@ -101,6 +124,38 @@ def run_document_pipeline(
         autonomy_override=autonomy_override,
         kill_switch_override=kill_switch_override,
     )
+
+    # STP auto-commit (TC-IDP-027: INVOICE L3 + clean -> AUTO_APPROVED -> COMMITTED with ai:idp)
+    if decision == RoutingDecision.STP:
+        now = datetime.now(UTC)
+        action_name, action_payload = build_action_payload_from_doc(doc, job)
+        action_res = execute_action(
+            db=db,
+            action_name=action_name,
+            document_id=doc.id,
+            payload=action_payload,
+            actor="ai:idp",
+            field_set_version=job.attempt_no,
+        )
+        doc.status = DocumentStatus.COMMITTED
+        doc.committed_at = now
+        doc.undo_deadline = now + timedelta(days=7)
+        doc.status_reason = f"Tự động duyệt (STP): {reason}"
+
+        record_audit(
+            db=db,
+            action="review.auto_approve",
+            target_type="source_documents",
+            actor_type=ActorType.AI,
+            actor_user_id=None,
+            target_id=doc.id,
+            source_document_id=doc.id,
+            metadata={
+                "action_name": action_name,
+                "business_record_id": action_res.get("business_record_id"),
+                "actor": "ai:idp",
+            },
+        )
 
     job.status = JobStatus.SUCCEEDED
     job.finished_at = datetime.now(UTC)

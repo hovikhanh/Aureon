@@ -70,6 +70,7 @@ def test_missing_endpoints_reported_as_progress_not_error() -> None:
     assert "EP-35" not in missing, "EP-35 is mounted and must not be listed as missing"
     assert "EP-36" not in missing, "EP-36 is mounted and must not be listed as missing"
     assert "EP-40" not in missing, "EP-40 is mounted and must not be listed as missing"
+    assert "EP-51" not in missing, "EP-51 is mounted and must not be listed as missing"
     assert "EP-10" in missing, f"EP-10 is not built yet and must be reported; got {missing}"
     assert len(missing) >= 10, (
         f"expected the bulk of 10 §1.10 to be reported as missing progress, got {len(missing)}: "

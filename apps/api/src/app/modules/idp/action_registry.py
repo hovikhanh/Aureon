@@ -18,7 +18,7 @@ Specs:
 import hashlib
 import logging
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -30,13 +30,15 @@ from app.core.errors import ApiError, ErrorCode
 from app.db.enums import ActorType
 from app.modules.audit.service import record_audit
 from app.modules.auth.models import User
-from app.modules.idp.enums import DocumentStatus, RecordType, ReviewDecision
+from app.modules.idp.enums import DocType, DocumentStatus, RecordType, ReviewDecision
 from app.modules.idp.models import (
     BusinessRecord,
     ExtractedField,
+    ExtractionJob,
     ExtractionReview,
     SourceDocument,
 )
+from app.modules.idp.routing import get_doc_type_autonomy
 
 logger = logging.getLogger(__name__)
 
@@ -612,7 +614,11 @@ def execute_action(
     # 1. Permission and autonomy check
     if isinstance(actor, str) and actor == "ai:idp":
         # Check autonomy level
-        autonomy = doc.manual_payload.get("autonomy_level") if doc.manual_payload else None
+        autonomy = (
+            doc.manual_payload.get("autonomy_level")
+            if (doc.manual_payload and "autonomy_level" in doc.manual_payload)
+            else (doc.autonomy_level or get_doc_type_autonomy(doc.doc_type))
+        )
         if autonomy != "L3":
             raise ApiError(
                 ErrorCode.FORBIDDEN_ROLE,
@@ -689,3 +695,163 @@ def execute_action(
             ErrorCode.ACTION_REJECTED,
             f"Thực thi action '{action_name}' thất bại: {exc}",
         ) from exc
+
+
+def build_action_payload_from_doc(
+    doc: SourceDocument, job: ExtractionJob | None
+) -> tuple[str, dict[str, Any]]:
+    """Build action name and typed payload dict from document's extracted fields."""
+    fields: dict[str, Any] = {}
+    if job and job.fields:
+        for f in job.fields:
+            fields[f.field_key] = f.corrected_value if f.corrected else f.value
+
+    if doc.manual_payload:
+        for k, v in doc.manual_payload.items():
+            if k not in fields or fields[k] is None:
+                fields[k] = v
+
+    doc_type = doc.doc_type or DocType.INVOICE
+
+    if doc_type == DocType.INVOICE:
+        action_name = "invoice.create"
+        subtotal = int(float(fields.get("subtotal") or fields.get("total_amount") or 0))
+        vat_rate = float(fields.get("vat_rate") or 0.1)
+        vat_amount = int(float(fields.get("vat_amount") or (subtotal * vat_rate)))
+        total_amount = int(float(fields.get("total_amount") or (subtotal + vat_amount)))
+        paid_amount = int(float(fields.get("paid_amount") or 0))
+
+        issue_date_raw = fields.get("issue_date")
+        if isinstance(issue_date_raw, date):
+            issue_d = issue_date_raw
+        elif isinstance(issue_date_raw, str):
+            issue_d = date.fromisoformat(issue_date_raw[:10])
+        else:
+            issue_d = date.today()
+
+        due_date_raw = fields.get("due_date")
+        if isinstance(due_date_raw, date):
+            due_d = due_date_raw
+        elif isinstance(due_date_raw, str):
+            due_d = date.fromisoformat(due_date_raw[:10])
+        else:
+            due_d = issue_d + timedelta(days=30)
+
+        payload = {
+            "invoice_number": str(fields.get("invoice_number") or f"INV-{doc.id.hex[:6].upper()}"),
+            "issue_date": issue_d,
+            "due_date": due_d,
+            "customer_name": str(
+                fields.get("customer_name") or fields.get("buyer_name") or "Khách hàng"
+            ),
+            "subtotal": subtotal,
+            "vat_rate": vat_rate,
+            "vat_amount": vat_amount,
+            "total_amount": total_amount,
+            "paid_amount": paid_amount,
+            "seller_name": str(fields.get("seller_name") or "Công ty TNHH TM&DV ABC"),
+            "seller_tax_code": str(fields.get("seller_tax_code") or "0101234567"),
+            "customer_tax_code": str(fields.get("customer_tax_code") or "0109999999"),
+            "status": str(
+                fields.get("status") or ("PAID" if paid_amount >= total_amount else "UNPAID")
+            ),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.CONTRACT:
+        action_name = "contract.create"
+        effective_raw = fields.get("start_date") or fields.get("effective_date")
+        effective_d = (
+            effective_raw
+            if isinstance(effective_raw, date)
+            else (date.fromisoformat(str(effective_raw)[:10]) if effective_raw else date.today())
+        )
+        expiry_raw = fields.get("end_date") or fields.get("expiry_date")
+        expiry_d = (
+            expiry_raw
+            if isinstance(expiry_raw, date)
+            else (
+                date.fromisoformat(str(expiry_raw)[:10])
+                if expiry_raw
+                else (effective_d + timedelta(days=365))
+            )
+        )
+        payload = {
+            "contract_number": str(
+                fields.get("contract_number") or f"CTR-{doc.id.hex[:6].upper()}"
+            ),
+            "party_b_name": str(
+                fields.get("party_b_name") or fields.get("customer_name") or "Đối tác B"
+            ),
+            "effective_date": effective_d,
+            "expiry_date": expiry_d,
+            "total_value": int(
+                float(fields.get("total_value") or fields.get("contract_value") or 0)
+            ),
+            "status": str(fields.get("status") or "ACTIVE"),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.MEETING_MINUTES:
+        action_name = "task.create_from_minutes"
+        m_raw = fields.get("meeting_date")
+        m_date = (
+            m_raw
+            if isinstance(m_raw, date)
+            else (date.fromisoformat(str(m_raw)[:10]) if m_raw else date.today())
+        )
+        payload = {
+            "title": str(
+                fields.get("title")
+                or fields.get("meeting_title")
+                or f"Biên bản họp {doc.original_filename}"
+            ),
+            "assignee": fields.get("assignee"),
+            "due_date": m_date + timedelta(days=7),
+            "decision_text": fields.get("decision_text") or fields.get("conclusion"),
+            "project_name": fields.get("project_name"),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.EMPLOYEE_LIST:
+        action_name = "employee.upsert"
+        salary_val = fields.get("salary") or fields.get("base_salary")
+        payload = {
+            "employee_code": str(fields.get("employee_code") or f"EMP-{doc.id.hex[:4].upper()}"),
+            "full_name": str(fields.get("full_name") or "Nhân viên"),
+            "department": str(fields.get("department") or "Phòng ban"),
+            "title": str(fields.get("title") or "Nhân viên"),
+            "salary": int(float(salary_val)) if salary_val is not None else None,
+        }
+        return action_name, payload
+
+    if doc_type in (DocType.FINANCIAL_REPORT, DocType.SALES_REPORT):
+        action_name = "metric_value.upsert"
+        payload = {
+            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
+            "period": str(fields.get("period") or "2026-Q3"),
+            "value": float(
+                fields.get("value") or fields.get("revenue") or fields.get("total_amount") or 0.0
+            ),
+            "value_kind": "ACTUAL",
+            "line_description": fields.get("line_description") or doc.original_filename,
+        }
+        return action_name, payload
+
+    if doc_type == DocType.KPI_OKR:
+        action_name = "metric_target.upsert"
+        payload = {
+            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
+            "period": str(fields.get("period") or "2026"),
+            "target_value": float(fields.get("target_value") or 100000000.0),
+            "budget_line": fields.get("budget_line"),
+        }
+        return action_name, payload
+
+    return "metric_value.upsert", {
+        "metric_code": "METRIC-FIN-01",
+        "period": "2026-Q3",
+        "value": 0.0,
+        "value_kind": "ACTUAL",
+        "line_description": doc.original_filename,
+    }

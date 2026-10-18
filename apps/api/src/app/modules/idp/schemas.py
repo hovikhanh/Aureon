@@ -426,3 +426,36 @@ class RollbackOut(BaseModel):
 
     document: DocumentOut
     affected_metric_codes: list[str] = Field(default_factory=list)
+
+
+class KillSwitchConfigOut(BaseModel):
+    """Kill switch status for EP-51."""
+
+    enabled: bool
+    mode: str | None = None
+
+
+class DocTypeAutonomyOut(BaseModel):
+    """Autonomy configuration for a document type."""
+
+    doc_type: str
+    autonomy_level: str
+    max_autonomy_level: str
+
+
+class ThresholdsConfigOut(BaseModel):
+    """Extraction and routing thresholds."""
+
+    field_high: float = 0.90
+    field_low: float = 0.70
+    classification_min: float = 0.80
+    stp_classification: float = 0.95
+
+
+class AiConfigOut(BaseModel):
+    """Response payload for EP-51 GET /ai-config."""
+
+    kill_switch: KillSwitchConfigOut
+    doc_types: list[DocTypeAutonomyOut]
+    thresholds: ThresholdsConfigOut = Field(default_factory=ThresholdsConfigOut)
+    source: str = "SEED"

@@ -36,6 +36,57 @@ DEFAULT_AUTONOMY: dict[DocType, str] = {
     DocType.EMPLOYEE_LIST: "L2",  # Max L2
 }
 
+DOC_TYPE_MAX_AUTONOMY: dict[DocType, str] = {
+    DocType.INVOICE: "L3",
+    DocType.SALES_REPORT: "L3",
+    DocType.KPI_OKR: "L3",
+    DocType.MEETING_MINUTES: "L3",
+    DocType.FINANCIAL_REPORT: "L2",
+    DocType.CONTRACT: "L2",
+    DocType.EMPLOYEE_LIST: "L2",
+}
+
+
+def get_doc_type_autonomy(doc_type: DocType | str | None) -> str:
+    """Get the active autonomy level for a doc type."""
+    cfg = get_config()
+    if isinstance(doc_type, str):
+        try:
+            doc_type = DocType(doc_type)
+        except ValueError:
+            doc_type = None
+
+    if doc_type == DocType.INVOICE and cfg.invoice_autonomy_level:
+        return cfg.invoice_autonomy_level
+
+    if doc_type:
+        return DEFAULT_AUTONOMY.get(doc_type, "L2")
+    return "L2"
+
+
+def get_all_doc_type_autonomies() -> list[dict[str, str]]:
+    """Return all doc type autonomy configurations for EP-51."""
+    res = []
+    for dt in (
+        DocType.INVOICE,
+        DocType.SALES_REPORT,
+        DocType.KPI_OKR,
+        DocType.MEETING_MINUTES,
+        DocType.FINANCIAL_REPORT,
+        DocType.CONTRACT,
+        DocType.EMPLOYEE_LIST,
+    ):
+        active_lvl = get_doc_type_autonomy(dt)
+        max_lvl = DOC_TYPE_MAX_AUTONOMY.get(dt, "L2")
+        res.append(
+            {
+                "doc_type": dt.value,
+                "autonomy_level": active_lvl,
+                "max_autonomy_level": max_lvl,
+            }
+        )
+    return res
+
 
 def evaluate_routing(
     db: Session,
@@ -59,7 +110,7 @@ def evaluate_routing(
         return decision, reason
 
     doc_type = doc.doc_type or DocType.OTHER
-    autonomy = autonomy_override or DEFAULT_AUTONOMY.get(doc_type, "L2")
+    autonomy = autonomy_override or get_doc_type_autonomy(doc_type)
     if autonomy != "L3":
         decision, reason = RoutingDecision.REVIEW, f"AUTONOMY_LEVEL:{autonomy}"
         _apply_routing_decision(db, doc, job_id, decision, reason)
