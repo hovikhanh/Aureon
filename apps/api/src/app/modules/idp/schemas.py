@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.idp.enums import (
     AutonomyLevel,
@@ -151,5 +151,15 @@ class RowErrorItem(BaseModel):
     field_key: str
     code: str
     message: str | None = None
+
+
+class SplitRangeItem(BaseModel):
+    """Page range for multi-document splitting (FR-DC-09, EP-30)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    from_page: int = Field(ge=1, description="1-based starting page number")
+    to_page: int = Field(ge=1, description="1-based ending page number")
+
 
 

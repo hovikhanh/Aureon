@@ -150,6 +150,25 @@ class SourceDocument(Base):
         if self.doc_type == DocType.EMPLOYEE_LIST:
             self.contains_salary = True
 
+    @property
+    def parent_id(self) -> UUID | None:
+        """Parent document UUID if this is a split child document (FR-DC-09)."""
+        if self.manual_payload and "parent_id" in self.manual_payload:
+            try:
+                return UUID(str(self.manual_payload["parent_id"]))
+            except (ValueError, TypeError):
+                return None
+        return None
+
+    @property
+    def page_range(self) -> tuple[int, int] | None:
+        """Page range (from_page, to_page) if this is a split child document (FR-DC-09)."""
+        if self.manual_payload and "page_range" in self.manual_payload:
+            pr = self.manual_payload["page_range"]
+            if isinstance(pr, (list, tuple)) and len(pr) >= 2:
+                return (int(pr[0]), int(pr[1]))
+        return None
+
 
 class DocumentPage(Base):
     """ENT-DocumentPage: Individual page of a document, OCR results, and rendered image (05 §4.4).
