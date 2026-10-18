@@ -5,7 +5,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -64,3 +64,15 @@ class LoginData(BaseModel):
 
 # Declared response_model for EP-02 (CLAUDE.md § API; contract check_response_envelopes).
 LoginEnvelope = Envelope[LoginData]
+
+
+class MeData(BaseModel):
+    """EP-03 `data` payload — 10 EP-03 Response 200."""
+
+    user: UserOut
+    permissions: dict[str, Any]
+    demo_mode: bool
+
+
+# Declared response_model for EP-03
+MeEnvelope = Envelope[MeData]

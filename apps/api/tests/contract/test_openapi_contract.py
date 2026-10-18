@@ -50,7 +50,8 @@ def test_missing_endpoints_reported_as_progress_not_error() -> None:
     # Current backend mounts only EP-01, so almost every EP in 10 is still outstanding.
     assert "EP-01" not in missing, "EP-01 is mounted and must not be listed as missing"
     assert "EP-02" not in missing, "EP-02 is mounted and must not be listed as missing"
-    assert "EP-03" in missing, f"EP-03 is not built yet and must be reported; got {missing}"
+    assert "EP-03" not in missing, "EP-03 is mounted and must not be listed as missing"
+    assert "EP-04" in missing, f"EP-04 is not built yet and must be reported; got {missing}"
     assert len(missing) >= 30, (
         f"expected the bulk of 10 §1.10 to be reported as missing progress, got {len(missing)}: "
         f"{missing}"

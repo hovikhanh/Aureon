@@ -19,8 +19,10 @@ from sqlalchemy.orm import Session
 from app.core.config import ConfigService, get_config
 from app.core.errors import ApiError, ErrorCode
 from app.db.session import get_db
+from app.modules.auth.deps import compute_permissions, require_role
+from app.modules.auth.models import User
 from app.modules.auth.rate_limit import LoginRateLimiter, default_login_rate_limiter
-from app.modules.auth.schemas import LoginEnvelope, LoginRequest
+from app.modules.auth.schemas import LoginEnvelope, LoginRequest, MeData, MeEnvelope, UserOut
 from app.modules.auth.service import login
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -88,3 +90,28 @@ def login_endpoint(
     # Success: audit + last_login_at share one committed transaction (05 §4.12, §1.7).
     db.commit()
     return LoginEnvelope(data=data)
+
+
+@router.get(
+    "/me",
+    response_model=MeEnvelope,
+    responses={
+        401: {"description": "UNAUTHENTICATED"},
+    },
+)
+def me_endpoint(
+    user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    config: Annotated[ConfigService, Depends(get_config)],
+) -> MeEnvelope:
+    """EP-03 GET /api/v1/auth/me — Return current user info and capabilities (10 EP-03)."""
+    perms = compute_permissions(user.role.code)
+    return MeEnvelope(
+        data=MeData(
+            user=UserOut.model_validate(user),
+            permissions=perms,
+            demo_mode=config.demo_mode,
+        )
+    )

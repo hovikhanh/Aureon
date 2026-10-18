@@ -56,9 +56,7 @@ def login(
     # Always run verify_password to keep timing similar whether or not the email exists; when the
     # user is missing we still compare against a throwaway to avoid a short-circuit timing oracle.
     candidate_hash = user.password_hash if user is not None else None
-    password_ok = (
-        verify_password(password, candidate_hash) if candidate_hash is not None else False
-    )
+    password_ok = verify_password(password, candidate_hash) if candidate_hash is not None else False
 
     if user is None or not password_ok:
         # Failure branch: no trusted user identity → SYSTEM actor; attempted email in metadata
