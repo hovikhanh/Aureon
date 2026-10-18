@@ -198,8 +198,8 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-IDP-015 | unit | pytest | **XD-01** (04 §12.1): BCTC có `revenue_by_month` T9 = SUM(`subtotal`) 47 HĐ T9 trong ±0,5% → `MATCH`; lệch > 0,5% → `MISMATCH` (blocking); BCTC không có số tháng 9 → `NOT_COMPARABLE`; không so quý với tháng, không chia quý cho 3 | FR-DC-14; US-DC-016 | T-210 | Passed |
 | TC-IDP-016 | unit | pytest | XD-02..XD-05 (04 §12): mỗi rule có case khớp và case lệch sinh cờ conflict kèm liên kết tài liệu đối chiếu | FR-DC-14 | T-210 | Passed |
 | TC-IDP-017 | unit | pytest | Định tuyến: đủ S1–S7 → `STP` (L3); thiếu bất kỳ → `REVIEW` + `routing_reason` (VD `LOW_CONFIDENCE:total_amount`, `XD-01_CONFLICT`); C2 không bao giờ STP | FR-DC-15; US-DC-011, US-DC-015 | T-211 | Passed |
-| TC-IDP-018 | integration | pytest | EP-28: ROLE-05 thấy tất cả; ROLE-02 chỉ FIN; ROLE-04 chỉ HR; ROLE-03 → 403; thứ tự conflict → confidence thấp → cũ nhất; `counts` đúng | EP-28; FR-DC-16; US-DC-011; ROLE-02..05 | T-214 | Planned |
-| TC-IDP-019 | integration | pytest | EP-29 mở review → `IN_REVIEW`, khóa 15 phút; user khác mở → 409 `REVIEW_LOCKED`; EP-35 release → `NEEDS_REVIEW`; khóa hết hạn tự giải phóng | EP-29, EP-35; FR-DC-18; ENT-ExtractionReview | T-214 | Planned |
+| TC-IDP-018 | integration | pytest | EP-28: ROLE-05 thấy tất cả; ROLE-02 chỉ FIN; ROLE-04 chỉ HR; ROLE-03 → 403; thứ tự conflict → confidence thấp → cũ nhất; `counts` đúng | EP-28; FR-DC-16; US-DC-011; ROLE-02..05 | T-214 | Passed |
+| TC-IDP-019 | integration | pytest | EP-29 mở review → `IN_REVIEW`, khóa 15 phút; user khác mở → 409 `REVIEW_LOCKED`; EP-35 release → `NEEDS_REVIEW`; khóa hết hạn tự giải phóng | EP-29, EP-35; FR-DC-18; ENT-ExtractionReview | T-214 | Passed |
 | TC-IDP-020 | integration | pytest | EP-26: field có `confidence_band` đúng ngưỡng 0,90/0,70; ROLE-05 thấy SALARY chỉ khi đang giữ khóa review; ROLE-01 nhận `masked`; ROLE-03 → 403 | EP-26; FR-DC-10; DS3 | T-207 | Passed |
 | TC-IDP-021 | integration | pytest | EP-30 sửa field → `corrected=true`, giữ `value` AI, lưu `corrected_value`, `corrected_by_id`; audit `field.correct` mask lương; không giữ khóa → 409 | EP-30; FR-DC-19; US-DC-013 | T-215 | Planned |
 | TC-IDP-022 | integration | pytest | EP-31 khi còn field required LOW/null chưa xác nhận → 422; XD `MISMATCH` chưa chấp nhận → 422 `ACTION_REJECTED`; hợp lệ → `COMMITTED`, `undo_deadline = +7 ngày`, lineage `extracted_fields.business_record_id` ghi, audit | EP-31; FR-DC-17, FR-DC-19, FR-DC-20; US-DC-012, US-DC-014 | T-215 | Planned |
@@ -362,14 +362,14 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | EP-25 | `GET /documents/{id}` | TC-IDP-031, TC-IDP-028 | T-213; T-217 | Implemented |
 | EP-26 | `GET /documents/{id}/extraction` | TC-IDP-020, TC-AUTH-015 | T-207; T-213 | Implemented |
 | EP-27 | `GET /documents/{id}/source` | TC-IDP-032, TC-AUTH-014 | T-213 | Implemented |
-| EP-28 | `GET /review-queue` | TC-IDP-018, TC-AUTH-015 | T-213; T-214 | Planned |
-| EP-29 | `POST /documents/{id}/review/open` | TC-IDP-019 | T-214 | Planned |
+| EP-28 | `GET /review-queue` | TC-IDP-018, TC-AUTH-015 | T-213; T-214 | Implemented |
+| EP-29 | `POST /documents/{id}/review/open` | TC-IDP-019 | T-214 | Implemented |
 | EP-30 | `PATCH /documents/{id}/fields` | TC-IDP-021, TC-IDP-009 | T-207; T-215; T-401 | Implemented |
 | EP-31 | `POST /documents/{id}/review/approve` | TC-IDP-022, TC-DASH-015 | T-215; T-304 | Planned |
 | EP-32 | `POST /documents/{id}/review/reject` | TC-IDP-025 | T-215 | Planned |
 | EP-33 | `POST /documents/{id}/rollback` | TC-IDP-026 | T-216 | Planned |
 | EP-34 | `POST /documents/{id}/retry` | TC-IDP-003, TC-IDP-025, TC-IDP-030 | T-006; T-203; T-211; T-213; T-215; T-216 | Implemented |
-| EP-35 | `POST /documents/{id}/review/release` | TC-IDP-019 | T-214 | Planned |
+| EP-35 | `POST /documents/{id}/review/release` | TC-IDP-019 | T-214 | Implemented |
 | EP-36 | `POST /documents/{id}/import-mapping` | TC-IDP-007 | T-205 | Implemented |
 | EP-40 | `POST /onboarding/batches` | TC-UC07-001, TC-UC07-002 | T-311 | Implemented |
 | EP-41 | `GET /onboarding/batches/{batch_id}` | TC-UC07-003, TC-UC07-004 | T-311; T-401 | Planned |

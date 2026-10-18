@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.envelope import PageMeta
 from app.modules.idp.enums import (
     AutonomyLevel,
     DocType,
@@ -306,3 +307,44 @@ class RetryDocumentRequest(BaseModel):
 
     mode: str = Field(..., description="RETRY, REOPEN, or FORCE_DUPLICATE")
     note: str | None = None
+
+
+class ReviewQueueCountsOut(BaseModel):
+    """Counts by document status for EP-28."""
+
+    needs_review: int = 0
+    in_review: int = 0
+    failed: int = 0
+
+
+class ReviewQueueItemOut(BaseModel):
+    """One document item in the review queue (EP-28)."""
+
+    document: DocumentOut
+    routing_reason: str | None = None
+    avg_confidence: float | None = None
+    fields_to_check: int = 0
+    has_conflict: bool = False
+    locked_by: UserBrief | None = None
+    locked_until: datetime | None = None
+
+
+class ReviewQueueMetaOut(PageMeta):
+    """Paginated metadata including counts for EP-28."""
+
+    counts: ReviewQueueCountsOut = Field(default_factory=ReviewQueueCountsOut)
+
+
+class ReviewQueueResponse(BaseModel):
+    """Response envelope for EP-28 GET /review-queue."""
+
+    data: list[ReviewQueueItemOut]
+    meta: ReviewQueueMetaOut
+
+
+class ReviewOpenOut(BaseModel):
+    """Response payload for EP-29 POST /documents/{id}/review/open."""
+
+    document: DocumentOut
+    review_id: UUID
+    extraction: ExtractionResultOut

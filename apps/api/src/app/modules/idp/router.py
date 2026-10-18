@@ -3,6 +3,7 @@
 EP-20..EP-27, EP-34, EP-36, EP-40, EP-50 per 10-API-SPECIFICATION.md §4, §6.
 """
 
+import math
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
@@ -21,7 +22,14 @@ from app.modules.audit.models import AuditLog
 from app.modules.audit.service import record_audit
 from app.modules.auth.deps import require_role
 from app.modules.auth.models import User
-from app.modules.idp.enums import DocType, DocumentKind, DocumentStatus, InputChannel, JobStatus
+from app.modules.idp.enums import (
+    DocType,
+    DocumentKind,
+    DocumentStatus,
+    InputChannel,
+    JobStatus,
+    ReviewDecision,
+)
 from app.modules.idp.extraction import (
     change_document_type_and_reextract,
     serialize_extraction_result,
@@ -53,6 +61,11 @@ from app.modules.idp.schemas import (
     NaturalLanguageDocumentCreateRequest,
     RetryDocumentRequest,
     RetryMode,
+    ReviewOpenOut,
+    ReviewQueueCountsOut,
+    ReviewQueueItemOut,
+    ReviewQueueMetaOut,
+    ReviewQueueResponse,
     StatusTimelineItem,
     UpdateDocumentFieldsRequest,
     UserBrief,
@@ -1008,6 +1021,349 @@ def retry_document(
         process_document_task.apply_async(args=[str(doc.id), str(new_job.id)])
     else:
         raise ApiError(ErrorCode.BAD_REQUEST, f"Chế độ retry không hợp lệ: {payload.mode}")
+
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out)
+
+
+@router.get(
+    "/review-queue",
+    response_model=ReviewQueueResponse,
+    summary="Get review queue (EP-28)",
+)
+def get_review_queue(
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    params: Annotated[PageParams, Depends(get_page_params)],
+    status: Annotated[str | None, Query(description="Filter by status")] = None,
+    doc_type: Annotated[DocType | None, Query(description="Filter by doc_type")] = None,
+    pillar: Annotated[str | None, Query(description="Filter by pillar")] = None,
+    batch_id: Annotated[UUID | None, Query(description="Filter by batch_id")] = None,
+    confidence_band: Annotated[str | None, Query(description="Filter by confidence band")] = None,
+) -> ReviewQueueResponse:
+    """EP-28: Prioritized review queue.
+
+    Role scoping:
+    - ROLE-05 (Reviewer): sees all.
+    - ROLE-01 (CEO): sees all (metadata only for salary documents).
+    - ROLE-02 (CFO): FIN pillar only.
+    - ROLE-04 (HR Manager): HR pillar only.
+
+    Ordering per FR-DC-16:
+    - Blocking cross-document conflict first.
+    - Lowest confidence next.
+    - Oldest uploaded_at last.
+    """
+    role_code = current_user.role.code if current_user.role else "ROLE-01"
+    base_scope = select(SourceDocument).where(SourceDocument.deleted_at.is_(None))
+
+    if role_code == "ROLE-02":
+        base_scope = base_scope.where(SourceDocument.pillars.contains(["FIN"]))
+    elif role_code == "ROLE-04":
+        base_scope = base_scope.where(SourceDocument.pillars.contains(["HR"]))
+
+    counts_needs_review = (
+        db.scalar(
+            select(func.count()).select_from(
+                base_scope.where(SourceDocument.status == DocumentStatus.NEEDS_REVIEW).subquery()
+            )
+        )
+        or 0
+    )
+    counts_in_review = (
+        db.scalar(
+            select(func.count()).select_from(
+                base_scope.where(SourceDocument.status == DocumentStatus.IN_REVIEW).subquery()
+            )
+        )
+        or 0
+    )
+    counts_failed = (
+        db.scalar(
+            select(func.count()).select_from(
+                base_scope.where(SourceDocument.status == DocumentStatus.FAILED).subquery()
+            )
+        )
+        or 0
+    )
+    counts_out = ReviewQueueCountsOut(
+        needs_review=counts_needs_review,
+        in_review=counts_in_review,
+        failed=counts_failed,
+    )
+
+    stmt = base_scope
+    if status:
+        st_list = [s.strip() for s in status.split(",") if s.strip()]
+        enum_sts = []
+        for s in st_list:
+            try:
+                enum_sts.append(DocumentStatus(s))
+            except ValueError:
+                pass
+        if enum_sts:
+            stmt = stmt.where(SourceDocument.status.in_(enum_sts))
+    else:
+        stmt = stmt.where(
+            SourceDocument.status.in_(
+                [
+                    DocumentStatus.NEEDS_REVIEW,
+                    DocumentStatus.IN_REVIEW,
+                    DocumentStatus.FAILED,
+                ]
+            )
+        )
+
+    if doc_type is not None:
+        stmt = stmt.where(SourceDocument.doc_type == doc_type)
+    if pillar:
+        stmt = stmt.where(SourceDocument.pillars.contains([pillar]))
+    if batch_id:
+        stmt = stmt.where(SourceDocument.batch_id == batch_id)
+
+    matched_docs = db.execute(stmt).scalars().all()
+
+    items: list[ReviewQueueItemOut] = []
+    for doc in matched_docs:
+        routing_reason: str | None = None
+        avg_confidence: float | None = None
+        has_conflict = False
+        fields_to_check = 0
+
+        if doc.extraction_jobs:
+            sorted_jobs = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)
+            lj = sorted_jobs[0]
+            routing_reason = lj.routing_reason
+            if lj.avg_confidence is not None:
+                avg_confidence = float(lj.avg_confidence)
+            if lj.cross_doc_results:
+                has_conflict = any(
+                    r.get("status") in ("fail", "mismatch") for r in lj.cross_doc_results
+                )
+            if lj.fields:
+                for f in lj.fields:
+                    c = float(f.confidence) if f.confidence is not None else 0.0
+                    val_fail = any(
+                        v.get("status") in ("fail", "warn") for v in (f.validation or [])
+                    )
+                    if c < 0.90 or f.value is None or val_fail:
+                        fields_to_check += 1
+
+        if confidence_band:
+            c_val = avg_confidence or 0.0
+            band = "HIGH" if c_val >= 0.90 else ("MEDIUM" if c_val >= 0.70 else "LOW")
+            if band != confidence_band:
+                continue
+
+        locked_by_user = None
+        if doc.locked_by_id:
+            holder = db.get(User, doc.locked_by_id)
+            locked_name = holder.full_name if holder else "Reviewer"
+            locked_by_user = UserBrief(id=doc.locked_by_id, full_name=locked_name)
+
+        item = ReviewQueueItemOut(
+            document=serialize_document_out(doc, current_user),
+            routing_reason=routing_reason,
+            avg_confidence=avg_confidence,
+            fields_to_check=fields_to_check,
+            has_conflict=has_conflict,
+            locked_by=locked_by_user,
+            locked_until=doc.locked_until,
+        )
+        items.append(item)
+
+    items.sort(
+        key=lambda x: (
+            0 if x.has_conflict else 1,
+            x.avg_confidence if x.avg_confidence is not None else 0.0,
+            x.document.uploaded_at,
+        )
+    )
+
+    total_items = len(items)
+    total_pages = math.ceil(total_items / params.page_size) if total_items > 0 else 0
+    paged_items = items[params.offset : params.offset + params.limit]
+    meta = ReviewQueueMetaOut(
+        page=params.page,
+        page_size=params.page_size,
+        total=total_items,
+        total_pages=total_pages,
+        counts=counts_out,
+    )
+    return ReviewQueueResponse(data=paged_items, meta=meta)
+
+
+@router.post(
+    "/documents/{id}/review/open",
+    response_model=Envelope[ReviewOpenOut],
+    summary="Open review and lock document for 15 minutes (EP-29)",
+)
+def open_document_review(
+    id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> Envelope[ReviewOpenOut]:
+    """EP-29: Open review for a document and acquire 15-minute lock.
+
+    - Transitions NEEDS_REVIEW -> IN_REVIEW.
+    - Sets locked_by_id = current_user.id, locked_until = now + 15m.
+    - Creates ExtractionReview record.
+    - If locked by another user -> 409 REVIEW_LOCKED.
+    - If same user -> extends lock.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if role_code == "ROLE-02" and "FIN" not in doc.pillars:
+        raise ApiError(ErrorCode.FORBIDDEN_SCOPE, "CFO chỉ có quyền review tài liệu trụ Tài chính")
+    if role_code == "ROLE-04" and "HR" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "HR Manager chỉ có quyền review tài liệu trụ Con người"
+        )
+
+    if doc.status not in (DocumentStatus.NEEDS_REVIEW, DocumentStatus.IN_REVIEW):
+        msg = f"Không thể mở review tài liệu ở trạng thái {doc.status.value}"
+        raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+
+    now = datetime.now(UTC)
+    if doc.locked_by_id and doc.locked_until is not None and doc.locked_until > now:
+        if doc.locked_by_id != current_user.id:
+            holder = db.get(User, doc.locked_by_id)
+            holder_name = holder.full_name if holder else "người dùng khác"
+            rem_sec = int((doc.locked_until - now).total_seconds())
+            raise ApiError(
+                ErrorCode.REVIEW_LOCKED,
+                f"Tài liệu đang được khóa bởi {holder_name}",
+                details={
+                    "locked_by": holder_name,
+                    "locked_until": doc.locked_until.isoformat(),
+                    "remaining_seconds": rem_sec,
+                },
+            )
+        doc.locked_until = now + timedelta(minutes=15)
+    else:
+        doc.locked_by_id = current_user.id
+        doc.locked_until = now + timedelta(minutes=15)
+        doc.status = DocumentStatus.IN_REVIEW
+
+    stmt_rev = (
+        select(ExtractionReview)
+        .where(
+            ExtractionReview.source_document_id == doc.id,
+            ExtractionReview.reviewer_id == current_user.id,
+            ExtractionReview.decision.is_(None),
+        )
+        .order_by(desc(ExtractionReview.opened_at))
+    )
+    active_rev = db.execute(stmt_rev).scalars().first()
+    if not active_rev:
+        latest_job_id = None
+        if doc.extraction_jobs:
+            latest_job_id = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)[
+                0
+            ].id
+        active_rev = ExtractionReview(
+            id=uuid4(),
+            source_document_id=doc.id,
+            extraction_job_id=latest_job_id,
+            reviewer_id=current_user.id,
+            reviewer_role_id=current_user.role_id,
+            opened_at=now,
+        )
+        db.add(active_rev)
+
+    record_audit(
+        db=db,
+        action="review.open",
+        target_type="source_documents",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=doc.id,
+        source_document_id=doc.id,
+    )
+    db.commit()
+
+    doc_out = serialize_document_out(doc, current_user)
+    extraction = serialize_extraction_result(db=db, doc=doc, current_user=current_user)
+    return Envelope(
+        data=ReviewOpenOut(
+            document=doc_out,
+            review_id=active_rev.id,
+            extraction=extraction,
+        )
+    )
+
+
+@router.post(
+    "/documents/{id}/review/release",
+    response_model=Envelope[DocumentOut],
+    summary="Release review lock without saving (EP-35)",
+)
+def release_document_review(
+    id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> Envelope[DocumentOut]:
+    """EP-35: Release review lock and return document to NEEDS_REVIEW.
+
+    Marks any pending ExtractionReview as ABANDONED.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if doc.status != DocumentStatus.IN_REVIEW:
+        msg = f"Tài liệu không ở trạng thái IN_REVIEW (hiện tại: {doc.status.value})"
+        raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if doc.locked_by_id != current_user.id and role_code != "ROLE-05":
+        raise ApiError(
+            ErrorCode.FORBIDDEN_ROLE,
+            "Chỉ người giữ khóa hoặc Reviewer mới có quyền giải phóng review",
+        )
+
+    now = datetime.now(UTC)
+    doc.locked_by_id = None
+    doc.locked_until = None
+    doc.status = DocumentStatus.NEEDS_REVIEW
+
+    stmt_rev = (
+        select(ExtractionReview)
+        .where(
+            ExtractionReview.source_document_id == doc.id,
+            ExtractionReview.decision.is_(None),
+        )
+        .order_by(desc(ExtractionReview.opened_at))
+    )
+    active_rev = db.execute(stmt_rev).scalars().first()
+    if active_rev:
+        active_rev.decision = ReviewDecision.ABANDONED
+        active_rev.decided_at = now
+
+    record_audit(
+        db=db,
+        action="review.release",
+        target_type="source_documents",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=doc.id,
+        source_document_id=doc.id,
+    )
+    db.commit()
 
     doc_out = serialize_document_out(doc, current_user)
     return Envelope(data=doc_out)
