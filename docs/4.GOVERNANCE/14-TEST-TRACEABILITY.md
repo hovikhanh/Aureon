@@ -241,12 +241,12 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-DATA-002 | unit | pytest | Mọi bảng có `id` uuid, `created_at`, `updated_at`; entity nghiệp vụ có `deleted_at`; mọi FK có index (kiểm metadata SQLAlchemy) | 12 ENT; CLAUDE.md § Database | T-004 | Passed |
 | TC-DATA-003 | integration | pytest | ENT-User: `email` unique (partial `deleted_at IS NULL`), lowercase; `password_hash` không có trong mọi response model | ENT-User | T-101 | Passed |
 | TC-DATA-004 | integration | pytest | ENT-Role: seed đúng 5 role `ROLE-01..05` với `pillar_scope`, `pillar_agg_scope`, `review_pillars`, `can_view_salary` theo 05 §4.2 | ENT-Role; ROLE-01..05 | T-101; T-402 | Passed |
-| TC-DATA-005 | integration | pytest | ENT-SourceDocument: `contains_salary` tự bật khi `doc_type=EMPLOYEE_LIST` hoặc có field SALARY; `undo_deadline = committed_at + 7 ngày` | ENT-SourceDocument | T-201 | Planned |
-| TC-DATA-006 | integration | pytest | ENT-DocumentPage: `text_layer_exists`, `text_layer_quality`, `ocr_used` lưu đúng cho từng trang | ENT-DocumentPage | T-201 | Planned |
-| TC-DATA-007 | integration | pytest | ENT-ExtractionJob: `attempt_no` tăng khi retry; `cross_doc_results` lưu MATCH/MISMATCH/NOT_COMPARABLE | ENT-ExtractionJob | T-201; T-210 | Planned |
-| TC-DATA-008 | integration | pytest | ENT-ExtractedField: `final_value` = `corrected_value` nếu có, ngược lại `value`; `source_location` bắt buộc | ENT-ExtractedField | T-201; T-215 | Planned |
-| TC-DATA-009 | integration | pytest | ENT-ExtractionReview: `reject_reason_code` bắt buộc khi `REJECTED`; lưu thời gian review | ENT-ExtractionReview | T-201; T-215 | Planned |
-| TC-DATA-010 | integration | pytest | ENT-BusinessRecord: `amount_due` generated = `total_amount − paid_amount`; `idempotency_key` unique; `record_type` ↔ tên logic 05 §4.8.2 | ENT-BusinessRecord | T-201 | Planned |
+| TC-DATA-005 | integration | pytest | ENT-SourceDocument: `contains_salary` tự bật khi `doc_type=EMPLOYEE_LIST` hoặc có field SALARY; `undo_deadline = committed_at + 7 ngày` | ENT-SourceDocument | T-201 | Passed |
+| TC-DATA-006 | integration | pytest | ENT-DocumentPage: `text_layer_exists`, `text_layer_quality`, `ocr_used` lưu đúng cho từng trang | ENT-DocumentPage | T-201 | Passed |
+| TC-DATA-007 | integration | pytest | ENT-ExtractionJob: `attempt_no` tăng khi retry; `cross_doc_results` lưu MATCH/MISMATCH/NOT_COMPARABLE | ENT-ExtractionJob | T-201; T-210 | Passed |
+| TC-DATA-008 | integration | pytest | ENT-ExtractedField: `final_value` = `corrected_value` nếu có, ngược lại `value`; `source_location` bắt buộc | ENT-ExtractedField | T-201; T-215 | Passed |
+| TC-DATA-009 | integration | pytest | ENT-ExtractionReview: `reject_reason_code` bắt buộc khi `REJECTED`; lưu thời gian review | ENT-ExtractionReview | T-201; T-215 | Passed |
+| TC-DATA-010 | integration | pytest | ENT-BusinessRecord: `amount_due` generated = `total_amount − paid_amount`; `idempotency_key` unique; `record_type` ↔ tên logic 05 §4.8.2 | ENT-BusinessRecord | T-201 | Passed |
 | TC-DATA-011 | integration | pytest | ENT-Metric: seed 18 metric với `code`, `pillar`, `unit`, ngưỡng, `alert_code` 1-1 (18 ALERT) | ENT-Metric; 18 METRIC; 18 ALERT | T-301; T-402 | Planned |
 | TC-DATA-012 | integration | pytest | ENT-MetricValue: một `is_current=true` cho mỗi (metric, kỳ, value_kind); `superseded_by_id` khi tính lại; `source_record_ids` dẫn về bản ghi tồn tại | ENT-MetricValue | T-301; T-304 | Planned |
 | TC-DATA-013 | integration | pytest | ENT-Alert: chuyển trạng thái `OPEN → ACKNOWLEDGED → RESOLVED`/`DISMISSED` hợp lệ | ENT-Alert | T-301 | Planned |
@@ -391,12 +391,12 @@ Bảng chi tiết 1-1 ở §2.3.
 |---|---|---|---|---|
 | ENT-User | `users` | TC-DATA-003, TC-AUTH-006 | T-101; T-104 | Planned |
 | ENT-Role | `roles` | TC-DATA-004, TC-AUTH-006 | T-101; T-104; T-402 | Planned |
-| ENT-SourceDocument | `source_documents` | TC-DATA-005, TC-IDP-001, TC-IDP-034 | T-201; T-202; T-203 | Planned |
-| ENT-DocumentPage | `document_pages` | TC-DATA-006, TC-IDP-008 | T-201; T-206 | Planned |
-| ENT-ExtractionJob | `extraction_jobs` | TC-DATA-007, TC-IDP-009, TC-IDP-035 | T-007; T-201; T-207; T-210; T-211; T-401 | Planned |
-| ENT-ExtractedField | `extracted_fields` | TC-DATA-008, TC-IDP-011, TC-DASH-010 | T-201; T-207; T-215; T-307 | Planned |
-| ENT-ExtractionReview | `extraction_reviews` | TC-DATA-009, TC-IDP-019 | T-201; T-214; T-215 | Planned |
-| ENT-BusinessRecord | `business_records` | TC-DATA-010, TC-IDP-023, TC-DASH-009 | T-201; T-212; T-307 | Planned |
+| ENT-SourceDocument | `source_documents` | TC-DATA-005, TC-IDP-001, TC-IDP-034 | T-201; T-202; T-203 | Implemented |
+| ENT-DocumentPage | `document_pages` | TC-DATA-006, TC-IDP-008 | T-201; T-206 | Implemented |
+| ENT-ExtractionJob | `extraction_jobs` | TC-DATA-007, TC-IDP-009, TC-IDP-035 | T-007; T-201; T-207; T-210; T-211; T-401 | Implemented |
+| ENT-ExtractedField | `extracted_fields` | TC-DATA-008, TC-IDP-011, TC-DASH-010 | T-201; T-207; T-215; T-307 | Implemented |
+| ENT-ExtractionReview | `extraction_reviews` | TC-DATA-009, TC-IDP-019 | T-201; T-214; T-215 | Implemented |
+| ENT-BusinessRecord | `business_records` | TC-DATA-010, TC-IDP-023, TC-DASH-009 | T-201; T-212; T-307 | Implemented |
 | ENT-Metric | `metrics` | TC-DATA-011 | T-301; T-402 | Planned |
 | ENT-MetricValue | `metric_values` | TC-DATA-012, TC-DASH-015 | T-301; T-304 | Planned |
 | ENT-Alert | `alerts` | TC-DATA-013, TC-DASH-016 | T-301; T-305 | Planned |
@@ -467,6 +467,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-101/T-102 | TC-DATA-003 → Passed (`apps/api/tests/auth/test_user_role_constraints.py`: email partial-unique, FK role, `password_hash` không có trong `UserOut`); TC-DATA-004 → Passed (`apps/api/tests/auth/test_seed.py`: seed 5 role + 5 user `@abc.demo`, idempotent, scope theo 02 §3/05 §4.2, hash argon2id verify); TC-DATA-014 → Passed (`apps/api/tests/audit/test_audit_immutable.py`: guard ORM + trigger DB chặn UPDATE/DELETE); TC-SYS-005 → Passed (`apps/api/tests/audit/test_audit_transaction.py`: mutation + audit cùng transaction, rollback → không audit, lương mask ••••). Seed/reset qua `app.seed`/`app.reset` (DEC-062); 37 test mới; coverage module ≥ 86% |
 | 2026-10-18 | T-009 | TC-SYS-003 → Implemented (`apps/api/tests/contract/`: parser đọc 10 §1.10/§1.4 động, check envelope/`require_role`(`__aureon_roles__`)/`response_model`/mã lỗi trên OpenAPI; self-test chứng suite fail đúng với route lỗi). Hiện mới mount EP-01 nên là Implemented; thành Passed khi có endpoint thật áp `require_role` (T-104+). Thêm CI `.github/workflows/ci.yml` (web + api), marker `live` loại test OmniRoute. 20 test contract |
 | 2026-10-18 | T-108 | FE shell (AppShell/Sidebar/Topbar/SkipLink + 4 page state) theo 06 §3/§8; nav theo vai trò khớp 02 §3 (5 vai trò, `apps/web/src/components/layout/Sidebar.test.tsx`). TC-UI-006 phần unit: axe-core quét AppShell + 4 state → 0 serious/critical (`apps/web/src/components/layout/a11y.test.tsx`), phần e2e Playwright giữ Planned. TC-UI-009 phần unit: trạng thái loading/empty/error/forbidden đúng 06 §3.2 (`apps/web/src/components/states/states.test.tsx`), phần e2e mock-API 403 giữ Planned. 46 test/8 file pass; build:web 11 route prerender. DEC-117 resolved |
+| 2026-10-18 | T-201 | Migration Alembic 6 bảng IDP Core và Business Records (`source_documents`, `document_pages`, `extraction_jobs`, `extracted_fields`, `extraction_reviews`, `business_records`) theo 05 §4.3..4.8. Enum 05 §6; check constraints, indexes, generated STORED column `amount_due`, auto contains_salary và 7-day undo_deadline. Reversible migration (upgrade/downgrade OK). TC-DATA-005..010 → Passed. |
 | 2026-10-18 | T-111 | SCR-01..04 dashboard tĩnh với fixture 08 §5.1 (18 metrics, 12 alerts). SCR-01 CEO: 4 trụ FULL, 12 alerts (Critical trước), AI executive summary L1 read-only (DEC-072 Đề xuất A), render ≤ 10s (TC-KPI-003). SCR-02..04: phân quyền theo trụ (02 §3.1), mọi số có link drill-down (P01, TC-UI-008), 0 vi phạm axe-core (TC-UI-006). Hoàn thành toàn bộ Phase 1 (Sprint 1: 20/20 tasks). |
 | 2026-10-18 | T-106, T-107 | FE đăng nhập SCR-13 (`/login`) + Role Switcher SCR-12 + RouteGuard. Hỗ trợ 1-click quick login 5 user demo, chuyển vai trò ≤ 2s (TC-KPI-002), xóa cache TanStack Query, điều hướng `home_route`, ẩn khi `NEXT_PUBLIC_DEMO_MODE=false`. TC-AUTH-001, TC-AUTH-016, TC-AUTH-017, TC-KPI-002 → Implemented. 102 web unit tests pass, axe scan 0 violations, build:web 12 routes static. |
 | 2026-10-18 | T-105 | EP-04 switch-role + EP-05 demo-users (chỉ `DEMO_MODE=true`). TC-AUTH-007, TC-AUTH-008, TC-AUTH-010 → Implemented. Khi `DEMO_MODE=false` trả 404 NOT_FOUND. Ghi audit `role.switch` + mint JWT mới. Auth coverage 96%. |
