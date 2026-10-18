@@ -22,8 +22,17 @@ from app.db.session import get_db
 from app.modules.auth.deps import compute_permissions, require_role
 from app.modules.auth.models import User
 from app.modules.auth.rate_limit import LoginRateLimiter, default_login_rate_limiter
-from app.modules.auth.schemas import LoginEnvelope, LoginRequest, MeData, MeEnvelope, UserOut
-from app.modules.auth.service import login
+from app.modules.auth.schemas import (
+    DemoUsersEnvelope,
+    LoginEnvelope,
+    LoginRequest,
+    MeData,
+    MeEnvelope,
+    SwitchRoleEnvelope,
+    SwitchRoleRequest,
+    UserOut,
+)
+from app.modules.auth.service import list_demo_users, login, switch_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -115,3 +124,63 @@ def me_endpoint(
             demo_mode=config.demo_mode,
         )
     )
+
+
+def verify_demo_mode(config: Annotated[ConfigService, Depends(get_config)]) -> None:
+    """Ensure DEMO_MODE=true; 404 NOT_FOUND otherwise (07 §8.1.1, 10 EP-04, EP-05)."""
+    if not config.demo_mode:
+        raise ApiError(ErrorCode.NOT_FOUND, "Demo mode is disabled")
+
+
+@router.post(
+    "/switch-role",
+    response_model=SwitchRoleEnvelope,
+    responses={
+        401: {"description": "UNAUTHENTICATED"},
+        404: {"description": "NOT_FOUND"},
+        422: {"description": "VALIDATION_ERROR"},
+    },
+)
+def switch_role_endpoint(
+    request: Request,
+    body: SwitchRoleRequest,
+    user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    config: Annotated[ConfigService, Depends(get_config)],
+    _: Annotated[None, Depends(verify_demo_mode)],
+) -> SwitchRoleEnvelope:
+    """EP-04 POST /api/v1/auth/switch-role — Switch active demo role (10 EP-04)."""
+    host = _client_host(request)
+    data = switch_role(
+        db,
+        current_user=user,
+        target_role_code=body.target_role_code,
+        config=config,
+        ip_address=_audit_ip(host),
+    )
+    db.commit()
+    return SwitchRoleEnvelope(data=data)
+
+
+@router.get(
+    "/demo-users",
+    response_model=DemoUsersEnvelope,
+    responses={
+        401: {"description": "UNAUTHENTICATED"},
+        404: {"description": "NOT_FOUND"},
+    },
+)
+def demo_users_endpoint(
+    _: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    __: Annotated[None, Depends(verify_demo_mode)],
+) -> DemoUsersEnvelope:
+    """EP-05 GET /api/v1/auth/demo-users — List 5 demo accounts (10 EP-05)."""
+    items = list_demo_users(db)
+    return DemoUsersEnvelope(data=items)

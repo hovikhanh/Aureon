@@ -18,15 +18,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import ConfigService
 from app.core.errors import ApiError, ErrorCode
 from app.core.security import verify_password
 from app.db.enums import ActorType
 from app.modules.audit.service import record_audit
-from app.modules.auth.models import User
-from app.modules.auth.schemas import LoginData, UserOut
+from app.modules.auth.models import Role, User
+from app.modules.auth.schemas import DemoUserItem, LoginData, SwitchRoleData, UserOut
 from app.modules.auth.token import create_access_token
 
 _AUTH_LOGIN_ACTION = "auth.login"
@@ -86,3 +86,78 @@ def login(
         ip_address=ip_address,
     )
     return LoginData(access_token=token, expires_at=expires_at, user=UserOut.model_validate(user))
+
+
+def switch_role(
+    db: Session,
+    *,
+    current_user: User,
+    target_role_code: str,
+    config: ConfigService,
+    ip_address: str | None = None,
+) -> SwitchRoleData:
+    """Issue a new JWT for the demo user of `target_role_code` and audit `role.switch`."""
+    stmt = (
+        select(User)
+        .join(User.role)
+        .options(joinedload(User.role))
+        .where(
+            User.is_demo_account.is_(True),
+            User.deleted_at.is_(None),
+            Role.code == target_role_code,
+        )
+    )
+    target_user = db.scalars(stmt).first()
+    if target_user is None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"No demo user found for role {target_role_code}")
+
+    token, expires_at = create_access_token(target_user, config)
+    target_user.last_login_at = datetime.now(UTC)
+
+    record_audit(
+        db,
+        action="role.switch",
+        target_type="user",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=target_user.id,
+        metadata={
+            "from_role": current_user.role.code,
+            "to_role": target_role_code,
+            "from_user_id": str(current_user.id),
+            "to_user_id": str(target_user.id),
+        },
+        ip_address=ip_address,
+    )
+
+    return SwitchRoleData(
+        access_token=token,
+        expires_at=expires_at,
+        user=UserOut.model_validate(target_user),
+        home_route=target_user.role.home_route,
+    )
+
+
+def list_demo_users(db: Session) -> list[DemoUserItem]:
+    """Return the 5 seeded demo users ordered by role code ROLE-01..05 (10 EP-05)."""
+    stmt = (
+        select(User)
+        .join(User.role)
+        .options(joinedload(User.role))
+        .where(
+            User.is_demo_account.is_(True),
+            User.deleted_at.is_(None),
+        )
+        .order_by(Role.code.asc())
+    )
+    users = db.scalars(stmt).all()
+    return [
+        DemoUserItem(
+            role_code=u.role.code,
+            role_name_i18n_key=u.role.name_i18n_key,
+            full_name=u.full_name,
+            user_id=u.id,
+        )
+        for u in users
+    ]

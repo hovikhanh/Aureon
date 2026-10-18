@@ -76,3 +76,40 @@ class MeData(BaseModel):
 
 # Declared response_model for EP-03
 MeEnvelope = Envelope[MeData]
+
+
+class SwitchRoleRequest(BaseModel):
+    """EP-04 request body — 10 EP-04."""
+
+    target_role_code: str = Field(
+        ...,
+        pattern=r"^ROLE-0[1-5]$",
+        description="Target role code: ROLE-01..ROLE-05",
+    )
+
+
+class SwitchRoleData(BaseModel):
+    """EP-04 `data` payload — 10 EP-04 Response 200."""
+
+    access_token: str
+    token_type: Literal["Bearer"] = "Bearer"  # noqa: S105
+    expires_at: datetime
+    user: UserOut
+    home_route: str
+
+
+# Declared response_model for EP-04
+SwitchRoleEnvelope = Envelope[SwitchRoleData]
+
+
+class DemoUserItem(BaseModel):
+    """EP-05 item in `data` list — 10 EP-05 Response 200."""
+
+    role_code: str
+    role_name_i18n_key: str
+    full_name: str
+    user_id: uuid.UUID
+
+
+# Declared response_model for EP-05
+DemoUsersEnvelope = Envelope[list[DemoUserItem]]
