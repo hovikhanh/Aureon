@@ -4,10 +4,12 @@
 """
 
 import uuid
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.envelope import Envelope
 from app.db.enums import Pillar, RoleKey
 
 
@@ -33,3 +35,32 @@ class UserOut(BaseModel):
     salutation: Literal["anh", "chị"] | None
     role: RoleOut
     is_demo_account: bool
+
+
+class LoginRequest(BaseModel):
+    """EP-02 request body — 10 EP-02 request table. `password` is never logged or echoed."""
+
+    # `str` (not pydantic EmailStr): email-validator is not a dependency (no new deps, CLAUDE.md).
+    # A malformed/unknown email is not 422 here — it yields the same 401 INVALID_CREDENTIALS as a
+    # wrong password (no user enumeration, 10 EP-02). `email` is stored lowercase (05 §4.1).
+    email: str = Field(min_length=1, max_length=320)
+    password: str = Field(min_length=1, max_length=1024)
+
+    @field_validator("email")
+    @classmethod
+    def _normalise_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class LoginData(BaseModel):
+    """EP-02 `data` payload — 10 EP-02 Response 200 (`access_token`, `token_type`, `expires_at`)."""
+
+    access_token: str
+    # S105 false positive: "Bearer" is the OAuth token *scheme* name (10 EP-02), not a secret.
+    token_type: Literal["Bearer"] = "Bearer"  # noqa: S105
+    expires_at: datetime
+    user: UserOut
+
+
+# Declared response_model for EP-02 (CLAUDE.md § API; contract check_response_envelopes).
+LoginEnvelope = Envelope[LoginData]

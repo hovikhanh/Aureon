@@ -60,6 +60,62 @@
       "placeholder": "Màn hình này sẽ được hoàn thiện ở bước tiếp theo."
     }
   },
+  "metric": {
+    "masked": {
+      "dots": "••••",
+      "label": "Lương được ẩn",
+      "tooltip": "Chỉ Trưởng phòng nhân sự xem được lương cá nhân"
+    },
+    "status": {
+      "ok": "Bình thường",
+      "warning": "Cảnh báo",
+      "critical": "Nguy cấp"
+    },
+    "state": {
+      "noData": "Chưa có dữ liệu nguồn",
+      "notComputable": "Không tính được"
+    },
+    "notComputableReason": {
+      "DENOMINATOR_ZERO": "Mẫu số bằng 0",
+      "DENOMINATOR_NEGATIVE": "Mẫu số âm",
+      "UNDEFINED": "Phép tính không xác định"
+    },
+    "displayHint": {
+      "GT_24_MONTHS": "> 24 tháng"
+    },
+    "unit": {
+      "days": "ngày",
+      "months": "tháng",
+      "tasksPerPerson": "task/người",
+      "vndPerPerson": "/người"
+    },
+    "freshness": "Cập nhật {time}",
+    "formula": "Công thức",
+    "period": "Kỳ",
+    "delta": "So với kỳ trước",
+    "viewDetail": "Xem chi tiết chỉ số {name}",
+    "statusLabel": "Trạng thái: {status}"
+  },
+  "alert": {
+    "severity": {
+      "WARNING": "Cảnh báo",
+      "CRITICAL": "Nguy cấp"
+    },
+    "triggeredAt": "Phát sinh lúc {time}",
+    "suggestedAction": "Hành động đề xuất",
+    "acknowledge": "Tiếp nhận",
+    "viewDetail": "Xem chi tiết cảnh báo {name}"
+  },
+  "chart": {
+    "title": "Xu hướng {name}",
+    "summary": "Biểu đồ xu hướng {name} theo kỳ, từ {first} đến {last}.",
+    "empty": "Chưa có dữ liệu xu hướng",
+    "tableCaption": "Dữ liệu xu hướng {name} theo kỳ",
+    "columnPeriod": "Kỳ",
+    "columnValue": "Giá trị",
+    "columnTarget": "Mục tiêu",
+    "notComputable": "Không tính được"
+  },
   "states": {
     "loading": {
       "label": "Đang tải nội dung"

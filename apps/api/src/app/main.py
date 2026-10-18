@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.core.handlers import register_exception_handlers
 from app.core.request_id import RequestIdMiddleware
+from app.modules.auth.router import router as auth_router
 from app.modules.system.router import router as system_router
 
 API_PREFIX = "/api/v1"
@@ -17,6 +18,8 @@ def create_app() -> FastAPI:
     # Added last → outermost app middleware: sees every response, incl. unhandled 500s.
     application.add_middleware(RequestIdMiddleware)
     application.include_router(system_router, prefix=API_PREFIX)
+    # T-103 — EP-02 login (public, DEC-080) mounted the same way as the system router.
+    application.include_router(auth_router, prefix=API_PREFIX)
     return application
 
 

@@ -60,6 +60,62 @@
       "placeholder": "This screen will be completed in a later step."
     }
   },
+  "metric": {
+    "masked": {
+      "dots": "••••",
+      "label": "Salary hidden",
+      "tooltip": "Only the HR Manager can view individual salaries"
+    },
+    "status": {
+      "ok": "Normal",
+      "warning": "Warning",
+      "critical": "Critical"
+    },
+    "state": {
+      "noData": "No source data yet",
+      "notComputable": "Not computable"
+    },
+    "notComputableReason": {
+      "DENOMINATOR_ZERO": "Denominator is zero",
+      "DENOMINATOR_NEGATIVE": "Denominator is negative",
+      "UNDEFINED": "Undefined computation"
+    },
+    "displayHint": {
+      "GT_24_MONTHS": "> 24 months"
+    },
+    "unit": {
+      "days": "days",
+      "months": "months",
+      "tasksPerPerson": "tasks/person",
+      "vndPerPerson": "/person"
+    },
+    "freshness": "Updated {time}",
+    "formula": "Formula",
+    "period": "Period",
+    "delta": "vs previous period",
+    "viewDetail": "View details for metric {name}",
+    "statusLabel": "Status: {status}"
+  },
+  "alert": {
+    "severity": {
+      "WARNING": "Warning",
+      "CRITICAL": "Critical"
+    },
+    "triggeredAt": "Triggered at {time}",
+    "suggestedAction": "Suggested action",
+    "acknowledge": "Acknowledge",
+    "viewDetail": "View details for alert {name}"
+  },
+  "chart": {
+    "title": "{name} trend",
+    "summary": "Trend chart of {name} by period, from {first} to {last}.",
+    "empty": "No trend data yet",
+    "tableCaption": "Trend data for {name} by period",
+    "columnPeriod": "Period",
+    "columnValue": "Value",
+    "columnTarget": "Target",
+    "notComputable": "Not computable"
+  },
   "states": {
     "loading": {
       "label": "Loading content"

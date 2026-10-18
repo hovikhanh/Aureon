@@ -65,3 +65,114 @@ export interface HealthOut {
   };
   demo_mode: boolean;
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Dashboard / metric / alert DTOs — 10 §1.8 (DS3), §1.9, §3 (MetricValueOut, AlertOut,
+ * EP-12 history). Enum values from 05 §4 (`metric_unit`). Added by T-109/T-110.
+ * ---------------------------------------------------------------------------------------- */
+
+/** Pillar codes — 03 §1, 10 §3 */
+export type Pillar = "FIN" | "CUS" | "OPS" | "HR";
+
+/** Metric value state — 10 §1.9 */
+export type MetricValueState = "OK" | "NO_DATA" | "NOT_COMPUTABLE";
+
+/** Reason when `value_state = NOT_COMPUTABLE` — 10 §1.9 */
+export type NotComputableReason = "DENOMINATOR_ZERO" | "DENOMINATOR_NEGATIVE" | "UNDEFINED";
+
+/** Threshold color — 10 §1.9 (`null` unless `value_state = OK`) */
+export type MetricStatusColor = "GREEN" | "YELLOW" | "RED";
+
+/** `metrics.unit` enum — 05 §4 `metric_unit` */
+export type MetricUnit =
+  | "VND"
+  | "PERCENT"
+  | "DAYS"
+  | "MONTHS"
+  | "RATIO"
+  | "COUNT"
+  | "SCORE"
+  | "TASKS_PER_PERSON"
+  | "VND_PER_PERSON";
+
+/** Special display rule (10 §1.9), e.g. METRIC-FIN-03 net cash flow ≥ 0 → `> 24 months`. */
+export type MetricDisplayHint = "GT_24_MONTHS";
+
+/** Metric access level for the active role — 10 §3, 02 §3.2 */
+export type MetricAccessLevel = "FULL" | "AGG";
+
+/** Masked sensitive field (salary) — 10 §1.8 DS3: no `value` is ever sent. */
+export interface MaskedField {
+  masked: true;
+}
+
+/** Sparkline point — 10 §3 MetricValueOut.sparkline */
+export interface MetricSparklinePoint {
+  period_key: string;
+  value: number | null;
+}
+
+/** Alert severity / status — 10 §3 AlertOut */
+export type AlertSeverity = "WARNING" | "CRITICAL";
+export type AlertStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "DISMISSED";
+
+/** Compact alert reference embedded in MetricValueOut.open_alert — 10 §3 */
+export interface MetricOpenAlertRef {
+  id: string;
+  alert_code: string;
+  severity: AlertSeverity;
+}
+
+/** MetricValueOut — 10 §3 (EP-10..EP-12) */
+export interface MetricValueOut {
+  metric_code: string;
+  pillar: Pillar;
+  name_i18n_key: string;
+  unit: MetricUnit;
+  chart_type: string;
+  access_level: MetricAccessLevel;
+  period_key: string;
+  value: number | null;
+  value_state: MetricValueState;
+  not_computable_reason: NotComputableReason | null;
+  display_hint: MetricDisplayHint | null;
+  target_value: number | null;
+  status_color: MetricStatusColor | null;
+  warning_threshold: number;
+  critical_threshold: number;
+  sparkline: MetricSparklinePoint[];
+  computed_at: string;
+  open_alert: MetricOpenAlertRef | null;
+}
+
+/** EP-12 `history[]` item — TrendChart input (10 §3 EP-12) */
+export interface MetricHistoryPoint {
+  period_key: string;
+  value: number | null;
+  target_value: number | null;
+  value_state: MetricValueState;
+  status_color: MetricStatusColor | null;
+}
+
+/** AlertOut — 10 §3 (EP-10 alerts_top, EP-15..EP-17) */
+export interface AlertOut {
+  id: string;
+  alert_code: string;
+  metric_code: string;
+  pillar: Pillar;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  period_key: string;
+  title_i18n_key: string;
+  message_params: Record<string, unknown>;
+  suggestion_level: "L1";
+  suggested_action_i18n_key: string;
+  triggered_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  dismissed_at: string | null;
+  can_acknowledge: boolean;
+}
+
+/** AI autonomy / state level shown by AIStateBadge — 06 §6.3 (P02) */
+export type AIStateLevel = "L0" | "L1" | "L2" | "L3";

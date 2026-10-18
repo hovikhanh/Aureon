@@ -111,10 +111,10 @@ Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planne
 | TC-SYS-004 | integration | pytest | Mutation gọi 2 lần cùng `Idempotency-Key` + cùng body → cùng response, 1 bản ghi; body khác → 409 `IDEMPOTENCY_CONFLICT`; thiếu header ở EP bắt buộc → 400 | EP-20..23, 30..34, 36, 40 (10 §1.6) | T-005 | Implemented |
 | TC-SYS-005 | integration | pytest | Mọi mutation ghi `audit_logs` trong cùng transaction (rollback → không có audit); không có API sửa/xóa audit | 10 §1.7; ENT-AuditLog; FR-DC-22 | T-102; T-404 | Passed |
 | TC-SYS-006 | contract | pytest | Phân trang `page`/`page_size` (>100 → 400) và `meta {page,page_size,total,total_pages}` | EP-13, 15, 24, 28, 52 (10 §1.5) | T-005 | Implemented |
-| TC-AUTH-001 | integration | pytest | EP-02 đúng credential (5 user seed, mật khẩu từ env/seed) → 200 + JWT có `sub, role, iat, exp, iss, aud` HS256 | EP-02; ROLE-01..05 | T-103; T-106 | Planned |
-| TC-AUTH-002 | integration | pytest | EP-02 sai mật khẩu và email không tồn tại → **cùng** 401 `INVALID_CREDENTIALS`, cùng message (không tiết lộ email tồn tại) | EP-02 | T-103 | Planned |
-| TC-AUTH-003 | integration | pytest | EP-02 vượt ngưỡng tần suất → 429 `RATE_LIMITED` | EP-02 | T-103 | Planned |
-| TC-AUTH-004 | integration | pytest | EP-02 ghi audit `auth.login` cho cả thành công/thất bại; `before/after/metadata` không chứa mật khẩu | EP-02; ENT-AuditLog | T-103 | Planned |
+| TC-AUTH-001 | integration | pytest | EP-02 đúng credential (5 user seed, mật khẩu từ env/seed) → 200 + JWT có `sub, role, iat, exp, iss, aud` HS256 | EP-02; ROLE-01..05 | T-103; T-106 | Implemented |
+| TC-AUTH-002 | integration | pytest | EP-02 sai mật khẩu và email không tồn tại → **cùng** 401 `INVALID_CREDENTIALS`, cùng message (không tiết lộ email tồn tại) | EP-02 | T-103 | Implemented |
+| TC-AUTH-003 | integration | pytest | EP-02 vượt ngưỡng tần suất → 429 `RATE_LIMITED` | EP-02 | T-103 | Implemented |
+| TC-AUTH-004 | integration | pytest | EP-02 ghi audit `auth.login` cho cả thành công/thất bại; `before/after/metadata` không chứa mật khẩu | EP-02; ENT-AuditLog | T-103 | Implemented |
 | TC-AUTH-005 | integration | pytest | JWT thiếu/sai chữ ký/hết hạn/sai `iss`/`aud` → 401 `UNAUTHENTICATED` trên EP-03 | EP-03 (10 §1.4) | T-104 | Planned |
 | TC-AUTH-006 | integration | pytest | EP-03 trả UserOut + `permissions` đúng ma trận 02 §3 cho từng ROLE-01..05; không có `password_hash` | EP-03; ENT-User; ENT-Role; ROLE-01..05 | T-104 | Planned |
 | TC-AUTH-007 | integration | pytest | `DEMO_MODE=true`: EP-04 `target_role_code=ROLE-02` → JWT mới của user seed CFO, `users.last_login_at` cập nhật, audit `role.switch` có `from_role, to_role, from_user_id, to_user_id` | EP-04; ENT-AuditLog | T-105 | Planned |
@@ -259,9 +259,9 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
 | TC-UI-001 | unit | Vitest | Helper format P04: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` | 06 §7.1; P04 | T-008 | Passed |
-| TC-UI-002 | unit | Vitest | MetricCard render đủ trạng thái 06 §4.1: bình thường, cảnh báo, nguy cấp (icon + chữ), `NO_DATA` (`—`), `NOT_COMPUTABLE` (`N/A` + "Không tính được", không màu ngưỡng) | 06 §4.1; 10 §1.9 | T-109 | Planned |
-| TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Planned |
-| TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Planned |
+| TC-UI-002 | unit | Vitest | MetricCard render đủ trạng thái 06 §4.1: bình thường, cảnh báo, nguy cấp (icon + chữ), `NO_DATA` (`—`), `NOT_COMPUTABLE` (`N/A` + "Không tính được", không màu ngưỡng) | 06 §4.1; 10 §1.9 | T-109 | Implemented |
+| TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Implemented |
+| TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Implemented |
 | TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Passed |
 | TC-UI-006 | e2e | Playwright + axe | Quét a11y WCAG 2.1 AA trên SCR-01, 05, 06, 08, 09, 10, 12, 13: 0 vi phạm serious/critical | 06 §9 | T-108; T-218; T-406 | Planned |
 | TC-UI-007 | e2e | Playwright | Responsive: viewport 375/768/1280 cho SCR-01, SCR-06, SCR-08; PWA manifest + offline banner | 06 §8 | T-221; T-222; T-406 | Planned |
@@ -467,6 +467,8 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-101/T-102 | TC-DATA-003 → Passed (`apps/api/tests/auth/test_user_role_constraints.py`: email partial-unique, FK role, `password_hash` không có trong `UserOut`); TC-DATA-004 → Passed (`apps/api/tests/auth/test_seed.py`: seed 5 role + 5 user `@abc.demo`, idempotent, scope theo 02 §3/05 §4.2, hash argon2id verify); TC-DATA-014 → Passed (`apps/api/tests/audit/test_audit_immutable.py`: guard ORM + trigger DB chặn UPDATE/DELETE); TC-SYS-005 → Passed (`apps/api/tests/audit/test_audit_transaction.py`: mutation + audit cùng transaction, rollback → không audit, lương mask ••••). Seed/reset qua `app.seed`/`app.reset` (DEC-062); 37 test mới; coverage module ≥ 86% |
 | 2026-10-18 | T-009 | TC-SYS-003 → Implemented (`apps/api/tests/contract/`: parser đọc 10 §1.10/§1.4 động, check envelope/`require_role`(`__aureon_roles__`)/`response_model`/mã lỗi trên OpenAPI; self-test chứng suite fail đúng với route lỗi). Hiện mới mount EP-01 nên là Implemented; thành Passed khi có endpoint thật áp `require_role` (T-104+). Thêm CI `.github/workflows/ci.yml` (web + api), marker `live` loại test OmniRoute. 20 test contract |
 | 2026-10-18 | T-108 | FE shell (AppShell/Sidebar/Topbar/SkipLink + 4 page state) theo 06 §3/§8; nav theo vai trò khớp 02 §3 (5 vai trò, `apps/web/src/components/layout/Sidebar.test.tsx`). TC-UI-006 phần unit: axe-core quét AppShell + 4 state → 0 serious/critical (`apps/web/src/components/layout/a11y.test.tsx`), phần e2e Playwright giữ Planned. TC-UI-009 phần unit: trạng thái loading/empty/error/forbidden đúng 06 §3.2 (`apps/web/src/components/states/states.test.tsx`), phần e2e mock-API 403 giữ Planned. 46 test/8 file pass; build:web 11 route prerender. DEC-117 resolved |
+| 2026-10-18 | T-103 | EP-02 login + JWT HS256 + Redis rate limit + audit `auth.login` (thành công và thất bại không lộ mật khẩu). Coverage module auth đạt 97%. TC-AUTH-001..004 → Implemented. |
+| 2026-10-18 | T-109, T-110 | FE UI components: MetricCard (đủ 5 trạng thái + P01 drilldown), MaskedValue (`••••`), AlertCard, AIStateBadge (L0–L3 token `--ai`), TrendChart (Recharts + a11y table fallback). 92 unit tests pass, axe scan 0 violations. TC-UI-002, TC-UI-003, TC-UI-004 → Implemented. |
 | 2026-10-18 | T-008 | TC-UI-001 → Passed (`apps/web/src/lib/format.test.ts`: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` + biên null/âm/làm tròn; đơn vị lấy từ `messages/vi.json`). TC-UI-005 vẫn Passed sau khi thêm i18n. Thêm test token `--ai` ≠ `--primary` (`design-tokens.test.ts`) và test khoá i18n tồn tại (`messages.test.ts`) |
 
 ---
