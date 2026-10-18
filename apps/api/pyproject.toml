@@ -16,6 +16,7 @@ dependencies = [
     "httpx==0.28.1",
     "pyjwt==2.15.1",
     "argon2-cffi==25.1.0",
+    "python-multipart>=0.0.18",
 ]
 
 [build-system]

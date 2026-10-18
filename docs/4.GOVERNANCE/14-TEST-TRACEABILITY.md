@@ -181,9 +181,9 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-IDP-001 | integration | pytest | EP-20 PDF 5 MB → 201 ≤ 2 s, `UPLOADED`, `sha256` lưu, file trên MinIO; upload **stream** (đo bộ nhớ không tăng theo kích thước file) | EP-20; FR-DC-01; US-DC-001; ENT-SourceDocument | T-203 | Planned |
-| TC-IDP-002 | integration | pytest | EP-20 25 MB → 413 `FILE_TOO_LARGE`; 51 trang → 413; `.zip`/`.exe` → 415; không tạo document | EP-20; FR-DC-01; IDP-E01 | T-203 | Planned |
-| TC-IDP-003 | integration | pytest | Upload lại cùng file → 201 `DUPLICATE` + `duplicate_of_id`, không enqueue; EP-34 `FORCE_DUPLICATE` xử lý lại + audit | EP-20, EP-34; FR-DC-06; US-DC-001 | T-203 | Planned |
+| TC-IDP-001 | integration | pytest | EP-20 PDF 5 MB → 201 ≤ 2 s, `UPLOADED`, `sha256` lưu, file trên MinIO; upload **stream** (đo bộ nhớ không tăng theo kích thước file) | EP-20; FR-DC-01; US-DC-001; ENT-SourceDocument | T-203 | Passed |
+| TC-IDP-002 | integration | pytest | EP-20 25 MB → 413 `FILE_TOO_LARGE`; 51 trang → 413; `.zip`/`.exe` → 415; không tạo document | EP-20; FR-DC-01; IDP-E01 | T-203 | Passed |
+| TC-IDP-003 | integration | pytest | Upload lại cùng file → 201 `DUPLICATE` + `duplicate_of_id`, không enqueue; EP-34 `FORCE_DUPLICATE` xử lý lại + audit | EP-20, EP-34; FR-DC-06; US-DC-001 | T-203 | Passed |
 | TC-IDP-004 | integration | pytest | EP-21 form `INVOICE`: MST sai → 422 `details.fields`; hợp lệ → `kind=MANUAL`, field `confidence=1.0`, `source_location.kind=manual`, vẫn qua Action Registry | EP-21; FR-DC-02; US-DC-002 | T-204 | Planned |
 | TC-IDP-005 | integration | pytest | EP-22 câu "Hóa đơn 0001234 … 25 triệu ngày 05/10/2026" → bản nháp `INVOICE` L2, `source_location.kind=transcript`, không STP; kill switch L0 → 423 `AI_DISABLED` | EP-22; FR-DC-03; US-DC-003 | T-204 | Planned |
 | TC-IDP-006 | e2e | Playwright | C4 trên viewport mobile: chụp 3 ảnh → 1 tài liệu 3 trang; ảnh mờ → cảnh báo chụp lại | EP-20; FR-DC-04; US-DC-004; SCR-08 | T-222 | Planned |
@@ -226,8 +226,8 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-UC07-001 | integration | pytest | EP-40 ROLE-01/05 → 201 `batch_id` + checklist 7 loại; ROLE-02/03/04 → 403; audit `onboarding.batch_create` | EP-40; FR-DC-23; US-DC-016; ROLE-01..05 | T-311 | Planned |
-| TC-UC07-002 | integration | pytest | EP-20 với `batch_id` từ ROLE-02 → 403; từ ROLE-01 → OK | EP-20, EP-40 | T-311 | Planned |
+| TC-UC07-001 | integration | pytest | EP-40 ROLE-01/05 → 201 `batch_id` + checklist 7 loại; ROLE-02/03/04 → 403; audit `onboarding.batch_create` | EP-40; FR-DC-23; US-DC-016; ROLE-01..05 | T-311 | Passed |
+| TC-UC07-002 | integration | pytest | EP-20 với `batch_id` từ ROLE-02 → 403; từ ROLE-01 → OK | EP-20, EP-40 | T-311 | Passed |
 | TC-UC07-003 | integration | pytest | Batch 7 tài liệu mẫu (fixture): EP-41 `summary`, `checklist` đủ 7, `cross_checks` có XD-01 `MATCH`; 1 file `FAILED` không chặn batch (UC07-E2); thiếu doc type → checklist `present=false` (UC07-E1); DUPLICATE (E4); OTHER (E5) | EP-41; FR-DC-14, FR-DC-23; US-DC-016 | T-311; T-401 | Planned |
 | TC-UC07-004 | integration | pytest | EP-41 với CEO: tài liệu `contains_salary` (#6) chỉ metadata | EP-41; DS3/DS4 | T-311 | Planned |
 | TC-UC07-005 | perf | pytest | NFR-IDP-02: batch 7 tài liệu xử lý tự động xong ≤ 5 phút | NFR-IDP-02; KPI onboarding | T-311; T-405 | Planned |
@@ -354,7 +354,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | EP-15 | `GET /alerts` | TC-DASH-012 | T-308 | Planned |
 | EP-16 | `POST /alerts/{id}/acknowledge` | TC-DASH-013 | T-308 | Planned |
 | EP-17 | `POST /alerts/{id}/dismiss` | TC-DASH-014 | T-308 | Planned |
-| EP-20 | `POST /documents` | TC-IDP-001..003, TC-IDP-006, TC-UC07-002 | T-203; T-222 | Planned |
+| EP-20 | `POST /documents` | TC-IDP-001..003, TC-IDP-006, TC-UC07-002 | T-203; T-222 | Implemented |
 | EP-21 | `POST /documents/manual` | TC-IDP-004 | T-204 | Planned |
 | EP-22 | `POST /documents/natural-language` | TC-IDP-005 | T-204 | Planned |
 | EP-23 | `POST /documents/import` | TC-IDP-007 | T-205 | Planned |
@@ -371,7 +371,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | EP-34 | `POST /documents/{id}/retry` | TC-IDP-003, TC-IDP-025, TC-IDP-030 | T-006; T-203; T-211; T-213; T-215; T-216 | Planned |
 | EP-35 | `POST /documents/{id}/review/release` | TC-IDP-019 | T-214 | Planned |
 | EP-36 | `POST /documents/{id}/import-mapping` | TC-IDP-007 | T-205 | Planned |
-| EP-40 | `POST /onboarding/batches` | TC-UC07-001, TC-UC07-002 | T-311 | Planned |
+| EP-40 | `POST /onboarding/batches` | TC-UC07-001, TC-UC07-002 | T-311 | Implemented |
 | EP-41 | `GET /onboarding/batches/{batch_id}` | TC-UC07-003, TC-UC07-004 | T-311; T-401 | Planned |
 | EP-50 | `GET /extraction-schemas` | TC-IDP-037 | T-207; T-223 | Planned |
 | EP-51 | `GET /ai-config` | TC-IDP-038 | T-217; T-223 | Planned |
@@ -467,6 +467,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-101/T-102 | TC-DATA-003 → Passed (`apps/api/tests/auth/test_user_role_constraints.py`: email partial-unique, FK role, `password_hash` không có trong `UserOut`); TC-DATA-004 → Passed (`apps/api/tests/auth/test_seed.py`: seed 5 role + 5 user `@abc.demo`, idempotent, scope theo 02 §3/05 §4.2, hash argon2id verify); TC-DATA-014 → Passed (`apps/api/tests/audit/test_audit_immutable.py`: guard ORM + trigger DB chặn UPDATE/DELETE); TC-SYS-005 → Passed (`apps/api/tests/audit/test_audit_transaction.py`: mutation + audit cùng transaction, rollback → không audit, lương mask ••••). Seed/reset qua `app.seed`/`app.reset` (DEC-062); 37 test mới; coverage module ≥ 86% |
 | 2026-10-18 | T-009 | TC-SYS-003 → Implemented (`apps/api/tests/contract/`: parser đọc 10 §1.10/§1.4 động, check envelope/`require_role`(`__aureon_roles__`)/`response_model`/mã lỗi trên OpenAPI; self-test chứng suite fail đúng với route lỗi). Hiện mới mount EP-01 nên là Implemented; thành Passed khi có endpoint thật áp `require_role` (T-104+). Thêm CI `.github/workflows/ci.yml` (web + api), marker `live` loại test OmniRoute. 20 test contract |
 | 2026-10-18 | T-108 | FE shell (AppShell/Sidebar/Topbar/SkipLink + 4 page state) theo 06 §3/§8; nav theo vai trò khớp 02 §3 (5 vai trò, `apps/web/src/components/layout/Sidebar.test.tsx`). TC-UI-006 phần unit: axe-core quét AppShell + 4 state → 0 serious/critical (`apps/web/src/components/layout/a11y.test.tsx`), phần e2e Playwright giữ Planned. TC-UI-009 phần unit: trạng thái loading/empty/error/forbidden đúng 06 §3.2 (`apps/web/src/components/states/states.test.tsx`), phần e2e mock-API 403 giữ Planned. 46 test/8 file pass; build:web 11 route prerender. DEC-117 resolved |
+| 2026-10-18 | T-203 | Upload tài liệu C3/C4 (EP-20) + Tạo batch UC-07 (EP-40) + Chống trùng SHA-256. Giới hạn 20MB (`FILE_TOO_LARGE`), 50 trang PDF (`FILE_TOO_LARGE`), định dạng hợp lệ (`UNSUPPORTED_MEDIA_TYPE`), upload stream 5MB ≤ 2s (TC-IDP-001). Deduplication SHA-256 tạo document `DUPLICATE` kèm warning `DUPLICATE_DOCUMENT` + audit `document.upload_duplicate`. EP-40 chỉ cho CEO/Reviewer (`TC-UC07-001`), EP-20 có batch_id chặn các role khác (`TC-UC07-002`). TC-IDP-001..003, TC-UC07-001..002 → Passed. |
 | 2026-10-18 | T-202 | State machine tài liệu 04 §8.2 (`DocumentStateMachine`) với ma trận 14 trạng thái; cấm CEO undo (`FORBIDDEN_ROLE`), cấm CFO undo ngoài FIN, giới hạn undo 7 ngày (`UNDO_EXPIRED`), chuyển sai → `CONFLICT_STATE`. Service MinIO S3 (`StorageService`) bằng SigV4 chuẩn không thêm dependency mới: upload, get, delete, presigned URL (15m). TC-IDP-034 → Passed (23 tests). |
 | 2026-10-18 | T-201 | Migration Alembic 6 bảng IDP Core và Business Records (`source_documents`, `document_pages`, `extraction_jobs`, `extracted_fields`, `extraction_reviews`, `business_records`) theo 05 §4.3..4.8. Enum 05 §6; check constraints, indexes, generated STORED column `amount_due`, auto contains_salary và 7-day undo_deadline. Reversible migration (upgrade/downgrade OK). TC-DATA-005..010 → Passed. |
 | 2026-10-18 | T-111 | SCR-01..04 dashboard tĩnh với fixture 08 §5.1 (18 metrics, 12 alerts). SCR-01 CEO: 4 trụ FULL, 12 alerts (Critical trước), AI executive summary L1 read-only (DEC-072 Đề xuất A), render ≤ 10s (TC-KPI-003). SCR-02..04: phân quyền theo trụ (02 §3.1), mọi số có link drill-down (P01, TC-UI-008), 0 vi phạm axe-core (TC-UI-006). Hoàn thành toàn bộ Phase 1 (Sprint 1: 20/20 tasks). |
