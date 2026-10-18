@@ -38,6 +38,10 @@ from app.modules.idp.schemas import (
     UserBrief,
 )
 from app.modules.idp.schemas_registry import EXTRACTION_SCHEMAS
+from app.modules.idp.validation import (
+    check_and_apply_prompt_injection_defense,
+    validate_internal_rules,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -389,6 +393,14 @@ def extract_document_fields(
             sensitivity=sf.sensitivity,
         )
         db.add(extracted_field)
+
+    db.flush()
+
+    # PI-04: Check prompt injection defense
+    check_and_apply_prompt_injection_defense(db, doc.id, corpus, job.id)
+
+    # FR-DC-13: Validate internal rules and update field confidences
+    validate_internal_rules(db, doc.id, job.id)
 
     avg_conf = sum(confidences) / len(confidences) if confidences else 0.85
     job.status = JobStatus.SUCCEEDED
