@@ -163,5 +163,69 @@
     "switching": "Switching to {role}…",
     "switchError": "Failed to switch role. Please try again.",
     "openMenu": "Open role menu"
+  },
+  "dashboard": {
+    "greeting": "Welcome {salutation} {name}",
+    "roleBadge": "Role: {role}",
+    "ceoSummaryTitle": "AI Executive Summary",
+    "ceoSummaryContent": "September revenue reached 8.5B (88.5% of target). 3 critical issues need attention: Overdue receivables at 1.3B (23.9%), Pipeline coverage low at 0.77x, On-time task rate dropped to 60% due to delivery bottlenecks.",
+    "actionNeededTitle": "Action Needed",
+    "actionNeededSubtitle": "{count} prioritized alerts require your attention",
+    "pillars": {
+      "FIN": "Finance",
+      "CUS": "Customers",
+      "OPS": "Operations",
+      "HR": "Human Resources"
+    },
+    "aggPillarsTitle": "Aggregate Metrics (Out of Detailed Scope)",
+    "allPillarsGood": "All indicators are stable"
+  },
+  "metricNames": {
+    "METRIC-FIN-01": "Monthly Revenue",
+    "METRIC-FIN-02": "Gross Profit Margin",
+    "METRIC-FIN-03": "Cash Runway",
+    "METRIC-FIN-04": "Days Sales Outstanding (DSO)",
+    "METRIC-FIN-05": "Overdue Receivables Ratio",
+    "METRIC-FIN-06": "Budget Expense Variance",
+    "METRIC-CUS-01": "Sales Pipeline Coverage",
+    "METRIC-CUS-02": "Lead Conversion Rate",
+    "METRIC-CUS-03": "Net Revenue Retention (NRR)",
+    "METRIC-CUS-04": "Top 5 Revenue Concentration",
+    "METRIC-CUS-05": "Net Promoter Score (NPS)",
+    "METRIC-OPS-01": "On-Time Task Delivery Rate",
+    "METRIC-OPS-02": "Overdue Projects Count",
+    "METRIC-OPS-03": "On-Time Decision Execution Rate",
+    "METRIC-OPS-04": "Average Workload per Person",
+    "METRIC-HR-01": "Revenue per Employee",
+    "METRIC-HR-02": "Employee Turnover Rate",
+    "METRIC-HR-03": "Overburdened Employee Ratio"
+  },
+  "alertTitles": {
+    "ALERT-FIN-01": "September revenue missed target (88.5%)",
+    "ALERT-FIN-03": "Cash runway dropped under 9 months (8.0 months)",
+    "ALERT-FIN-04": "DSO exceeded 45-day threshold (47.8 days)",
+    "ALERT-FIN-05": "Overdue receivables exceeded critical threshold (23.9%)",
+    "ALERT-FIN-06": "Actual operating expenses over budget (+7.9%)",
+    "ALERT-CUS-01": "Sales pipeline coverage hit critical level (0.77x)",
+    "ALERT-CUS-02": "Lead conversion lower than expected (24.0%)",
+    "ALERT-CUS-04": "Revenue excessively concentrated in Top 5 clients (51.0%)",
+    "ALERT-OPS-01": "On-time task delivery fell to 60.0%",
+    "ALERT-OPS-02": "2 projects are currently overdue",
+    "ALERT-OPS-03": "Decision execution rate dropped to 66.7%",
+    "ALERT-OPS-04": "2 team members carry over 8 open tasks"
+  },
+  "alertActions": {
+    "ALERT-FIN-01": "Reconcile pending contracts with DOC-02 and expedite acceptance",
+    "ALERT-FIN-03": "Cut non-essential spend and accelerate collections",
+    "ALERT-FIN-04": "Apply a 1.5% early payment discount policy",
+    "ALERT-FIN-05": "Freeze credit line for 2 clients with overdue > 90 days",
+    "ALERT-FIN-06": "Audit logistics and warehouse operations expenses",
+    "ALERT-CUS-01": "Intensify outbound prospecting for the next quarter",
+    "ALERT-CUS-02": "Refine client demo and quoting workflow",
+    "ALERT-CUS-04": "Expand mid-market client portfolio to diversify risks",
+    "ALERT-OPS-01": "Reallocate delivery logistics to clear pending orders",
+    "ALERT-OPS-02": "Convene emergency leadership meeting to unblock bottlenecks",
+    "ALERT-OPS-03": "Assign designated owners to track each resolution",
+    "ALERT-OPS-04": "Offload tasks from overloaded personnel to support team"
   }
 }

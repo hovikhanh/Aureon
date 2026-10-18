@@ -163,5 +163,69 @@
     "switching": "Đang chuyển sang {role}…",
     "switchError": "Không chuyển được vai trò. Vui lòng thử lại.",
     "openMenu": "Mở danh sách vai trò"
+  },
+  "dashboard": {
+    "greeting": "Chào {salutation} {name}",
+    "roleBadge": "Vai trò: {role}",
+    "ceoSummaryTitle": "Tóm tắt điều hành AI",
+    "ceoSummaryContent": "Doanh thu T9 đạt 8,5 tỷ (88,5% KH). 3 vấn đề cần chú ý: Công nợ quá hạn 1,3 tỷ (23,9%), Pipeline coverage 0,77x thấp, Task đúng hạn 60% giảm do tắc nghẽn giao hàng.",
+    "actionNeededTitle": "Cần anh/chị quyết",
+    "actionNeededSubtitle": "{count} cảnh báo cần xử lý theo thứ tự ưu tiên",
+    "pillars": {
+      "FIN": "Tài chính",
+      "CUS": "Khách hàng",
+      "OPS": "Vận hành",
+      "HR": "Con người"
+    },
+    "aggPillarsTitle": "Chỉ số tổng hợp (ngoài phạm vi chi tiết)",
+    "allPillarsGood": "Tất cả chỉ số đều ổn định"
+  },
+  "metricNames": {
+    "METRIC-FIN-01": "Doanh thu tháng",
+    "METRIC-FIN-02": "Biên lợi nhuận gộp",
+    "METRIC-FIN-03": "Dự phòng tiền mặt (Runway)",
+    "METRIC-FIN-04": "Số ngày thu tiền bình quân (DSO)",
+    "METRIC-FIN-05": "Tỷ lệ công nợ quá hạn",
+    "METRIC-FIN-06": "Chênh lệch ngân sách chi phí",
+    "METRIC-CUS-01": "Độ phủ phễu bán hàng (Pipeline coverage)",
+    "METRIC-CUS-02": "Tỷ lệ chuyển đổi lead",
+    "METRIC-CUS-03": "Tỷ lệ giữ chân doanh thu (NRR)",
+    "METRIC-CUS-04": "Tập trung doanh thu Top 5",
+    "METRIC-CUS-05": "Điểm hài lòng khách hàng (NPS)",
+    "METRIC-OPS-01": "Tỷ lệ việc đúng hạn",
+    "METRIC-OPS-02": "Số dự án trễ hạn",
+    "METRIC-OPS-03": "Thực thi quyết định đúng hạn",
+    "METRIC-OPS-04": "Tải công việc bình quân",
+    "METRIC-HR-01": "Doanh thu trên nhân sự",
+    "METRIC-HR-02": "Tỷ lệ nghỉ việc",
+    "METRIC-HR-03": "Tỷ lệ nhân sự quá tải"
+  },
+  "alertTitles": {
+    "ALERT-FIN-01": "Doanh thu T9 không đạt kế hoạch (88,5%)",
+    "ALERT-FIN-03": "Dự phòng tiền mặt dưới 9 tháng (8,0 tháng)",
+    "ALERT-FIN-04": "DSO vượt ngưỡng 45 ngày (47,8 ngày)",
+    "ALERT-FIN-05": "Công nợ quá hạn vượt ngưỡng nguy cấp (23,9%)",
+    "ALERT-FIN-06": "Chi phí thực tế vượt ngân sách (+7,9%)",
+    "ALERT-CUS-01": "Độ phủ pipeline chạm mức nguy cấp (0,77x)",
+    "ALERT-CUS-02": "Tỷ lệ chuyển đổi thấp hơn kỳ vọng (24,0%)",
+    "ALERT-CUS-04": "Doanh thu tập trung quá mức vào Top 5 khách hàng (51,0%)",
+    "ALERT-OPS-01": "Tỷ lệ hoàn thành task đúng hạn rơi xuống 60%",
+    "ALERT-OPS-02": "Phát sinh 2 dự án trễ hạn trong kỳ",
+    "ALERT-OPS-03": "Tỷ lệ thực thi quyết định giảm còn 66,7%",
+    "ALERT-OPS-04": "2 nhân sự đang gánh trên 8 task mở"
+  },
+  "alertActions": {
+    "ALERT-FIN-01": "Đối soát hợp đồng mới với DOC-02 và đẩy nhanh nghiệm thu",
+    "ALERT-FIN-03": "Cắt giảm chi phí không thiết yếu và đẩy mạnh thu hồi nợ",
+    "ALERT-FIN-04": "Áp dụng chính sách chiết khấu thanh toán sớm 1,5%",
+    "ALERT-FIN-05": "Dừng cấp hạn mức tín dụng cho 2 khách hàng nợ > 90 ngày",
+    "ALERT-FIN-06": "Kiểm toán lại chi phí vận hành kho vận",
+    "ALERT-CUS-01": "Tăng cường tìm kiếm lead mới trong quý tới",
+    "ALERT-CUS-02": "Rà soát lại quy trình demo và báo giá cho khách hàng",
+    "ALERT-CUS-04": "Mở rộng danh mục khách hàng vừa và nhỏ để phân tán rủi ro",
+    "ALERT-OPS-01": "Điều phối lại nguồn lực giao nhận để giải tỏa đơn hàng tồn",
+    "ALERT-OPS-02": "Họp khẩn ban chỉ đạo để tháo gỡ điểm nghẽn dự án",
+    "ALERT-OPS-03": "Gán người theo dõi tiến độ thực hiện từng nghị quyết",
+    "ALERT-OPS-04": "Tái phân bổ task từ 2 nhân sự quá tải sang bộ phận hỗ trợ"
   }
 }
