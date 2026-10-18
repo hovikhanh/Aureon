@@ -23,5 +23,60 @@
       "draft": "AI soạn · chờ xác nhận",
       "done": "AI đã làm"
     }
+  },
+  "shell": {
+    "companyName": "Công ty TNHH TM&DV ABC",
+    "skipToContent": "Bỏ qua, tới nội dung chính",
+    "toggleSidebar": "Mở/đóng thanh điều hướng",
+    "closeSidebar": "Đóng thanh điều hướng",
+    "sidebarClosed": "Thanh điều hướng đang đóng",
+    "collapseSidebar": "Thu gọn thanh điều hướng",
+    "expandSidebar": "Mở rộng thanh điều hướng",
+    "userMenu": "Tài khoản",
+    "nav": {
+      "landmark": "Điều hướng chính",
+      "dashboard": "Bảng điều khiển",
+      "inbox": "Hàng chờ",
+      "documents": "Tài liệu",
+      "upload": "Nạp dữ liệu",
+      "schemas": "Schema tài liệu",
+      "audit": "Nhật ký audit"
+    },
+    "roles": {
+      "CEO": "Tổng giám đốc",
+      "CFO": "Giám đốc tài chính",
+      "SALES_DIRECTOR": "Giám đốc kinh doanh",
+      "HR_MANAGER": "Trưởng phòng nhân sự",
+      "REVIEWER": "Người duyệt"
+    },
+    "pages": {
+      "dashboard": "Bảng điều khiển",
+      "inbox": "Hàng chờ tài liệu",
+      "documents": "Tài liệu",
+      "upload": "Nạp dữ liệu",
+      "schemas": "Schema tài liệu",
+      "audit": "Nhật ký audit",
+      "forbidden": "Không có quyền truy cập",
+      "placeholder": "Màn hình này sẽ được hoàn thiện ở bước tiếp theo."
+    }
+  },
+  "states": {
+    "loading": {
+      "label": "Đang tải nội dung"
+    },
+    "empty": {
+      "title": "Chưa có dữ liệu",
+      "description": "Chưa có nội dung để hiển thị. Hãy nạp dữ liệu để bắt đầu."
+    },
+    "error": {
+      "title": "Không tải được dữ liệu",
+      "description": "Đã xảy ra lỗi khi tải nội dung. Vui lòng thử lại.",
+      "stale": "Dữ liệu có thể đã cũ.",
+      "retry": "Thử lại"
+    },
+    "forbidden": {
+      "title": "Nội dung thuộc phạm vi khác",
+      "description": "Anh/chị không có quyền xem nội dung này."
+    }
   }
 }

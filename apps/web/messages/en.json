@@ -23,5 +23,60 @@
       "draft": "AI draft · awaiting confirmation",
       "done": "Done by AI"
     }
+  },
+  "shell": {
+    "companyName": "ABC Trading & Services Co., Ltd.",
+    "skipToContent": "Skip to main content",
+    "toggleSidebar": "Toggle navigation",
+    "closeSidebar": "Close navigation",
+    "sidebarClosed": "Navigation is closed",
+    "collapseSidebar": "Collapse navigation",
+    "expandSidebar": "Expand navigation",
+    "userMenu": "Account",
+    "nav": {
+      "landmark": "Primary navigation",
+      "dashboard": "Dashboard",
+      "inbox": "Inbox",
+      "documents": "Documents",
+      "upload": "Upload",
+      "schemas": "Document schemas",
+      "audit": "Audit log"
+    },
+    "roles": {
+      "CEO": "CEO",
+      "CFO": "CFO",
+      "SALES_DIRECTOR": "Sales Director",
+      "HR_MANAGER": "HR Manager",
+      "REVIEWER": "Reviewer"
+    },
+    "pages": {
+      "dashboard": "Dashboard",
+      "inbox": "Document inbox",
+      "documents": "Documents",
+      "upload": "Upload",
+      "schemas": "Document schemas",
+      "audit": "Audit log",
+      "forbidden": "Access denied",
+      "placeholder": "This screen will be completed in a later step."
+    }
+  },
+  "states": {
+    "loading": {
+      "label": "Loading content"
+    },
+    "empty": {
+      "title": "No data yet",
+      "description": "There is nothing to show yet. Upload data to get started."
+    },
+    "error": {
+      "title": "Could not load data",
+      "description": "Something went wrong while loading this content. Please try again.",
+      "stale": "Data may be outdated.",
+      "retry": "Retry"
+    },
+    "forbidden": {
+      "title": "Content is out of your scope",
+      "description": "You do not have permission to view this content."
+    }
   }
 }
