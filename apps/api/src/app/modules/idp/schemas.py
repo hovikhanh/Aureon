@@ -413,3 +413,16 @@ class ReviewRejectRequest(BaseModel):
     review_id: UUID
     reject_reason_code: str
     reject_note: str | None = None
+
+
+class RollbackDocumentRequest(BaseModel):
+    """Payload for EP-33 POST /documents/{id}/rollback."""
+
+    reason: str = Field(..., min_length=1, max_length=500, description="Lý do hoàn tác")
+
+
+class RollbackOut(BaseModel):
+    """Response payload for EP-33 POST /documents/{id}/rollback."""
+
+    document: DocumentOut
+    affected_metric_codes: list[str] = Field(default_factory=list)

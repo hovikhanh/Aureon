@@ -76,6 +76,8 @@ from app.modules.idp.schemas import (
     ReviewQueueMetaOut,
     ReviewQueueResponse,
     ReviewRejectRequest,
+    RollbackDocumentRequest,
+    RollbackOut,
     StatusTimelineItem,
     UpdateDocumentFieldsRequest,
     UserBrief,
@@ -1918,3 +1920,105 @@ def reject_document_review(
 
     doc_out = serialize_document_out(doc, current_user)
     return Envelope(data=doc_out)
+
+
+@router.post(
+    "/documents/{id}/rollback",
+    response_model=Envelope[RollbackOut],
+    summary="Rollback committed document within undo deadline (EP-33)",
+)
+def rollback_document(
+    id: UUID,
+    payload: RollbackDocumentRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[RollbackOut]:
+    """EP-33: Hoàn tác commit tài liệu trong thời hạn undo (7 ngày).
+
+    - Role: require_role(ROLE-02, ROLE-04, ROLE-05) + review_pillars (CEO không hoàn tác).
+    - Header: Idempotency-Key bắt buộc.
+    - Điều kiện: status=COMMITTED và now <= undo_deadline.
+    - Xử lý: execute_action("document.rollback", payload={"rollback_reason": payload.reason})
+      -> soft delete business_records -> ROLLED_BACK -> audit document.rollback.
+    - Trả về Envelope[RollbackOut].
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if doc.status != DocumentStatus.COMMITTED:
+        msg = f"Tài liệu không ở trạng thái COMMITTED (hiện tại: {doc.status.value})"
+        raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+
+    now = datetime.now(UTC)
+    if doc.undo_deadline is None or now > doc.undo_deadline:
+        raise ApiError(
+            ErrorCode.UNDO_EXPIRED,
+            "Thời hạn hoàn tác tài liệu đã hết (tối đa 7 ngày kể từ khi duyệt)",
+        )
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if role_code == "ROLE-02" and "FIN" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "CFO chỉ có quyền hoàn tác tài liệu trụ Tài chính"
+        )
+    if role_code == "ROLE-04" and "HR" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "HR Manager chỉ có quyền hoàn tác tài liệu trụ Con người"
+        )
+
+    if not payload.reason or not payload.reason.strip():
+        raise ApiError(ErrorCode.VALIDATION_ERROR, "Lý do hoàn tác không được để trống")
+
+    latest_job = None
+    if doc.extraction_jobs:
+        latest_job = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)[0]
+    field_set_version = latest_job.attempt_no if latest_job else 1
+
+    action_res = execute_action(
+        db=db,
+        action_name="document.rollback",
+        document_id=doc.id,
+        payload={"rollback_reason": payload.reason.strip()},
+        actor=current_user,
+        field_set_version=field_set_version,
+    )
+
+    doc.locked_by_id = None
+    doc.locked_until = None
+
+    record_audit(
+        db=db,
+        action="document.rollback",
+        target_type="source_documents",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=doc.id,
+        source_document_id=doc.id,
+        before={"status": DocumentStatus.COMMITTED.value},
+        after={"status": DocumentStatus.ROLLED_BACK.value},
+        metadata={
+            "reason": payload.reason.strip(),
+            "rolled_back_records_count": action_res.get("rolled_back_records_count", 0),
+        },
+    )
+    db.commit()
+
+    affected_metrics = ["METRIC-FIN-01"]
+    if "HR" in doc.pillars:
+        affected_metrics.append("METRIC-HR-01")
+    if "CUS" in doc.pillars:
+        affected_metrics.append("METRIC-CUS-01")
+
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(
+        data=RollbackOut(
+            document=doc_out,
+            affected_metric_codes=affected_metrics,
+        )
+    )
