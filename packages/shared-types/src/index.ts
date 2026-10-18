@@ -176,3 +176,112 @@ export interface AlertOut {
 
 /** AI autonomy / state level shown by AIStateBadge — 06 §6.3 (P02) */
 export type AIStateLevel = "L0" | "L1" | "L2" | "L3";
+
+/* ------------------------------------------------------------------------------------------
+ * IDP Document & Review Queue DTOs — 10 §4 (EP-20..EP-35). Added by T-218.
+ * ---------------------------------------------------------------------------------------- */
+
+export type DocType =
+  | "INVOICE"
+  | "SALES_REPORT"
+  | "KPI_OKR"
+  | "MEETING_MINUTES"
+  | "FINANCIAL_REPORT"
+  | "CONTRACT"
+  | "EMPLOYEE_LIST"
+  | "OTHER";
+
+export type DocumentStatus =
+  | "UPLOADED"
+  | "PREPROCESSING"
+  | "CLASSIFYING"
+  | "EXTRACTING"
+  | "VALIDATING"
+  | "NEEDS_REVIEW"
+  | "IN_REVIEW"
+  | "AUTO_APPROVED"
+  | "APPROVED"
+  | "COMMITTED"
+  | "REJECTED"
+  | "FAILED"
+  | "DUPLICATE"
+  | "ROLLED_BACK";
+
+export type InputChannel = "C1" | "C2" | "C3" | "C4" | "C5";
+export type DocumentKind = "FILE" | "SPREADSHEET" | "VIRTUAL";
+
+export interface UserBrief {
+  id: string;
+  full_name: string;
+}
+
+export interface JobOut {
+  id: string;
+  attempt_no: number;
+  doc_type: DocType | null;
+  status: string;
+  classification_confidence: number | null;
+  routing_decision: string | null;
+  routing_reason: string | null;
+  error_code: string | null;
+  avg_confidence: number | null;
+  validation_summary: Record<string, unknown> | null;
+  cross_doc_results: Record<string, unknown> | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface DocumentOut {
+  id: string;
+  batch_id: string | null;
+  channel: InputChannel;
+  kind: DocumentKind;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  page_count: number;
+  doc_type: DocType | null;
+  pillars: Pillar[];
+  status: DocumentStatus;
+  status_reason: string | null;
+  ai_state: AIStateLevel | null;
+  autonomy_level: string | null;
+  contains_salary: boolean;
+  contains_pii: boolean;
+  duplicate_of_id: string | null;
+  uploaded_by: UserBrief;
+  uploaded_at: string;
+  committed_at: string | null;
+  undo_deadline: string | null;
+  locked_by: UserBrief | null;
+  locked_until: string | null;
+  retry_count: number;
+  latest_job: JobOut | null;
+}
+
+export interface ReviewQueueItemOut {
+  document: DocumentOut;
+  routing_reason: string | null;
+  avg_confidence: number | null;
+  fields_to_check: number;
+  has_conflict: boolean;
+  locked_by: UserBrief | null;
+  locked_until: string | null;
+}
+
+export interface ReviewQueueCountsOut {
+  total: number;
+  needs_review: number;
+  in_review: number;
+  failed: number;
+}
+
+export interface ReviewQueueMetaOut extends PageMeta {
+  counts: ReviewQueueCountsOut;
+}
+
+export interface ReviewQueueResponse {
+  data: ReviewQueueItemOut[];
+  meta: ReviewQueueMetaOut;
+}
+

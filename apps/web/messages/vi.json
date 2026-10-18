@@ -227,5 +227,97 @@
     "ALERT-OPS-02": "Họp khẩn ban chỉ đạo để tháo gỡ điểm nghẽn dự án",
     "ALERT-OPS-03": "Gán người theo dõi tiến độ thực hiện từng nghị quyết",
     "ALERT-OPS-04": "Tái phân bổ task từ 2 nhân sự quá tải sang bộ phận hỗ trợ"
+  },
+  "inbox": {
+    "title": "Hàng chờ IDP (Inbox)",
+    "subtitle": "Danh sách tài liệu cần duyệt và xử lý",
+    "stats": {
+      "total": "Tổng tài liệu",
+      "needsReview": "Cần duyệt",
+      "inReview": "Đang duyệt",
+      "failed": "Thất bại"
+    },
+    "filters": {
+      "pillar": "Trụ",
+      "pillarAll": "Tất cả trụ",
+      "docType": "Loại tài liệu",
+      "docTypeAll": "Tất cả loại",
+      "status": "Trạng thái",
+      "statusAll": "Tất cả trạng thái",
+      "confidence": "Mức tin cậy",
+      "confidenceAll": "Tất cả mức",
+      "confidenceHigh": "Cao (≥ 90%)",
+      "confidenceMedium": "Trung bình (70–89%)",
+      "confidenceLow": "Thấp (< 70%)",
+      "batch": "Mã lô (Batch)",
+      "batchPlaceholder": "Lọc theo batch ID..."
+    },
+    "table": {
+      "filename": "Tên tài liệu",
+      "docType": "Loại",
+      "pillar": "Trụ",
+      "status": "Trạng thái",
+      "confidence": "Độ tin cậy TB",
+      "fieldsToCheck": "Cần kiểm tra",
+      "uploader": "Người tải lên",
+      "uploadedAt": "Thời gian",
+      "actions": "Thao tác",
+      "lockedBy": "Đang được {name} review",
+      "reviewButton": "Duyệt",
+      "viewButton": "Xem",
+      "retryButton": "Thử lại",
+      "manualButton": "Nhập tay (C1)",
+      "unresolvedConflict": "Có xung đột đối chiếu chéo",
+      "routingReason": "Lý do: {reason}",
+      "salaryHidden": "Lương cá nhân được ẩn",
+      "fieldsCount": "{count} trường"
+    },
+    "empty": {
+      "title": "Không còn tài liệu cần duyệt 🎉",
+      "description": "Tất cả tài liệu đã được xử lý hoặc tự động duyệt.",
+      "action": "Xem danh sách tài liệu"
+    },
+    "error": {
+      "title": "Không thể tải hàng chờ",
+      "description": "Đã xảy ra lỗi khi kết nối tới máy chủ.",
+      "retry": "Thử lại",
+      "stale": "Dữ liệu có thể đã cũ."
+    },
+    "docTypes": {
+      "INVOICE": "Hóa đơn",
+      "SALES_REPORT": "Báo cáo bán hàng",
+      "KPI_OKR": "KPI / OKR",
+      "MEETING_MINUTES": "Biên bản họp",
+      "FINANCIAL_REPORT": "Báo cáo tài chính",
+      "CONTRACT": "Hợp đồng",
+      "EMPLOYEE_LIST": "Danh sách nhân sự",
+      "OTHER": "Khác"
+    },
+    "statuses": {
+      "NEEDS_REVIEW": "Cần duyệt",
+      "IN_REVIEW": "Đang duyệt",
+      "FAILED": "Thất bại",
+      "UPLOADED": "Đã tải lên",
+      "COMMITTED": "Đã ghi",
+      "AUTO_APPROVED": "Đã tự động duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Đã từ chối",
+      "DUPLICATE": "Trùng lặp",
+      "ROLLED_BACK": "Đã hoàn tác"
+    },
+    "pillars": {
+      "FIN": "Tài chính (FIN)",
+      "CUS": "Khách hàng (CUS)",
+      "OPS": "Vận hành (OPS)",
+      "HR": "Con người (HR)"
+    },
+    "forbidden": {
+      "title": "Không có quyền truy cập",
+      "description": "Giám đốc kinh doanh không thuộc phạm vi xử lý hàng chờ IDP.",
+      "backToDashboard": "Về Bảng điều khiển"
+    },
+    "loading": {
+      "label": "Đang tải hàng chờ duyệt..."
+    }
   }
 }

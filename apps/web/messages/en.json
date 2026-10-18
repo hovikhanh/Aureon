@@ -227,5 +227,97 @@
     "ALERT-OPS-02": "Convene emergency leadership meeting to unblock bottlenecks",
     "ALERT-OPS-03": "Assign designated owners to track each resolution",
     "ALERT-OPS-04": "Offload tasks from overloaded personnel to support team"
+  },
+  "inbox": {
+    "title": "IDP Review Queue (Inbox)",
+    "subtitle": "Documents requiring review and action",
+    "stats": {
+      "total": "Total documents",
+      "needsReview": "Needs review",
+      "inReview": "In review",
+      "failed": "Failed"
+    },
+    "filters": {
+      "pillar": "Pillar",
+      "pillarAll": "All pillars",
+      "docType": "Document type",
+      "docTypeAll": "All types",
+      "status": "Status",
+      "statusAll": "All statuses",
+      "confidence": "Confidence level",
+      "confidenceAll": "All levels",
+      "confidenceHigh": "High (≥ 90%)",
+      "confidenceMedium": "Medium (70–89%)",
+      "confidenceLow": "Low (< 70%)",
+      "batch": "Batch ID",
+      "batchPlaceholder": "Filter by batch ID..."
+    },
+    "table": {
+      "filename": "Document name",
+      "docType": "Type",
+      "pillar": "Pillar",
+      "status": "Status",
+      "confidence": "Avg Confidence",
+      "fieldsToCheck": "Fields to check",
+      "uploader": "Uploaded by",
+      "uploadedAt": "Timestamp",
+      "actions": "Actions",
+      "lockedBy": "In review by {name}",
+      "reviewButton": "Review",
+      "viewButton": "View",
+      "retryButton": "Retry",
+      "manualButton": "Manual input (C1)",
+      "unresolvedConflict": "Cross-document conflict detected",
+      "routingReason": "Reason: {reason}",
+      "salaryHidden": "Personal salary is masked",
+      "fieldsCount": "{count} fields"
+    },
+    "empty": {
+      "title": "No documents pending review 🎉",
+      "description": "All documents have been processed or auto-approved.",
+      "action": "View all documents"
+    },
+    "error": {
+      "title": "Could not load review queue",
+      "description": "An error occurred while connecting to the server.",
+      "retry": "Retry",
+      "stale": "Data may be outdated."
+    },
+    "docTypes": {
+      "INVOICE": "Invoice",
+      "SALES_REPORT": "Sales report",
+      "KPI_OKR": "KPI / OKR",
+      "MEETING_MINUTES": "Meeting minutes",
+      "FINANCIAL_REPORT": "Financial report",
+      "CONTRACT": "Contract",
+      "EMPLOYEE_LIST": "Employee list",
+      "OTHER": "Other"
+    },
+    "statuses": {
+      "NEEDS_REVIEW": "Needs review",
+      "IN_REVIEW": "In review",
+      "FAILED": "Failed",
+      "UPLOADED": "Uploaded",
+      "COMMITTED": "Committed",
+      "AUTO_APPROVED": "Auto approved",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "DUPLICATE": "Duplicate",
+      "ROLLED_BACK": "Rolled back"
+    },
+    "pillars": {
+      "FIN": "Finance (FIN)",
+      "CUS": "Customer (CUS)",
+      "OPS": "Operations (OPS)",
+      "HR": "People (HR)"
+    },
+    "forbidden": {
+      "title": "Access restricted",
+      "description": "Sales Director does not have access to the IDP Review Queue.",
+      "backToDashboard": "Back to Dashboard"
+    },
+    "loading": {
+      "label": "Loading review queue..."
+    }
   }
 }
