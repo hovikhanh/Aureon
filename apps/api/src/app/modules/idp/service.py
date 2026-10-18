@@ -8,12 +8,15 @@ import hashlib
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_config
+from app.core.errors import ApiError, ErrorCode
 from app.core.storage import get_storage_service
 from app.db.enums import ActorType
 from app.modules.audit.service import record_audit
@@ -23,9 +26,14 @@ from app.modules.idp.enums import (
     DocType,
     DocumentKind,
     DocumentStatus,
+    FieldValueType,
     InputChannel,
+    JobStatus,
+    RoutingDecision,
+    SensitivityLabel,
+    SourceLocationKind,
 )
-from app.modules.idp.models import SourceDocument
+from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
 
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB (04 §14 IDP-E01)
 MAX_PDF_PAGES = 50  # 50 pages (04 §14 IDP-E01)
@@ -80,14 +88,9 @@ async def process_upload_stream(
 
     if ext not in ALLOWED_EXTENSIONS:
         allowed_list = sorted(ALLOWED_EXTENSIONS)
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail={
-                "error": {
-                    "code": "UNSUPPORTED_MEDIA_TYPE",
-                    "message": f"Unsupported file format '{ext}'. Allowed: {allowed_list}",
-                }
-            },
+        raise ApiError(
+            ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+            f"Unsupported file format '{ext}'. Allowed: {allowed_list}",
         )
 
     hasher = hashlib.sha256()
@@ -100,14 +103,9 @@ async def process_upload_stream(
             break
         total_bytes += len(chunk)
         if total_bytes > MAX_FILE_SIZE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail={
-                    "error": {
-                        "code": "FILE_TOO_LARGE",
-                        "message": f"File size exceeds 20MB limit (read {total_bytes} bytes)",
-                    }
-                },
+            raise ApiError(
+                ErrorCode.FILE_TOO_LARGE,
+                f"File size exceeds 20MB limit (read {total_bytes} bytes)",
             )
         hasher.update(chunk)
         chunks.append(chunk)
@@ -119,14 +117,9 @@ async def process_upload_stream(
     if ext == ".pdf":
         page_count = count_pdf_pages(file_bytes)
         if page_count > MAX_PDF_PAGES:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail={
-                    "error": {
-                        "code": "FILE_TOO_LARGE",
-                        "message": f"PDF exceeds maximum of 50 pages (detected {page_count} pages)",
-                    }
-                },
+            raise ApiError(
+                ErrorCode.FILE_TOO_LARGE,
+                f"PDF exceeds maximum of 50 pages (detected {page_count} pages)",
             )
 
     return file_bytes, sha256_hex, total_bytes, page_count
@@ -224,3 +217,233 @@ def handle_document_upload(
     db.commit()
     db.refresh(doc)
     return doc, is_duplicate, duplicate_of_id
+
+
+def validate_tax_code(tax_code: str) -> bool:
+    """Validate Vietnamese tax code format: 10 or 13 digits (TC-IDP-004, 04 §13)."""
+    clean = tax_code.strip()
+    return bool(re.match(r"^\d{10}(-\d{3}|\d{3})?$", clean))
+
+
+def infer_field_value_type(field_key: str, value: Any) -> FieldValueType:
+    """Infer FieldValueType from field name and Python value type."""
+    key = field_key.lower()
+    if "tax_code" in key:
+        return FieldValueType.TAX_CODE
+    if "date" in key or key.endswith("_at"):
+        return FieldValueType.DATE
+    if any(m in key for m in ("amount", "subtotal", "vat", "cogs", "revenue", "profit", "salary")):
+        return FieldValueType.MONEY
+    if "rate" in key or "percent" in key:
+        return FieldValueType.PERCENT
+    if "period" in key:
+        return FieldValueType.PERIOD
+    if isinstance(value, int | float):
+        return FieldValueType.NUMBER
+    return FieldValueType.TEXT
+
+
+def handle_manual_document_create(
+    db: Session,
+    current_user: User,
+    doc_type: DocType,
+    fields: dict[str, Any],
+    batch_id: UUID | None = None,
+) -> SourceDocument:
+    """EP-21: Create manual document (C1 form), validate fields and create extracted fields."""
+    # Validate Tax Code fields if present
+    validation_errors: list[dict[str, str]] = []
+    for k, v in fields.items():
+        if ("tax_code" in k.lower() or k == "tax_code") and isinstance(v, str):
+            if not validate_tax_code(v):
+                validation_errors.append(
+                    {
+                        "field": k,
+                        "message": f"Mã số thuế '{v}' không hợp lệ (phải có 10 hoặc 13 số)",
+                    }
+                )
+
+    if validation_errors:
+        raise ApiError(
+            ErrorCode.VALIDATION_ERROR,
+            "Validation failed on manual input fields",
+            details={"fields": validation_errors},
+        )
+
+    doc_id = uuid4()
+    pillars = DOC_TYPE_PILLARS.get(doc_type, ["FIN"])
+    contains_salary = doc_type == DocType.EMPLOYEE_LIST
+
+    doc = SourceDocument(
+        id=doc_id,
+        batch_id=batch_id,
+        channel=InputChannel.C1,
+        kind=DocumentKind.MANUAL,
+        doc_type=doc_type,
+        pillars=pillars,
+        status=DocumentStatus.NEEDS_REVIEW,
+        autonomy_level=AutonomyLevel.L1,
+        contains_salary=contains_salary,
+        manual_payload=fields,
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.now(UTC),
+    )
+    db.add(doc)
+    db.flush()
+
+    job = ExtractionJob(
+        source_document_id=doc.id,
+        attempt_no=1,
+        doc_type=doc_type,
+        status=JobStatus.SUCCEEDED,
+        routing_decision=RoutingDecision.REVIEW,
+        routing_reason="C1 manual entry requires review verification",
+        avg_confidence=1.0,
+    )
+    db.add(job)
+    db.flush()
+
+    # Create ExtractedField rows with confidence 1.0 and source_location.kind = manual
+    for key, val in fields.items():
+        vtype = infer_field_value_type(key, val)
+        sensitivity = SensitivityLabel.SALARY if "salary" in key.lower() else SensitivityLabel.NONE
+        extracted_f = ExtractedField(
+            extraction_job_id=job.id,
+            source_document_id=doc.id,
+            field_key=key,
+            value=val,
+            raw_text=str(val),
+            value_type=vtype,
+            confidence=1.0,
+            source_location={"kind": "manual"},
+            source_kind=SourceLocationKind.MANUAL,
+            sensitivity=sensitivity,
+        )
+        db.add(extracted_f)
+
+    # Record audit log
+    record_audit(
+        db=db,
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        action="document.manual_create",
+        target_type="source_documents",
+        target_id=doc.id,
+        source_document_id=doc.id,
+        after={
+            "id": str(doc.id),
+            "doc_type": doc_type.value,
+            "channel": InputChannel.C1.value,
+            "fields": fields,
+        },
+    )
+
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+def handle_natural_language_create(
+    db: Session,
+    current_user: User,
+    text: str,
+    batch_id: UUID | None = None,
+) -> SourceDocument:
+    """EP-22: Parse natural language prompt, create TRANSCRIPT document at L2, never STP."""
+    cfg = get_config()
+    if cfg.ai_kill_switch:
+        raise ApiError(
+            ErrorCode.AI_DISABLED,
+            "AI processing is currently disabled via kill switch (L0)",
+        )
+
+    doc_id = uuid4()
+    doc = SourceDocument(
+        id=doc_id,
+        batch_id=batch_id,
+        channel=InputChannel.C2,
+        kind=DocumentKind.TRANSCRIPT,
+        doc_type=DocType.INVOICE,  # Default or classified
+        pillars=["FIN"],
+        status=DocumentStatus.NEEDS_REVIEW,
+        autonomy_level=AutonomyLevel.L2,  # AI-drafted, requires human confirmation (US-DC-003)
+        manual_payload={"prompt_text": text},
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.now(UTC),
+    )
+    db.add(doc)
+    db.flush()
+
+    job = ExtractionJob(
+        source_document_id=doc.id,
+        attempt_no=1,
+        doc_type=DocType.INVOICE,
+        status=JobStatus.SUCCEEDED,
+        routing_decision=RoutingDecision.REVIEW,
+        routing_reason="C2 transcript input is never STP (04 S6)",
+        avg_confidence=0.85,
+    )
+    db.add(job)
+    db.flush()
+
+    # Draft extraction from prompt (TC-IDP-005: "Hóa đơn 0001234 ... 25 triệu ngày 05/10/2026")
+    extracted_items: list[tuple[str, Any, FieldValueType]] = []
+
+    # Extract invoice number
+    inv_match = re.search(r"(?:hóa\s*đơn|hd)\s*([0-9a-zA-Z\-_]+)", text, re.IGNORECASE)
+    if inv_match:
+        extracted_items.append(("invoice_number", inv_match.group(1), FieldValueType.TEXT))
+
+    # Extract amount (e.g., "25 triệu" -> 25,000,000)
+    amount_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:triệu|tr|trieu)", text, re.IGNORECASE)
+    if amount_match:
+        val_str = amount_match.group(1).replace(",", ".")
+        val_int = int(float(val_str) * 1_000_000)
+        extracted_items.append(("total_amount", val_int, FieldValueType.MONEY))
+
+    # Extract date (e.g., "05/10/2026")
+    date_match = re.search(r"(\d{2}/\d{2}/\d{4})", text)
+    if date_match:
+        extracted_items.append(("issue_date", date_match.group(1), FieldValueType.DATE))
+
+    # Fallback default field if none matched
+    if not extracted_items:
+        extracted_items.append(("raw_prompt", text, FieldValueType.TEXT))
+
+    for k, val, vtype in extracted_items:
+        field = ExtractedField(
+            extraction_job_id=job.id,
+            source_document_id=doc.id,
+            field_key=k,
+            value=val,
+            raw_text=str(val),
+            value_type=vtype,
+            confidence=0.85,
+            source_location={"kind": "transcript", "text": text},
+            source_kind=SourceLocationKind.TRANSCRIPT,
+            sensitivity=SensitivityLabel.NONE,
+        )
+        db.add(field)
+
+    # Record audit log
+    record_audit(
+        db=db,
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        action="document.nl_create",
+        target_type="source_documents",
+        target_id=doc.id,
+        source_document_id=doc.id,
+        after={
+            "id": str(doc.id),
+            "channel": InputChannel.C2.value,
+            "prompt_text": text,
+        },
+    )
+
+    db.commit()
+    db.refresh(doc)
+    return doc
+

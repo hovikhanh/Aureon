@@ -4,10 +4,11 @@
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Header, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.envelope import Envelope
+from app.core.errors import ApiError, ErrorCode
 from app.db.enums import ActorType
 from app.db.session import get_db
 from app.modules.audit.service import record_audit
@@ -20,9 +21,16 @@ from app.modules.idp.schemas import (
     BatchCreateRequest,
     BatchCreateResponse,
     DocumentOut,
+    ManualDocumentCreateRequest,
+    NaturalLanguageDocumentCreateRequest,
     UserBrief,
 )
-from app.modules.idp.service import handle_document_upload, process_upload_stream
+from app.modules.idp.service import (
+    handle_document_upload,
+    handle_manual_document_create,
+    handle_natural_language_create,
+    process_upload_stream,
+)
 
 router = APIRouter(tags=["idp"])
 
@@ -98,10 +106,7 @@ async def upload_document(
         user_role_code = current_user.role.code if current_user.role else ""
         if user_role_code not in ("ROLE-01", "ROLE-05"):
             msg = "Only CEO (ROLE-01) and Reviewer (ROLE-05) can upload to an onboarding batch"
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"error": {"code": "FORBIDDEN_ROLE", "message": msg}},
-            )
+            raise ApiError(ErrorCode.FORBIDDEN_ROLE, msg)
 
     file_bytes, sha256_hex, size_bytes, page_count = await process_upload_stream(file)
 
@@ -176,3 +181,69 @@ def create_onboarding_batch(
         upload_endpoint="/api/v1/documents",
     )
     return Envelope(data=response_data)
+
+
+@router.post(
+    "/documents/manual",
+    response_model=Envelope[DocumentOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create manual document via form C1 (EP-21)",
+)
+def create_manual_document(
+    payload: ManualDocumentCreateRequest,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[DocumentOut]:
+    """EP-21: Manual data entry form (C1).
+
+    Validates schema (e.g. Tax Code format 10/13 digits), creates SourceDocument (MANUAL, C1)
+    and ExtractedField rows with confidence=1.0 and source_location.kind=manual.
+    """
+    doc = handle_manual_document_create(
+        db=db,
+        current_user=current_user,
+        doc_type=payload.doc_type,
+        fields=payload.fields,
+        batch_id=payload.batch_id,
+    )
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out)
+
+
+@router.post(
+    "/documents/natural-language",
+    response_model=Envelope[DocumentOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create document via natural language C2 (EP-22)",
+)
+def create_natural_language_document(
+    payload: NaturalLanguageDocumentCreateRequest,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[DocumentOut]:
+    """EP-22: Natural language entry (C2).
+
+    Drafts extraction from natural text at L2 (AI-drafted, waiting for confirmation),
+    always requires human review (never STP). Blocks with 423 AI_DISABLED when kill switch is on.
+    """
+    doc = handle_natural_language_create(
+        db=db,
+        current_user=current_user,
+        text=payload.text,
+        batch_id=payload.batch_id,
+    )
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out)
+

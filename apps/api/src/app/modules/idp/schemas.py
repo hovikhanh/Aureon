@@ -2,6 +2,7 @@
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -95,3 +96,19 @@ class DuplicateWarningMeta(BaseModel):
 
     code: str = "DUPLICATE_DOCUMENT"
     duplicate_of_id: UUID
+
+
+class ManualDocumentCreateRequest(BaseModel):
+    """Request payload for EP-21 POST /api/v1/documents/manual."""
+
+    doc_type: DocType
+    fields: dict[str, Any]
+    batch_id: UUID | None = None
+
+
+class NaturalLanguageDocumentCreateRequest(BaseModel):
+    """Request payload for EP-22 POST /api/v1/documents/natural-language (JSON form)."""
+
+    text: str = Field(..., max_length=2000)
+    batch_id: UUID | None = None
+
