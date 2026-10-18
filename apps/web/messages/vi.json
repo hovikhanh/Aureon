@@ -134,5 +134,34 @@
       "title": "Nội dung thuộc phạm vi khác",
       "description": "Anh/chị không có quyền xem nội dung này."
     }
+  },
+  "auth": {
+    "loginTitle": "Đăng nhập",
+    "loginSubtitle": "Hệ thống quản trị điều hành và xử lý tài liệu thông minh",
+    "emailLabel": "Email",
+    "emailPlaceholder": "name@abc.demo",
+    "passwordLabel": "Mật khẩu",
+    "passwordPlaceholder": "••••••••",
+    "submitButton": "Đăng nhập",
+    "submitting": "Đang đăng nhập...",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "demoUsersTitle": "Chọn nhanh tài khoản demo",
+    "demoUsersSubtitle": "Bấm vào vai trò để đăng nhập ngay mà không cần nhập mật khẩu",
+    "quickLogin": "Đăng nhập với vai trò {role}",
+    "demoUserNames": {
+      "accCeo": "Nguyễn Văn An",
+      "accCfo": "Trần Thị Bình",
+      "accSales": "Lê Hoàng Cường",
+      "accHr": "Phạm Thị Dung",
+      "accReviewer": "Hoàng Văn Em"
+    }
+  },
+  "roleSwitcher": {
+    "demoBadge": "Chế độ demo",
+    "currentRoleLabel": "Vai trò hiện tại: {role}",
+    "switchTitle": "Chuyển vai trò",
+    "switching": "Đang chuyển sang {role}…",
+    "switchError": "Không chuyển được vai trò. Vui lòng thử lại.",
+    "openMenu": "Mở danh sách vai trò"
   }
 }

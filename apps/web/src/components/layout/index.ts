@@ -1,4 +1,7 @@
 export { AppShell } from "./AppShell";
+export { AuthenticatedAppShell } from "./AuthenticatedAppShell";
+export { RoleSwitcher } from "./RoleSwitcher";
+export { RouteGuard } from "./RouteGuard";
 export { Sidebar } from "./Sidebar";
-export { Topbar } from "./Topbar";
 export { SkipLink } from "./SkipLink";
+export { Topbar } from "./Topbar";

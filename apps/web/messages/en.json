@@ -134,5 +134,34 @@
       "title": "Content is out of your scope",
       "description": "You do not have permission to view this content."
     }
+  },
+  "auth": {
+    "loginTitle": "Sign In",
+    "loginSubtitle": "Executive management and intelligent document processing system",
+    "emailLabel": "Email",
+    "emailPlaceholder": "name@abc.demo",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "submitButton": "Sign In",
+    "submitting": "Signing in...",
+    "invalidCredentials": "Email or password is incorrect",
+    "demoUsersTitle": "Quick Demo Account Selection",
+    "demoUsersSubtitle": "Click a role to sign in instantly without entering credentials",
+    "quickLogin": "Sign in as {role}",
+    "demoUserNames": {
+      "accCeo": "Nguyen Van An",
+      "accCfo": "Tran Thi Binh",
+      "accSales": "Le Hoang Cuong",
+      "accHr": "Pham Thi Dung",
+      "accReviewer": "Hoang Van Em"
+    }
+  },
+  "roleSwitcher": {
+    "demoBadge": "Demo Mode",
+    "currentRoleLabel": "Current role: {role}",
+    "switchTitle": "Switch Role",
+    "switching": "Switching to {role}…",
+    "switchError": "Failed to switch role. Please try again.",
+    "openMenu": "Open role menu"
   }
 }

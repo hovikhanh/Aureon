@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { AuthProvider } from "@/features/auth/auth-context";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,7 +17,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={locale}>
       <body className="min-h-screen antialiased">
         <NextIntlClientProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </QueryProvider>
         </NextIntlClientProvider>
       </body>
     </html>

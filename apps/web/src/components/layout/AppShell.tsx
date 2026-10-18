@@ -6,8 +6,9 @@ import { useTranslations } from "next-intl";
 import type { RoleCode } from "@aureon/shared-types";
 import { RoleProvider } from "@/features/navigation/role-context";
 import { cn } from "@/lib/utils";
-import { SkipLink } from "./SkipLink";
+import { RoleSwitcher } from "./RoleSwitcher";
 import { Sidebar } from "./Sidebar";
+import { SkipLink } from "./SkipLink";
 import { Topbar } from "./Topbar";
 
 /**
@@ -23,17 +24,20 @@ import { Topbar } from "./Topbar";
  * T-107 will pass the session role; for now it is a prop (default ROLE-01 at the route layout).
  */
 export function AppShell({
-  role,
+  role = "ROLE-01",
   children,
   roleSwitcherSlot,
 }: {
-  role: RoleCode;
+  role?: RoleCode;
   children: ReactNode;
   roleSwitcherSlot?: ReactNode;
 }) {
   const t = useTranslations("shell");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  const effectiveRoleSwitcher =
+    roleSwitcherSlot !== undefined ? roleSwitcherSlot : <RoleSwitcher />;
 
   return (
     <RoleProvider role={role}>
@@ -42,7 +46,7 @@ export function AppShell({
         <Topbar
           onToggleSidebar={() => setDrawerOpen((open) => !open)}
           sidebarOpen={drawerOpen}
-          roleSwitcherSlot={roleSwitcherSlot}
+          roleSwitcherSlot={effectiveRoleSwitcher}
         />
 
         <div className="flex flex-1">
