@@ -1,5 +1,4 @@
-"""Pydantic schemas for IDP endpoints per docs/3.EXECUTION/10-API-SPECIFICATION.md §4.
-"""
+"""Pydantic schemas for IDP endpoints per docs/3.EXECUTION/10-API-SPECIFICATION.md §4."""
 
 from datetime import datetime
 from typing import Any
@@ -231,5 +230,79 @@ class UpdateDocumentFieldsRequest(BaseModel):
     fields: list[dict[str, Any]] | None = None
 
 
+class StatusTimelineItem(BaseModel):
+    """One event in the document status timeline (EP-25)."""
+
+    status: str
+    at: datetime
+    actor_type: str = "USER"
 
 
+class DocumentAffectedOut(BaseModel):
+    """Business records and metrics affected by this document (EP-25)."""
+
+    business_record_ids: list[UUID] = Field(default_factory=list)
+    metric_codes: list[str] = Field(default_factory=list)
+
+
+class DocumentReviewOut(BaseModel):
+    """Review entry on a document (EP-25)."""
+
+    reviewer_full_name: str
+    decision: str | None = None
+    reject_reason_code: str | None = None
+    decided_at: datetime | None = None
+
+
+class DocumentDetailOut(BaseModel):
+    """Detailed document representation with jobs, timeline, and reviews (EP-25)."""
+
+    document: DocumentOut
+    jobs: list[JobOut] = Field(default_factory=list)
+    status_timeline: list[StatusTimelineItem] = Field(default_factory=list)
+    affected: DocumentAffectedOut = Field(default_factory=DocumentAffectedOut)
+    reviews: list[DocumentReviewOut] = Field(default_factory=list)
+
+
+class DocumentPageDetailOut(BaseModel):
+    """Page detail for SourceViewer (EP-27)."""
+
+    page_number: int
+    image_url: str | None = None
+    width_px: int | None = None
+    height_px: int | None = None
+    ocr_used: bool = False
+    ocr_confidence: float | None = None
+
+
+class ManualInfoOut(BaseModel):
+    """Metadata for virtual documents created manually (EP-27)."""
+
+    created_by_full_name: str
+    created_at: datetime
+
+
+class DocumentSourceOut(BaseModel):
+    """Presigned source URL and pages response (EP-27)."""
+
+    url: str | None = None
+    expires_at: datetime | None = None
+    mime_type: str | None = None
+    page_count: int | None = None
+    pages: list[DocumentPageDetailOut] = Field(default_factory=list)
+    manual_info: ManualInfoOut | None = None
+
+
+class RetryMode(str):
+    """Allowed modes for EP-34 POST /documents/{id}/retry."""
+
+    RETRY = "RETRY"
+    REOPEN = "REOPEN"
+    FORCE_DUPLICATE = "FORCE_DUPLICATE"
+
+
+class RetryDocumentRequest(BaseModel):
+    """Payload for EP-34 POST /documents/{id}/retry."""
+
+    mode: str = Field(..., description="RETRY, REOPEN, or FORCE_DUPLICATE")
+    note: str | None = None

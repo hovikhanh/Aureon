@@ -62,9 +62,7 @@ def test_tc_idp_034_all_valid_transitions_succeed() -> None:
             actor = "ROLE-05"  # Reviewer has broad permission
             reason = "Test rejection reason" if to_status == DocumentStatus.REJECTED else None
 
-            res = DocumentStateMachine.transition(
-                doc, to_status, actor_role=actor, reason=reason
-            )
+            res = DocumentStateMachine.transition(doc, to_status, actor_role=actor, reason=reason)
             assert res == to_status
             assert doc.status == to_status
 
@@ -121,9 +119,7 @@ def test_tc_idp_034_ceo_cannot_rollback() -> None:
         undo_deadline=now + timedelta(days=6),
     )
     with pytest.raises(ForbiddenStateTransitionError) as exc_info:
-        DocumentStateMachine.transition(
-            doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-01"
-        )
+        DocumentStateMachine.transition(doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-01")
     assert exc_info.value.code == "FORBIDDEN_ROLE"
     assert "ROLE-01" in exc_info.value.message
 
@@ -138,9 +134,7 @@ def test_tc_idp_034_cfo_cannot_rollback_hr_document() -> None:
         undo_deadline=now + timedelta(days=6),
     )
     with pytest.raises(ForbiddenStateTransitionError) as exc_info:
-        DocumentStateMachine.transition(
-            doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-02"
-        )
+        DocumentStateMachine.transition(doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-02")
     assert exc_info.value.code == "FORBIDDEN_ROLE"
     assert "CFO" in exc_info.value.message
 
@@ -156,9 +150,7 @@ def test_tc_idp_034_undo_deadline_expired_raises_undo_expired() -> None:
         undo_deadline=deadline,
     )
     with pytest.raises(UndoDeadlineExpiredError) as exc_info:
-        DocumentStateMachine.transition(
-            doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-05"
-        )
+        DocumentStateMachine.transition(doc, DocumentStatus.ROLLED_BACK, actor_role="ROLE-05")
     assert exc_info.value.code == "UNDO_EXPIRED"
 
 
@@ -180,9 +172,7 @@ def test_tc_idp_034_manual_retry_permissions() -> None:
     doc.status = DocumentStatus.FAILED
     # Sales Director (ROLE-03) cannot retry
     with pytest.raises(ForbiddenStateTransitionError):
-        DocumentStateMachine.transition(
-            doc, DocumentStatus.PREPROCESSING, actor_role="ROLE-03"
-        )
+        DocumentStateMachine.transition(doc, DocumentStatus.PREPROCESSING, actor_role="ROLE-03")
 
 
 # ---------------------------------------------------------------------------

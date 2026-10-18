@@ -275,9 +275,7 @@ def test_tc_idp_016_xd02_customer_name_match_and_mismatch(
     )
 
     # 1. Invoice matching with minor prefix variance -> MATCH
-    inv_match, _ = create_document_with_job(
-        db_session, test_user, DocType.INVOICE, "inv_mp.pdf"
-    )
+    inv_match, _ = create_document_with_job(db_session, test_user, DocType.INVOICE, "inv_mp.pdf")
     res_match = evaluate_xd02(
         db_session, "Thiết bị Giáo dục Minh Phát", inv_match.id, [contract.id]
     )
@@ -375,9 +373,7 @@ def test_tc_idp_016_xd05_duplicate_business_record(
     )
 
     # New invoice with same number -> duplicate detected (blocking)
-    new_inv, _ = create_document_with_job(
-        db_session, test_user, DocType.INVOICE, "inv_dup.pdf"
-    )
+    new_inv, _ = create_document_with_job(db_session, test_user, DocType.INVOICE, "inv_dup.pdf")
     res_dup = evaluate_xd05(db_session, new_inv.id, "invoice_number", "HD-2026-001234")
 
     assert res_dup["result"] == "MISMATCH"

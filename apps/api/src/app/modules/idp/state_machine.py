@@ -118,9 +118,7 @@ class DocumentStateMachine:
     }
 
     @classmethod
-    def can_transition(
-        cls, current_status: DocumentStatus, target_status: DocumentStatus
-    ) -> bool:
+    def can_transition(cls, current_status: DocumentStatus, target_status: DocumentStatus) -> bool:
         """Check if target_status is theoretically valid from current_status."""
         return target_status in cls.VALID_TRANSITIONS.get(current_status, set())
 

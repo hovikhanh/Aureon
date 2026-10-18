@@ -230,8 +230,7 @@ def evaluate_xd02(
             "result": "MISMATCH",
             "severity": "warning",
             "message": (
-                f"Tên khách hàng '{customer_name}' chưa khớp với hợp đồng "
-                "hoặc báo cáo sales đã có"
+                f"Tên khách hàng '{customer_name}' chưa khớp với hợp đồng hoặc báo cáo sales đã có"
             ),
             "ref_document_ids": [str(doc_id)],
             "values": {"customer_name": customer_name},
@@ -312,8 +311,7 @@ def evaluate_xd04(
             "result": "MISMATCH",
             "severity": "blocking",
             "message": (
-                "Mã chỉ số không tồn tại trong danh mục 18 metric: "
-                f"{', '.join(invalid_codes)}"
+                f"Mã chỉ số không tồn tại trong danh mục 18 metric: {', '.join(invalid_codes)}"
             ),
             "ref_document_ids": [str(kpi_doc_id)],
             "values": {"metric_codes": metric_codes, "invalid_codes": invalid_codes},

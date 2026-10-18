@@ -196,9 +196,7 @@ def test_tc_idp_009_classify_7_sample_documents(
     ]
 
     for expected_type, text_cue, filename in samples:
-        doc = create_document_with_text(
-            db_session, uploader.id, text_cue, filename=filename
-        )
+        doc = create_document_with_text(db_session, uploader.id, text_cue, filename=filename)
         detected_type, confidence = classify_document(db_session, doc.id)
 
         assert detected_type == expected_type, f"Failed on {filename}"
@@ -380,10 +378,7 @@ def test_tc_idp_020_ep26_salary_masking_rules(
     _hr, token_hr = seed_test_users["ROLE-04"]
     _, token_ceo = seed_test_users["ROLE-01"]
 
-    emp_text = (
-        "DANH SÁCH NHÂN SỰ T9/2026. "
-        "Mã NV: NV001, Họ tên: Trần Thị Minh, Lương: 45.000.000 đ"
-    )
+    emp_text = "DANH SÁCH NHÂN SỰ T9/2026. Mã NV: NV001, Họ tên: Trần Thị Minh, Lương: 45.000.000 đ"
     doc = create_document_with_text(
         db_session,
         reviewer.id,

@@ -314,9 +314,11 @@ def test_tc_idp_023_idempotency_prevents_duplicate_records(
     assert second["business_record_id"] == first["business_record_id"]
 
     # Verify only 1 record created in database
-    records = db_session.execute(
-        select(BusinessRecord).where(BusinessRecord.code == "INV-IDEM-001")
-    ).scalars().all()
+    records = (
+        db_session.execute(select(BusinessRecord).where(BusinessRecord.code == "INV-IDEM-001"))
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
 
 

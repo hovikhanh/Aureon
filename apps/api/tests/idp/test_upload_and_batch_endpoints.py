@@ -25,6 +25,7 @@ from app.modules.idp.models import SourceDocument
 def app_client(db_session: Session) -> Generator[TestClient, None, None]:
     from app.db.session import get_db
     from app.main import app
+
     app.dependency_overrides[get_db] = lambda: db_session
     try:
         with TestClient(app) as client:
@@ -37,6 +38,7 @@ def app_client(db_session: Session) -> Generator[TestClient, None, None]:
 def seed_test_users(db_session: Session) -> dict[str, tuple[User, str]]:
     """Fixture providing user and bearer token for each of the 5 demo roles."""
     from sqlalchemy.orm import joinedload
+
     cfg = get_config()
     demo_emails = {
         "ROLE-01": "ceo@abc.demo",

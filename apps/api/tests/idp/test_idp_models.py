@@ -102,9 +102,7 @@ def test_tc_data_005_source_document_salary_and_undo_deadline(
     assert saved.undo_deadline == commit_time + timedelta(days=7)
 
 
-def test_tc_data_006_document_page_ocr_and_uniqueness(
-    db_session: Session, test_user: User
-) -> None:
+def test_tc_data_006_document_page_ocr_and_uniqueness(db_session: Session, test_user: User) -> None:
     """TC-DATA-006: ENT-DocumentPage stores OCR metadata and enforces unique page number."""
     doc = SourceDocument(
         channel=InputChannel.C3,
@@ -157,8 +155,7 @@ def test_tc_data_006_document_page_ocr_and_uniqueness(
 def test_tc_data_007_extraction_job_retry_and_cross_doc(
     db_session: Session, test_user: User
 ) -> None:
-    """TC-DATA-007: ENT-ExtractionJob attempt_no increments on retry and stores cross_doc.
-    """
+    """TC-DATA-007: ENT-ExtractionJob attempt_no increments on retry and stores cross_doc."""
     doc = SourceDocument(
         channel=InputChannel.C3,
         kind=DocumentKind.FILE,

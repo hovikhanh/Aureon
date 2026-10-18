@@ -1,36 +1,59 @@
-"""FastAPI router for IDP endpoints (EP-20, EP-40 per 10-API-SPECIFICATION.md §4, §6).
+"""FastAPI router for IDP endpoints.
+
+EP-20..EP-27, EP-34, EP-36, EP-40, EP-50 per 10-API-SPECIFICATION.md §4, §6.
 """
 
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Form, Header, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Header, Query, Response, UploadFile, status
+from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.envelope import Envelope
+from app.core.envelope import Envelope, Page
 from app.core.errors import ApiError, ErrorCode
+from app.core.pagination import PageParams, get_page_params, paginate
+from app.core.storage import get_storage_service
 from app.db.enums import ActorType
 from app.db.session import get_db
+from app.modules.audit.models import AuditLog
 from app.modules.audit.service import record_audit
 from app.modules.auth.deps import require_role
 from app.modules.auth.models import User
-from app.modules.idp.enums import DocType, InputChannel
+from app.modules.idp.enums import DocType, DocumentKind, DocumentStatus, InputChannel, JobStatus
 from app.modules.idp.extraction import (
     change_document_type_and_reextract,
     serialize_extraction_result,
 )
-from app.modules.idp.models import SourceDocument
+from app.modules.idp.models import (
+    BusinessRecord,
+    DocumentPage,
+    ExtractionJob,
+    ExtractionReview,
+    SourceDocument,
+)
 from app.modules.idp.preprocessing import split_multi_document
 from app.modules.idp.schemas import (
     BatchChecklistItem,
     BatchCreateRequest,
     BatchCreateResponse,
+    DocumentAffectedOut,
+    DocumentDetailOut,
     DocumentOut,
+    DocumentPageDetailOut,
+    DocumentReviewOut,
+    DocumentSourceOut,
     ExtractionResultOut,
     ExtractionSchemaOut,
     ImportMappingConfirmRequest,
+    JobOut,
     ManualDocumentCreateRequest,
+    ManualInfoOut,
     NaturalLanguageDocumentCreateRequest,
+    RetryDocumentRequest,
+    RetryMode,
+    StatusTimelineItem,
     UpdateDocumentFieldsRequest,
     UserBrief,
 )
@@ -43,6 +66,7 @@ from app.modules.idp.service import (
     handle_spreadsheet_upload,
     process_upload_stream,
 )
+from app.workers.idp import process_document_task
 
 router = APIRouter(tags=["idp"])
 
@@ -57,8 +81,60 @@ CHECKLIST_DOC_TYPES = [
 ]
 
 
+def check_document_in_role_scope(doc: SourceDocument, user: User) -> bool:
+    """Check if document is accessible within role scope (02 §3.4, 10 §4 EP-24)."""
+    role_code = user.role.code if user.role else "ROLE-01"
+    if role_code in ("ROLE-01", "ROLE-05"):
+        return True
+    if doc.uploaded_by_id == user.id:
+        return True
+    if role_code == "ROLE-02":
+        return "FIN" in doc.pillars
+    if role_code == "ROLE-04":
+        return "HR" in doc.pillars
+    if role_code == "ROLE-03":
+        return False
+    return False
+
+
 def serialize_document_out(doc: SourceDocument, user: User) -> DocumentOut:
     """Map SQLAlchemy SourceDocument to DocumentOut schema."""
+    uploader_name = user.full_name if doc.uploaded_by_id == user.id else "Demo User"
+    uploader_id = doc.uploaded_by_id or user.id
+
+    locked_by_brief = None
+    if doc.locked_by_id:
+        locked_name = user.full_name if doc.locked_by_id == user.id else "Reviewer"
+        locked_by_brief = UserBrief(id=doc.locked_by_id, full_name=locked_name)
+
+    latest_job_out = None
+    if doc.extraction_jobs:
+        sorted_jobs = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)
+        lj = sorted_jobs[0]
+        cls_conf = (
+            float(lj.classification_confidence)
+            if lj.classification_confidence is not None
+            else None
+        )
+        avg_conf = float(lj.avg_confidence) if lj.avg_confidence is not None else None
+        latest_job_out = JobOut(
+            id=lj.id,
+            attempt_no=lj.attempt_no,
+            doc_type=lj.doc_type,
+            status=lj.status,
+            classification_confidence=cls_conf,
+            routing_decision=lj.routing_decision,
+            routing_reason=lj.routing_reason,
+            error_code=lj.error_code,
+            avg_confidence=avg_conf,
+            validation_summary=lj.validation_summary,
+            cross_doc_results=lj.cross_doc_results,
+            started_at=lj.started_at,
+            finished_at=lj.finished_at,
+        )
+
+    contains_salary = bool(doc.contains_salary or doc.doc_type == DocType.EMPLOYEE_LIST)
+
     return DocumentOut(
         id=doc.id,
         batch_id=doc.batch_id,
@@ -74,17 +150,17 @@ def serialize_document_out(doc: SourceDocument, user: User) -> DocumentOut:
         status_reason=doc.status_reason,
         ai_state=None,
         autonomy_level=doc.autonomy_level,
-        contains_salary=doc.contains_salary,
+        contains_salary=contains_salary,
         contains_pii=doc.contains_pii,
         duplicate_of_id=doc.duplicate_of_id,
-        uploaded_by=UserBrief(id=user.id, full_name=user.full_name),
+        uploaded_by=UserBrief(id=uploader_id, full_name=uploader_name),
         uploaded_at=doc.uploaded_at,
         committed_at=doc.committed_at,
         undo_deadline=doc.undo_deadline,
-        locked_by=None,
+        locked_by=locked_by_brief,
         locked_until=doc.locked_until,
         retry_count=doc.retry_count,
-        latest_job=None,
+        latest_job=latest_job_out,
     )
 
 
@@ -99,9 +175,7 @@ async def upload_document(
     response: Response,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     channel: Annotated[InputChannel, Form()] = InputChannel.C3,
@@ -205,9 +279,7 @@ def create_manual_document(
     payload: ManualDocumentCreateRequest,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -238,9 +310,7 @@ def create_natural_language_document(
     payload: NaturalLanguageDocumentCreateRequest,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -270,9 +340,7 @@ async def import_document(
     file: UploadFile,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     doc_type: Annotated[DocType | None, Form()] = None,
@@ -308,9 +376,7 @@ def confirm_import_mapping(
     payload: ImportMappingConfirmRequest,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -340,9 +406,7 @@ def confirm_import_mapping(
 def get_extraction_schemas(
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
     ],
     doc_type: DocType | None = None,
 ) -> Envelope[list[ExtractionSchemaOut]]:
@@ -369,9 +433,7 @@ def get_document_extraction(
     id: UUID,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-01", "ROLE-02", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
 ) -> Envelope[ExtractionResultOut]:
@@ -401,9 +463,7 @@ def update_document_fields(
     payload: UpdateDocumentFieldsRequest,
     current_user: Annotated[
         User,
-        Depends(
-            require_role("ROLE-02", "ROLE-04", "ROLE-05")
-        ),
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
     ],
     db: Annotated[Session, Depends(get_db)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -435,4 +495,519 @@ def update_document_fields(
     return Envelope(data=result)
 
 
+@router.get(
+    "/documents",
+    response_model=Page[DocumentOut],
+    summary="List documents (EP-24)",
+)
+def list_documents(
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    params: Annotated[PageParams, Depends(get_page_params)],
+    status: Annotated[str | None, Query(description="Filter by status")] = None,
+    doc_type: Annotated[DocType | None, Query(description="Filter by doc_type")] = None,
+    pillar: Annotated[str | None, Query(description="Filter by pillar")] = None,
+    channel: Annotated[InputChannel | None, Query(description="Filter by channel")] = None,
+    batch_id: Annotated[UUID | None, Query(description="Filter by batch_id")] = None,
+    uploaded_by_id: Annotated[UUID | None, Query(description="Filter by uploaded_by_id")] = None,
+    q: Annotated[str | None, Query(description="Search filename")] = None,
+    sort: Annotated[str, Query(description="Sort order")] = "-uploaded_at",
+) -> Page[DocumentOut]:
+    """EP-24: List documents scoped by user role.
 
+    - ROLE-01 & ROLE-05: all documents.
+    - ROLE-02: FIN pillar + own uploads.
+    - ROLE-03: own uploads only.
+    - ROLE-04: HR pillar + own uploads.
+    """
+    role_code = current_user.role.code if current_user.role else "ROLE-01"
+    stmt = select(SourceDocument).where(SourceDocument.deleted_at.is_(None))
+
+    if role_code in ("ROLE-01", "ROLE-05"):
+        pass
+    elif role_code == "ROLE-02":
+        stmt = stmt.where(
+            or_(
+                SourceDocument.pillars.contains(["FIN"]),
+                SourceDocument.uploaded_by_id == current_user.id,
+            )
+        )
+    elif role_code == "ROLE-03":
+        stmt = stmt.where(SourceDocument.uploaded_by_id == current_user.id)
+    elif role_code == "ROLE-04":
+        stmt = stmt.where(
+            or_(
+                SourceDocument.pillars.contains(["HR"]),
+                SourceDocument.uploaded_by_id == current_user.id,
+            )
+        )
+
+    if status:
+        st_list = [s.strip() for s in status.split(",") if s.strip()]
+        if len(st_list) == 1:
+            try:
+                enum_st = DocumentStatus(st_list[0])
+                stmt = stmt.where(SourceDocument.status == enum_st)
+            except ValueError:
+                pass
+        elif len(st_list) > 1:
+            enum_sts = []
+            for s in st_list:
+                try:
+                    enum_sts.append(DocumentStatus(s))
+                except ValueError:
+                    pass
+            if enum_sts:
+                stmt = stmt.where(SourceDocument.status.in_(enum_sts))
+
+    if doc_type is not None:
+        stmt = stmt.where(SourceDocument.doc_type == doc_type)
+    if pillar:
+        stmt = stmt.where(SourceDocument.pillars.contains([pillar]))
+    if channel:
+        stmt = stmt.where(SourceDocument.channel == channel)
+    if batch_id:
+        stmt = stmt.where(SourceDocument.batch_id == batch_id)
+    if uploaded_by_id:
+        stmt = stmt.where(SourceDocument.uploaded_by_id == uploaded_by_id)
+    if q:
+        stmt = stmt.where(SourceDocument.original_filename.ilike(f"%{q}%"))
+
+    if sort == "uploaded_at":
+        stmt = stmt.order_by(asc(SourceDocument.uploaded_at))
+    else:
+        stmt = stmt.order_by(desc(SourceDocument.uploaded_at))
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    rows = db.execute(stmt.offset(params.offset).limit(params.limit)).scalars().all()
+    items = [serialize_document_out(d, current_user) for d in rows]
+    return paginate(items, params=params, total=total)
+
+
+@router.get(
+    "/documents/{id}",
+    response_model=Envelope[DocumentDetailOut],
+    summary="Get document details (EP-25)",
+)
+def get_document_details(
+    id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> Envelope[DocumentDetailOut]:
+    """EP-25: Get document detail, jobs, timeline, and affected records.
+
+    Enforces role scope (outside scope -> 403 FORBIDDEN_SCOPE).
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if not check_document_in_role_scope(doc, current_user):
+        raise ApiError(ErrorCode.FORBIDDEN_SCOPE, "Tài liệu nằm ngoài phạm vi quyền của bạn")
+
+    stmt_jobs = (
+        select(ExtractionJob)
+        .where(ExtractionJob.source_document_id == doc.id)
+        .order_by(asc(ExtractionJob.attempt_no))
+    )
+    jobs = db.execute(stmt_jobs).scalars().all()
+    jobs_out = [
+        JobOut(
+            id=j.id,
+            attempt_no=j.attempt_no,
+            doc_type=j.doc_type,
+            status=j.status,
+            classification_confidence=(
+                float(j.classification_confidence)
+                if j.classification_confidence is not None
+                else None
+            ),
+            routing_decision=j.routing_decision,
+            routing_reason=j.routing_reason,
+            error_code=j.error_code,
+            avg_confidence=(float(j.avg_confidence) if j.avg_confidence is not None else None),
+            validation_summary=j.validation_summary,
+            cross_doc_results=j.cross_doc_results,
+            started_at=j.started_at,
+            finished_at=j.finished_at,
+        )
+        for j in jobs
+    ]
+
+    stmt_audit = (
+        select(AuditLog)
+        .where(
+            or_(
+                AuditLog.target_id == doc.id,
+                AuditLog.source_document_id == doc.id,
+            )
+        )
+        .order_by(asc(AuditLog.occurred_at))
+    )
+    audit_rows = db.execute(stmt_audit).scalars().all()
+    timeline = [
+        StatusTimelineItem(
+            status=a.action,
+            at=a.occurred_at,
+            actor_type=a.actor_type.value if hasattr(a.actor_type, "value") else str(a.actor_type),
+        )
+        for a in audit_rows
+    ]
+    if not timeline:
+        timeline.append(
+            StatusTimelineItem(
+                status="UPLOADED",
+                at=doc.uploaded_at,
+                actor_type="USER",
+            )
+        )
+
+    stmt_recs = select(BusinessRecord).where(
+        BusinessRecord.source_document_id == doc.id,
+        BusinessRecord.deleted_at.is_(None),
+    )
+    biz_records = db.execute(stmt_recs).scalars().all()
+    affected = DocumentAffectedOut(
+        business_record_ids=[r.id for r in biz_records],
+        metric_codes=[r.code for r in biz_records if r.code and r.code.startswith("METRIC-")],
+    )
+
+    stmt_reviews = (
+        select(ExtractionReview)
+        .where(ExtractionReview.source_document_id == doc.id)
+        .order_by(asc(ExtractionReview.opened_at))
+    )
+    reviews_rows = db.execute(stmt_reviews).scalars().all()
+    reviews_out = []
+    for r in reviews_rows:
+        reviewer = db.get(User, r.reviewer_id)
+        reviews_out.append(
+            DocumentReviewOut(
+                reviewer_full_name=reviewer.full_name if reviewer else "Reviewer",
+                decision=r.decision.value if r.decision else None,
+                reject_reason_code=r.reject_reason_code,
+                decided_at=r.decided_at,
+            )
+        )
+
+    doc_out = serialize_document_out(doc, current_user)
+    detail = DocumentDetailOut(
+        document=doc_out,
+        jobs=jobs_out,
+        status_timeline=timeline,
+        affected=affected,
+        reviews=reviews_out,
+    )
+    return Envelope(data=detail)
+
+
+@router.get(
+    "/documents/{id}/source",
+    response_model=Envelope[DocumentSourceOut],
+    summary="Get source document presigned URL (EP-27)",
+)
+def get_document_source(
+    id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    page: Annotated[int | None, Query(description="Page number (optional)")] = None,
+    disposition: Annotated[str, Query(description="inline or attachment")] = "inline",
+) -> Envelope[DocumentSourceOut]:
+    """EP-27: Get source document presigned URL (expires in <= 15m) and page metadata.
+
+    Enforces DS4 salary protection:
+    - contains_salary=true:
+      - ROLE-04: allowed inline + attachment.
+      - ROLE-05: allowed ONLY IF in active review lock AND disposition=inline (attachment -> 403).
+      - ROLE-01, ROLE-02, ROLE-03 -> 403 FORBIDDEN_SALARY + audit document.open_denied.
+    - contains_pii=true -> audit document.open_pii.
+    - disposition=attachment -> audit document.download.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    role_code = current_user.role.code if current_user.role else "ROLE-01"
+    now = datetime.now(UTC)
+
+    contains_salary = bool(doc.contains_salary or doc.doc_type == DocType.EMPLOYEE_LIST)
+    if contains_salary:
+        if role_code == "ROLE-04":
+            pass
+        elif role_code == "ROLE-05":
+            is_actively_reviewing = (
+                doc.status == DocumentStatus.IN_REVIEW
+                and doc.locked_by_id == current_user.id
+                and doc.locked_until is not None
+                and doc.locked_until > now
+            )
+            if not is_actively_reviewing or disposition == "attachment":
+                record_audit(
+                    db=db,
+                    action="document.open_denied",
+                    target_type="source_documents",
+                    actor_type=ActorType.USER,
+                    actor_user_id=current_user.id,
+                    actor_role_id=current_user.role_id,
+                    target_id=doc.id,
+                    source_document_id=doc.id,
+                )
+                db.commit()
+                raise ApiError(
+                    ErrorCode.FORBIDDEN_SALARY,
+                    "Reviewer chỉ được xem inline tài liệu lương khi đang trực tiếp khóa review",
+                )
+        else:
+            record_audit(
+                db=db,
+                action="document.open_denied",
+                target_type="source_documents",
+                actor_type=ActorType.USER,
+                actor_user_id=current_user.id,
+                actor_role_id=current_user.role_id,
+                target_id=doc.id,
+                source_document_id=doc.id,
+            )
+            db.commit()
+            raise ApiError(
+                ErrorCode.FORBIDDEN_SALARY,
+                "Vai trò này không có quyền truy cập tài liệu chứa thông tin lương",
+            )
+
+    if not check_document_in_role_scope(doc, current_user):
+        raise ApiError(ErrorCode.FORBIDDEN_SCOPE, "Tài liệu nằm ngoài phạm vi quyền của bạn")
+
+    if doc.contains_pii:
+        record_audit(
+            db=db,
+            action="document.open_pii",
+            target_type="source_documents",
+            actor_type=ActorType.USER,
+            actor_user_id=current_user.id,
+            actor_role_id=current_user.role_id,
+            target_id=doc.id,
+            source_document_id=doc.id,
+        )
+    if disposition == "attachment":
+        record_audit(
+            db=db,
+            action="document.download",
+            target_type="source_documents",
+            actor_type=ActorType.USER,
+            actor_user_id=current_user.id,
+            actor_role_id=current_user.role_id,
+            target_id=doc.id,
+            source_document_id=doc.id,
+        )
+    db.commit()
+
+    if doc.kind in (DocumentKind.MANUAL, DocumentKind.TRANSCRIPT):
+        is_owner = doc.uploaded_by_id == current_user.id
+        creator_name = current_user.full_name if is_owner else "Demo User"
+        return Envelope(
+            data=DocumentSourceOut(
+                manual_info=ManualInfoOut(
+                    created_by_full_name=creator_name,
+                    created_at=doc.uploaded_at,
+                )
+            )
+        )
+
+    storage = get_storage_service()
+    storage_key = doc.storage_key or f"documents/{doc.id}.pdf"
+    url = storage.generate_presigned_url(storage_key, expires_in=900)
+    expires_at = datetime.now(UTC) + timedelta(seconds=900)
+
+    stmt_pages = (
+        select(DocumentPage)
+        .where(DocumentPage.source_document_id == doc.id)
+        .order_by(asc(DocumentPage.page_number))
+    )
+    db_pages = db.execute(stmt_pages).scalars().all()
+    pages_out = [
+        DocumentPageDetailOut(
+            page_number=p.page_number,
+            image_url=p.image_storage_key,
+            width_px=p.width_px,
+            height_px=p.height_px,
+            ocr_used=p.ocr_used,
+            ocr_confidence=float(p.ocr_confidence) if p.ocr_confidence is not None else None,
+        )
+        for p in db_pages
+    ]
+
+    return Envelope(
+        data=DocumentSourceOut(
+            url=url,
+            expires_at=expires_at,
+            mime_type=doc.mime_type,
+            page_count=doc.page_count,
+            pages=pages_out,
+        )
+    )
+
+
+@router.post(
+    "/documents/{id}/retry",
+    response_model=Envelope[DocumentOut],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Retry, reopen, or force-duplicate document (EP-34)",
+)
+def retry_document(
+    id: UUID,
+    payload: RetryDocumentRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> Envelope[DocumentOut]:
+    """EP-34: Retry failed document, reopen rejected document, or force process duplicate."""
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    role_code = current_user.role.code if current_user.role else "ROLE-01"
+
+    if payload.mode == RetryMode.RETRY:
+        if doc.status != DocumentStatus.FAILED:
+            raise ApiError(
+                ErrorCode.CONFLICT_STATE,
+                f"Chỉ có thể RETRY tài liệu ở trạng thái FAILED (hiện tại: {doc.status.value})",
+            )
+        if role_code == "ROLE-05":
+            pass
+        elif role_code == "ROLE-02" and "FIN" in doc.pillars:
+            pass
+        elif role_code == "ROLE-04" and "HR" in doc.pillars:
+            pass
+        else:
+            raise ApiError(
+                ErrorCode.FORBIDDEN_ROLE,
+                "Bạn không có quyền retry tài liệu này",
+            )
+
+        max_attempt = max([j.attempt_no for j in doc.extraction_jobs], default=0)
+        new_job = ExtractionJob(
+            id=uuid4(),
+            source_document_id=doc.id,
+            attempt_no=max_attempt + 1,
+            doc_type=doc.doc_type or DocType.OTHER,
+            status=JobStatus.QUEUED,
+            started_at=datetime.now(UTC),
+        )
+        db.add(new_job)
+        doc.status = DocumentStatus.PREPROCESSING
+        doc.status_reason = f"Thử lại lần {new_job.attempt_no}: {payload.note or ''}"
+        doc.retry_count = doc.retry_count + 1
+        db.flush()
+
+        record_audit(
+            db=db,
+            action="document.retry",
+            target_type="source_documents",
+            actor_type=ActorType.USER,
+            actor_user_id=current_user.id,
+            actor_role_id=current_user.role_id,
+            target_id=doc.id,
+            source_document_id=doc.id,
+            idempotency_key=idempotency_key,
+        )
+        db.commit()
+
+        process_document_task.apply_async(args=[str(doc.id), str(new_job.id)])
+
+    elif payload.mode == RetryMode.REOPEN:
+        if doc.status != DocumentStatus.REJECTED:
+            raise ApiError(
+                ErrorCode.CONFLICT_STATE,
+                f"Chỉ có thể REOPEN tài liệu ở trạng thái REJECTED (hiện tại: {doc.status.value})",
+            )
+        if role_code == "ROLE-05":
+            pass
+        elif role_code == "ROLE-02" and "FIN" in doc.pillars:
+            pass
+        elif role_code == "ROLE-04" and "HR" in doc.pillars:
+            pass
+        else:
+            raise ApiError(
+                ErrorCode.FORBIDDEN_ROLE,
+                "Bạn không có quyền mở lại tài liệu này",
+            )
+
+        doc.status = DocumentStatus.NEEDS_REVIEW
+        doc.status_reason = f"Mở lại: {payload.note or 'Reopen theo yêu cầu'}"
+        db.flush()
+
+        record_audit(
+            db=db,
+            action="document.reopen",
+            target_type="source_documents",
+            actor_type=ActorType.USER,
+            actor_user_id=current_user.id,
+            actor_role_id=current_user.role_id,
+            target_id=doc.id,
+            source_document_id=doc.id,
+            idempotency_key=idempotency_key,
+        )
+        db.commit()
+
+    elif payload.mode == RetryMode.FORCE_DUPLICATE:
+        if doc.status != DocumentStatus.DUPLICATE:
+            msg = (
+                f"Chỉ có thể FORCE_DUPLICATE tài liệu ở trạng thái DUPLICATE "
+                f"(hiện tại: {doc.status.value})"
+            )
+            raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+        is_uploader = doc.uploaded_by_id == current_user.id
+        if role_code != "ROLE-05" and not is_uploader:
+            raise ApiError(
+                ErrorCode.FORBIDDEN_ROLE,
+                "Chỉ người upload hoặc Reviewer mới có quyền 'Vẫn xử lý' tài liệu trùng",
+            )
+
+        max_attempt = max([j.attempt_no for j in doc.extraction_jobs], default=0)
+        new_job = ExtractionJob(
+            id=uuid4(),
+            source_document_id=doc.id,
+            attempt_no=max_attempt + 1,
+            doc_type=doc.doc_type or DocType.OTHER,
+            status=JobStatus.QUEUED,
+            started_at=datetime.now(UTC),
+        )
+        db.add(new_job)
+        doc.status = DocumentStatus.PREPROCESSING
+        doc.status_reason = f"Vẫn xử lý: {payload.note or ''}"
+        db.flush()
+
+        record_audit(
+            db=db,
+            action="document.force_duplicate",
+            target_type="source_documents",
+            actor_type=ActorType.USER,
+            actor_user_id=current_user.id,
+            actor_role_id=current_user.role_id,
+            target_id=doc.id,
+            source_document_id=doc.id,
+            idempotency_key=idempotency_key,
+        )
+        db.commit()
+
+        process_document_task.apply_async(args=[str(doc.id), str(new_job.id)])
+    else:
+        raise ApiError(ErrorCode.BAD_REQUEST, f"Chế độ retry không hợp lệ: {payload.mode}")
+
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out)

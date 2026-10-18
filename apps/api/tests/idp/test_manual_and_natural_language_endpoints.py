@@ -28,6 +28,7 @@ from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
 @pytest.fixture
 def app_client(db_session: Session) -> Generator[TestClient, None, None]:
     from app.db.session import get_db
+
     app.dependency_overrides[get_db] = lambda: db_session
     try:
         with TestClient(app) as client:

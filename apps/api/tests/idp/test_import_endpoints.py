@@ -40,7 +40,7 @@ CONTENT_TYPES_XML = (
     'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\n'
     '<Override PartName="/xl/sharedStrings.xml" '
     'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>\n'
-    '</Types>'
+    "</Types>"
 )
 
 RELS_XML = (
@@ -49,7 +49,7 @@ RELS_XML = (
     '<Relationship Id="rId1" '
     'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
     'Target="xl/workbook.xml"/>\n'
-    '</Relationships>'
+    "</Relationships>"
 )
 
 WORKBOOK_RELS_XML = (
@@ -61,14 +61,14 @@ WORKBOOK_RELS_XML = (
     '<Relationship Id="rId2" '
     'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" '
     'Target="sharedStrings.xml"/>\n'
-    '</Relationships>'
+    "</Relationships>"
 )
 
 WORKBOOK_XML = (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">\n'
     '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>\n'
-    '</workbook>'
+    "</workbook>"
 )
 
 
@@ -119,7 +119,7 @@ def make_test_xlsx_bytes(headers: list[str], rows: list[list[Any]]) -> bytes:
 
         ws_xml = (
             f'<worksheet xmlns="{ns_str}">'
-            f'<sheetData>{"".join(sheet_rows_xml)}</sheetData></worksheet>'
+            f"<sheetData>{''.join(sheet_rows_xml)}</sheetData></worksheet>"
         )
         zf.writestr("xl/worksheets/sheet1.xml", ws_xml)
 
@@ -347,18 +347,20 @@ def test_tc_idp_007_row_errors_do_not_block_valid_rows(
 
     rows_48 = generate_47_invoice_rows()
     # Add 1 row with invalid tax code
-    rows_48.append([
-        48,
-        "HV-048",
-        "28/09/2026",
-        "Công ty Lỗi Thuế",
-        "12345",  # Invalid tax code!
-        50_000_000,
-        "10%",
-        0,
-        "28/10/2026",
-        "UNPAID",
-    ])
+    rows_48.append(
+        [
+            48,
+            "HV-048",
+            "28/09/2026",
+            "Công ty Lỗi Thuế",
+            "12345",  # Invalid tax code!
+            50_000_000,
+            "10%",
+            0,
+            "28/10/2026",
+            "UNPAID",
+        ]
+    )
     assert len(rows_48) == 48
 
     xlsx_bytes = make_test_xlsx_bytes(DOC_02_HEADERS, rows_48)

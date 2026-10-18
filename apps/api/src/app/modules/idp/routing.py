@@ -32,8 +32,8 @@ DEFAULT_AUTONOMY: dict[DocType, str] = {
     DocType.KPI_OKR: "L2",
     DocType.MEETING_MINUTES: "L2",
     DocType.FINANCIAL_REPORT: "L2",  # Max L2
-    DocType.CONTRACT: "L2",          # Max L2
-    DocType.EMPLOYEE_LIST: "L2",     # Max L2
+    DocType.CONTRACT: "L2",  # Max L2
+    DocType.EMPLOYEE_LIST: "L2",  # Max L2
 }
 
 
@@ -50,9 +50,7 @@ def evaluate_routing(
         return RoutingDecision.REVIEW, "DOCUMENT_NOT_FOUND"
 
     cfg = get_config()
-    kill_switch = (
-        kill_switch_override if kill_switch_override is not None else cfg.ai_kill_switch
-    )
+    kill_switch = kill_switch_override if kill_switch_override is not None else cfg.ai_kill_switch
 
     # 1. Condition S1: Kill switch and Autonomy L3
     if kill_switch:
@@ -96,11 +94,15 @@ def evaluate_routing(
     if job_id:
         job = db.get(ExtractionJob, job_id)
     else:
-        job = db.execute(
-            select(ExtractionJob)
-            .where(ExtractionJob.source_document_id == doc.id)
-            .order_by(ExtractionJob.attempt_no.desc())
-        ).scalars().first()
+        job = (
+            db.execute(
+                select(ExtractionJob)
+                .where(ExtractionJob.source_document_id == doc.id)
+                .order_by(ExtractionJob.attempt_no.desc())
+            )
+            .scalars()
+            .first()
+        )
 
     cls_conf = (
         float(job.classification_confidence)
@@ -156,11 +158,7 @@ def evaluate_routing(
                 _apply_routing_decision(db, doc, job_id, decision, reason)
                 return decision, reason
 
-            conf = (
-                float(field_map[rk].confidence)
-                if field_map[rk].confidence is not None
-                else 0.0
-            )
+            conf = float(field_map[rk].confidence) if field_map[rk].confidence is not None else 0.0
             if conf < 0.90:
                 decision, reason = RoutingDecision.REVIEW, f"LOW_CONFIDENCE:{rk}"
                 _apply_routing_decision(db, doc, job_id, decision, reason)

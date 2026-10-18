@@ -542,12 +542,9 @@ def parse_spreadsheet_rows(file_bytes: bytes, filename: str) -> tuple[str, list[
                 shared_strings: list[str] = []
                 if "xl/sharedStrings.xml" in zf.namelist():
                     tree = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # noqa: S314 -- internal xlsx parsing without entity resolution (DEC-051)
-                    for si in (
-                        tree.findall(
-                            ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si"
-                        )
-                        or tree.findall(".//si")
-                    ):
+                    for si in tree.findall(
+                        ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si"
+                    ) or tree.findall(".//si"):
                         t_elems = si.findall(
                             ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t"
                         ) or si.findall(".//t")
@@ -815,8 +812,7 @@ def handle_import_mapping_confirm(
             # Convert numeric/date values if possible
             val: Any = clean_val
             if any(
-                m in field_key.lower()
-                for m in ("subtotal", "amount", "vat_amount", "paid_amount")
+                m in field_key.lower() for m in ("subtotal", "amount", "vat_amount", "paid_amount")
             ):
                 try:
                     num_str = clean_val.replace(".", "").replace(",", "")
@@ -882,5 +878,3 @@ def handle_import_mapping_confirm(
     db.commit()
     db.refresh(doc)
     return doc, row_errors
-
-

@@ -8,7 +8,6 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    ARRAY,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -27,7 +26,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     Enum as SQLEnum,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -95,9 +94,7 @@ class SourceDocument(Base):
     )
     contains_salary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     contains_pii: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    uploaded_by_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
-    )
+    uploaded_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -171,8 +168,7 @@ class SourceDocument(Base):
 
 
 class DocumentPage(Base):
-    """ENT-DocumentPage: Individual page of a document, OCR results, and rendered image (05 §4.4).
-    """
+    """ENT-DocumentPage: Individual page of a document, OCR, and rendered image (05 §4.4)."""
 
     __tablename__ = "document_pages"
     __table_args__ = (

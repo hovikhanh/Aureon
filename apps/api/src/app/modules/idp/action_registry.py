@@ -211,9 +211,11 @@ def _handle_invoice_create(
     db.add(fin_line)
 
     # Link extracted fields for this document to the business record
-    fields = db.execute(
-        select(ExtractedField).where(ExtractedField.source_document_id == doc.id)
-    ).scalars().all()
+    fields = (
+        db.execute(select(ExtractedField).where(ExtractedField.source_document_id == doc.id))
+        .scalars()
+        .all()
+    )
     for f in fields:
         f.business_record_id = rec.id
 
@@ -265,9 +267,11 @@ def _handle_contract_create(
     )
     db.add(opp)
 
-    fields = db.execute(
-        select(ExtractedField).where(ExtractedField.source_document_id == doc.id)
-    ).scalars().all()
+    fields = (
+        db.execute(select(ExtractedField).where(ExtractedField.source_document_id == doc.id))
+        .scalars()
+        .all()
+    )
     for f in fields:
         f.business_record_id = rec.id
 
@@ -316,9 +320,11 @@ def _handle_task_create(
         )
         db.add(dec_rec)
 
-    fields = db.execute(
-        select(ExtractedField).where(ExtractedField.source_document_id == doc.id)
-    ).scalars().all()
+    fields = (
+        db.execute(select(ExtractedField).where(ExtractedField.source_document_id == doc.id))
+        .scalars()
+        .all()
+    )
     for f in fields:
         f.business_record_id = rec.id
 
@@ -390,9 +396,7 @@ def _handle_metric_value_upsert(
 ) -> dict[str, Any]:
     # DEC-037: Side effect FINANCIAL_LINE or SURVEY_RESPONSE
     rec_type = (
-        RecordType.SURVEY_RESPONSE
-        if "NPS" in data.metric_code
-        else RecordType.FINANCIAL_LINE
+        RecordType.SURVEY_RESPONSE if "NPS" in data.metric_code else RecordType.FINANCIAL_LINE
     )
     rec = BusinessRecord(
         id=uuid4(),
@@ -485,9 +489,11 @@ def _handle_document_rollback(
     idempotency_key: str,
 ) -> dict[str, Any]:
     # Soft delete all business records created by this document
-    records = db.execute(
-        select(BusinessRecord).where(BusinessRecord.source_document_id == doc.id)
-    ).scalars().all()
+    records = (
+        db.execute(select(BusinessRecord).where(BusinessRecord.source_document_id == doc.id))
+        .scalars()
+        .all()
+    )
     for r in records:
         r.deleted_at = datetime.now(UTC)
 
@@ -652,9 +658,7 @@ def execute_action(
         # Audit log recording
         is_user = isinstance(actor, User)
         target_id_val = (
-            UUID(result["business_record_id"])
-            if "business_record_id" in result
-            else doc.id
+            UUID(result["business_record_id"]) if "business_record_id" in result else doc.id
         )
         user_id = actor.id if isinstance(actor, User) else None
         role_id = actor.role_id if isinstance(actor, User) else None

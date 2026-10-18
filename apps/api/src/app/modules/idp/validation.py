@@ -77,15 +77,17 @@ def check_and_apply_prompt_injection_defense(
         if job:
             summary = dict(job.validation_summary or {})
             rules = list(summary.get("rules", []))
-            rules.append({
-                "rule": "PI-04",
-                "status": "warn",
-                "message": (
-                    f"Phát hiện nội dung đáng ngờ '{matched_cue}': "
-                    "tài liệu bị gắn cờ SUSPICIOUS_CONTENT, chặn STP, yêu cầu review"
-                ),
-                "severity": "SUSPICIOUS_CONTENT",
-            })
+            rules.append(
+                {
+                    "rule": "PI-04",
+                    "status": "warn",
+                    "message": (
+                        f"Phát hiện nội dung đáng ngờ '{matched_cue}': "
+                        "tài liệu bị gắn cờ SUSPICIOUS_CONTENT, chặn STP, yêu cầu review"
+                    ),
+                    "severity": "SUSPICIOUS_CONTENT",
+                }
+            )
             summary["rules"] = rules
             summary["suspicious_content"] = True
             job.validation_summary = summary
@@ -138,20 +140,24 @@ def validate_internal_rules(
             raw_tc = str(f_map[tax_key].value)
             digits = re.sub(r"[^\d]", "", raw_tc)
             if len(digits) not in (10, 13):
-                rule_results.append({
-                    "rule": "VR-MST-01",
-                    "status": "fail",
-                    "field_key": tax_key,
-                    "message": f"Mã số thuế '{raw_tc}' không hợp lệ (phải 10 hoặc 13 số)",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-MST-01",
+                        "status": "fail",
+                        "field_key": tax_key,
+                        "message": f"Mã số thuế '{raw_tc}' không hợp lệ (phải 10 hoặc 13 số)",
+                    }
+                )
                 _adjust_confidence(f_map[tax_key], 0.5)
             else:
-                rule_results.append({
-                    "rule": "VR-MST-01",
-                    "status": "pass",
-                    "field_key": tax_key,
-                    "message": f"Mã số thuế '{raw_tc}' hợp lệ 10/13 số",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-MST-01",
+                        "status": "pass",
+                        "field_key": tax_key,
+                        "message": f"Mã số thuế '{raw_tc}' hợp lệ 10/13 số",
+                    }
+                )
 
     # 2. INVOICE validation (VR-INV-01, VR-INV-02, VR-INV-03)
     if doc.doc_type == DocType.INVOICE:
@@ -164,22 +170,26 @@ def validate_internal_rules(
             if sub is not None and vat is not None:
                 calc_tot = sub + vat
                 if abs(tot - calc_tot) <= 1000:
-                    rule_results.append({
-                        "rule": "VR-INV-01",
-                        "status": "pass",
-                        "field_key": "total_amount",
-                        "message": "Tổng tiền thanh toán khớp Subtotal + Thuế GTGT",
-                    })
+                    rule_results.append(
+                        {
+                            "rule": "VR-INV-01",
+                            "status": "pass",
+                            "field_key": "total_amount",
+                            "message": "Tổng tiền thanh toán khớp Subtotal + Thuế GTGT",
+                        }
+                    )
                 else:
-                    rule_results.append({
-                        "rule": "VR-INV-01",
-                        "status": "fail",
-                        "field_key": "total_amount",
-                        "message": (
-                            f"Tổng tiền thanh toán {tot:,} đ không khớp "
-                            f"Subtotal ({sub:,} đ) + Thuế GTGT ({vat:,} đ) = {calc_tot:,} đ"
-                        ),
-                    })
+                    rule_results.append(
+                        {
+                            "rule": "VR-INV-01",
+                            "status": "fail",
+                            "field_key": "total_amount",
+                            "message": (
+                                f"Tổng tiền thanh toán {tot:,} đ không khớp "
+                                f"Subtotal ({sub:,} đ) + Thuế GTGT ({vat:,} đ) = {calc_tot:,} đ"
+                            ),
+                        }
+                    )
                     _adjust_confidence(f_map["total_amount"], 0.5)
 
         # VR-INV-02: vat_amount ≈ subtotal * vat_rate
@@ -196,23 +206,26 @@ def validate_internal_rules(
             vat = f_map["vat_amount"].value
             expected_vat = round(sub * rate)
             if abs(vat - expected_vat) <= 1000:
-                rule_results.append({
-                    "rule": "VR-INV-02",
-                    "status": "pass",
-                    "field_key": "vat_amount",
-                    "message": "Tiền thuế GTGT khớp tỷ lệ thuế suất",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-INV-02",
+                        "status": "pass",
+                        "field_key": "vat_amount",
+                        "message": "Tiền thuế GTGT khớp tỷ lệ thuế suất",
+                    }
+                )
             else:
                 warn_msg = (
-                    f"Tiền thuế GTGT {vat:,} đ lệch so với "
-                    f"subtotal × rate = {expected_vat:,} đ"
+                    f"Tiền thuế GTGT {vat:,} đ lệch so với subtotal × rate = {expected_vat:,} đ"
                 )
-                rule_results.append({
-                    "rule": "VR-INV-02",
-                    "status": "warn",
-                    "field_key": "vat_amount",
-                    "message": warn_msg,
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-INV-02",
+                        "status": "warn",
+                        "field_key": "vat_amount",
+                        "message": warn_msg,
+                    }
+                )
                 _adjust_confidence(f_map["vat_amount"], 0.85)
 
         # VR-INV-03: due_date >= issue_date
@@ -225,20 +238,24 @@ def validate_internal_rules(
             due_str = str(f_map["due_date"].value)
             issue_str = str(f_map["issue_date"].value)
             if due_str < issue_str:
-                rule_results.append({
-                    "rule": "VR-INV-03",
-                    "status": "fail",
-                    "field_key": "due_date",
-                    "message": f"Hạn thanh toán ({due_str}) trước ngày phát hành ({issue_str})",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-INV-03",
+                        "status": "fail",
+                        "field_key": "due_date",
+                        "message": f"Hạn thanh toán ({due_str}) trước ngày phát hành ({issue_str})",
+                    }
+                )
                 _adjust_confidence(f_map["due_date"], 0.5)
             else:
-                rule_results.append({
-                    "rule": "VR-INV-03",
-                    "status": "pass",
-                    "field_key": "due_date",
-                    "message": "Hạn thanh toán hợp lệ (sau ngày phát hành)",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-INV-03",
+                        "status": "pass",
+                        "field_key": "due_date",
+                        "message": "Hạn thanh toán hợp lệ (sau ngày phát hành)",
+                    }
+                )
 
     # 3. FINANCIAL_REPORT validation (VR-BCTC-01, VR-BCTC-02)
     elif doc.doc_type == DocType.FINANCIAL_REPORT:
@@ -257,22 +274,26 @@ def validate_internal_rules(
             calc_gross = rev - cogs
             tolerance = max(1000.0, 0.005 * abs(rev))
             if abs(gross - calc_gross) <= tolerance:
-                rule_results.append({
-                    "rule": "VR-BCTC-01",
-                    "status": "pass",
-                    "field_key": "gross_profit",
-                    "message": "Lợi nhuận gộp khớp Doanh thu − Giá vốn",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-BCTC-01",
+                        "status": "pass",
+                        "field_key": "gross_profit",
+                        "message": "Lợi nhuận gộp khớp Doanh thu − Giá vốn",
+                    }
+                )
             else:
-                rule_results.append({
-                    "rule": "VR-BCTC-01",
-                    "status": "fail",
-                    "field_key": "gross_profit",
-                    "message": (
-                        f"Lợi nhuận gộp ({gross:,} đ) không khớp "
-                        f"Doanh thu ({rev:,} đ) − Giá vốn ({cogs:,} đ) = {calc_gross:,} đ"
-                    ),
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-BCTC-01",
+                        "status": "fail",
+                        "field_key": "gross_profit",
+                        "message": (
+                            f"Lợi nhuận gộp ({gross:,} đ) không khớp "
+                            f"Doanh thu ({rev:,} đ) − Giá vốn ({cogs:,} đ) = {calc_gross:,} đ"
+                        ),
+                    }
+                )
                 _adjust_confidence(f_map["gross_profit"], 0.5)
 
         # VR-BCTC-02: net_profit <= gross_profit
@@ -285,24 +306,25 @@ def validate_internal_rules(
             net = f_map["net_profit"].value
             gross = f_map["gross_profit"].value
             if net > gross:
-                warn_msg = (
-                    f"Lợi nhuận sau thuế ({net:,} đ) lớn hơn "
-                    f"lợi nhuận gộp ({gross:,} đ)"
+                warn_msg = f"Lợi nhuận sau thuế ({net:,} đ) lớn hơn lợi nhuận gộp ({gross:,} đ)"
+                rule_results.append(
+                    {
+                        "rule": "VR-BCTC-02",
+                        "status": "warn",
+                        "field_key": "net_profit",
+                        "message": warn_msg,
+                    }
                 )
-                rule_results.append({
-                    "rule": "VR-BCTC-02",
-                    "status": "warn",
-                    "field_key": "net_profit",
-                    "message": warn_msg,
-                })
                 _adjust_confidence(f_map["net_profit"], 0.85)
             else:
-                rule_results.append({
-                    "rule": "VR-BCTC-02",
-                    "status": "pass",
-                    "field_key": "net_profit",
-                    "message": "Lợi nhuận sau thuế hợp lý (≤ lợi nhuận gộp)",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-BCTC-02",
+                        "status": "pass",
+                        "field_key": "net_profit",
+                        "message": "Lợi nhuận sau thuế hợp lý (≤ lợi nhuận gộp)",
+                    }
+                )
 
     # 4. CONTRACT validation (VR-CON-01, VR-CON-02)
     elif doc.doc_type == DocType.CONTRACT:
@@ -316,39 +338,47 @@ def validate_internal_rules(
             exp_str = str(f_map["expiry_date"].value)
             eff_str = str(f_map["effective_date"].value)
             if exp_str < eff_str:
-                rule_results.append({
-                    "rule": "VR-CON-01",
-                    "status": "fail",
-                    "field_key": "expiry_date",
-                    "message": f"Ngày hết hạn ({exp_str}) trước ngày hiệu lực ({eff_str})",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-CON-01",
+                        "status": "fail",
+                        "field_key": "expiry_date",
+                        "message": f"Ngày hết hạn ({exp_str}) trước ngày hiệu lực ({eff_str})",
+                    }
+                )
                 _adjust_confidence(f_map["expiry_date"], 0.5)
             else:
-                rule_results.append({
-                    "rule": "VR-CON-01",
-                    "status": "pass",
-                    "field_key": "expiry_date",
-                    "message": "Ngày hết hạn hợp lệ (sau ngày hiệu lực)",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-CON-01",
+                        "status": "pass",
+                        "field_key": "expiry_date",
+                        "message": "Ngày hết hạn hợp lệ (sau ngày hiệu lực)",
+                    }
+                )
 
         # VR-CON-02: sign_date <= today
         if "sign_date" in f_map and f_map["sign_date"].value is not None:
             sign_str = str(f_map["sign_date"].value)
             today_str = date.today().isoformat()
             if sign_str > today_str:
-                rule_results.append({
-                    "rule": "VR-CON-02",
-                    "status": "warn",
-                    "field_key": "sign_date",
-                    "message": f"Ngày ký ({sign_str}) ở tương lai",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-CON-02",
+                        "status": "warn",
+                        "field_key": "sign_date",
+                        "message": f"Ngày ký ({sign_str}) ở tương lai",
+                    }
+                )
             else:
-                rule_results.append({
-                    "rule": "VR-CON-02",
-                    "status": "pass",
-                    "field_key": "sign_date",
-                    "message": "Ngày ký hợp lệ",
-                })
+                rule_results.append(
+                    {
+                        "rule": "VR-CON-02",
+                        "status": "pass",
+                        "field_key": "sign_date",
+                        "message": "Ngày ký hợp lệ",
+                    }
+                )
 
     has_errors = any(r["status"] == "fail" for r in rule_results)
     has_warnings = any(r["status"] == "warn" for r in rule_results)

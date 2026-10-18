@@ -534,8 +534,7 @@ def serialize_extraction_result(
     db_fields = db.execute(stmt_fields).scalars().all()
 
     schema_map = {
-        sf.field_key: sf
-        for sf in EXTRACTION_SCHEMAS.get(doc.doc_type or DocType.INVOICE, [])
+        sf.field_key: sf for sf in EXTRACTION_SCHEMAS.get(doc.doc_type or DocType.INVOICE, [])
     }
 
     out_fields: list[ExtractedFieldOut] = []
@@ -616,16 +615,12 @@ def serialize_extraction_result(
         routing_reason=latest_job.routing_reason,
         error_code=latest_job.error_code,
         avg_confidence=(
-            float(latest_job.avg_confidence)
-            if latest_job.avg_confidence is not None
-            else None
+            float(latest_job.avg_confidence) if latest_job.avg_confidence is not None else None
         ),
         validation_summary=latest_job.validation_summary,
         cross_doc_results=latest_job.cross_doc_results,
         token_cost_usd=(
-            float(latest_job.token_cost_usd)
-            if latest_job.token_cost_usd is not None
-            else None
+            float(latest_job.token_cost_usd) if latest_job.token_cost_usd is not None else None
         ),
         started_at=latest_job.started_at,
         finished_at=latest_job.finished_at,

@@ -121,9 +121,7 @@ def run_document_pipeline(
     name="app.workers.idp.preprocess_document",
     queue=QUEUE_IDP,
 )
-def preprocess_document_task(
-    self: Any, document_id: str, db: Any = None
-) -> dict[str, Any]:
+def preprocess_document_task(self: Any, document_id: str, db: Any = None) -> dict[str, Any]:
     """Execute step 1 (preprocessing & OCR) for a source document."""
     logger.info("Starting preprocess_document_task for doc %s", document_id)
     doc_uuid = UUID(document_id)

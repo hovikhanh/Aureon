@@ -57,10 +57,14 @@ def test_missing_endpoints_reported_as_progress_not_error() -> None:
     assert "EP-21" not in missing, "EP-21 is mounted and must not be listed as missing"
     assert "EP-22" not in missing, "EP-22 is mounted and must not be listed as missing"
     assert "EP-23" not in missing, "EP-23 is mounted and must not be listed as missing"
+    assert "EP-24" not in missing, "EP-24 is mounted and must not be listed as missing"
+    assert "EP-25" not in missing, "EP-25 is mounted and must not be listed as missing"
+    assert "EP-27" not in missing, "EP-27 is mounted and must not be listed as missing"
+    assert "EP-34" not in missing, "EP-34 is mounted and must not be listed as missing"
     assert "EP-36" not in missing, "EP-36 is mounted and must not be listed as missing"
     assert "EP-40" not in missing, "EP-40 is mounted and must not be listed as missing"
     assert "EP-10" in missing, f"EP-10 is not built yet and must be reported; got {missing}"
-    assert len(missing) >= 20, (
+    assert len(missing) >= 10, (
         f"expected the bulk of 10 §1.10 to be reported as missing progress, got {len(missing)}: "
         f"{missing}"
     )

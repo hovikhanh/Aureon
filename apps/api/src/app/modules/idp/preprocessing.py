@@ -292,9 +292,11 @@ def split_multi_document(
         raise ApiError(ErrorCode.VALIDATION_ERROR, "split_ranges must contain at least one range")
 
     # Fetch parent's pages
-    stmt_pages = select(DocumentPage).where(
-        DocumentPage.source_document_id == parent.id
-    ).order_by(DocumentPage.page_number)
+    stmt_pages = (
+        select(DocumentPage)
+        .where(DocumentPage.source_document_id == parent.id)
+        .order_by(DocumentPage.page_number)
+    )
     parent_pages = {p.page_number: p for p in db.execute(stmt_pages).scalars().all()}
 
     children: list[SourceDocument] = []
