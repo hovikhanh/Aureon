@@ -47,6 +47,12 @@ class ConfigService(BaseSettings):
     max_pages: int = 50
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
+    # Demo account passwords (08 §2) — read only by `app.seed`, hashed with argon2id, never logged.
+    demo_ceo_password: SecretStr | None = None
+    demo_cfo_password: SecretStr | None = None
+    demo_sales_password: SecretStr | None = None
+    demo_hr_password: SecretStr | None = None
+    demo_reviewer_password: SecretStr | None = None
 
 
 @lru_cache

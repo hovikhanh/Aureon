@@ -109,7 +109,7 @@ Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planne
 | TC-SYS-002 | contract | pytest | Mọi endpoint trả envelope `{data, meta?}` / `{error:{code,message,details}}` và `X-Request-Id`; mã lỗi thuộc bảng 10 §1.3 | EP-01..52 (10 §1.2–1.3) | T-005 | Implemented |
 | TC-SYS-003 | contract | pytest | Duyệt OpenAPI: mọi route trừ EP-01, EP-02 có dependency `require_role`; mọi route khai báo `response_model` | EP-03..52 (10 §1.4) | T-009 | Planned |
 | TC-SYS-004 | integration | pytest | Mutation gọi 2 lần cùng `Idempotency-Key` + cùng body → cùng response, 1 bản ghi; body khác → 409 `IDEMPOTENCY_CONFLICT`; thiếu header ở EP bắt buộc → 400 | EP-20..23, 30..34, 36, 40 (10 §1.6) | T-005 | Implemented |
-| TC-SYS-005 | integration | pytest | Mọi mutation ghi `audit_logs` trong cùng transaction (rollback → không có audit); không có API sửa/xóa audit | 10 §1.7; ENT-AuditLog; FR-DC-22 | T-102; T-404 | Planned |
+| TC-SYS-005 | integration | pytest | Mọi mutation ghi `audit_logs` trong cùng transaction (rollback → không có audit); không có API sửa/xóa audit | 10 §1.7; ENT-AuditLog; FR-DC-22 | T-102; T-404 | Passed |
 | TC-SYS-006 | contract | pytest | Phân trang `page`/`page_size` (>100 → 400) và `meta {page,page_size,total,total_pages}` | EP-13, 15, 24, 28, 52 (10 §1.5) | T-005 | Implemented |
 | TC-AUTH-001 | integration | pytest | EP-02 đúng credential (5 user seed, mật khẩu từ env/seed) → 200 + JWT có `sub, role, iat, exp, iss, aud` HS256 | EP-02; ROLE-01..05 | T-103; T-106 | Planned |
 | TC-AUTH-002 | integration | pytest | EP-02 sai mật khẩu và email không tồn tại → **cùng** 401 `INVALID_CREDENTIALS`, cùng message (không tiết lộ email tồn tại) | EP-02 | T-103 | Planned |
@@ -239,8 +239,8 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 |---|---|---|---|---|---|---|
 | TC-DATA-001 | integration | pytest | `alembic upgrade head` rồi `downgrade base` rồi `upgrade head` không lỗi (migration reversible) | 12 ENT; 05 §12 | T-004 | Passed |
 | TC-DATA-002 | unit | pytest | Mọi bảng có `id` uuid, `created_at`, `updated_at`; entity nghiệp vụ có `deleted_at`; mọi FK có index (kiểm metadata SQLAlchemy) | 12 ENT; CLAUDE.md § Database | T-004 | Passed |
-| TC-DATA-003 | integration | pytest | ENT-User: `email` unique (partial `deleted_at IS NULL`), lowercase; `password_hash` không có trong mọi response model | ENT-User | T-101 | Planned |
-| TC-DATA-004 | integration | pytest | ENT-Role: seed đúng 5 role `ROLE-01..05` với `pillar_scope`, `pillar_agg_scope`, `review_pillars`, `can_view_salary` theo 05 §4.2 | ENT-Role; ROLE-01..05 | T-101; T-402 | Planned |
+| TC-DATA-003 | integration | pytest | ENT-User: `email` unique (partial `deleted_at IS NULL`), lowercase; `password_hash` không có trong mọi response model | ENT-User | T-101 | Passed |
+| TC-DATA-004 | integration | pytest | ENT-Role: seed đúng 5 role `ROLE-01..05` với `pillar_scope`, `pillar_agg_scope`, `review_pillars`, `can_view_salary` theo 05 §4.2 | ENT-Role; ROLE-01..05 | T-101; T-402 | Passed |
 | TC-DATA-005 | integration | pytest | ENT-SourceDocument: `contains_salary` tự bật khi `doc_type=EMPLOYEE_LIST` hoặc có field SALARY; `undo_deadline = committed_at + 7 ngày` | ENT-SourceDocument | T-201 | Planned |
 | TC-DATA-006 | integration | pytest | ENT-DocumentPage: `text_layer_exists`, `text_layer_quality`, `ocr_used` lưu đúng cho từng trang | ENT-DocumentPage | T-201 | Planned |
 | TC-DATA-007 | integration | pytest | ENT-ExtractionJob: `attempt_no` tăng khi retry; `cross_doc_results` lưu MATCH/MISMATCH/NOT_COMPARABLE | ENT-ExtractionJob | T-201; T-210 | Planned |
@@ -250,7 +250,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-DATA-011 | integration | pytest | ENT-Metric: seed 18 metric với `code`, `pillar`, `unit`, ngưỡng, `alert_code` 1-1 (18 ALERT) | ENT-Metric; 18 METRIC; 18 ALERT | T-301; T-402 | Planned |
 | TC-DATA-012 | integration | pytest | ENT-MetricValue: một `is_current=true` cho mỗi (metric, kỳ, value_kind); `superseded_by_id` khi tính lại; `source_record_ids` dẫn về bản ghi tồn tại | ENT-MetricValue | T-301; T-304 | Planned |
 | TC-DATA-013 | integration | pytest | ENT-Alert: chuyển trạng thái `OPEN → ACKNOWLEDGED → RESOLVED`/`DISMISSED` hợp lệ | ENT-Alert | T-301 | Planned |
-| TC-DATA-014 | integration | pytest | ENT-AuditLog: chỉ append (UPDATE/DELETE bị chặn ở repository); `before/after` mask lương | ENT-AuditLog | T-102 | Planned |
+| TC-DATA-014 | integration | pytest | ENT-AuditLog: chỉ append (UPDATE/DELETE bị chặn ở repository); `before/after` mask lương | ENT-AuditLog | T-102 | Passed |
 | TC-DATA-015 | integration | pytest | Seed 08: 5 user demo (mật khẩu từ env, không hard-code), 47 HĐ T9 (ΣVAT = 812.000.000; 22 PAID / 2 PARTIAL / 23 UNPAID), kiểm số học K1–K16 08 §4.4 | 08 §2–§5; ENT-BusinessRecord | T-402 | Planned |
 | TC-DATA-016 | unit | pytest | Lineage 05 §7: từ `metric_values` → `business_records` → `extracted_fields` → `source_documents` không có mắt xích null cho metric `COMPUTED` | P01; 05 §7 | T-304 | Planned |
 
@@ -464,6 +464,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 | 2026-10-18 | T-007 | TC-IDP-035 → Implemented (phần T-007: `apps/api/tests/workers/test_worker.py` — config `soft_time_limit`/`time_limit`/`result_expires`, base `IdempotentTask` chạy cùng `task_id` 2 lần chỉ 1 side effect, integration Redis thật). Phần "không tạo `extracted_fields` trùng" chờ T-211 → giữ Implemented, chưa Passed |
 | 2026-10-18 | T-005 | TC-SYS-002, TC-SYS-004, TC-SYS-006 → Implemented (`apps/api/tests/core/`: envelope + `X-Request-Id` cho success/error/422/404/500, bảng `ErrorCode` = 10 §1.3 (contract), idempotency replay/409/400 + Redis thật, phân trang `page_size>100` → 400). Giữ Implemented tới khi có endpoint thật áp dụng (EP-13+, EP-20+). Coverage module core 88–100% |
 | 2026-10-18 | T-006 | TC-IDP-036 → Passed (`apps/api/tests/model_gateway/test_single_entry_point.py` quét AST ~22 SDK LLM + chuỗi `chat/completions`, 0 ngoại lệ ngoài gateway — đã sửa probe EP-01 đi qua `ModelGateway.ping()`; fixture mode replay + đếm call). TC-IDP-030 → Implemented (phần gateway: retry 3 lần backoff 2/8/30 s → fallback → `IDP-E06`; phần EP-34/IDP-E02 chờ T-211/T-216). Coverage gateway 99% |
+| 2026-10-18 | T-101/T-102 | TC-DATA-003 → Passed (`apps/api/tests/auth/test_user_role_constraints.py`: email partial-unique, FK role, `password_hash` không có trong `UserOut`); TC-DATA-004 → Passed (`apps/api/tests/auth/test_seed.py`: seed 5 role + 5 user `@abc.demo`, idempotent, scope theo 02 §3/05 §4.2, hash argon2id verify); TC-DATA-014 → Passed (`apps/api/tests/audit/test_audit_immutable.py`: guard ORM + trigger DB chặn UPDATE/DELETE); TC-SYS-005 → Passed (`apps/api/tests/audit/test_audit_transaction.py`: mutation + audit cùng transaction, rollback → không audit, lương mask ••••). Seed/reset qua `app.seed`/`app.reset` (DEC-062); 37 test mới; coverage module ≥ 86% |
 | 2026-10-18 | T-008 | TC-UI-001 → Passed (`apps/web/src/lib/format.test.ts`: `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `05/10/2026`, `T9/2026`, `Q3/2026` + biên null/âm/làm tròn; đơn vị lấy từ `messages/vi.json`). TC-UI-005 vẫn Passed sau khi thêm i18n. Thêm test token `--ai` ≠ `--primary` (`design-tokens.test.ts`) và test khoá i18n tồn tại (`messages.test.ts`) |
 
 ---

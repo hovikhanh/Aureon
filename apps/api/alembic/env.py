@@ -6,14 +6,15 @@ from alembic import context
 from sqlalchemy import Connection, create_engine, pool
 
 from app.core.config import get_config
-from app.db.base import Base
+from app.db.models import metadata
 
 config = context.config
 
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-target_metadata = Base.metadata
+# app.db.models imports every entity module, so autogenerate/check see all tables.
+target_metadata = metadata
 
 
 def _database_url() -> str:
