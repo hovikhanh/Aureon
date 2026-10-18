@@ -201,11 +201,11 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-IDP-018 | integration | pytest | EP-28: ROLE-05 thấy tất cả; ROLE-02 chỉ FIN; ROLE-04 chỉ HR; ROLE-03 → 403; thứ tự conflict → confidence thấp → cũ nhất; `counts` đúng | EP-28; FR-DC-16; US-DC-011; ROLE-02..05 | T-214 | Passed |
 | TC-IDP-019 | integration | pytest | EP-29 mở review → `IN_REVIEW`, khóa 15 phút; user khác mở → 409 `REVIEW_LOCKED`; EP-35 release → `NEEDS_REVIEW`; khóa hết hạn tự giải phóng | EP-29, EP-35; FR-DC-18; ENT-ExtractionReview | T-214 | Passed |
 | TC-IDP-020 | integration | pytest | EP-26: field có `confidence_band` đúng ngưỡng 0,90/0,70; ROLE-05 thấy SALARY chỉ khi đang giữ khóa review; ROLE-01 nhận `masked`; ROLE-03 → 403 | EP-26; FR-DC-10; DS3 | T-207 | Passed |
-| TC-IDP-021 | integration | pytest | EP-30 sửa field → `corrected=true`, giữ `value` AI, lưu `corrected_value`, `corrected_by_id`; audit `field.correct` mask lương; không giữ khóa → 409 | EP-30; FR-DC-19; US-DC-013 | T-215 | Planned |
-| TC-IDP-022 | integration | pytest | EP-31 khi còn field required LOW/null chưa xác nhận → 422; XD `MISMATCH` chưa chấp nhận → 422 `ACTION_REJECTED`; hợp lệ → `COMMITTED`, `undo_deadline = +7 ngày`, lineage `extracted_fields.business_record_id` ghi, audit | EP-31; FR-DC-17, FR-DC-19, FR-DC-20; US-DC-012, US-DC-014 | T-215 | Planned |
+| TC-IDP-021 | integration | pytest | EP-30 sửa field → `corrected=true`, giữ `value` AI, lưu `corrected_value`, `corrected_by_id`; audit `field.correct` mask lương; không giữ khóa → 409 | EP-30; FR-DC-19; US-DC-013 | T-215 | Passed |
+| TC-IDP-022 | integration | pytest | EP-31 khi còn field required LOW/null chưa xác nhận → 422; XD `MISMATCH` chưa chấp nhận → 422 `ACTION_REJECTED`; hợp lệ → `COMMITTED`, `undo_deadline = +7 ngày`, lineage `extracted_fields.business_record_id` ghi, audit | EP-31; FR-DC-17, FR-DC-19, FR-DC-20; US-DC-012, US-DC-014 | T-215 | Passed |
 | TC-IDP-023 | integration | pytest | Action Registry: mỗi action (`invoice.create`, `contract.create`, `task.create_from_minutes`, `employee.upsert`, `metric_value.upsert`, `metric_target.upsert`, `document.reject`, `document.rollback`) validate `input_schema`, kiểm quyền + autonomy, idempotent theo `hash(document_id, field_set_version, action_name)`; lỗi giữa chừng → rollback toàn transaction, tài liệu về `NEEDS_REVIEW` (IDP-E10) | FR-DC-17; IDP-E10; ENT-BusinessRecord | T-212 | Passed |
 | TC-IDP-024 | contract | pytest | Kiểm tĩnh: không module IDP/worker nào ghi bảng nghiệp vụ (`business_records`, `metric_values`) ngoài Action Registry | FR-DC-17 | T-212 | Passed |
-| TC-IDP-025 | integration | pytest | EP-32 reject bắt buộc `reject_reason_code` (`OTHER` cần `reject_note`) → `REJECTED`; EP-34 `REOPEN` → `NEEDS_REVIEW` | EP-32, EP-34; FR-DC-19; US-DC-013 | T-215 | Planned |
+| TC-IDP-025 | integration | pytest | EP-32 reject bắt buộc `reject_reason_code` (`OTHER` cần `reject_note`) → `REJECTED`; EP-34 `REOPEN` → `NEEDS_REVIEW` | EP-32, EP-34; FR-DC-19; US-DC-013 | T-215 | Passed |
 | TC-IDP-026 | integration | pytest | EP-33 rollback trong 7 ngày → `ROLLED_BACK`, bản ghi soft delete / khôi phục snapshot, metric tính lại; quá hạn → 410 `UNDO_EXPIRED`; ROLE-01 → 403 | EP-33; FR-DC-22; US-DC-015 | T-216 | Planned |
 | TC-IDP-027 | integration | pytest | INVOICE ở L3 + Excel sạch → `AUTO_APPROVED` → `COMMITTED` với audit actor `ai:idp`, không gọi endpoint | FR-DC-15, FR-DC-21; US-DC-015 | T-217 | Planned |
 | TC-IDP-028 | integration | pytest | Kill switch L0 → mọi doc type không gọi model, C2 → 423; mode L2 → không STP; `ai_state` của DocumentOut đúng L0..L3 | FR-DC-21; US-DC-017; EP-25, EP-51 | T-217 | Planned |
@@ -365,8 +365,8 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | EP-28 | `GET /review-queue` | TC-IDP-018, TC-AUTH-015 | T-213; T-214 | Implemented |
 | EP-29 | `POST /documents/{id}/review/open` | TC-IDP-019 | T-214 | Implemented |
 | EP-30 | `PATCH /documents/{id}/fields` | TC-IDP-021, TC-IDP-009 | T-207; T-215; T-401 | Implemented |
-| EP-31 | `POST /documents/{id}/review/approve` | TC-IDP-022, TC-DASH-015 | T-215; T-304 | Planned |
-| EP-32 | `POST /documents/{id}/review/reject` | TC-IDP-025 | T-215 | Planned |
+| EP-31 | `POST /documents/{id}/review/approve` | TC-IDP-022, TC-DASH-015 | T-215; T-304 | Implemented |
+| EP-32 | `POST /documents/{id}/review/reject` | TC-IDP-025 | T-215 | Implemented |
 | EP-33 | `POST /documents/{id}/rollback` | TC-IDP-026 | T-216 | Planned |
 | EP-34 | `POST /documents/{id}/retry` | TC-IDP-003, TC-IDP-025, TC-IDP-030 | T-006; T-203; T-211; T-213; T-215; T-216 | Implemented |
 | EP-35 | `POST /documents/{id}/review/release` | TC-IDP-019 | T-214 | Implemented |

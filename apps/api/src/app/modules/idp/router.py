@@ -4,7 +4,7 @@ EP-20..EP-27, EP-34, EP-36, EP-40, EP-50 per 10-API-SPECIFICATION.md §4, §6.
 """
 
 import math
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
@@ -22,6 +22,8 @@ from app.modules.audit.models import AuditLog
 from app.modules.audit.service import record_audit
 from app.modules.auth.deps import require_role
 from app.modules.auth.models import User
+from app.modules.idp.action_registry import execute_action
+from app.modules.idp.cross_doc import run_cross_document_checks
 from app.modules.idp.enums import (
     DocType,
     DocumentKind,
@@ -29,6 +31,7 @@ from app.modules.idp.enums import (
     InputChannel,
     JobStatus,
     ReviewDecision,
+    SensitivityLabel,
 )
 from app.modules.idp.extraction import (
     change_document_type_and_reextract,
@@ -37,6 +40,7 @@ from app.modules.idp.extraction import (
 from app.modules.idp.models import (
     BusinessRecord,
     DocumentPage,
+    ExtractedField,
     ExtractionJob,
     ExtractionReview,
     SourceDocument,
@@ -46,6 +50,7 @@ from app.modules.idp.schemas import (
     BatchChecklistItem,
     BatchCreateRequest,
     BatchCreateResponse,
+    CommitActionResult,
     DocumentAffectedOut,
     DocumentDetailOut,
     DocumentOut,
@@ -61,11 +66,16 @@ from app.modules.idp.schemas import (
     NaturalLanguageDocumentCreateRequest,
     RetryDocumentRequest,
     RetryMode,
+    ReviewApproveCommitOut,
+    ReviewApproveOut,
+    ReviewApproveRequest,
+    ReviewApproveReviewOut,
     ReviewOpenOut,
     ReviewQueueCountsOut,
     ReviewQueueItemOut,
     ReviewQueueMetaOut,
     ReviewQueueResponse,
+    ReviewRejectRequest,
     StatusTimelineItem,
     UpdateDocumentFieldsRequest,
     UserBrief,
@@ -79,6 +89,7 @@ from app.modules.idp.service import (
     handle_spreadsheet_upload,
     process_upload_stream,
 )
+from app.modules.idp.validation import validate_internal_rules
 from app.workers.idp import process_document_task
 
 router = APIRouter(tags=["idp"])
@@ -483,12 +494,50 @@ def update_document_fields(
 ) -> Envelope[ExtractionResultOut]:
     """EP-30: Sửa field, đổi doc_type, chỉnh ranh giới split_ranges.
 
-    Đổi doc_type: xóa fields cũ, trích xuất lại theo schema mới.
-    split_ranges: chia tách tài liệu con theo dải trang đã điều chỉnh.
+    Role scoping & lock:
+    - Must hold lock (doc.locked_by_id == current_user.id and doc.status == IN_REVIEW)
+      when modifying fields or confirming fields.
+    - If locked by another user -> 409 CONFLICT_STATE / REVIEW_LOCKED.
+    - CFO (ROLE-02) FIN only; HR Manager (ROLE-04) HR only.
+    - Changes: corrected=True, corrected_value, corrected_by_id, preserves AI value.
+    - Audit: field.correct (salary masked as ••••).
     """
     doc = db.get(SourceDocument, id)
     if not doc or doc.deleted_at is not None:
         raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if role_code == "ROLE-02" and "FIN" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "CFO chỉ có quyền chỉnh sửa tài liệu trụ Tài chính"
+        )
+    if role_code == "ROLE-04" and "HR" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "HR Manager chỉ có quyền chỉnh sửa tài liệu trụ Con người"
+        )
+
+    now = datetime.now(UTC)
+    is_locked_by_other = (
+        doc.locked_by_id
+        and doc.locked_by_id != current_user.id
+        and doc.locked_until is not None
+        and doc.locked_until > now
+    )
+    if is_locked_by_other:
+        raise ApiError(ErrorCode.CONFLICT_STATE, "Tài liệu đang được khóa bởi người khác")
+
+    if payload.fields or payload.confirmed_field_ids:
+        is_held_by_user = (
+            doc.status == DocumentStatus.IN_REVIEW
+            and doc.locked_by_id == current_user.id
+            and doc.locked_until is not None
+            and doc.locked_until > now
+        )
+        if not is_held_by_user:
+            raise ApiError(
+                ErrorCode.CONFLICT_STATE,
+                "Tài liệu cần được mở review và giữ khóa để sửa hoặc xác nhận trường dữ liệu",
+            )
 
     if payload.split_ranges:
         ranges = [(r.from_page, r.to_page) for r in payload.split_ranges]
@@ -503,6 +552,58 @@ def update_document_fields(
             new_doc_type=payload.doc_type,
             actor_user_id=current_user.id,
         )
+
+    if payload.fields:
+        for f_item in payload.fields:
+            field = db.get(ExtractedField, f_item.id)
+            if not field or field.source_document_id != doc.id:
+                continue
+
+            old_val = field.corrected_value if field.corrected else field.value
+            field.corrected = True
+            field.corrected_value = f_item.corrected_value
+            field.corrected_by_id = current_user.id
+
+            if field.sensitivity == SensitivityLabel.SALARY:
+                b_str = "••••"
+                a_str = "••••"
+            else:
+                b_str = str(old_val) if old_val is not None else ""
+                a_str = str(f_item.corrected_value) if f_item.corrected_value is not None else ""
+
+            record_audit(
+                db=db,
+                action="field.correct",
+                target_type="extracted_fields",
+                actor_type=ActorType.USER,
+                actor_user_id=current_user.id,
+                actor_role_id=current_user.role_id,
+                target_id=field.id,
+                source_document_id=doc.id,
+                before={"field_key": field.field_key, "value": b_str},
+                after={"field_key": field.field_key, "value": a_str},
+            )
+
+    if payload.confirmed_field_ids:
+        for c_id in payload.confirmed_field_ids:
+            field = db.get(ExtractedField, c_id)
+            if not field or field.source_document_id != doc.id:
+                continue
+            field.corrected = True
+            if field.corrected_value is None:
+                field.corrected_value = field.value
+            field.corrected_by_id = current_user.id
+
+    if payload.fields or payload.confirmed_field_ids:
+        latest_job_id = None
+        if doc.extraction_jobs:
+            latest_job_id = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)[
+                0
+            ].id
+        db.flush()
+        validate_internal_rules(db, doc_id=doc.id, job_id=latest_job_id)
+        run_cross_document_checks(db, doc_id=doc.id, job_id=latest_job_id)
+        db.commit()
 
     result = serialize_extraction_result(db=db, doc=doc, current_user=current_user)
     return Envelope(data=result)
@@ -1362,6 +1463,456 @@ def release_document_review(
         actor_role_id=current_user.role_id,
         target_id=doc.id,
         source_document_id=doc.id,
+    )
+    db.commit()
+
+    doc_out = serialize_document_out(doc, current_user)
+    return Envelope(data=doc_out)
+
+
+def build_action_payload_from_doc(
+    doc: SourceDocument, job: ExtractionJob | None
+) -> tuple[str, dict[str, Any]]:
+    """Build action name and typed payload dict from document's extracted fields."""
+    fields: dict[str, Any] = {}
+    if job and job.fields:
+        for f in job.fields:
+            fields[f.field_key] = f.corrected_value if f.corrected else f.value
+
+    if doc.manual_payload:
+        for k, v in doc.manual_payload.items():
+            if k not in fields or fields[k] is None:
+                fields[k] = v
+
+    doc_type = doc.doc_type or DocType.INVOICE
+
+    if doc_type == DocType.INVOICE:
+        action_name = "invoice.create"
+        subtotal = int(float(fields.get("subtotal") or fields.get("total_amount") or 0))
+        vat_rate = float(fields.get("vat_rate") or 0.1)
+        vat_amount = int(float(fields.get("vat_amount") or (subtotal * vat_rate)))
+        total_amount = int(float(fields.get("total_amount") or (subtotal + vat_amount)))
+        paid_amount = int(float(fields.get("paid_amount") or 0))
+
+        issue_date_raw = fields.get("issue_date")
+        if isinstance(issue_date_raw, date):
+            issue_d = issue_date_raw
+        elif isinstance(issue_date_raw, str):
+            issue_d = date.fromisoformat(issue_date_raw[:10])
+        else:
+            issue_d = date.today()
+
+        due_date_raw = fields.get("due_date")
+        if isinstance(due_date_raw, date):
+            due_d = due_date_raw
+        elif isinstance(due_date_raw, str):
+            due_d = date.fromisoformat(due_date_raw[:10])
+        else:
+            due_d = issue_d + timedelta(days=30)
+
+        payload = {
+            "invoice_number": str(fields.get("invoice_number") or f"INV-{doc.id.hex[:6].upper()}"),
+            "issue_date": issue_d,
+            "due_date": due_d,
+            "customer_name": str(
+                fields.get("customer_name") or fields.get("buyer_name") or "Khách hàng"
+            ),
+            "subtotal": subtotal,
+            "vat_rate": vat_rate,
+            "vat_amount": vat_amount,
+            "total_amount": total_amount,
+            "paid_amount": paid_amount,
+            "seller_name": str(fields.get("seller_name") or "Công ty TNHH TM&DV ABC"),
+            "seller_tax_code": str(fields.get("seller_tax_code") or "0101234567"),
+            "customer_tax_code": str(fields.get("customer_tax_code") or "0109999999"),
+            "status": str(
+                fields.get("status") or ("PAID" if paid_amount >= total_amount else "UNPAID")
+            ),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.CONTRACT:
+        action_name = "contract.create"
+        effective_raw = fields.get("start_date") or fields.get("effective_date")
+        effective_d = (
+            effective_raw
+            if isinstance(effective_raw, date)
+            else (date.fromisoformat(str(effective_raw)[:10]) if effective_raw else date.today())
+        )
+        expiry_raw = fields.get("end_date") or fields.get("expiry_date")
+        expiry_d = (
+            expiry_raw
+            if isinstance(expiry_raw, date)
+            else (
+                date.fromisoformat(str(expiry_raw)[:10])
+                if expiry_raw
+                else (effective_d + timedelta(days=365))
+            )
+        )
+        payload = {
+            "contract_number": str(
+                fields.get("contract_number") or f"CTR-{doc.id.hex[:6].upper()}"
+            ),
+            "party_b_name": str(
+                fields.get("party_b_name") or fields.get("customer_name") or "Đối tác B"
+            ),
+            "effective_date": effective_d,
+            "expiry_date": expiry_d,
+            "total_value": int(
+                float(fields.get("total_value") or fields.get("contract_value") or 0)
+            ),
+            "status": str(fields.get("status") or "ACTIVE"),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.MEETING_MINUTES:
+        action_name = "task.create_from_minutes"
+        m_raw = fields.get("meeting_date")
+        m_date = (
+            m_raw
+            if isinstance(m_raw, date)
+            else (date.fromisoformat(str(m_raw)[:10]) if m_raw else date.today())
+        )
+        payload = {
+            "title": str(
+                fields.get("title")
+                or fields.get("meeting_title")
+                or f"Biên bản họp {doc.original_filename}"
+            ),
+            "assignee": fields.get("assignee"),
+            "due_date": m_date + timedelta(days=7),
+            "decision_text": fields.get("decision_text") or fields.get("conclusion"),
+            "project_name": fields.get("project_name"),
+        }
+        return action_name, payload
+
+    if doc_type == DocType.EMPLOYEE_LIST:
+        action_name = "employee.upsert"
+        salary_val = fields.get("salary") or fields.get("base_salary")
+        payload = {
+            "employee_code": str(fields.get("employee_code") or f"EMP-{doc.id.hex[:4].upper()}"),
+            "full_name": str(fields.get("full_name") or "Nhân viên"),
+            "department": str(fields.get("department") or "Phòng ban"),
+            "title": str(fields.get("title") or "Nhân viên"),
+            "salary": int(float(salary_val)) if salary_val is not None else None,
+        }
+        return action_name, payload
+
+    if doc_type in (DocType.FINANCIAL_REPORT, DocType.SALES_REPORT):
+        action_name = "metric_value.upsert"
+        payload = {
+            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
+            "period": str(fields.get("period") or "2026-Q3"),
+            "value": float(
+                fields.get("value") or fields.get("revenue") or fields.get("total_amount") or 0.0
+            ),
+            "value_kind": "ACTUAL",
+            "line_description": fields.get("line_description") or doc.original_filename,
+        }
+        return action_name, payload
+
+    if doc_type == DocType.KPI_OKR:
+        action_name = "metric_target.upsert"
+        payload = {
+            "metric_code": str(fields.get("metric_code") or "METRIC-FIN-01"),
+            "period": str(fields.get("period") or "2026"),
+            "target_value": float(fields.get("target_value") or 100000000.0),
+            "budget_line": fields.get("budget_line"),
+        }
+        return action_name, payload
+
+    return "metric_value.upsert", {
+        "metric_code": "METRIC-FIN-01",
+        "period": "2026-Q3",
+        "value": 0.0,
+        "value_kind": "ACTUAL",
+        "line_description": doc.original_filename,
+    }
+
+
+@router.post(
+    "/documents/{id}/review/approve",
+    response_model=Envelope[ReviewApproveOut],
+    summary="Approve and commit document via Action Registry (EP-31)",
+)
+def approve_document_review(
+    id: UUID,
+    payload: ReviewApproveRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[ReviewApproveOut]:
+    """EP-31: Duyệt và commit dữ liệu qua Action Registry.
+
+    - Kiểm tra khóa review (phải đang IN_REVIEW và giữ khóa).
+    - Mọi field required có confidence LOW hoặc null phải được sửa/xác nhận (EP-30).
+    - XD MISMATCH blocking phải được chấp nhận với ghi chú (accepted_conflicts).
+    - Commit vào business_records / metric_values + cập nhật COMMITTED + undo 7 ngày.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if doc.status != DocumentStatus.IN_REVIEW:
+        msg = f"Tài liệu không ở trạng thái IN_REVIEW (hiện tại: {doc.status.value})"
+        raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+
+    now = datetime.now(UTC)
+    has_valid_lock = (
+        doc.locked_by_id == current_user.id
+        and doc.locked_until is not None
+        and doc.locked_until > now
+    )
+    if not has_valid_lock:
+        holder = db.get(User, doc.locked_by_id) if doc.locked_by_id else None
+        holder_name = holder.full_name if holder else "người dùng khác"
+        raise ApiError(
+            ErrorCode.REVIEW_LOCKED,
+            f"Tài liệu đang được khóa bởi {holder_name} hoặc đã hết hạn khóa",
+        )
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if role_code == "ROLE-02" and "FIN" not in doc.pillars:
+        raise ApiError(ErrorCode.FORBIDDEN_SCOPE, "CFO chỉ có quyền duyệt tài liệu trụ Tài chính")
+    if role_code == "ROLE-04" and "HR" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "HR Manager chỉ có quyền duyệt tài liệu trụ Con người"
+        )
+
+    review = db.get(ExtractionReview, payload.review_id)
+    if not review or review.source_document_id != doc.id:
+        msg = f"Review session {payload.review_id} không tồn tại cho tài liệu này"
+        raise ApiError(ErrorCode.NOT_FOUND, msg)
+
+    latest_job = None
+    if doc.extraction_jobs:
+        latest_job = sorted(doc.extraction_jobs, key=lambda j: j.attempt_no, reverse=True)[0]
+
+    unconfirmed_fields: list[str] = []
+    if latest_job and latest_job.fields:
+        for f in latest_job.fields:
+            c = float(f.confidence) if f.confidence is not None else 0.0
+            val = f.corrected_value if f.corrected else f.value
+            is_low = c < 0.70
+            is_empty = val is None or str(val).strip() == ""
+            if (is_low or is_empty) and not f.corrected:
+                unconfirmed_fields.append(f.field_key)
+
+    if unconfirmed_fields:
+        msg = (
+            "Các trường bắt buộc có độ tin cậy thấp hoặc chưa có giá trị cần được"
+            " sửa/xác nhận trước khi duyệt"
+        )
+        raise ApiError(
+            ErrorCode.VALIDATION_ERROR,
+            msg,
+            details={"fields": unconfirmed_fields},
+        )
+
+    if latest_job and latest_job.cross_doc_results:
+        for xd in latest_job.cross_doc_results:
+            st = str(xd.get("status", "")).lower()
+            if st in ("fail", "mismatch"):
+                rule = str(xd.get("rule", ""))
+                accepted = any(
+                    ac.rule == rule and bool(ac.note and ac.note.strip())
+                    for ac in payload.accepted_conflicts
+                )
+                if not accepted:
+                    raise ApiError(
+                        ErrorCode.ACTION_REJECTED,
+                        f"Xung đột đối chiếu chéo {rule} chưa được chấp nhận kèm ghi chú",
+                        details={
+                            "rule": rule,
+                            "reason": "Conflict blocking chưa được chấp nhận với ghi chú",
+                        },
+                    )
+
+    action_name, action_payload = build_action_payload_from_doc(doc, latest_job)
+    field_set_version = latest_job.attempt_no if latest_job else 1
+    action_res = execute_action(
+        db=db,
+        action_name=action_name,
+        document_id=doc.id,
+        payload=action_payload,
+        actor=current_user,
+        field_set_version=field_set_version,
+    )
+
+    doc.status = DocumentStatus.COMMITTED
+    doc.committed_at = now
+    doc.undo_deadline = now + timedelta(days=7)
+    doc.locked_by_id = None
+    doc.locked_until = None
+
+    review.decision = ReviewDecision.APPROVED
+    review.decided_at = now
+    if review.opened_at:
+        review.duration_ms = int((now - review.opened_at).total_seconds() * 1000)
+    review.fields_corrected = sum(1 for f in latest_job.fields if f.corrected) if latest_job else 0
+
+    record_audit(
+        db=db,
+        action="review.approve",
+        target_type="source_documents",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=doc.id,
+        source_document_id=doc.id,
+        metadata={
+            "review_id": str(review.id),
+            "action_name": action_name,
+            "business_record_id": action_res.get("business_record_id"),
+        },
+    )
+    db.commit()
+
+    biz_ids: list[UUID] = []
+    if action_res.get("business_record_id"):
+        biz_ids.append(UUID(action_res["business_record_id"]))
+
+    metric_ids: list[UUID] = []
+    if action_res.get("metric_value_id"):
+        metric_ids.append(UUID(action_res["metric_value_id"]))
+
+    doc_out = serialize_document_out(doc, current_user)
+    review_out = ReviewApproveReviewOut(
+        id=review.id,
+        decision="APPROVED",
+        decided_at=now,
+        duration_ms=review.duration_ms,
+        fields_corrected=review.fields_corrected,
+    )
+    affected_metrics = ["METRIC-FIN-01"]
+    if "metric_code" in action_payload:
+        affected_metrics = [str(action_payload["metric_code"])]
+    commit_out = ReviewApproveCommitOut(
+        actions=[
+            CommitActionResult(
+                action_name=action_name,
+                business_record_ids=biz_ids,
+                metric_value_ids=metric_ids,
+            )
+        ],
+        affected_metric_codes=affected_metrics,
+        recompute_job_id=None,
+    )
+    return Envelope(
+        data=ReviewApproveOut(
+            document=doc_out,
+            review=review_out,
+            commit=commit_out,
+        )
+    )
+
+
+@router.post(
+    "/documents/{id}/review/reject",
+    response_model=Envelope[DocumentOut],
+    summary="Reject document in review (EP-32)",
+)
+def reject_document_review(
+    id: UUID,
+    payload: ReviewRejectRequest,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-02", "ROLE-04", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[DocumentOut]:
+    """EP-32: Từ chối tài liệu trong review.
+
+    - Bắt buộc reject_reason_code.
+    - Nếu reject_reason_code = OTHER, bắt buộc reject_note.
+    - Chuyển trạng thái sang REJECTED và giải phóng khóa.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if doc.status != DocumentStatus.IN_REVIEW:
+        msg = f"Tài liệu không ở trạng thái IN_REVIEW (hiện tại: {doc.status.value})"
+        raise ApiError(ErrorCode.CONFLICT_STATE, msg)
+
+    now = datetime.now(UTC)
+    has_valid_lock = (
+        doc.locked_by_id == current_user.id
+        and doc.locked_until is not None
+        and doc.locked_until > now
+    )
+    if not has_valid_lock:
+        holder = db.get(User, doc.locked_by_id) if doc.locked_by_id else None
+        holder_name = holder.full_name if holder else "người dùng khác"
+        raise ApiError(
+            ErrorCode.REVIEW_LOCKED,
+            f"Tài liệu đang được khóa bởi {holder_name} hoặc đã hết hạn khóa",
+        )
+
+    role_code = current_user.role.code if current_user.role else "ROLE-05"
+    if role_code == "ROLE-02" and "FIN" not in doc.pillars:
+        raise ApiError(ErrorCode.FORBIDDEN_SCOPE, "CFO chỉ có quyền từ chối tài liệu trụ Tài chính")
+    if role_code == "ROLE-04" and "HR" not in doc.pillars:
+        raise ApiError(
+            ErrorCode.FORBIDDEN_SCOPE, "HR Manager chỉ có quyền từ chối tài liệu trụ Con người"
+        )
+
+    allowed_reasons = {
+        "WRONG_DOC_TYPE",
+        "UNREADABLE",
+        "DUPLICATE_BUSINESS",
+        "WRONG_DATA",
+        "SUSPICIOUS_CONTENT",
+        "OTHER",
+    }
+    if payload.reject_reason_code not in allowed_reasons:
+        raise ApiError(
+            ErrorCode.VALIDATION_ERROR,
+            f"Lý do từ chối không hợp lệ: {payload.reject_reason_code}",
+        )
+
+    if payload.reject_reason_code == "OTHER" and not (
+        payload.reject_note and payload.reject_note.strip()
+    ):
+        raise ApiError(
+            ErrorCode.VALIDATION_ERROR, "reject_note là bắt buộc khi reject_reason_code là OTHER"
+        )
+
+    review = db.get(ExtractionReview, payload.review_id)
+    if not review or review.source_document_id != doc.id:
+        msg = f"Review session {payload.review_id} không tồn tại cho tài liệu này"
+        raise ApiError(ErrorCode.NOT_FOUND, msg)
+
+    doc.status = DocumentStatus.REJECTED
+    doc.status_reason = f"{payload.reject_reason_code}: {payload.reject_note or ''}"
+    doc.locked_by_id = None
+    doc.locked_until = None
+
+    review.decision = ReviewDecision.REJECTED
+    review.reject_reason_code = payload.reject_reason_code
+    review.reject_note = payload.reject_note
+    review.decided_at = now
+    if review.opened_at:
+        review.duration_ms = int((now - review.opened_at).total_seconds() * 1000)
+
+    record_audit(
+        db=db,
+        action="review.reject",
+        target_type="source_documents",
+        actor_type=ActorType.USER,
+        actor_user_id=current_user.id,
+        actor_role_id=current_user.role_id,
+        target_id=doc.id,
+        source_document_id=doc.id,
+        metadata={
+            "review_id": str(review.id),
+            "reject_reason_code": payload.reject_reason_code,
+            "reject_note": payload.reject_note,
+        },
     )
     db.commit()
 

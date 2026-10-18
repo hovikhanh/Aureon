@@ -223,12 +223,20 @@ class ExtractionResultOut(BaseModel):
     suspicious_content: bool = False
 
 
+class FieldCorrectionItem(BaseModel):
+    """One field correction item in EP-30."""
+
+    id: UUID
+    corrected_value: Any = None
+
+
 class UpdateDocumentFieldsRequest(BaseModel):
     """Payload for EP-30 PATCH /documents/{id}/fields."""
 
     doc_type: DocType | None = None
     split_ranges: list[SplitRangeItem] | None = None
-    fields: list[dict[str, Any]] | None = None
+    fields: list[FieldCorrectionItem] | None = None
+    confirmed_field_ids: list[UUID] | None = None
 
 
 class StatusTimelineItem(BaseModel):
@@ -348,3 +356,60 @@ class ReviewOpenOut(BaseModel):
     document: DocumentOut
     review_id: UUID
     extraction: ExtractionResultOut
+
+
+class AcceptedConflictItem(BaseModel):
+    """Accepted cross-document conflict with mandatory note (EP-31)."""
+
+    rule: str
+    note: str
+
+
+class ReviewApproveRequest(BaseModel):
+    """Payload for EP-31 POST /documents/{id}/review/approve."""
+
+    review_id: UUID
+    field_ids: list[UUID] | None = None
+    accepted_conflicts: list[AcceptedConflictItem] = Field(default_factory=list)
+
+
+class ReviewApproveReviewOut(BaseModel):
+    """Review execution details for EP-31."""
+
+    id: UUID
+    decision: str = "APPROVED"
+    decided_at: datetime
+    duration_ms: int | None = None
+    fields_corrected: int = 0
+
+
+class CommitActionResult(BaseModel):
+    """Business record IDs created by Action Registry."""
+
+    action_name: str
+    business_record_ids: list[UUID] = Field(default_factory=list)
+    metric_value_ids: list[UUID] = Field(default_factory=list)
+
+
+class ReviewApproveCommitOut(BaseModel):
+    """Commit outcome for EP-31."""
+
+    actions: list[CommitActionResult] = Field(default_factory=list)
+    affected_metric_codes: list[str] = Field(default_factory=list)
+    recompute_job_id: str | None = None
+
+
+class ReviewApproveOut(BaseModel):
+    """Response payload for EP-31 POST /documents/{id}/review/approve."""
+
+    document: DocumentOut
+    review: ReviewApproveReviewOut
+    commit: ReviewApproveCommitOut
+
+
+class ReviewRejectRequest(BaseModel):
+    """Payload for EP-32 POST /documents/{id}/review/reject."""
+
+    review_id: UUID
+    reject_reason_code: str
+    reject_note: str | None = None
