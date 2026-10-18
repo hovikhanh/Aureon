@@ -15,17 +15,26 @@ from app.modules.audit.service import record_audit
 from app.modules.auth.deps import require_role
 from app.modules.auth.models import User
 from app.modules.idp.enums import DocType, InputChannel
+from app.modules.idp.extraction import (
+    change_document_type_and_reextract,
+    serialize_extraction_result,
+)
 from app.modules.idp.models import SourceDocument
+from app.modules.idp.preprocessing import split_multi_document
 from app.modules.idp.schemas import (
     BatchChecklistItem,
     BatchCreateRequest,
     BatchCreateResponse,
     DocumentOut,
+    ExtractionResultOut,
+    ExtractionSchemaOut,
     ImportMappingConfirmRequest,
     ManualDocumentCreateRequest,
     NaturalLanguageDocumentCreateRequest,
+    UpdateDocumentFieldsRequest,
     UserBrief,
 )
+from app.modules.idp.schemas_registry import get_extraction_schemas_for_role
 from app.modules.idp.service import (
     handle_document_upload,
     handle_import_mapping_confirm,
@@ -321,5 +330,109 @@ def confirm_import_mapping(
     )
     doc_out = serialize_document_out(doc, current_user)
     return Envelope(data=doc_out, meta={"row_errors": [e.model_dump() for e in row_errors]})
+
+
+@router.get(
+    "/extraction-schemas",
+    response_model=Envelope[list[ExtractionSchemaOut]],
+    summary="Get extraction schemas (EP-50)",
+)
+def get_extraction_schemas(
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-03", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    doc_type: DocType | None = None,
+) -> Envelope[list[ExtractionSchemaOut]]:
+    """EP-50: Extraction schemas for document types.
+
+    - ROLE-05 can read all doc types if doc_type is omitted.
+    - ROLE-01..04 MUST supply doc_type; if omitted, returns 400 BAD_REQUEST.
+    - For ROLE-01..04, fields with sensitivity=SALARY are hidden (DS3).
+    """
+    user_role_code = current_user.role.code if current_user.role else "ROLE-01"
+    if user_role_code != "ROLE-05" and doc_type is None:
+        raise ApiError(ErrorCode.BAD_REQUEST, "Parameter 'doc_type' is required for this role")
+
+    schemas = get_extraction_schemas_for_role(user_role_code=user_role_code, doc_type=doc_type)
+    return Envelope(data=schemas)
+
+
+@router.get(
+    "/documents/{id}/extraction",
+    response_model=Envelope[ExtractionResultOut],
+    summary="Get extraction results (EP-26)",
+)
+def get_document_extraction(
+    id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-01", "ROLE-02", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> Envelope[ExtractionResultOut]:
+    """EP-26: Extraction result for a document.
+
+    ROLE-03 forbidden (403).
+    CFO (ROLE-02) FIN only; HR (ROLE-04) HR only.
+    ROLE-04 sees full salary; ROLE-05 sees salary only when in active review lock;
+    CEO (ROLE-01) has salary masked.
+    Requires SUCCEEDED extraction job (otherwise 409 CONFLICT_STATE).
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    result = serialize_extraction_result(db=db, doc=doc, current_user=current_user)
+    return Envelope(data=result)
+
+
+@router.patch(
+    "/documents/{id}/fields",
+    response_model=Envelope[ExtractionResultOut],
+    summary="Update document fields / doc_type / split_ranges (EP-30)",
+)
+def update_document_fields(
+    id: UUID,
+    payload: UpdateDocumentFieldsRequest,
+    current_user: Annotated[
+        User,
+        Depends(
+            require_role("ROLE-02", "ROLE-04", "ROLE-05")
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> Envelope[ExtractionResultOut]:
+    """EP-30: Sửa field, đổi doc_type, chỉnh ranh giới split_ranges.
+
+    Đổi doc_type: xóa fields cũ, trích xuất lại theo schema mới.
+    split_ranges: chia tách tài liệu con theo dải trang đã điều chỉnh.
+    """
+    doc = db.get(SourceDocument, id)
+    if not doc or doc.deleted_at is not None:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Document {id} not found")
+
+    if payload.split_ranges:
+        ranges = [(r.from_page, r.to_page) for r in payload.split_ranges]
+        split_multi_document(
+            db=db, parent_id=doc.id, split_ranges=ranges, actor_user_id=current_user.id
+        )
+
+    if payload.doc_type and payload.doc_type != doc.doc_type:
+        change_document_type_and_reextract(
+            db=db,
+            doc_id=doc.id,
+            new_doc_type=payload.doc_type,
+            actor_user_id=current_user.id,
+        )
+
+    result = serialize_extraction_result(db=db, doc=doc, current_user=current_user)
+    return Envelope(data=result)
+
 
 

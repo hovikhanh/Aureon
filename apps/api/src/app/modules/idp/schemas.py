@@ -12,9 +12,11 @@ from app.modules.idp.enums import (
     DocType,
     DocumentKind,
     DocumentStatus,
+    FieldValueType,
     InputChannel,
     JobStatus,
     RoutingDecision,
+    SensitivityLabel,
 )
 
 
@@ -32,8 +34,13 @@ class JobOut(BaseModel):
     attempt_no: int
     doc_type: DocType | None = None
     status: JobStatus
+    classification_confidence: float | None = None
     routing_decision: RoutingDecision | None = None
+    routing_reason: str | None = None
+    error_code: str | None = None
     avg_confidence: float | None = None
+    validation_summary: dict[str, Any] | None = None
+    cross_doc_results: list[dict[str, Any]] | None = None
     token_cost_usd: float | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -160,6 +167,69 @@ class SplitRangeItem(BaseModel):
 
     from_page: int = Field(ge=1, description="1-based starting page number")
     to_page: int = Field(ge=1, description="1-based ending page number")
+
+
+class ExtractionSchemaFieldOut(BaseModel):
+    """Field specification within an extraction schema (04 §5, EP-50)."""
+
+    field_key: str
+    table_key: str | None = None
+    value_type: FieldValueType
+    required: bool = False
+    sensitivity: SensitivityLabel = SensitivityLabel.NONE
+    validation_rules: list[str] = Field(default_factory=list)
+
+
+class ExtractionSchemaOut(BaseModel):
+    """Extraction schema for one document type (04 §5, EP-50)."""
+
+    doc_type: DocType
+    field_set_version: str = "1.0.0"
+    fields: list[ExtractionSchemaFieldOut]
+
+
+class ExtractedFieldOut(BaseModel):
+    """Extracted field representation for API response (05 §4.6, EP-26)."""
+
+    id: UUID
+    field_key: str
+    table_key: str | None = None
+    row_index: int | None = None
+    record_group: str | None = None
+    value: Any = None
+    raw_text: str | None = None
+    value_type: FieldValueType
+    confidence: float
+    confidence_band: str
+    source_location: dict[str, Any] | None = None
+    document_page_id: UUID | None = None
+    validation: list[dict[str, Any]] = Field(default_factory=list)
+    sensitivity: SensitivityLabel = SensitivityLabel.NONE
+    corrected: bool = False
+    corrected_value: Any = None
+    final_value: Any = None
+    required: bool = False
+    masked: bool = False
+
+
+class ExtractionResultOut(BaseModel):
+    """Full extraction result response for EP-26 GET /documents/{id}/extraction."""
+
+    document: DocumentOut
+    job: JobOut
+    fields: list[ExtractedFieldOut]
+    cross_doc_results: list[dict[str, Any]] = Field(default_factory=list)
+    validation_summary: dict[str, Any] = Field(default_factory=dict)
+    suspicious_content: bool = False
+
+
+class UpdateDocumentFieldsRequest(BaseModel):
+    """Payload for EP-30 PATCH /documents/{id}/fields."""
+
+    doc_type: DocType | None = None
+    split_ranges: list[SplitRangeItem] | None = None
+    fields: list[dict[str, Any]] | None = None
+
 
 
 

@@ -94,6 +94,7 @@ class FieldValueType(StrEnum):
     ENUM = "enum"
     PERIOD = "period"
     NUMBER = "number"
+    TABLE = "table"
 
 
 class SourceLocationKind(StrEnum):
