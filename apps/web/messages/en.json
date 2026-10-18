@@ -319,5 +319,79 @@
     "loading": {
       "label": "Loading review queue..."
     }
+  },
+  "review": {
+    "title": "Document Review Details",
+    "subtitle": "Compare original document and verify extracted fields",
+    "backToInbox": "Back to Queue",
+    "lockTimer": "Lock expires in {minutes}:{seconds}",
+    "lockExpiresSoon": "Lock expires soon. Please complete or save.",
+    "aiBadgeLabel": "AI State",
+    "docTypeLabel": "Document type",
+    "changeDocType": "Change type",
+    "conflictBanner": "Cross-document conflict detected (XD-*)",
+    "conflictAccept": "Accept conflict",
+    "conflictNotePlaceholder": "Reason for accepting difference...",
+    "sourceViewerTitle": "Source document",
+    "sourceViewerSubtitle": "Page {page} / {totalPages}",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitWidth": "Fit width",
+    "rotate": "Rotate",
+    "noSourceFile": "This document has no attached file (C1 manual entry).",
+    "formTitle": "Extracted fields",
+    "confidenceHigh": "High confidence",
+    "confidenceMedium": "Check recommended",
+    "confidenceLow": "Confirmation required",
+    "confidenceScore": "Confidence: {score}%",
+    "highlightInDoc": "Locate in document",
+    "fieldRequired": "Required",
+    "fieldConfirmed": "Confirmed",
+    "fieldCorrected": "Edited",
+    "confirmButton": "Confirm",
+    "revertButton": "Revert",
+    "editPlaceholder": "Enter value...",
+    "emptyFields": "No fields to extract for this document type.",
+    "actions": {
+      "approve": "Approve (Ctrl+Enter)",
+      "reject": "Reject (Ctrl+Backspace)",
+      "release": "Close (Esc)",
+      "shortcuts": "Shortcuts (?)"
+    },
+    "rejectDialog": {
+      "title": "Reject document",
+      "description": "Please specify the reason for rejection. This action will be recorded in the audit log.",
+      "reasonLabel": "Rejection reason",
+      "noteLabel": "Additional note",
+      "notePlaceholder": "Detailed explanation...",
+      "cancel": "Cancel",
+      "confirm": "Confirm rejection",
+      "reasons": {
+        "WRONG_DOC_TYPE": "Wrong document type",
+        "UNREADABLE": "Document blurry / unreadable",
+        "DUPLICATE_BUSINESS": "Duplicate business transaction",
+        "WRONG_DATA": "Incorrect data",
+        "SUSPICIOUS_CONTENT": "Suspicious / anomalous content",
+        "OTHER": "Other reason"
+      }
+    },
+    "shortcutsModal": {
+      "title": "Keyboard Shortcuts",
+      "tab": "Navigate between fields",
+      "enter": "Confirm currently focused field",
+      "approve": "Approve and commit document",
+      "reject": "Open rejection dialog",
+      "close": "Close or leave screen",
+      "help": "Toggle keyboard shortcuts help",
+      "nextPrev": "Next / Previous document"
+    },
+    "toast": {
+      "approving": "Approving and committing to system...",
+      "approved": "Approved · {metrics} updated",
+      "rejecting": "Rejecting document...",
+      "rejected": "Document rejected",
+      "saved": "Field changes saved",
+      "error": "An error occurred: {message}"
+    }
   }
 }

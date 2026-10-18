@@ -285,3 +285,111 @@ export interface ReviewQueueResponse {
   meta: ReviewQueueMetaOut;
 }
 
+/* ------------------------------------------------------------------------------------------
+ * IDP Review & Field Correction DTOs — 10 §4 (EP-26, EP-29..EP-35). Added by T-219.
+ * ---------------------------------------------------------------------------------------- */
+
+export type FieldValueType =
+  | "STRING"
+  | "NUMBER"
+  | "DATE"
+  | "CURRENCY"
+  | "PERCENT"
+  | "BOOLEAN"
+  | "TABLE";
+
+export type SensitivityLabel = "NONE" | "PII" | "SALARY" | "CONFIDENTIAL";
+
+export interface ExtractedFieldOut {
+  id: string;
+  field_key: string;
+  table_key: string | null;
+  row_index: number | null;
+  record_group: string | null;
+  value: unknown;
+  raw_text: string | null;
+  value_type: FieldValueType;
+  confidence: number;
+  confidence_band: "HIGH" | "MEDIUM" | "LOW";
+  source_location: Record<string, unknown> | null;
+  document_page_id: string | null;
+  validation: Record<string, unknown>[];
+  sensitivity: SensitivityLabel;
+  corrected: boolean;
+  corrected_value: unknown;
+  final_value: unknown;
+  required: boolean;
+  masked: boolean;
+}
+
+export interface ExtractionResultOut {
+  document: DocumentOut;
+  job: JobOut;
+  fields: ExtractedFieldOut[];
+  cross_doc_results: Record<string, unknown>[];
+  validation_summary: Record<string, unknown>;
+  suspicious_content: boolean;
+}
+
+export interface ReviewOpenOut {
+  document: DocumentOut;
+  review_id: string;
+  extraction: ExtractionResultOut;
+}
+
+export interface FieldCorrectionItem {
+  id: string;
+  corrected_value: unknown;
+}
+
+export interface UpdateDocumentFieldsRequest {
+  doc_type?: DocType;
+  fields?: FieldCorrectionItem[];
+  confirmed_field_ids?: string[];
+  split_ranges?: { from_page: number; to_page: number }[];
+}
+
+export interface AcceptedConflictItem {
+  rule: string;
+  note: string;
+}
+
+export interface ReviewApproveRequest {
+  review_id: string;
+  field_ids?: string[];
+  accepted_conflicts?: AcceptedConflictItem[];
+}
+
+export interface ReviewApproveReviewOut {
+  id: string;
+  decision: string;
+  decided_at: string;
+  duration_ms: number | null;
+  fields_corrected: number;
+}
+
+export interface CommitActionResult {
+  action_name: string;
+  business_record_ids: string[];
+  metric_value_ids: string[];
+}
+
+export interface ReviewApproveCommitOut {
+  actions: CommitActionResult[];
+  affected_metric_codes: string[];
+  recompute_job_id: string | null;
+}
+
+export interface ReviewApproveOut {
+  document: DocumentOut;
+  review: ReviewApproveReviewOut;
+  commit: ReviewApproveCommitOut;
+}
+
+export interface ReviewRejectRequest {
+  review_id: string;
+  reject_reason_code: string;
+  reject_note?: string;
+}
+
+

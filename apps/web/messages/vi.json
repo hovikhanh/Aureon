@@ -319,5 +319,79 @@
     "loading": {
       "label": "Đang tải hàng chờ duyệt..."
     }
+  },
+  "review": {
+    "title": "Chi tiết duyệt tài liệu (Review)",
+    "subtitle": "So sánh tài liệu gốc và xác nhận các trường trích xuất",
+    "backToInbox": "Quay lại Hàng chờ",
+    "lockTimer": "Khóa sẽ hết hạn sau {minutes}:{seconds}",
+    "lockExpiresSoon": "Khóa sắp hết hạn. Vui lòng hoàn tất hoặc lưu.",
+    "aiBadgeLabel": "Trạng thái AI",
+    "docTypeLabel": "Loại tài liệu",
+    "changeDocType": "Đổi loại",
+    "conflictBanner": "Phát hiện xung đột đối chiếu chéo (XD-*)",
+    "conflictAccept": "Chấp nhận xung đột",
+    "conflictNotePlaceholder": "Lý do chấp nhận chênh lệch...",
+    "sourceViewerTitle": "Tài liệu gốc",
+    "sourceViewerSubtitle": "Trang {page} / {totalPages}",
+    "zoomIn": "Phóng to",
+    "zoomOut": "Thu nhỏ",
+    "fitWidth": "Vừa chiều rộng",
+    "rotate": "Xoay",
+    "noSourceFile": "Tài liệu này không có file đính kèm (nhập tay C1).",
+    "formTitle": "Các trường trích xuất",
+    "confidenceHigh": "Độ tin cậy cao",
+    "confidenceMedium": "Nên kiểm tra",
+    "confidenceLow": "Cần xác nhận",
+    "confidenceScore": "Độ tin cậy: {score}%",
+    "highlightInDoc": "Xem trong tài liệu",
+    "fieldRequired": "Bắt buộc",
+    "fieldConfirmed": "Đã xác nhận",
+    "fieldCorrected": "Đã chỉnh sửa",
+    "confirmButton": "Xác nhận",
+    "revertButton": "Hoàn tác",
+    "editPlaceholder": "Nhập giá trị...",
+    "emptyFields": "Không có trường cần trích xuất cho loại tài liệu này.",
+    "actions": {
+      "approve": "Duyệt (Ctrl+Enter)",
+      "reject": "Từ chối (Ctrl+Backspace)",
+      "release": "Đóng (Esc)",
+      "shortcuts": "Phím tắt (?)"
+    },
+    "rejectDialog": {
+      "title": "Từ chối tài liệu",
+      "description": "Vui lòng chọn lý do từ chối tài liệu này. Thao tác này sẽ ghi nhận vào nhật ký kiểm toán.",
+      "reasonLabel": "Lý do từ chối",
+      "noteLabel": "Ghi chú thêm",
+      "notePlaceholder": "Mô tả chi tiết lý do từ chối...",
+      "cancel": "Hủy",
+      "confirm": "Xác nhận từ chối",
+      "reasons": {
+        "WRONG_DOC_TYPE": "Sai loại tài liệu",
+        "UNREADABLE": "Tài liệu mờ/không đọc được",
+        "DUPLICATE_BUSINESS": "Trùng lặp nghiệp vụ",
+        "WRONG_DATA": "Dữ liệu không chính xác",
+        "SUSPICIOUS_CONTENT": "Nội dung bất thường / nghi vấn",
+        "OTHER": "Lý do khác"
+      }
+    },
+    "shortcutsModal": {
+      "title": "Phím tắt hỗ trợ duyệt nhanh",
+      "tab": "Chuyển giữa các trường",
+      "enter": "Xác nhận trường đang chọn",
+      "approve": "Duyệt và ghi nhận tài liệu",
+      "reject": "Mở hộp thoại từ chối",
+      "close": "Đóng hoặc thoát màn hình",
+      "help": "Bật/tắt bảng trợ giúp phím tắt",
+      "nextPrev": "Tài liệu kế tiếp / trước đó"
+    },
+    "toast": {
+      "approving": "Đang duyệt và ghi vào hệ thống...",
+      "approved": "Đã duyệt · {metrics} cập nhật",
+      "rejecting": "Đang từ chối tài liệu...",
+      "rejected": "Đã từ chối tài liệu",
+      "saved": "Đã lưu thay đổi các trường",
+      "error": "Có lỗi xảy ra: {message}"
+    }
   }
 }
