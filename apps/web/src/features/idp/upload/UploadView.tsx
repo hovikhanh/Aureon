@@ -11,11 +11,12 @@ import { cn } from "@/lib/utils";
 import { DropzoneC3, type FileItem } from "./DropzoneC3";
 import { ManualFormC1 } from "./ManualFormC1";
 import { NlFormC2 } from "./NlFormC2";
+import { CameraCaptureC4, type CapturedPage } from "./CameraCaptureC4";
 
 /* -------------------------------------------------------------------------- */
 /* State                                                                       */
 /* -------------------------------------------------------------------------- */
-type Tab = "c1" | "c2" | "c3";
+type Tab = "c1" | "c2" | "c3" | "c4";
 
 interface UploadState {
   tab: Tab;
@@ -180,6 +181,37 @@ export function UploadView() {
     [session],
   );
 
+  /* ── C4 Camera ──────────────────────────────────────────────── */
+  // Each captured photo is uploaded as a C4 page via EP-20 (channel=C4). Merging the
+  // photos into a single multi-page document (plus deskew/blur scoring) needs an image
+  // library on FE+BE and is gated behind a DEC; here we upload each page faithfully.
+  const handleC4Submit = useCallback(
+    async (pages: CapturedPage[]) => {
+      if (pages.length === 0) return;
+      dispatch({ type: "SET_SUBMITTING", value: true });
+      const batchStamp = Date.now();
+      let anySucceeded = false;
+      try {
+        for (let i = 0; i < pages.length; i++) {
+          const page = pages[i];
+          const file = new File([page.blob], `camera-${batchStamp}-p${i + 1}.jpg`, {
+            type: "image/jpeg",
+          });
+          await uploadFileApi(
+            file,
+            { channel: "C4", idempotencyKey: `c4-${batchStamp}-${i}` },
+            session?.accessToken,
+          );
+          anySucceeded = true;
+        }
+        if (anySucceeded) dispatch({ type: "SET_SUCCESS" });
+      } catch (err) {
+        dispatch({ type: "SET_ERROR", message: err instanceof Error ? err.message : "Error" });
+      }
+    },
+    [session],
+  );
+
   /* ── Success screen ─────────────────────────────────────────── */
   if (state.isSuccess) {
     return (
@@ -221,6 +253,7 @@ export function UploadView() {
     { id: "c1", label: t("tabs.c1") },
     { id: "c2", label: t("tabs.c2") },
     { id: "c3", label: t("tabs.c3") },
+    { id: "c4", label: t("tabs.c4") },
   ];
 
   return (
@@ -313,6 +346,18 @@ export function UploadView() {
                 onSubmit={handleC3Submit}
                 isSubmitting={state.isSubmitting}
               />
+            )}
+          </div>
+
+          {/* C4 */}
+          <div
+            id="panel-c4"
+            role="tabpanel"
+            aria-labelledby="tab-c4"
+            hidden={state.tab !== "c4"}
+          >
+            {state.tab === "c4" && (
+              <CameraCaptureC4 onSubmit={handleC4Submit} isSubmitting={state.isSubmitting} />
             )}
           </div>
         </div>

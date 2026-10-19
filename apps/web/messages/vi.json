@@ -557,7 +557,8 @@
     "tabs": {
       "c1": "Nhập tay (C1)",
       "c2": "Ngôn ngữ tự nhiên (C2)",
-      "c3": "Tải file (C3)"
+      "c3": "Tải file (C3)",
+      "c4": "Chụp ảnh (C4)"
     },
     "c1": {
       "title": "Nhập tay thông tin",
@@ -612,6 +613,23 @@
       "viewInbox": "Xem Hàng chờ",
       "uploadMore": "Tải thêm",
       "viewDocuments": "Xem danh sách tài liệu"
+    },
+    "c4": {
+      "title": "Chụp tài liệu bằng camera",
+      "subtitle": "Chụp nhiều trang, hệ thống gộp thành một tài liệu.",
+      "start": "Mở camera",
+      "capture": "Chụp trang",
+      "stop": "Tắt camera",
+      "retake": "Chụp lại",
+      "remove": "Xóa trang",
+      "submit": "Gửi {count} trang",
+      "submitting": "Đang gửi…",
+      "pagesTitle": "Các trang đã chụp ({count})",
+      "noPages": "Chưa có trang nào. Nhấn Chụp trang.",
+      "cameraError": "Không truy cập được camera. Hãy cấp quyền và thử lại.",
+      "offline": "Đang ngoại tuyến — ảnh sẽ gửi khi có mạng trở lại.",
+      "notSupported": "Thiết bị/trình duyệt không hỗ trợ camera.",
+      "pageLabel": "Trang {n}"
     }
   },
   "schemas": {

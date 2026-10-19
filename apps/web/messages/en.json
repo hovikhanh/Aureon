@@ -557,7 +557,8 @@
     "tabs": {
       "c1": "Manual entry (C1)",
       "c2": "Natural language (C2)",
-      "c3": "File upload (C3)"
+      "c3": "File upload (C3)",
+      "c4": "Camera (C4)"
     },
     "c1": {
       "title": "Manual data entry",
@@ -612,6 +613,23 @@
       "viewInbox": "View Inbox",
       "uploadMore": "Upload more",
       "viewDocuments": "View documents"
+    },
+    "c4": {
+      "title": "Capture documents with the camera",
+      "subtitle": "Capture multiple pages; the system merges them into one document.",
+      "start": "Open camera",
+      "capture": "Capture page",
+      "stop": "Close camera",
+      "retake": "Retake",
+      "remove": "Remove page",
+      "submit": "Send {count} page(s)",
+      "submitting": "Sending…",
+      "pagesTitle": "Captured pages ({count})",
+      "noPages": "No pages yet. Tap Capture page.",
+      "cameraError": "Could not access the camera. Grant permission and retry.",
+      "offline": "You are offline — photos will be sent when the connection returns.",
+      "notSupported": "This device/browser does not support the camera.",
+      "pageLabel": "Page {n}"
     }
   },
   "schemas": {

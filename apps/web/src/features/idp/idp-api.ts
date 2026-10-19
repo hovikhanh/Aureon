@@ -290,12 +290,14 @@ export async function uploadFileApi(
     docTypeHint?: string;
     batchId?: string;
     idempotencyKey: string;
+    /** Input channel (10 §EP-20). C3 = file upload (default), C4 = mobile camera photo. */
+    channel?: "C3" | "C4";
   },
   token?: string,
 ): Promise<import("@aureon/shared-types").DocumentOut> {
   const form = new FormData();
   form.append("file", file);
-  form.append("channel", "C3");
+  form.append("channel", opts.channel ?? "C3");
   if (opts.docTypeHint) form.append("doc_type_hint", opts.docTypeHint);
   if (opts.batchId) form.append("batch_id", opts.batchId);
 
