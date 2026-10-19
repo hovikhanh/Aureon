@@ -5,7 +5,7 @@ export const DEMO_DOCUMENTS: DocumentOut[] = [
     id: "d1000000-0000-0000-0000-000000000001",
     batch_id: "b1000000-0000-0000-0000-000000000001",
     channel: "C3",
-    kind: "SPREADSHEET",
+    kind: "FILE",
     original_filename: "hoa_don_thang_10_2026.xlsx",
     mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     size_bytes: 45200,

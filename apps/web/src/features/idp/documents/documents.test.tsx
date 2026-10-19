@@ -89,7 +89,7 @@ describe("TC-IDP-037 DocumentsTable", () => {
     // HR can see salary → filename visible, no masked dot pattern
     const row = screen.getByTestId(`doc-row-${salaryDoc.id}`);
     expect(row.querySelector("[data-masked='true']")).not.toBeInTheDocument();
-    expect(row).toHaveTextContent(salaryDoc.original_filename);
+    expect(row).toHaveTextContent(salaryDoc.original_filename ?? "");
   });
 
   it("shows salary document filename for ROLE-05 (Reviewer)", () => {

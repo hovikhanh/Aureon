@@ -505,7 +505,12 @@
       "viewDetail": "View detail",
       "viewSource": "Source file",
       "undo": "Undo",
-      "salaryRestricted": "Salary document — only HR Manager may open"
+      "salaryRestricted": "Salary document — only HR Manager may open",
+      "kindLabel": {
+        "FILE": "Uploaded file",
+        "MANUAL": "Manual entry (C1)",
+        "TRANSCRIPT": "Natural language (C2)"
+      }
     },
     "empty": {
       "title": "No documents yet",
@@ -516,7 +521,8 @@
       "title": "Unable to load documents",
       "description": "A connection error occurred.",
       "retry": "Retry"
-    }
+    },
+    "undoReason": "Undo from the documents list"
   },
   "upload": {
     "title": "Upload data",
@@ -591,13 +597,17 @@
       "validationRules": "Rules"
     },
     "valueTypes": {
-      "STRING": "Text",
-      "NUMBER": "Number",
-      "DATE": "Date",
-      "CURRENCY": "Currency",
-      "PERCENT": "Percent",
-      "BOOLEAN": "Boolean",
-      "TABLE": "Table"
+      "date": "Date",
+      "money": "Money",
+      "percent": "Percent",
+      "tax_code": "Tax code",
+      "text": "Text",
+      "person_name": "Person name",
+      "org_name": "Organisation name",
+      "enum": "Enum",
+      "period": "Period",
+      "number": "Number",
+      "table": "Table"
     },
     "sensitivity": {
       "NONE": "Standard",

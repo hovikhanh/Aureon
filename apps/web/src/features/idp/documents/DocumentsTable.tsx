@@ -26,6 +26,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Virtual documents (C1 MANUAL, C2 TRANSCRIPT) have no original_filename.
+ * Synthesize a readable label from the doc type and kind so the table never
+ * renders an empty cell (05 §4.3, 06 §4.4).
+ */
+function displayLabel(
+  doc: DocumentOut,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  const kindText = t(`kindLabel.${doc.kind}` as Parameters<typeof t>[0]);
+  return doc.doc_type ? `${kindText} · ${doc.doc_type}` : kindText;
+}
+
 type StatusVariant = "default" | "success" | "warning" | "danger" | "muted";
 
 function statusVariant(status: string): StatusVariant {
@@ -121,12 +134,14 @@ export function DocumentsTable({ documents, role, onUndo, className }: Documents
                         </span>
                       ) : (
                         <span className="font-medium text-foreground line-clamp-1">
-                          {doc.original_filename}
+                          {doc.original_filename ?? displayLabel(doc, t)}
                         </span>
                       )}
                       <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                        {formatBytes(doc.size_bytes)}
-                        {doc.page_count > 1 && ` · ${doc.page_count}p`}
+                        {doc.size_bytes != null
+                          ? formatBytes(doc.size_bytes)
+                          : t(`kindLabel.${doc.kind}` as Parameters<typeof t>[0])}
+                        {doc.page_count != null && doc.page_count > 1 && ` · ${doc.page_count}p`}
                       </span>
                     </div>
                     {doc.ai_state && (

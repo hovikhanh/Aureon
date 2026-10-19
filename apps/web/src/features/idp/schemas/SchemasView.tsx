@@ -169,6 +169,8 @@ export function SchemasView() {
   } = useQuery({
     queryKey: ["extraction-schemas"],
     queryFn: () => getSchemasApi(undefined, session?.accessToken),
+    // Gate on the hydrated token so the request carries auth on its first fire.
+    enabled: !!session?.accessToken,
     retry: 1,
     staleTime: 5 * 60_000,
     placeholderData: DEMO_SCHEMAS,

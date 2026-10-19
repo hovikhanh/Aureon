@@ -305,7 +305,7 @@ describe("TC-IDP-033 ReviewView", () => {
     expect(screen.getByText("Tài liệu gốc")).toBeInTheDocument();
     expect(screen.getByText("Các trường trích xuất")).toBeInTheDocument();
     // filename appears in both the top bar and the source viewer placeholder
-    const filenameEls = screen.getAllByText(document.original_filename);
+    const filenameEls = screen.getAllByText(document.original_filename ?? "");
     expect(filenameEls.length).toBeGreaterThan(0);
   });
 

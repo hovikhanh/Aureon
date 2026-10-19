@@ -4,15 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Search, Upload, Filter } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DocumentOut, DocumentStatus, DocType, Pillar, RoleCode } from "@aureon/shared-types";
 import { LoadingState } from "@/components/states";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { useAuth } from "@/features/auth/auth-context";
-import { getDocumentsApi } from "@/features/idp/idp-api";
+import { getDocumentsApi, rollbackDocumentApi } from "@/features/idp/idp-api";
 import { DocumentsTable } from "./DocumentsTable";
-import { DEMO_DOCUMENTS } from "./demo-fixtures";
 
 /* -------------------------------------------------------------------------- */
 /* Filter types                                                                */
@@ -36,7 +35,8 @@ const STATUS_OPTIONS: FilterStatus[] = [
 /* -------------------------------------------------------------------------- */
 export function DocumentsView() {
   const t = useTranslations("documents");
-  const { role, session } = useAuth();
+  const { role, session, isLoading: isAuthLoading } = useAuth();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
@@ -55,19 +55,37 @@ export function DocumentsView() {
         },
         session?.accessToken,
       ),
+    // Wait until the auth token is hydrated so we never fire an unauthenticated
+    // request that 401s before the real fetch (see auth-context localStorage restore).
+    enabled: !!session?.accessToken,
     retry: 1,
     staleTime: 30_000,
-    placeholderData: {
-      data: DEMO_DOCUMENTS,
-      meta: { total: DEMO_DOCUMENTS.length, page: 1, page_size: 50, total_pages: 1 },
+  });
+
+  // EP-33 Undo: rollback a committed document, then refresh the list.
+  const rollbackMutation = useMutation({
+    mutationFn: (documentId: string) =>
+      rollbackDocumentApi(
+        documentId,
+        t("undoReason"),
+        `rollback-${documentId}-${Date.now()}`,
+        session?.accessToken,
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["documents"] });
     },
   });
 
-  // Client-side filter on demo data (no-op when real API is available)
+  // The backend already filters by query params; this is a defensive client
+  // pass so the stats count stays consistent. original_filename may be null
+  // for virtual C1/C2 documents, so guard the search match.
   const documents = useMemo<DocumentOut[]>(() => {
     if (!data?.data) return [];
     return data.data.filter((doc) => {
-      if (search && !doc.original_filename.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const name = doc.original_filename ?? "";
+        if (!name.toLowerCase().includes(search.toLowerCase())) return false;
+      }
       if (filterStatus !== "ALL" && doc.status !== filterStatus) return false;
       if (filterPillar !== "ALL" && !doc.pillars.includes(filterPillar as Pillar)) return false;
       if (filterDocType !== "ALL" && doc.doc_type !== filterDocType) return false;
@@ -168,7 +186,7 @@ export function DocumentsView() {
       )}
 
       {/* ── Content ────────────────────────────────────────────── */}
-      {isLoading ? (
+      {isAuthLoading || isLoading ? (
         <LoadingState rows={8} />
       ) : isError ? (
         <ErrorState onRetry={() => refetch()} />
@@ -189,7 +207,7 @@ export function DocumentsView() {
         <DocumentsTable
           documents={documents}
           role={role as RoleCode}
-          onUndo={(id) => console.log("undo", id)}
+          onUndo={(id) => rollbackMutation.mutate(id)}
         />
       )}
     </div>

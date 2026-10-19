@@ -25,7 +25,8 @@ export default function InboxPage() {
         return DEMO_REVIEW_QUEUE_RESPONSE;
       }
     },
-    enabled: role !== "ROLE-03",
+    // Wait for the hydrated token and skip Sales (ROLE-03 has no review access).
+    enabled: role !== "ROLE-03" && !!session?.accessToken,
   });
 
   const retryMutation = useMutation({

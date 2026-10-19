@@ -3,7 +3,7 @@ import type { ReviewQueueResponse } from "@aureon/shared-types";
 import type { QueueQueryParams } from "./types";
 
 /**
- * EP-28 GET /api/v1/review/queue (10 EP-28).
+ * EP-28 GET /api/v1/review-queue (10 EP-28).
  */
 export async function getReviewQueueApi(
   params: QueueQueryParams = {},
@@ -31,7 +31,7 @@ export async function getReviewQueueApi(
   }
 
   const qs = searchParams.toString();
-  const path = qs ? `review/queue?${qs}` : "review/queue";
+  const path = qs ? `review-queue?${qs}` : "review-queue";
 
   const headers: Record<string, string> = {};
   if (token) {
@@ -70,6 +70,26 @@ export async function retryDocumentApi(
     headers,
     json: { mode },
   });
+}
+
+/**
+ * EP-33 POST /api/v1/documents/{id}/rollback  (Undo commit, 10 §EP-33).
+ * Request `{ reason }`; `Idempotency-Key` required. Returns DocumentOut (ROLLED_BACK).
+ */
+export async function rollbackDocumentApi(
+  documentId: string,
+  reason: string,
+  idempotencyKey: string,
+  token?: string,
+): Promise<import("@aureon/shared-types").DocumentOut> {
+  const headers: Record<string, string> = { "Idempotency-Key": idempotencyKey };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<import("@aureon/shared-types").DocumentOut>(
+    `documents/${documentId}/rollback`,
+    { method: "POST", headers, json: { reason } },
+  );
+  return envelope.data;
 }
 
 /**
@@ -274,36 +294,47 @@ export async function uploadFileApi(
 
 /**
  * EP-21 POST /api/v1/documents/manual  (C1 manual entry)
+ * Spec 10 §EP-21: request body is `{ doc_type, fields, batch_id? }`; `Idempotency-Key` required.
  */
 export async function uploadManualApi(
-  payload: { doc_type: string; fields: Record<string, unknown>; channel: "C1" },
+  payload: { doc_type: string; fields: Record<string, unknown>; batchId?: string },
   idempotencyKey: string,
   token?: string,
 ): Promise<import("@aureon/shared-types").DocumentOut> {
   const headers: Record<string, string> = { "Idempotency-Key": idempotencyKey };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  const body: { doc_type: string; fields: Record<string, unknown>; batch_id?: string } = {
+    doc_type: payload.doc_type,
+    fields: payload.fields,
+  };
+  if (payload.batchId) body.batch_id = payload.batchId;
+
   const envelope = await apiFetch<import("@aureon/shared-types").DocumentOut>(
     "documents/manual",
-    { method: "POST", headers, json: payload },
+    { method: "POST", headers, json: body },
   );
   return envelope.data;
 }
 
 /**
  * EP-22 POST /api/v1/documents/natural-language  (C2)
+ * Spec 10 §EP-22: request body is `{ text, batch_id? }`; `Idempotency-Key` required.
  */
 export async function uploadNlApi(
-  payload: { content: string; doc_type_hint?: string; channel: "C2" },
+  payload: { text: string; batchId?: string },
   idempotencyKey: string,
   token?: string,
 ): Promise<import("@aureon/shared-types").DocumentOut> {
   const headers: Record<string, string> = { "Idempotency-Key": idempotencyKey };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  const body: { text: string; batch_id?: string } = { text: payload.text };
+  if (payload.batchId) body.batch_id = payload.batchId;
+
   const envelope = await apiFetch<import("@aureon/shared-types").DocumentOut>(
     "documents/natural-language",
-    { method: "POST", headers, json: payload },
+    { method: "POST", headers, json: body },
   );
   return envelope.data;
 }

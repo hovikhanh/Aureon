@@ -174,7 +174,7 @@ function SourceViewerPlaceholder({
   filename,
   channel,
 }: {
-  filename: string;
+  filename: string | null;
   channel: string;
 }) {
   const t = useTranslations("review");

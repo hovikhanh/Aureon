@@ -505,7 +505,12 @@
       "viewDetail": "Xem chi tiết",
       "viewSource": "Tài liệu gốc",
       "undo": "Hoàn tác",
-      "salaryRestricted": "Tài liệu chứa dữ liệu lương — chỉ HR Manager được mở"
+      "salaryRestricted": "Tài liệu chứa dữ liệu lương — chỉ HR Manager được mở",
+      "kindLabel": {
+        "FILE": "Tệp tải lên",
+        "MANUAL": "Nhập tay (C1)",
+        "TRANSCRIPT": "Ngôn ngữ tự nhiên (C2)"
+      }
     },
     "empty": {
       "title": "Chưa có tài liệu",
@@ -516,7 +521,8 @@
       "title": "Không thể tải danh sách tài liệu",
       "description": "Đã xảy ra lỗi khi kết nối tới máy chủ.",
       "retry": "Thử lại"
-    }
+    },
+    "undoReason": "Hoàn tác từ danh sách tài liệu"
   },
   "upload": {
     "title": "Nạp dữ liệu",
@@ -591,13 +597,17 @@
       "validationRules": "Quy tắc"
     },
     "valueTypes": {
-      "STRING": "Văn bản",
-      "NUMBER": "Số",
-      "DATE": "Ngày tháng",
-      "CURRENCY": "Tiền tệ",
-      "PERCENT": "Phần trăm",
-      "BOOLEAN": "Đúng/Sai",
-      "TABLE": "Bảng"
+      "date": "Ngày",
+      "money": "Tiền tệ",
+      "percent": "Phần trăm",
+      "tax_code": "Mã số thuế",
+      "text": "Văn bản",
+      "person_name": "Tên người",
+      "org_name": "Tên tổ chức",
+      "enum": "Danh mục",
+      "period": "Kỳ",
+      "number": "Số",
+      "table": "Bảng"
     },
     "sensitivity": {
       "NONE": "Thông thường",

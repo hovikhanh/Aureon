@@ -208,7 +208,8 @@ export type DocumentStatus =
   | "ROLLED_BACK";
 
 export type InputChannel = "C1" | "C2" | "C3" | "C4" | "C5";
-export type DocumentKind = "FILE" | "SPREADSHEET" | "VIRTUAL";
+// 10 §4 DocumentOut / 05 §4.3: FILE (C3/C4/C5), MANUAL (C1), TRANSCRIPT (C2).
+export type DocumentKind = "FILE" | "MANUAL" | "TRANSCRIPT";
 
 export interface UserBrief {
   id: string;
@@ -236,10 +237,11 @@ export interface DocumentOut {
   batch_id: string | null;
   channel: InputChannel;
   kind: DocumentKind;
-  original_filename: string;
-  mime_type: string;
-  size_bytes: number;
-  page_count: number;
+  // Virtual documents (C1 MANUAL, C2 TRANSCRIPT) have no file metadata → null.
+  original_filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  page_count: number | null;
   doc_type: DocType | null;
   pillars: Pillar[];
   status: DocumentStatus;

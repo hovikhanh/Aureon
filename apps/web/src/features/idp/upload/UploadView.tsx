@@ -133,7 +133,7 @@ export function UploadView() {
       dispatch({ type: "SET_SUBMITTING", value: true });
       try {
         await uploadManualApi(
-          { doc_type: docType, fields, channel: "C1" },
+          { doc_type: docType, fields },
           `manual-${Date.now()}`,
           session?.accessToken,
         );
@@ -146,12 +146,13 @@ export function UploadView() {
   );
 
   /* ── C2 NL ──────────────────────────────────────────────────── */
+  // Note: EP-22 derives doc type from the text itself; docTypeHint is a UI aid only.
   const handleC2Submit = useCallback(
-    async (content: string, docTypeHint?: string) => {
+    async (content: string) => {
       dispatch({ type: "SET_SUBMITTING", value: true });
       try {
         await uploadNlApi(
-          { content, doc_type_hint: docTypeHint, channel: "C2" },
+          { text: content },
           `nl-${Date.now()}`,
           session?.accessToken,
         );
