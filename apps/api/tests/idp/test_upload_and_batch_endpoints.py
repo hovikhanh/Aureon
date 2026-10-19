@@ -358,3 +358,180 @@ def test_tc_uc07_002_batch_upload_scoping(
     )
     assert resp_ceo.status_code == 201
     assert resp_ceo.json()["data"]["batch_id"] == str(test_batch_id)
+
+
+# ---------------------------------------------------------------------------
+# EP-41 — batch progress / summary / checklist / cross-checks (T-311, T-312)
+# ---------------------------------------------------------------------------
+
+
+def _seed_field(
+    db_session: Session,
+    *,
+    job_id: UUID,
+    doc_id: UUID,
+    field_key: str,
+    value: object,
+    table_key: str | None = None,
+    row_index: int | None = None,
+) -> None:
+    from app.modules.idp.enums import (
+        FieldValueType,
+        SensitivityLabel,
+        SourceLocationKind,
+    )
+    from app.modules.idp.models import ExtractedField
+
+    db_session.add(
+        ExtractedField(
+            id=uuid4(),
+            extraction_job_id=job_id,
+            source_document_id=doc_id,
+            field_key=field_key,
+            table_key=table_key,
+            row_index=row_index,
+            value=value,
+            value_type=(
+            FieldValueType.MONEY
+            if "revenue" in field_key or field_key == "subtotal"
+            else FieldValueType.TEXT
+        ),
+            confidence=0.95,
+            source_location={"kind": "pdf_region", "page": 1},
+            source_kind=SourceLocationKind.PDF_REGION,
+            sensitivity=SensitivityLabel.NONE,
+        )
+    )
+    db_session.flush()
+
+
+def _seed_batch_doc(
+    db_session: Session,
+    *,
+    uploader: User,
+    batch_id: UUID,
+    doc_type,
+    status,
+    avg_confidence: float = 0.95,
+) -> tuple[UUID, UUID]:
+    from datetime import UTC, datetime
+
+    from app.modules.idp.enums import DocumentKind, InputChannel, JobStatus
+    from app.modules.idp.models import ExtractionJob, SourceDocument
+
+    doc = SourceDocument(
+        id=uuid4(),
+        batch_id=batch_id,
+        channel=InputChannel.C3,
+        kind=DocumentKind.FILE,
+        original_filename=f"{doc_type.value}.pdf",
+        mime_type="application/pdf",
+        doc_type=doc_type,
+        status=status,
+        uploaded_by_id=uploader.id,
+        uploaded_at=datetime.now(UTC),
+    )
+    db_session.add(doc)
+    db_session.flush()
+    job = ExtractionJob(
+        id=uuid4(),
+        source_document_id=doc.id,
+        attempt_no=1,
+        status=JobStatus.SUCCEEDED,
+        avg_confidence=avg_confidence,
+        started_at=datetime.now(UTC),
+    )
+    db_session.add(job)
+    db_session.flush()
+    return doc.id, job.id
+
+
+def test_tc_uc07_003_batch_progress_aggregation(
+    app_client: TestClient,
+    seed_test_users: dict[str, tuple[User, str]],
+    db_session: Session,
+) -> None:
+    """TC-UC07-003 (EP-41): batch progress, summary, checklist and XD-01 cross-check."""
+    from app.modules.idp.enums import DocType, DocumentStatus
+
+    ceo, ceo_token = seed_test_users["ROLE-01"]
+    batch_id = uuid4()
+
+    # BCTC with revenue_by_month[2026-09] = 8.5B (COMMITTED).
+    bctc_id, bctc_job = _seed_batch_doc(
+        db_session, uploader=ceo, batch_id=batch_id,
+        doc_type=DocType.FINANCIAL_REPORT, status=DocumentStatus.COMMITTED,
+    )
+    _seed_field(db_session, job_id=bctc_job, doc_id=bctc_id, field_key="month",
+                value="2026-09", table_key="revenue_by_month", row_index=0)
+    _seed_field(db_session, job_id=bctc_job, doc_id=bctc_id, field_key="revenue",
+                value=8_500_000_000, table_key="revenue_by_month", row_index=0)
+
+    # Two invoice docs whose subtotals sum to 8.5B (COMMITTED + NEEDS_REVIEW).
+    inv1_id, inv1_job = _seed_batch_doc(
+        db_session, uploader=ceo, batch_id=batch_id,
+        doc_type=DocType.INVOICE, status=DocumentStatus.COMMITTED,
+    )
+    _seed_field(
+        db_session, job_id=inv1_job, doc_id=inv1_id, field_key="subtotal", value=5_000_000_000
+    )
+    inv2_id, inv2_job = _seed_batch_doc(
+        db_session, uploader=ceo, batch_id=batch_id,
+        doc_type=DocType.INVOICE, status=DocumentStatus.NEEDS_REVIEW, avg_confidence=0.72,
+    )
+    _seed_field(
+        db_session, job_id=inv2_job, doc_id=inv2_id, field_key="subtotal", value=3_500_000_000
+    )
+    db_session.commit()
+
+    resp = app_client.get(
+        f"/api/v1/onboarding/batches/{batch_id}",
+        headers={"Authorization": f"Bearer {ceo_token}"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+
+    assert data["batch_id"] == str(batch_id)
+    assert data["summary"]["total"] == 3
+    assert data["summary"]["stp_committed"] == 2
+    assert data["summary"]["needs_review"] == 1
+    assert data["summary"]["processing"] == 0
+    assert data["is_complete"] is True
+    assert data["next"]["review_queue_filter"] == {"batch_id": str(batch_id)}
+    assert data["next"]["dashboard_route"] == "/dashboard"
+
+    # Checklist: 7 doc types, 2 present (FINANCIAL_REPORT, INVOICE).
+    present = {c["doc_type"]: c["present"] for c in data["checklist"]}
+    assert len(data["checklist"]) == 7
+    assert present["FINANCIAL_REPORT"] is True
+    assert present["INVOICE"] is True
+    assert present["EMPLOYEE_LIST"] is False
+
+    # XD-01 MATCH (8.5B == 8.5B within ±0.5%).
+    xd01 = next((c for c in data["cross_checks"] if c["rule"] == "XD-01"), None)
+    assert xd01 is not None
+    assert xd01["result"] == "MATCH"
+
+
+def test_tc_uc07_004_batch_progress_role_and_404(
+    app_client: TestClient,
+    seed_test_users: dict[str, tuple[User, str]],
+    db_session: Session,
+) -> None:
+    """TC-UC07-004: EP-41 restricted to ROLE-01/05 and 404 on an empty batch."""
+    # Unknown batch -> 404.
+    _, ceo_token = seed_test_users["ROLE-01"]
+    resp404 = app_client.get(
+        f"/api/v1/onboarding/batches/{uuid4()}",
+        headers={"Authorization": f"Bearer {ceo_token}"},
+    )
+    assert resp404.status_code == 404
+
+    # CFO (ROLE-02) -> 403 FORBIDDEN_ROLE.
+    _, cfo_token = seed_test_users["ROLE-02"]
+    resp403 = app_client.get(
+        f"/api/v1/onboarding/batches/{uuid4()}",
+        headers={"Authorization": f"Bearer {cfo_token}"},
+    )
+    assert resp403.status_code == 403
+    assert resp403.json()["error"]["code"] == "FORBIDDEN_ROLE"

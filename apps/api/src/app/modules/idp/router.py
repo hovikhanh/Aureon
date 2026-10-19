@@ -27,6 +27,12 @@ from app.modules.idp.action_registry import (
     build_action_payload_from_doc,
     execute_action,
 )
+from app.modules.idp.batch import batch_documents
+from app.modules.idp.batch import build_checklist as build_batch_checklist
+from app.modules.idp.batch import build_cross_checks as build_batch_cross_checks
+from app.modules.idp.batch import build_summary as build_batch_summary
+from app.modules.idp.batch import is_complete as batch_is_complete
+from app.modules.idp.batch import progress_step as batch_progress_step
 from app.modules.idp.cross_doc import run_cross_document_checks
 from app.modules.idp.enums import (
     DocType,
@@ -57,8 +63,14 @@ from app.modules.idp.routing import (
 from app.modules.idp.schemas import (
     AiConfigOut,
     BatchChecklistItem,
+    BatchChecklistStatus,
     BatchCreateRequest,
     BatchCreateResponse,
+    BatchCrossCheck,
+    BatchDocumentProgress,
+    BatchNext,
+    BatchProgressResponse,
+    BatchSummary,
     CommitActionResult,
     DocTypeAutonomyOut,
     DocumentAffectedOut,
@@ -350,6 +362,55 @@ def create_onboarding_batch(
         upload_endpoint="/api/v1/documents",
     )
     return Envelope(data=response_data)
+
+
+@router.get(
+    "/onboarding/batches/{batch_id}",
+    response_model=Envelope[BatchProgressResponse],
+    summary="Batch progress + aggregation + cross-checks (EP-41)",
+)
+def get_onboarding_batch(
+    batch_id: UUID,
+    current_user: Annotated[
+        User,
+        Depends(require_role("ROLE-01", "ROLE-05")),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> Envelope[BatchProgressResponse]:
+    """EP-41: UC-07 batch progress, summary, checklist and cross-document checks.
+
+    Reconstructs the batch from its member documents (no batches table) and runs the
+    XD-01..XD-05 engine across them. Restricted to ROLE-01 (CEO) and ROLE-05 (Reviewer).
+    """
+    docs = batch_documents(db, batch_id)
+    if not docs:
+        raise ApiError(ErrorCode.NOT_FOUND, f"Batch {batch_id} has no documents")
+
+    documents = [
+        BatchDocumentProgress(
+            document=serialize_document_out(d, current_user),
+            progress_step=batch_progress_step(d.status),
+        )
+        for d in docs
+    ]
+    summary = BatchSummary(**build_batch_summary(db, docs))
+    checklist = [BatchChecklistStatus(**c) for c in build_batch_checklist(docs)]
+    cross_checks = [BatchCrossCheck(**c) for c in build_batch_cross_checks(db, docs)]
+    complete = batch_is_complete(docs)
+
+    data = BatchProgressResponse(
+        batch_id=batch_id,
+        documents=documents,
+        summary=summary,
+        checklist=checklist,
+        cross_checks=cross_checks,
+        is_complete=complete,
+        next=BatchNext(
+            review_queue_filter={"batch_id": str(batch_id)},
+            dashboard_route="/dashboard",
+        ),
+    )
+    return Envelope(data=data)
 
 
 @router.post(

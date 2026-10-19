@@ -32,7 +32,7 @@ QUEUE_IDP: Final = "idp"
 # 07 §5.1 retry policy (max 3, backoff 2s → 8s → 30s) lives on IdempotentTask (workers/base.py).
 
 # Task modules registered with the worker (07 §4: tasks live in app/workers/).
-TASK_MODULES: Final = ("app.workers.system", "app.workers.idp")
+TASK_MODULES: Final = ("app.workers.system", "app.workers.idp", "app.workers.dashboard")
 
 
 def create_celery_app() -> Celery:

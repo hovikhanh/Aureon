@@ -98,6 +98,64 @@ class BatchCreateResponse(BaseModel):
     upload_endpoint: str = "/api/v1/documents"
 
 
+class BatchDocumentProgress(BaseModel):
+    """Per-document progress entry in EP-41 (UC-07 step 3)."""
+
+    document: DocumentOut
+    progress_step: str
+
+
+class BatchSummary(BaseModel):
+    """Aggregate counts for a batch (EP-41 step 4)."""
+
+    total: int
+    processing: int
+    stp_committed: int
+    needs_review: int
+    failed: int
+    duplicate: int
+    other: int
+    avg_confidence: float | None = None
+    high_confidence_ratio: float | None = None
+
+
+class BatchChecklistStatus(BaseModel):
+    """Checklist item with presence (EP-41, UC07-E1)."""
+
+    doc_type: DocType
+    present: bool
+    document_ids: list[UUID] = Field(default_factory=list)
+
+
+class BatchCrossCheck(BaseModel):
+    """One cross-document consistency result (EP-41 step 5)."""
+
+    rule: str
+    result: str
+    severity: str | None = None
+    params: dict[str, Any] | None = None
+    document_ids: list[UUID] = Field(default_factory=list)
+
+
+class BatchNext(BaseModel):
+    """Next-step hints for the batch (EP-41 step 6-7)."""
+
+    review_queue_filter: dict[str, Any]
+    dashboard_route: str
+
+
+class BatchProgressResponse(BaseModel):
+    """Response payload for EP-41 GET /api/v1/onboarding/batches/{batch_id}."""
+
+    batch_id: UUID
+    documents: list[BatchDocumentProgress]
+    summary: BatchSummary
+    checklist: list[BatchChecklistStatus]
+    cross_checks: list[BatchCrossCheck]
+    is_complete: bool
+    next: BatchNext
+
+
 class DuplicateWarningMeta(BaseModel):
     """Warning metadata when document is a duplicate."""
 

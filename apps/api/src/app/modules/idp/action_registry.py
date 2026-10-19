@@ -682,6 +682,21 @@ def execute_action(
         )
 
         db.flush()
+
+        # T-304: trigger dynamic metric/alert recompute for the committed record type.
+        # Runs in the same transaction (flush, not commit) so metric + record persist
+        # atomically on the caller's commit. Failures here must not break the commit.
+        rt_value = result.get("record_type")
+        if rt_value:
+            try:
+                from app.modules.dashboard.engine import recompute_for_record_type
+
+                recompute_for_record_type(db, RecordType(rt_value))
+            except Exception:
+                # Recompute is best-effort: a metric-engine failure must never roll back
+                # or block the record commit that already succeeded.
+                logger.warning("Metric recompute after %s failed; skipping", action_name)
+
         return result
     except Exception as exc:
         db.rollback()
