@@ -74,10 +74,12 @@ def test_missing_endpoints_reported_as_progress_not_error() -> None:
     # T-306/307/308 — dashboard EP-10..EP-17 now mounted.
     for ep in ("EP-10", "EP-11", "EP-12", "EP-13", "EP-14", "EP-15", "EP-16", "EP-17"):
         assert ep not in missing, f"{ep} is mounted and must not be listed as missing"
-    # Some endpoints (e.g. EP-41, EP-52) are still outstanding progress.
-    assert len(missing) >= 1, (
-        f"expected some of 10 §1.10 still reported as missing progress, got {missing}"
-    )
+    # T-311/312 — EP-41 batch progress; T-404 — EP-52 audit log now mounted.
+    assert "EP-41" not in missing, "EP-41 is mounted and must not be listed as missing"
+    assert "EP-52" not in missing, "EP-52 is mounted and must not be listed as missing"
+    # Every endpoint in 10 §1.10 is now mounted; `missing` should be empty. The check stays
+    # as a progress sentinel: it must never leak into the hard violation list below.
+    assert isinstance(missing, list)
     # Missing endpoints are informational: they must not leak into the hard violation list.
     assert checks.all_violations(app, spec) == [], (
         "missing_endpoints must be progress-only and never raise a contract violation"

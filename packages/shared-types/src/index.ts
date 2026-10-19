@@ -529,3 +529,26 @@ export interface ReviewRejectRequest {
 }
 
 
+
+// EP-52 GET /audit-logs — audit log entries (SCR-14; ROLE-01 only; salary masked).
+export type ActorType = "USER" | "AI" | "SYSTEM";
+
+export interface AuditActorOut {
+  id: string;
+  full_name: string;
+}
+
+export interface AuditLogOut {
+  id: string;
+  occurred_at: string;
+  actor_type: ActorType;
+  actor: AuditActorOut | null;
+  actor_role_code: RoleCode | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  source_document_id: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+}

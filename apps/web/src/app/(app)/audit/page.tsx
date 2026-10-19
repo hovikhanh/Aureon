@@ -1,6 +1,6 @@
-import { PlaceholderPage } from "@/components/layout/PlaceholderPage";
+import { AuditLogView } from "@/features/audit";
 
-// SCR-14 Audit log (ROLE-01; 06 §2.3). Built out in T-404.
+// SCR-14 Audit log (ROLE-01; 06 §4.11, EP-52, T-404).
 export default function AuditPage() {
-  return <PlaceholderPage titleKey="audit" />;
+  return <AuditLogView />;
 }

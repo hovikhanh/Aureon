@@ -728,5 +728,38 @@
     "page": "Trang {page}/{total}",
     "openOriginal": "Mở tài liệu gốc",
     "highlightLabel": "Vùng chứa giá trị của trường được chọn"
+  },
+  "audit": {
+    "title": "Nhật ký hoạt động",
+    "subtitle": "Tra cứu ai làm gì, AI làm gì — theo thời gian, người thực hiện và loại hành động",
+    "searchLabel": "Tìm theo hành động",
+    "searchPlaceholder": "Lọc theo hành động (ví dụ: invoice, switch_role)…",
+    "count": "{count} hoạt động",
+    "filters": {
+      "actorLabel": "Lọc theo người thực hiện",
+      "actorAll": "Tất cả"
+    },
+    "actor": {
+      "user": "Người dùng",
+      "ai": "AI (IDP)",
+      "system": "Hệ thống",
+      "unknown": "Không xác định"
+    },
+    "table": {
+      "occurredAt": "Thời điểm",
+      "actor": "Người thực hiện",
+      "action": "Hành động",
+      "target": "Đối tượng",
+      "before": "Trước",
+      "after": "Sau"
+    },
+    "empty": {
+      "title": "Chưa có hoạt động",
+      "description": "Hệ thống chưa ghi nhận hoạt động nào khớp bộ lọc."
+    },
+    "error": {
+      "title": "Không thể tải nhật ký",
+      "description": "Đã xảy ra lỗi khi kết nối tới máy chủ."
+    }
   }
 }

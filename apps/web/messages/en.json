@@ -728,5 +728,38 @@
     "page": "Page {page}/{total}",
     "openOriginal": "Open original document",
     "highlightLabel": "Region containing the selected field value"
+  },
+  "audit": {
+    "title": "Activity log",
+    "subtitle": "Look up who did what and what the AI did — by time, actor and action type",
+    "searchLabel": "Search by action",
+    "searchPlaceholder": "Filter by action (e.g. invoice, switch_role)…",
+    "count": "{count} activities",
+    "filters": {
+      "actorLabel": "Filter by actor",
+      "actorAll": "All"
+    },
+    "actor": {
+      "user": "User",
+      "ai": "AI (IDP)",
+      "system": "System",
+      "unknown": "Unknown"
+    },
+    "table": {
+      "occurredAt": "Time",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "before": "Before",
+      "after": "After"
+    },
+    "empty": {
+      "title": "No activity yet",
+      "description": "No activity matches the current filter."
+    },
+    "error": {
+      "title": "Unable to load the log",
+      "description": "An error occurred while connecting to the server."
+    }
   }
 }
