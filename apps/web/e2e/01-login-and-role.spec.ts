@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DEMO_ACCOUNTS, login, passwordFor } from "./helpers";
+import { DEMO_ACCOUNTS, login } from "./helpers";
 
 /**
  * Flow 1 — Login (SCR-13) + Role Switcher (SCR-12). Covers TC-AUTH-016 (role switch

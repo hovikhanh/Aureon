@@ -12,6 +12,7 @@ import { DropzoneC3, type FileItem } from "./DropzoneC3";
 import { ManualFormC1 } from "./ManualFormC1";
 import { NlFormC2 } from "./NlFormC2";
 import { CameraCaptureC4, type CapturedPage } from "./CameraCaptureC4";
+import { mergePagesToPdf } from "./c4-image";
 
 /* -------------------------------------------------------------------------- */
 /* State                                                                       */
@@ -182,29 +183,23 @@ export function UploadView() {
   );
 
   /* ── C4 Camera ──────────────────────────────────────────────── */
-  // Each captured photo is uploaded as a C4 page via EP-20 (channel=C4). Merging the
-  // photos into a single multi-page document (plus deskew/blur scoring) needs an image
-  // library on FE+BE and is gated behind a DEC; here we upload each page faithfully.
+  // FR-DC-04 (DEC-123 hướng A): merge the captured photos into ONE multi-page PDF on the
+  // client (jsPDF) and upload it via EP-20 (channel=C4) — one document, one request, no
+  // change to the EP-20 contract. A single photo is still merged into a 1-page PDF so the
+  // backend always receives a consistent multi-page document.
   const handleC4Submit = useCallback(
     async (pages: CapturedPage[]) => {
       if (pages.length === 0) return;
       dispatch({ type: "SET_SUBMITTING", value: true });
       const batchStamp = Date.now();
-      let anySucceeded = false;
       try {
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i];
-          const file = new File([page.blob], `camera-${batchStamp}-p${i + 1}.jpg`, {
-            type: "image/jpeg",
-          });
-          await uploadFileApi(
-            file,
-            { channel: "C4", idempotencyKey: `c4-${batchStamp}-${i}` },
-            session?.accessToken,
-          );
-          anySucceeded = true;
-        }
-        if (anySucceeded) dispatch({ type: "SET_SUCCESS" });
+        const pdf = await mergePagesToPdf(pages, `camera-${batchStamp}.pdf`);
+        await uploadFileApi(
+          pdf,
+          { channel: "C4", idempotencyKey: `c4-${batchStamp}` },
+          session?.accessToken,
+        );
+        dispatch({ type: "SET_SUCCESS" });
       } catch (err) {
         dispatch({ type: "SET_ERROR", message: err instanceof Error ? err.message : "Error" });
       }

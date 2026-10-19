@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 /**
  * Demo accounts (08 §2). Passwords come ONLY from env (`DEMO_*_PASSWORD`), never

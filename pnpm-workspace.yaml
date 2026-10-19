@@ -10,3 +10,5 @@ allowBuilds:
   # next-intl transitive deps (message-extraction tooling only, not used at runtime/build)
   '@parcel/watcher': false
   '@swc/core': false
+  # core-js postinstall only prints a funding banner; not needed at runtime/build (jspdf transitive)
+  core-js: false

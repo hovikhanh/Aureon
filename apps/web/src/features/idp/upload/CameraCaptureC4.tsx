@@ -1,13 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, Loader2, Trash2, WifiOff } from "lucide-react";
+import { AlertTriangle, Camera, CameraOff, Loader2, Trash2, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { blurScoreFromContext, isTooBlurry } from "./c4-image";
 
 export interface CapturedPage {
   id: string;
   dataUrl: string;
   blob: Blob;
+  /** Variance-of-Laplacian sharpness; lower = blurrier (IDP-E05, client-side). */
+  blurScore: number;
+  /** True when the client flags this photo for re-capture (IDP-E05). */
+  isBlurry: boolean;
 }
 
 export interface CameraCaptureC4Props {
@@ -20,11 +25,12 @@ export interface CameraCaptureC4Props {
  * SCR-08 C4 — PWA mobile camera capture (06 §4.2, FR-DC-04, US-DC-004, T-222).
  * Uses the native getUserMedia + <canvas> APIs only (no extra dependency): open the rear
  * camera, capture several page photos, review/remove them, then submit. Each captured frame
- * becomes a JPEG page; the parent uploads them with channel=C4 so the backend can merge them
- * into one multi-page document. An offline banner warns when the network is unavailable.
+ * becomes a JPEG page; the parent merges them into one multi-page PDF (FR-DC-04) and uploads
+ * it with channel=C4. An offline banner warns when the network is unavailable.
  *
- * Note: auto crop / deskew / blur scoring need an image-processing library (FE + BE) which is
- * a new dependency — raised as a DEC and intentionally out of this native capture scope.
+ * Blur scoring runs on the client (IDP-E05, variance-of-Laplacian in c4-image.ts, no image
+ * library); blurry pages are flagged with a "chụp lại" warning (DEC-123 hướng A). Advanced
+ * auto crop/deskew is intentionally left for a later iteration.
  */
 export function CameraCaptureC4({ onSubmit, isSubmitting }: CameraCaptureC4Props) {
   const t = useTranslations("upload.c4");
@@ -96,12 +102,20 @@ export function CameraCaptureC4({ onSubmit, isSubmitting }: CameraCaptureC4Props
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, w, h);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    // IDP-E05: score sharpness on the client; flag blurry frames for re-capture.
+    let blurScore = 0;
+    try {
+      blurScore = blurScoreFromContext(ctx, w, h);
+    } catch {
+      blurScore = 0;
+    }
+    const blurry = isTooBlurry(blurScore);
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
         setPages((prev) => [
           ...prev,
-          { id: `${Date.now()}-${prev.length}`, dataUrl, blob },
+          { id: `${Date.now()}-${prev.length}`, dataUrl, blob, blurScore, isBlurry: blurry },
         ]);
       },
       "image/jpeg",
@@ -112,6 +126,8 @@ export function CameraCaptureC4({ onSubmit, isSubmitting }: CameraCaptureC4Props
   const removePage = useCallback((id: string) => {
     setPages((prev) => prev.filter((p) => p.id !== id));
   }, []);
+
+  const blurryCount = pages.filter((p) => p.isBlurry).length;
 
   if (!supported) {
     return (
@@ -195,6 +211,15 @@ export function CameraCaptureC4({ onSubmit, isSubmitting }: CameraCaptureC4Props
         <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("pagesTitle", { count: pages.length })}
         </h4>
+        {blurryCount > 0 && (
+          <div
+            role="status"
+            className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {t("blurWarning", { count: blurryCount })}
+          </div>
+        )}
         {pages.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("noPages")}</p>
         ) : (
@@ -210,6 +235,15 @@ export function CameraCaptureC4({ onSubmit, isSubmitting }: CameraCaptureC4Props
                 <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
                   {i + 1}
                 </span>
+                {p.isBlurry && (
+                  <span
+                    className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[10px] font-medium text-white"
+                    aria-label={t("blurBadge")}
+                  >
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                    {t("blurBadge")}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => removePage(p.id)}

@@ -629,7 +629,9 @@
       "cameraError": "Could not access the camera. Grant permission and retry.",
       "offline": "You are offline — photos will be sent when the connection returns.",
       "notSupported": "This device/browser does not support the camera.",
-      "pageLabel": "Page {n}"
+      "pageLabel": "Page {n}",
+      "blurWarning": "{count} photo(s) may be blurry — consider re-capturing before submitting.",
+      "blurBadge": "Blurry"
     }
   },
   "schemas": {

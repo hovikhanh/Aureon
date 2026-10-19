@@ -629,7 +629,9 @@
       "cameraError": "Không truy cập được camera. Hãy cấp quyền và thử lại.",
       "offline": "Đang ngoại tuyến — ảnh sẽ gửi khi có mạng trở lại.",
       "notSupported": "Thiết bị/trình duyệt không hỗ trợ camera.",
-      "pageLabel": "Trang {n}"
+      "pageLabel": "Trang {n}",
+      "blurWarning": "{count} ảnh có thể bị mờ — nên chụp lại trước khi gửi.",
+      "blurBadge": "Mờ"
     }
   },
   "schemas": {
