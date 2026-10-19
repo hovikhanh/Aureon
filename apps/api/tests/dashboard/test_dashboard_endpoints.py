@@ -12,6 +12,8 @@ are visible and rolled back.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, date, datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,8 +25,24 @@ from app.db.session import get_db
 from app.main import app
 from app.modules.auth.models import User
 from app.modules.auth.token import create_access_token
-from app.modules.dashboard.enums import AlertStatus
-from app.modules.dashboard.models import Alert, Metric
+from app.modules.dashboard.enums import MetricValueKind
+from app.modules.dashboard.models import Alert, Metric, MetricValue
+from app.modules.idp.enums import (
+    DocumentKind,
+    DocumentStatus,
+    FieldValueType,
+    InputChannel,
+    JobStatus,
+    RecordType,
+    SensitivityLabel,
+    SourceLocationKind,
+)
+from app.modules.idp.models import (
+    BusinessRecord,
+    ExtractedField,
+    ExtractionJob,
+    SourceDocument,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -214,3 +232,173 @@ def test_dismiss_requires_reason_and_sets_status(client, tokens, db_session):
     )
     assert r.status_code == 200
     assert r.json()["data"]["status"] == "DISMISSED"
+
+
+# --- TC-DASH-004: drill-down records (EP-13) + lineage (EP-14) ----------------------------
+
+
+def _seed_record_with_lineage(db_session: Session, uploader: User) -> BusinessRecord:
+    """Create a SourceDocument + ExtractionJob + BusinessRecord + ExtractedFields and wire the
+    record into METRIC-FIN-01's current ACTUAL MetricValue so EP-13/EP-14 return real data."""
+    doc = SourceDocument(
+        id=uuid4(),
+        channel=InputChannel.C3,
+        kind=DocumentKind.FILE,
+        original_filename="invoice-fin01.pdf",
+        mime_type="application/pdf",
+        doc_type=None,
+        status=DocumentStatus.COMMITTED,
+        uploaded_by_id=uploader.id,
+        uploaded_at=datetime.now(UTC),
+    )
+    db_session.add(doc)
+    db_session.flush()
+
+    job = ExtractionJob(
+        id=uuid4(),
+        source_document_id=doc.id,
+        attempt_no=1,
+        status=JobStatus.SUCCEEDED,
+        started_at=datetime.now(UTC),
+    )
+    db_session.add(job)
+    db_session.flush()
+
+    record = BusinessRecord(
+        id=uuid4(),
+        record_type=RecordType.INVOICE,
+        pillar="FIN",
+        code="INV-FIN-001",
+        name="Hóa đơn doanh thu T9",
+        period_key="2026-09",
+        issue_date=date(2026, 9, 15),
+        total_amount=8_500_000_000,
+        paid_amount=8_500_000_000,
+        status="PAID",
+        source_document_id=doc.id,
+        attributes={"note": "demo"},
+    )
+    db_session.add(record)
+    db_session.flush()
+
+    # A normal field + a salary-sensitive field to exercise the hide-salary branch.
+    db_session.add(
+        ExtractedField(
+            id=uuid4(),
+            extraction_job_id=job.id,
+            source_document_id=doc.id,
+            business_record_id=record.id,
+            field_key="total_amount",
+            value=8_500_000_000,
+            raw_text="8.500.000.000",
+            value_type=FieldValueType.MONEY,
+            confidence=0.97,
+            source_location={"kind": "BOUNDING_BOX", "page": 1, "x": 10, "y": 20, "w": 30, "h": 5},
+            source_kind=SourceLocationKind.PDF_REGION,
+            sensitivity=SensitivityLabel.NONE,
+        )
+    )
+    db_session.add(
+        ExtractedField(
+            id=uuid4(),
+            extraction_job_id=job.id,
+            source_document_id=doc.id,
+            business_record_id=record.id,
+            field_key="net_salary",
+            value=42_000_000,
+            raw_text="42.000.000",
+            value_type=FieldValueType.MONEY,
+            confidence=0.91,
+            source_location={"kind": "BOUNDING_BOX", "page": 1, "x": 10, "y": 40, "w": 30, "h": 5},
+            source_kind=SourceLocationKind.PDF_REGION,
+            sensitivity=SensitivityLabel.SALARY,
+        )
+    )
+    db_session.flush()
+
+    # Wire the record into METRIC-FIN-01's current ACTUAL value.
+    metric = db_session.scalars(select(Metric).where(Metric.code == "METRIC-FIN-01")).first()
+    assert metric is not None
+    mv = db_session.scalars(
+        select(MetricValue).where(
+            MetricValue.metric_id == metric.id,
+            MetricValue.value_kind == MetricValueKind.ACTUAL,
+            MetricValue.is_current.is_(True),
+        )
+    ).first()
+    assert mv is not None
+    mv.source_record_ids = [record.id]
+    db_session.add(mv)
+    db_session.commit()
+    return record
+
+
+def test_metric_records_full_access_returns_records(client, tokens, db_session):
+    """EP-13: CEO (FULL on FIN-01) drills from the metric into its source records."""
+    uploader = db_session.scalars(select(User).where(User.email == "ceo@abc.demo")).first()
+    record = _seed_record_with_lineage(db_session, uploader)
+
+    r = client.get("/api/v1/metrics/METRIC-FIN-01/records", headers=_auth(tokens["ROLE-01"]))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["meta"]["total"] == 1
+    assert body["data"][0]["id"] == str(record.id)
+    assert body["data"][0]["code"] == "INV-FIN-001"
+
+
+def test_metric_records_aggregated_access_forbidden(client, tokens, db_session):
+    """EP-13: a role with only AGG access on the metric cannot drill into records."""
+    uploader = db_session.scalars(select(User).where(User.email == "ceo@abc.demo")).first()
+    _seed_record_with_lineage(db_session, uploader)
+    # ROLE-03 (Sales) has FIN-01 FULL; use ROLE-04 (HR) which has FIN-01 = AGG (03 §5.1).
+    r = client.get("/api/v1/metrics/METRIC-FIN-01/records", headers=_auth(tokens["ROLE-04"]))
+    assert r.status_code == 403
+    assert r.json()["error"]["code"] == "FORBIDDEN_SCOPE"
+
+
+def test_metric_records_out_of_scope_forbidden(client, tokens, db_session):
+    """EP-13: a role with no access to the metric is rejected."""
+    r = client.get("/api/v1/metrics/METRIC-HR-01/records", headers=_auth(tokens["ROLE-03"]))
+    assert r.status_code == 403
+
+
+def test_record_lineage_hides_salary_for_non_hr(client, tokens, db_session):
+    """EP-14: lineage returns fields + documents; salary field value is hidden for non-ROLE-04."""
+    uploader = db_session.scalars(select(User).where(User.email == "ceo@abc.demo")).first()
+    record = _seed_record_with_lineage(db_session, uploader)
+
+    r = client.get(
+        f"/api/v1/business-records/{record.id}/lineage", headers=_auth(tokens["ROLE-01"])
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["record"]["id"] == str(record.id)
+    by_key = {f["field_key"]: f for f in data["fields"]}
+    assert by_key["total_amount"]["value"] == 8_500_000_000
+    # CEO is not ROLE-04 → the salary field value is masked.
+    assert by_key["net_salary"]["value"] is None
+    # The source document is marked restricted (contains salary) for a non-HR viewer.
+    assert len(data["documents"]) == 1
+    assert data["documents"][0]["restricted"] is True
+    assert data["documents"][0]["reason"] == "SALARY"
+
+
+def test_record_lineage_hr_sees_salary(client, tokens, db_session):
+    """EP-14: ROLE-04 (HR) sees the salary field value and the document is not restricted."""
+    uploader = db_session.scalars(select(User).where(User.email == "ceo@abc.demo")).first()
+    record = _seed_record_with_lineage(db_session, uploader)
+
+    r = client.get(
+        f"/api/v1/business-records/{record.id}/lineage", headers=_auth(tokens["ROLE-04"])
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    by_key = {f["field_key"]: f for f in data["fields"]}
+    assert by_key["net_salary"]["value"] == 42_000_000
+    assert data["documents"][0]["restricted"] is False
+
+
+def test_record_lineage_unknown_record_404(client, tokens):
+    """EP-14: unknown record id → 404."""
+    r = client.get(f"/api/v1/business-records/{uuid4()}/lineage", headers=_auth(tokens["ROLE-01"]))
+    assert r.status_code == 404
