@@ -36,11 +36,13 @@ aureon-api = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["apps/api/tests"]
-addopts = "-ra --strict-markers"
+# Exclude live external-service tests by default so `uv run pytest` is reproducible offline/CI.
+# Run them explicitly with `RUN_LIVE_TESTS=true uv run pytest -m live`.
+addopts = "-ra --strict-markers -m 'not live'"
 markers = [
     "contract: API contract checks against docs/3.EXECUTION/10-API-SPECIFICATION.md (pnpm contract:validate)",
     "integration: needs docker compose services (postgres/redis/minio)",
-    "live: hits a live external service (OmniRoute localhost:20128); excluded in CI via -m 'not live'",
+    "live: hits a live external service (OmniRoute localhost:20128); excluded by default (-m 'not live'), run with RUN_LIVE_TESTS=true -m live",
 ]
 
 [tool.coverage.run]

@@ -2,8 +2,8 @@ import type { Page } from "@playwright/test";
 
 /**
  * Demo accounts (08 §2). Passwords come ONLY from env (`DEMO_*_PASSWORD`), never
- * hard-coded (CLAUDE.md § credentials). Run the suite with `.env` loaded, e.g.
- * `set -a; source ../../.env; set +a; pnpm test:e2e`.
+ * hard-coded (CLAUDE.md § credentials). playwright.config.ts auto-loads the repo-root
+ * `.env` into process.env, so `pnpm test:e2e` is reproducible with no manual sourcing.
  */
 export const DEMO_ACCOUNTS = {
   "ROLE-01": { email: "ceo@abc.demo", envKey: "DEMO_CEO_PASSWORD", home: "/dashboard" },
