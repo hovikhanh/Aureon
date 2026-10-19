@@ -14,7 +14,13 @@ test.describe("Flow 3 — drill-down (P01, ≤3 clicks)", () => {
     // Click 1: a metric value link ("Xem chi tiết … — <value>"). Every number is a link (P01).
     const metricLink = page.getByRole("link", { name: /Xem chi tiết/i }).first();
     await expect(metricLink).toBeVisible({ timeout: 10_000 });
-    await metricLink.click();
+    // A click fired before Next finishes hydrating can be dropped; retry until the route changes.
+    await expect(async () => {
+      if (!/\/dashboard\/metrics\//.test(page.url())) {
+        await metricLink.click();
+      }
+      expect(page.url()).toMatch(/\/dashboard\/metrics\/.+/);
+    }).toPass({ timeout: 15_000 });
 
     // Lands on the Metric Detail screen with the P01 lineage panel ("Nguồn dữ liệu (P01)").
     await expect(page).toHaveURL(/\/dashboard\/metrics\/.+/);

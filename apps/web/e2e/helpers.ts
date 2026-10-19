@@ -27,7 +27,13 @@ export function passwordFor(role: RoleCode): string {
   return pw;
 }
 
-/** Log in via the real SCR-13 form (not the quick-login buttons, which use a stub password). */
+/**
+ * Log in via the real SCR-13 form. The quick-login buttons now use the real demo passwords
+ * (NEXT_PUBLIC_DEMO_PASSWORD_*), but these tests still drive the form directly to assert the
+ * form path. After landing on the home route we wait for the app to settle (network idle +
+ * the first heading) so later interactions don't race with Next hydration / the RouteGuard
+ * session check.
+ */
 export async function login(page: Page, role: RoleCode): Promise<void> {
   const acc = DEMO_ACCOUNTS[role];
   await page.goto("/login");
@@ -36,4 +42,8 @@ export async function login(page: Page, role: RoleCode): Promise<void> {
   await page.getByRole("button", { name: /Đăng nhập/i }).first().click();
   // Auth-context navigates to the role's home route on success.
   await page.waitForURL(`**${acc.home}`, { timeout: 15_000 });
+  // Wait until the protected view is actually rendered (past the RouteGuard "checking session"
+  // state) and the page is hydrated before the test interacts with it.
+  await page.getByRole("heading").first().waitFor({ state: "visible", timeout: 15_000 });
+  await page.waitForLoadState("networkidle").catch(() => undefined);
 }

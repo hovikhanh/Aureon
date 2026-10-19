@@ -1,13 +1,40 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { useAuth } from "@/features/auth/auth-context";
 
 export function RouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { role } = useAuth();
+  const router = useRouter();
+  const t = useTranslations("auth");
+  const { role, isAuthenticated, isLoading } = useAuth();
+
+  // Require authentication for every route under the (app) group. Once the session has finished
+  // restoring and there is still no session, send the user to /login (02 §6, SCR-13).
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-6" role="status" aria-live="polite">
+        <span className="text-body-sm text-muted-foreground">{t("checkingSession")}</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-6" role="status" aria-live="polite">
+        <span className="text-body-sm text-muted-foreground">{t("redirectingToLogin")}</span>
+      </div>
+    );
+  }
 
   // 02 §4.2: Reviewer (ROLE-05) has no dashboard 4 pillars access (TC-DASH-004)
   if (pathname === "/dashboard" && role === "ROLE-05") {

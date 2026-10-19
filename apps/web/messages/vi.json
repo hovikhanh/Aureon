@@ -6,7 +6,8 @@
   },
   "home": {
     "heading": "Aureon",
-    "subtitle": "Dashboard CEO và xử lý tài liệu thông minh"
+    "subtitle": "Dashboard CEO và xử lý tài liệu thông minh",
+    "loginCta": "Đăng nhập"
   },
   "format": {
     "currencySuffix": "đ",
@@ -154,7 +155,18 @@
       "accSales": "Lê Hoàng Cường",
       "accHr": "Phạm Thị Dung",
       "accReviewer": "Hoàng Văn Em"
-    }
+    },
+    "quickLoginUnavailable": "Chưa cấu hình mật khẩu demo cho đăng nhập nhanh. Vui lòng nhập mật khẩu thủ công.",
+    "rolePermissions": {
+      "ceo": "Xem toàn bộ 4 trụ dashboard, drill-down tới tài liệu gốc, xác nhận/bỏ qua mọi cảnh báo, nạp tài liệu (UC-07) và xem nhật ký hoạt động. Lương cá nhân bị che.",
+      "cfo": "Dashboard trụ Tài chính + Vận hành; quản lý cảnh báo tài chính; nạp tài liệu; duyệt/sửa/từ chối trích xuất thuộc trụ Tài chính.",
+      "sales": "Dashboard trụ Khách hàng + doanh thu; quản lý cảnh báo khách hàng. Không vào hàng chờ IDP, không xem audit.",
+      "hr": "Dashboard trụ Con người; nạp tài liệu; duyệt trích xuất nhân sự. Là vai trò duy nhất được xem lương cá nhân.",
+      "reviewer": "Trang chính là Hàng chờ IDP (không có dashboard 4 trụ); duyệt/sửa/từ chối mọi loại tài liệu, đối chiếu field với nguồn trên tài liệu gốc."
+    },
+    "checkingSession": "Đang kiểm tra phiên đăng nhập…",
+    "redirectingToLogin": "Đang chuyển đến trang đăng nhập…",
+    "logout": "Đăng xuất"
   },
   "roleSwitcher": {
     "demoBadge": "Chế độ demo",

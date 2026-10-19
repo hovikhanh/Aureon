@@ -6,7 +6,8 @@
   },
   "home": {
     "heading": "Aureon",
-    "subtitle": "CEO dashboard and intelligent document processing"
+    "subtitle": "CEO dashboard and intelligent document processing",
+    "loginCta": "Sign in"
   },
   "format": {
     "currencySuffix": "VND",
@@ -154,7 +155,18 @@
       "accSales": "Le Hoang Cuong",
       "accHr": "Pham Thi Dung",
       "accReviewer": "Hoang Van Em"
-    }
+    },
+    "quickLoginUnavailable": "Demo password is not configured for quick login. Please type the password manually.",
+    "rolePermissions": {
+      "ceo": "Views all 4 dashboard pillars, drills down to source documents, acknowledges/dismisses every alert, onboards documents (UC-07) and reads the audit log. Individual salaries are masked.",
+      "cfo": "Finance + Operations pillars; manages finance alerts; uploads documents; approves/edits/rejects Finance-pillar extractions.",
+      "sales": "Customer + revenue pillars; manages customer alerts. No IDP queue access, no audit log.",
+      "hr": "People pillar; uploads documents; approves HR extractions. The only role allowed to view individual salaries.",
+      "reviewer": "Home is the IDP review queue (no 4-pillar dashboard); approves/edits/rejects every document type and matches fields against the source."
+    },
+    "checkingSession": "Checking your session…",
+    "redirectingToLogin": "Redirecting to sign-in…",
+    "logout": "Sign out"
   },
   "roleSwitcher": {
     "demoBadge": "Demo Mode",

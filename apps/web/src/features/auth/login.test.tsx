@@ -42,10 +42,21 @@ function mockSession(roleCode: RoleCode): AuthSession {
 describe("SCR-13 Login Page (06 §4.10, US-DC-001, T-106)", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_DEMO_MODE = "true";
+    // Demo quick-login reads passwords from NEXT_PUBLIC_DEMO_PASSWORD_* (demo mode only).
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD_CEO = "demo-ceo-pw";
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD_CFO = "demo-cfo-pw";
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD_SALES = "demo-sales-pw";
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD_HR = "demo-hr-pw";
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD_REVIEWER = "demo-reviewer-pw";
   });
 
   afterEach(() => {
     cleanup();
+    delete process.env.NEXT_PUBLIC_DEMO_PASSWORD_CEO;
+    delete process.env.NEXT_PUBLIC_DEMO_PASSWORD_CFO;
+    delete process.env.NEXT_PUBLIC_DEMO_PASSWORD_SALES;
+    delete process.env.NEXT_PUBLIC_DEMO_PASSWORD_HR;
+    delete process.env.NEXT_PUBLIC_DEMO_PASSWORD_REVIEWER;
   });
 
   it("renders login form with inputs and submit button", () => {

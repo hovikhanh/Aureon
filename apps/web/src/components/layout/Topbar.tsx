@@ -1,12 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Menu, UserCircle } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { UserMenu } from "./UserMenu";
 
 /**
  * Top bar (06 §2.2): company/app name on the left, and on the right a slot for the Role Switcher
- * (SCR-12, wired by T-107) plus a user-menu placeholder (avatar). The menu toggle is only shown
+ * (SCR-12) plus the user menu (account summary + sign out). The menu toggle is only shown
  * on small screens to open the sidebar drawer (06 §8).
  */
 export function Topbar({
@@ -37,16 +38,10 @@ export function Topbar({
       <span className="text-h3 font-semibold text-foreground">{t("companyName")}</span>
 
       <div className="ml-auto flex items-center gap-2">
-        {/* Role Switcher (SCR-12) — T-107 mounts the control here. */}
+        {/* Role Switcher (SCR-12). */}
         <div data-slot="role-switcher">{roleSwitcherSlot}</div>
-        {/* User menu placeholder — real menu arrives with auth (T-107). */}
-        <button
-          type="button"
-          aria-label={t("userMenu")}
-          className="inline-flex items-center justify-center rounded-full p-1 text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <UserCircle aria-hidden="true" className="h-7 w-7" />
-        </button>
+        {/* User menu: account summary + sign out. */}
+        <UserMenu />
       </div>
     </header>
   );

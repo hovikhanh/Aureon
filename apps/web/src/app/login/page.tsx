@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ArrowRight, Lock, Mail, ShieldAlert, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/features/auth/auth-context";
-import { DEMO_ACCOUNTS } from "@/features/auth/demo-accounts";
+import { DEMO_ACCOUNTS, demoPasswordFor } from "@/features/auth/demo-accounts";
+import type { RoleCode } from "@aureon/shared-types";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -35,15 +36,21 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = async (demoEmail: string) => {
+  const handleQuickLogin = async (demoEmail: string, roleCode: RoleCode) => {
     setEmail(demoEmail);
-    // For demo purposes, the user can type password or we submit via demo account
-    // When password is known or set in env, login proceeds
-    setPassword("Demo@123");
+    // Demo password comes from NEXT_PUBLIC_DEMO_PASSWORD_* env (demo mode only), never a
+    // hard-coded literal. If it is not configured, pre-fill the email and let the user type
+    // the password instead of submitting a wrong one.
+    const demoPassword = demoPasswordFor(roleCode);
+    if (!demoPassword) {
+      setErrorMessage(t("auth.quickLoginUnavailable"));
+      return;
+    }
+    setPassword(demoPassword);
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
-      await login(demoEmail, "Demo@123");
+      await login(demoEmail, demoPassword);
     } catch {
       setErrorMessage(t("auth.invalidCredentials"));
     } finally {
@@ -157,23 +164,27 @@ export default function LoginPage() {
                 <button
                   key={acc.roleCode}
                   type="button"
-                  onClick={() => handleQuickLogin(acc.email)}
+                  onClick={() => handleQuickLogin(acc.email, acc.roleCode)}
                   disabled={isSubmitting}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg border border-border bg-card p-2.5 text-left text-body-sm transition-colors",
+                    "flex w-full items-start justify-between gap-3 rounded-lg border border-border bg-card p-2.5 text-left text-body-sm transition-colors",
                     "hover:border-primary/50 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring",
                     isSubmitting && "opacity-50 cursor-not-allowed",
                   )}
                 >
-                  <div className="flex flex-col">
+                  <div className="flex min-w-0 flex-col">
                     <span className="font-semibold text-foreground">
                       {t(acc.roleNameKey)} ({acc.roleCode})
                     </span>
                     <span className="text-caption text-muted-foreground">
                       {t(acc.userNameKey)} · {acc.email}
                     </span>
+                    {/* What this role can do once signed in (02-PERSONAS-PERMISSIONS). */}
+                    <span className="mt-1 text-caption text-muted-foreground">
+                      {t(acc.permissionsKey)}
+                    </span>
                   </div>
-                  <span className="text-caption font-medium text-primary">
+                  <span className="shrink-0 text-caption font-medium text-primary">
                     {t("auth.quickLogin", { role: acc.roleCode })}
                   </span>
                 </button>
