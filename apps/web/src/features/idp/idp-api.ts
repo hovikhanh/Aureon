@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, getApiBaseUrl, parseEnvelope } from "@/lib/api-client";
 import type { ReviewQueueResponse } from "@aureon/shared-types";
 import type { QueueQueryParams } from "./types";
 
@@ -205,3 +205,149 @@ export async function rejectReviewApi(
   return envelope.data;
 }
 
+/**
+ * EP-24 GET /api/v1/documents
+ */
+export async function getDocumentsApi(
+  params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    pillar?: string;
+    docType?: string;
+    search?: string;
+  } = {},
+  token?: string,
+): Promise<{
+  data: import("@aureon/shared-types").DocumentOut[];
+  meta: { total: number; page: number; page_size: number; total_pages: number };
+}> {
+  const sp = new URLSearchParams();
+  if (params.page !== undefined) sp.set("page", params.page.toString());
+  if (params.pageSize !== undefined) sp.set("page_size", params.pageSize.toString());
+  if (params.status && params.status !== "ALL") sp.set("status", params.status);
+  if (params.pillar && params.pillar !== "ALL") sp.set("pillar", params.pillar);
+  if (params.docType && params.docType !== "ALL") sp.set("doc_type", params.docType);
+  if (params.search?.trim()) sp.set("search", params.search.trim());
+
+  const qs = sp.toString();
+  const path = qs ? `documents?${qs}` : "documents";
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<
+    import("@aureon/shared-types").DocumentOut[],
+    { total: number; page: number; page_size: number; total_pages: number }
+  >(path, { method: "GET", headers });
+
+  return { data: envelope.data, meta: envelope.meta! };
+}
+
+/**
+ * EP-20 POST /api/v1/documents  (C3 file upload)
+ */
+export async function uploadFileApi(
+  file: File,
+  opts: {
+    docTypeHint?: string;
+    batchId?: string;
+    idempotencyKey: string;
+  },
+  token?: string,
+): Promise<import("@aureon/shared-types").DocumentOut> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("channel", "C3");
+  if (opts.docTypeHint) form.append("doc_type_hint", opts.docTypeHint);
+  if (opts.batchId) form.append("batch_id", opts.batchId);
+
+  const headers: Record<string, string> = { "Idempotency-Key": opts.idempotencyKey };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  // Use native fetch: apiFetch omits FormData body (EP-20 multipart/form-data).
+  const url = `${getApiBaseUrl()}/documents`;
+  const response = await fetch(url, { method: "POST", headers, body: form, cache: "no-store" });
+  const body = await response.json().catch(() => null);
+  const envelope = parseEnvelope<import("@aureon/shared-types").DocumentOut>(response.status, body);
+  return envelope.data;
+}
+
+/**
+ * EP-21 POST /api/v1/documents/manual  (C1 manual entry)
+ */
+export async function uploadManualApi(
+  payload: { doc_type: string; fields: Record<string, unknown>; channel: "C1" },
+  idempotencyKey: string,
+  token?: string,
+): Promise<import("@aureon/shared-types").DocumentOut> {
+  const headers: Record<string, string> = { "Idempotency-Key": idempotencyKey };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<import("@aureon/shared-types").DocumentOut>(
+    "documents/manual",
+    { method: "POST", headers, json: payload },
+  );
+  return envelope.data;
+}
+
+/**
+ * EP-22 POST /api/v1/documents/natural-language  (C2)
+ */
+export async function uploadNlApi(
+  payload: { content: string; doc_type_hint?: string; channel: "C2" },
+  idempotencyKey: string,
+  token?: string,
+): Promise<import("@aureon/shared-types").DocumentOut> {
+  const headers: Record<string, string> = { "Idempotency-Key": idempotencyKey };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<import("@aureon/shared-types").DocumentOut>(
+    "documents/natural-language",
+    { method: "POST", headers, json: payload },
+  );
+  return envelope.data;
+}
+
+/**
+ * EP-50 GET /api/v1/extraction-schemas
+ */
+export async function getSchemasApi(
+  docType?: string,
+  token?: string,
+): Promise<
+  {
+    doc_type: string;
+    field_set_version: string;
+    fields: {
+      field_key: string;
+      table_key: string | null;
+      value_type: string;
+      required: boolean;
+      sensitivity: string;
+      validation_rules: string[];
+    }[];
+  }[]
+> {
+  const sp = new URLSearchParams();
+  if (docType) sp.set("doc_type", docType);
+  const qs = sp.toString();
+  const path = qs ? `extraction-schemas?${qs}` : "extraction-schemas";
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<
+    {
+      doc_type: string;
+      field_set_version: string;
+      fields: {
+        field_key: string;
+        table_key: string | null;
+        value_type: string;
+        required: boolean;
+        sensitivity: string;
+        validation_rules: string[];
+      }[];
+    }[]
+  >(path, { method: "GET", headers });
+  return envelope.data;
+}

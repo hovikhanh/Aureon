@@ -1,6 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/PlaceholderPage";
+"use client";
 
-// SCR-08 Upload (06 §2.3). Built out in T-221.
+import { UploadView } from "@/features/idp/upload/UploadView";
+
+// SCR-08 Upload / Channel C1, C2, C3 (06 §4.5, T-221).
 export default function UploadPage() {
-  return <PlaceholderPage titleKey="upload" />;
+  return <UploadView />;
 }

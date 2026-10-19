@@ -1,6 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/PlaceholderPage";
+"use client";
 
-// SCR-07 Documents (06 §2.3).
+import { DocumentsView } from "@/features/idp/documents/DocumentsView";
+
+// SCR-07 Documents library (06 §4.4, T-223).
 export default function DocumentsPage() {
-  return <PlaceholderPage titleKey="documents" />;
+  return <DocumentsView />;
 }

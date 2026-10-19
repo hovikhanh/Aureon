@@ -1,6 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/PlaceholderPage";
+"use client";
 
-// SCR-11 Extraction schema, read-only (ROLE-05; 06 §2.3).
+import { SchemasView } from "@/features/idp/schemas/SchemasView";
+
+// SCR-11 Extraction Schema read-only (06 §4.8, T-223).
 export default function SchemasPage() {
-  return <PlaceholderPage titleKey="schemas" />;
+  return <SchemasView />;
 }

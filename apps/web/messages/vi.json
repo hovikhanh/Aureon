@@ -228,6 +228,95 @@
     "ALERT-OPS-03": "Gán người theo dõi tiến độ thực hiện từng nghị quyết",
     "ALERT-OPS-04": "Tái phân bổ task từ 2 nhân sự quá tải sang bộ phận hỗ trợ"
   },
+  "idp": {
+    "docTypes": {
+      "INVOICE": "Hóa đơn",
+      "SALES_REPORT": "Doanh thu",
+      "KPI_OKR": "KPI/OKR",
+      "MEETING_MINUTES": "Biên bản họp",
+      "FINANCIAL_REPORT": "BCTC",
+      "CONTRACT": "Hợp đồng",
+      "EMPLOYEE_LIST": "Nhân sự",
+      "OTHER": "Khác"
+    },
+    "docTypeFull": {
+      "INVOICE": "Hóa đơn",
+      "SALES_REPORT": "Báo cáo doanh thu",
+      "KPI_OKR": "KPI/OKR",
+      "MEETING_MINUTES": "Biên bản họp",
+      "FINANCIAL_REPORT": "Báo cáo tài chính",
+      "CONTRACT": "Hợp đồng",
+      "EMPLOYEE_LIST": "Danh sách nhân sự",
+      "OTHER": "Khác",
+      "none": "— Không chọn —",
+      "auto": "— AI tự phân loại —"
+    },
+    "docStatus": {
+      "UPLOADED": "Mới tải lên",
+      "PREPROCESSING": "Đang xử lý",
+      "CLASSIFYING": "Phân loại",
+      "EXTRACTING": "Trích xuất",
+      "VALIDATING": "Kiểm tra",
+      "NEEDS_REVIEW": "Cần duyệt",
+      "IN_REVIEW": "Đang duyệt",
+      "AUTO_APPROVED": "Tự động duyệt",
+      "APPROVED": "Đã duyệt",
+      "COMMITTED": "Đã ghi nhận",
+      "REJECTED": "Từ chối",
+      "FAILED": "Thất bại",
+      "DUPLICATE": "Trùng lặp",
+      "ROLLED_BACK": "Đã hoàn tác"
+    },
+    "pillars": {
+      "FIN": "Tài chính",
+      "CUS": "Khách hàng",
+      "OPS": "Vận hành",
+      "HR": "Nhân sự"
+    },
+    "invoiceFields": {
+      "invoice_number": "Số hóa đơn",
+      "issue_date": "Ngày phát hành",
+      "subtotal": "Tiền hàng (VND)",
+      "vat_amount": "Thuế VAT (VND)",
+      "total_amount": "Tổng cộng (VND)",
+      "payment_due": "Hạn thanh toán",
+      "supplier_name": "Nhà cung cấp"
+    },
+    "salesFields": {
+      "period": "Kỳ báo cáo (YYYY-MM)",
+      "total_revenue": "Tổng doanh thu (VND)",
+      "new_customers": "Khách hàng mới",
+      "active_customers": "Khách hàng hoạt động",
+      "churn_rate": "Tỷ lệ rời bỏ"
+    },
+    "finReportFields": {
+      "period": "Kỳ báo cáo (YYYY-MM)",
+      "revenue": "Doanh thu (VND)",
+      "cogs": "Giá vốn (VND)",
+      "gross_profit": "Lợi nhuận gộp (VND)",
+      "operating_expenses": "Chi phí vận hành (VND)",
+      "net_profit": "Lợi nhuận ròng (VND)"
+    },
+    "contractFields": {
+      "contract_number": "Số hợp đồng",
+      "sign_date": "Ngày ký",
+      "effective_date": "Ngày hiệu lực",
+      "expiry_date": "Ngày hết hạn",
+      "contract_value": "Giá trị HĐ (VND)",
+      "counterparty_name": "Đối tác"
+    },
+    "fileSize": {
+      "bytes": "{n} B",
+      "kb": "{n} KB",
+      "mb": "{n} MB"
+    },
+    "fieldRequired": "Trường này là bắt buộc",
+    "manualEntryTitle": "Nhập tay thông tin",
+    "manualDocTypeLabel": "Loại tài liệu",
+    "manualDocTypePlaceholder": "Chọn loại tài liệu...",
+    "schemaRequired": "Bắt buộc",
+    "schemaOptional": "Tuỳ chọn"
+  },
   "inbox": {
     "title": "Hàng chờ IDP (Inbox)",
     "subtitle": "Danh sách tài liệu cần duyệt và xử lý",
@@ -392,6 +481,142 @@
       "rejected": "Đã từ chối tài liệu",
       "saved": "Đã lưu thay đổi các trường",
       "error": "Có lỗi xảy ra: {message}"
+    }
+  },
+  "documents": {
+    "title": "Tài liệu",
+    "subtitle": "Thư viện tài liệu đã nạp, trạng thái và lịch sử",
+    "search": "Tìm tên tài liệu...",
+    "uploadButton": "Nạp tài liệu",
+    "filters": {
+      "statusAll": "Tất cả trạng thái",
+      "pillarAll": "Tất cả trụ",
+      "docTypeAll": "Tất cả loại"
+    },
+    "table": {
+      "filename": "Tên tài liệu",
+      "docType": "Loại",
+      "pillar": "Trụ",
+      "channel": "Kênh",
+      "status": "Trạng thái",
+      "uploader": "Người tải lên",
+      "uploadedAt": "Thời gian",
+      "actions": "Thao tác",
+      "viewDetail": "Xem chi tiết",
+      "viewSource": "Tài liệu gốc",
+      "undo": "Hoàn tác",
+      "salaryRestricted": "Tài liệu chứa dữ liệu lương — chỉ HR Manager được mở"
+    },
+    "empty": {
+      "title": "Chưa có tài liệu",
+      "description": "Hệ thống chưa nhận được tài liệu nào. Hãy bắt đầu bằng cách nạp dữ liệu.",
+      "action": "Nạp tài liệu"
+    },
+    "error": {
+      "title": "Không thể tải danh sách tài liệu",
+      "description": "Đã xảy ra lỗi khi kết nối tới máy chủ.",
+      "retry": "Thử lại"
+    }
+  },
+  "upload": {
+    "title": "Nạp dữ liệu",
+    "subtitle": "Tải lên tài liệu qua các kênh C1, C2 hoặc C3",
+    "tabs": {
+      "c1": "Nhập tay (C1)",
+      "c2": "Ngôn ngữ tự nhiên (C2)",
+      "c3": "Tải file (C3)"
+    },
+    "c1": {
+      "title": "Nhập tay thông tin",
+      "description": "Điền trực tiếp các trường theo schema của loại tài liệu đã chọn.",
+      "docTypeLabel": "Loại tài liệu",
+      "docTypePlaceholder": "Chọn loại tài liệu...",
+      "submit": "Lưu và gửi xử lý",
+      "submitting": "Đang gửi...",
+      "success": "Đã lưu tài liệu thành công"
+    },
+    "c2": {
+      "title": "Mô tả bằng ngôn ngữ tự nhiên",
+      "description": "Nhập mô tả hoặc dán văn bản từ tài liệu. AI sẽ phân tích và trích xuất dữ liệu.",
+      "label": "Nội dung mô tả",
+      "placeholder": "Nhập mô tả nội dung tài liệu...",
+      "docTypeHint": "Gợi ý loại tài liệu",
+      "charCount": "{n} ký tự",
+      "minLengthHint": "Cần ít nhất {min} ký tự",
+      "submit": "Phân tích và gửi",
+      "submitting": "Đang phân tích..."
+    },
+    "c3": {
+      "title": "Tải file lên",
+      "description": "Kéo thả hoặc chọn file. Hỗ trợ PDF, Word, Excel, ảnh JPG/PNG.",
+      "dragPrompt": "Kéo thả file vào đây",
+      "orText": "hoặc",
+      "browseButton": "Chọn file",
+      "formats": "PDF, DOCX, XLSX, CSV, JPG, PNG, HEIC",
+      "maxSize": "Tối đa 20 MB · 50 trang",
+      "docTypeHint": "Gợi ý loại tài liệu (tuỳ chọn)",
+      "submit": "Tải lên và xử lý",
+      "submitting": "Đang tải lên..."
+    },
+    "fileItem": {
+      "removeFile": "Xóa {name}",
+      "statusPending": "Chờ tải lên",
+      "statusUploading": "Đang tải lên...",
+      "statusProcessing": "AI đang xử lý...",
+      "statusDone": "Hoàn thành",
+      "statusError": "Lỗi: {message}",
+      "statusDuplicate": "Trùng lặp"
+    },
+    "errors": {
+      "fileTooLarge": "File vượt quá 20 MB",
+      "tooManyPages": "File có hơn 50 trang",
+      "unsupportedType": "Định dạng không được hỗ trợ",
+      "uploadFailed": "Tải lên thất bại. Vui lòng thử lại."
+    },
+    "success": {
+      "title": "Tài liệu đã được gửi xử lý",
+      "description": "Xem tiến độ tại Hàng chờ.",
+      "viewInbox": "Xem Hàng chờ",
+      "uploadMore": "Tải thêm"
+    }
+  },
+  "schemas": {
+    "title": "Schema tài liệu",
+    "subtitle": "Danh sách trường trích xuất của 7 loại tài liệu",
+    "table": {
+      "fieldKey": "Tên trường",
+      "valueType": "Kiểu dữ liệu",
+      "required": "Bắt buộc",
+      "sensitivity": "Bảo mật",
+      "validationRules": "Quy tắc"
+    },
+    "valueTypes": {
+      "STRING": "Văn bản",
+      "NUMBER": "Số",
+      "DATE": "Ngày tháng",
+      "CURRENCY": "Tiền tệ",
+      "PERCENT": "Phần trăm",
+      "BOOLEAN": "Đúng/Sai",
+      "TABLE": "Bảng"
+    },
+    "sensitivity": {
+      "NONE": "Thông thường",
+      "PII": "Thông tin cá nhân",
+      "SALARY": "Lương cá nhân",
+      "CONFIDENTIAL": "Bảo mật"
+    },
+    "docTypeSelectLabel": "Chọn loại tài liệu để xem schema",
+    "fieldCount": "{count} trường",
+    "requiredCount": "{count} bắt buộc",
+    "version": "Phiên bản: {version}",
+    "salaryNote": "Trường lương cá nhân bị ẩn với vai trò không có quyền.",
+    "empty": {
+      "title": "Chưa cấu hình schema",
+      "description": "Hệ thống chưa có schema cho loại tài liệu này."
+    },
+    "error": {
+      "title": "Không thể tải schema",
+      "retry": "Thử lại"
     }
   }
 }

@@ -228,6 +228,95 @@
     "ALERT-OPS-03": "Assign designated owners to track each resolution",
     "ALERT-OPS-04": "Offload tasks from overloaded personnel to support team"
   },
+  "idp": {
+    "docTypes": {
+      "INVOICE": "Invoice",
+      "SALES_REPORT": "Sales Report",
+      "KPI_OKR": "KPI/OKR",
+      "MEETING_MINUTES": "Meeting Minutes",
+      "FINANCIAL_REPORT": "Financial Report",
+      "CONTRACT": "Contract",
+      "EMPLOYEE_LIST": "Employee List",
+      "OTHER": "Other"
+    },
+    "docTypeFull": {
+      "INVOICE": "Invoice",
+      "SALES_REPORT": "Sales Report",
+      "KPI_OKR": "KPI/OKR",
+      "MEETING_MINUTES": "Meeting Minutes",
+      "FINANCIAL_REPORT": "Financial Report",
+      "CONTRACT": "Contract",
+      "EMPLOYEE_LIST": "Employee List",
+      "OTHER": "Other",
+      "none": "— None —",
+      "auto": "— AI auto-classify —"
+    },
+    "docStatus": {
+      "UPLOADED": "Uploaded",
+      "PREPROCESSING": "Processing",
+      "CLASSIFYING": "Classifying",
+      "EXTRACTING": "Extracting",
+      "VALIDATING": "Validating",
+      "NEEDS_REVIEW": "Needs review",
+      "IN_REVIEW": "In review",
+      "AUTO_APPROVED": "Auto approved",
+      "APPROVED": "Approved",
+      "COMMITTED": "Committed",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed",
+      "DUPLICATE": "Duplicate",
+      "ROLLED_BACK": "Rolled back"
+    },
+    "pillars": {
+      "FIN": "Finance",
+      "CUS": "Customer",
+      "OPS": "Operations",
+      "HR": "HR"
+    },
+    "invoiceFields": {
+      "invoice_number": "Invoice number",
+      "issue_date": "Issue date",
+      "subtotal": "Subtotal (VND)",
+      "vat_amount": "VAT amount (VND)",
+      "total_amount": "Total (VND)",
+      "payment_due": "Payment due",
+      "supplier_name": "Supplier"
+    },
+    "salesFields": {
+      "period": "Period (YYYY-MM)",
+      "total_revenue": "Total revenue (VND)",
+      "new_customers": "New customers",
+      "active_customers": "Active customers",
+      "churn_rate": "Churn rate"
+    },
+    "finReportFields": {
+      "period": "Period (YYYY-MM)",
+      "revenue": "Revenue (VND)",
+      "cogs": "COGS (VND)",
+      "gross_profit": "Gross profit (VND)",
+      "operating_expenses": "Operating expenses (VND)",
+      "net_profit": "Net profit (VND)"
+    },
+    "contractFields": {
+      "contract_number": "Contract number",
+      "sign_date": "Sign date",
+      "effective_date": "Effective date",
+      "expiry_date": "Expiry date",
+      "contract_value": "Contract value (VND)",
+      "counterparty_name": "Counterparty"
+    },
+    "fileSize": {
+      "bytes": "{n} B",
+      "kb": "{n} KB",
+      "mb": "{n} MB"
+    },
+    "fieldRequired": "This field is required",
+    "manualEntryTitle": "Manual data entry",
+    "manualDocTypeLabel": "Document type",
+    "manualDocTypePlaceholder": "Select document type...",
+    "schemaRequired": "Required",
+    "schemaOptional": "Optional"
+  },
   "inbox": {
     "title": "IDP Review Queue (Inbox)",
     "subtitle": "Documents requiring review and action",
@@ -392,6 +481,142 @@
       "rejected": "Document rejected",
       "saved": "Field changes saved",
       "error": "An error occurred: {message}"
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "subtitle": "Library of uploaded documents, statuses and history",
+    "search": "Search document name...",
+    "uploadButton": "Upload document",
+    "filters": {
+      "statusAll": "All statuses",
+      "pillarAll": "All pillars",
+      "docTypeAll": "All types"
+    },
+    "table": {
+      "filename": "Document name",
+      "docType": "Type",
+      "pillar": "Pillar",
+      "channel": "Channel",
+      "status": "Status",
+      "uploader": "Uploaded by",
+      "uploadedAt": "Time",
+      "actions": "Actions",
+      "viewDetail": "View detail",
+      "viewSource": "Source file",
+      "undo": "Undo",
+      "salaryRestricted": "Salary document — only HR Manager may open"
+    },
+    "empty": {
+      "title": "No documents yet",
+      "description": "No documents have been received. Start by uploading data.",
+      "action": "Upload documents"
+    },
+    "error": {
+      "title": "Unable to load documents",
+      "description": "A connection error occurred.",
+      "retry": "Retry"
+    }
+  },
+  "upload": {
+    "title": "Upload data",
+    "subtitle": "Upload documents via channels C1, C2 or C3",
+    "tabs": {
+      "c1": "Manual entry (C1)",
+      "c2": "Natural language (C2)",
+      "c3": "File upload (C3)"
+    },
+    "c1": {
+      "title": "Manual data entry",
+      "description": "Fill in fields directly based on the selected document type schema.",
+      "docTypeLabel": "Document type",
+      "docTypePlaceholder": "Select document type...",
+      "submit": "Save and submit",
+      "submitting": "Submitting...",
+      "success": "Document saved successfully"
+    },
+    "c2": {
+      "title": "Natural language description",
+      "description": "Type a description or paste text from the document. AI will analyse and extract data.",
+      "label": "Description content",
+      "placeholder": "Enter document description...",
+      "docTypeHint": "Document type hint",
+      "charCount": "{n} characters",
+      "minLengthHint": "Need at least {min} characters",
+      "submit": "Analyse and submit",
+      "submitting": "Analysing..."
+    },
+    "c3": {
+      "title": "Upload files",
+      "description": "Drag and drop or choose files. Supports PDF, Word, Excel, JPG/PNG.",
+      "dragPrompt": "Drag files here",
+      "orText": "or",
+      "browseButton": "Browse files",
+      "formats": "PDF, DOCX, XLSX, CSV, JPG, PNG, HEIC",
+      "maxSize": "Max 20 MB · 50 pages",
+      "docTypeHint": "Document type hint (optional)",
+      "submit": "Upload and process",
+      "submitting": "Uploading..."
+    },
+    "fileItem": {
+      "removeFile": "Remove {name}",
+      "statusPending": "Waiting to upload",
+      "statusUploading": "Uploading...",
+      "statusProcessing": "AI processing...",
+      "statusDone": "Done",
+      "statusError": "Error: {message}",
+      "statusDuplicate": "Duplicate"
+    },
+    "errors": {
+      "fileTooLarge": "File exceeds 20 MB",
+      "tooManyPages": "File has more than 50 pages",
+      "unsupportedType": "Unsupported format",
+      "uploadFailed": "Upload failed. Please try again."
+    },
+    "success": {
+      "title": "Document submitted for processing",
+      "description": "Track progress in the Inbox.",
+      "viewInbox": "View Inbox",
+      "uploadMore": "Upload more"
+    }
+  },
+  "schemas": {
+    "title": "Document schemas",
+    "subtitle": "Extraction field list for 7 document types",
+    "table": {
+      "fieldKey": "Field name",
+      "valueType": "Data type",
+      "required": "Required",
+      "sensitivity": "Sensitivity",
+      "validationRules": "Rules"
+    },
+    "valueTypes": {
+      "STRING": "Text",
+      "NUMBER": "Number",
+      "DATE": "Date",
+      "CURRENCY": "Currency",
+      "PERCENT": "Percent",
+      "BOOLEAN": "Boolean",
+      "TABLE": "Table"
+    },
+    "sensitivity": {
+      "NONE": "Standard",
+      "PII": "Personal info",
+      "SALARY": "Salary",
+      "CONFIDENTIAL": "Confidential"
+    },
+    "docTypeSelectLabel": "Select document type to view schema",
+    "fieldCount": "{count} fields",
+    "requiredCount": "{count} required",
+    "version": "Version: {version}",
+    "salaryNote": "Salary fields are hidden for roles without permission.",
+    "empty": {
+      "title": "No schema configured",
+      "description": "No schema exists for this document type."
+    },
+    "error": {
+      "title": "Unable to load schema",
+      "retry": "Retry"
     }
   }
 }
