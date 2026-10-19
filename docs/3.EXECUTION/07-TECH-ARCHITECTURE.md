@@ -1,575 +1,612 @@
 # 07 — Tech Architecture
 
-> Kiến trúc kỹ thuật, tech stack, cấu trúc monorepo, deployment và các quy tắc vận hành kỹ thuật của **Aureon Demo**.
-> Nguồn chuẩn cho stack và cấu trúc thư mục: `CLAUDE.md` (§ Tech Stack, § Cấu trúc thư mục, § IDP Worker, § Gotchas). Phạm vi và ràng buộc: `01-PROJECT-OVERVIEW.md` §3, §7, §9. Nghiệp vụ: `02`, `03`, `04`.
-> **Quy tắc:** Không đổi stack, không thêm dependency khi chưa có `DEC-xxx` resolved trong `13-DECISION-LOG.md`.
+> Kiến trúc kỹ thuật của **Aureon v2**: nguyên tắc, stack, Modular Monolith (DEC-125), cấu trúc thư mục, các luồng chính (request, dashboard, AI, event, IDP), **ModelGateway đa provider** (DEC-131), cấu hình & secret, triển khai, bảo mật, quan sát và **NFR-01..NFR-28** (file này cấp mã `NFR-xx` — 00 §4).
+> Nguồn: `00-INDEX.md`, `01-PROJECT-OVERVIEW.md`, DEC-001, DEC-013, DEC-124 → DEC-137, A-EMS (`SOURCE-BRD-v1.0` §IV–V, NFR), AI-EOS (`SOURCE-BRD-v1.1` §4.4–4.5, §5.3); bản 07 v1 (nhánh `v1`). Contract API/SSE/event ở `10-API-SPECIFICATION.md`; bảng/cột ở `05-DATA-MODEL.md`.
 
 ---
 
-## 1. Mục tiêu & nguyên tắc kiến trúc
+## 1. Nguyên tắc kiến trúc (bất biến)
 
 | # | Nguyên tắc | Hệ quả kỹ thuật |
 |---|---|---|
-| A1 | **Demo-grade, không production-grade** (01 §7) | Một máy chạy Docker Compose; không HA, không autoscale, single-tenant |
-| A2 | **Every number traceable** (P01) | Mọi giá trị metric lưu lineage → bản ghi nghiệp vụ → extracted field → `source_location` trên tài liệu gốc |
-| A3 | **AI shows state** (P02) | Trạng thái pipeline lưu trong DB (`DocumentStatus`), frontend đọc qua API; mọi hành động AI ghi audit log với actor `ai:idp` |
-| A4 | **Capture once** (P03) | Một nguồn dữ liệu duy nhất (PostgreSQL); mọi kênh C1–C5 đi qua cùng một pipeline và cùng Action Registry |
-| A5 | **API contract là nguồn duy nhất** | Mọi endpoint theo `10-API-SPECIFICATION.md`; base path `/api/v1/*` |
-| A6 | **LLM có kiểm soát** | Mọi LLM call qua `ModelGateway` → OmniRoute; nội dung tài liệu là **data**, không phải **lệnh** |
-| A7 | **Ghi dữ liệu nghiệp vụ chỉ qua Action Registry** | Worker/LLM không ghi trực tiếp vào bảng nghiệp vụ |
-| A8 | **Chạy được offline ở mức demo** (01 §7) | Có chế độ fixture/replay cho LLM; OCR self-host |
+| A1 | **Modular Monolith, ranh giới cứng** (DEC-125) | Một process FastAPI + một Celery worker; 11 module; một database, **một schema PG / module**; module khác chỉ gọi qua `services/` public interface hoặc event — cấm import `models`/`repositories` chéo (test import-boundary, T-004) |
+| A2 | **Contract-first** | `10-API-SPECIFICATION.md` là nguồn duy nhất; mọi endpoint có `response_model` Pydantic v2; frontend dùng type sinh từ OpenAPI (`packages/shared-types`) |
+| A3 | **Mọi con số truy được nguồn** (P01) | `ENT-DataLineage` metric → bản ghi → field → trang tài liệu; API trả `lineage_url` cho mọi metric |
+| A4 | **AI hiển thị trạng thái thật** (P02) | SSE `thinking/tool_call/tool_result`; trạng thái IDP là state machine thật (04 §8) |
+| A5 | **LLM luôn qua ModelGateway** (DEC-013, DEC-131) | Không module nào import SDK provider trực tiếp; mọi lượt gọi log `ENT-ModelCallLog`; fixture mode cho test/demo offline |
+| A6 | **AI dùng quyền người hỏi** (P06) | Tool gọi bằng JWT của người hỏi; tool filter trước khi gửi model; ghi dữ liệu chỉ qua Action Registry (`ACT-*`) |
+| A7 | **Ghi nghiệp vụ một transaction + outbox** (DEC-126) | Bản ghi + `ENT-AuditLog` + `ENT-DataLineage` + `ENT-OutboxEvent` cùng transaction; publish sau commit |
+| A8 | **Không bịa số** (P05) | Số liệu trong câu trả lời AI/insight chỉ lấy từ tool result / `ENT-MetricValue`; extraction không tìm thấy → `null` |
+| A9 | **Suy giảm từng phần** (P08) | Mỗi widget gọi endpoint riêng; AI/module lỗi không chặn dashboard; IDP lỗi → nhập tay C1 vẫn chạy |
+| A10 | **Vendor-agnostic, event-driven** (P09) | Provider LLM đổi bằng env; storage S3-compatible; broker sau interface `EventBus` (Redis hôm nay, đổi được) |
+| A11 | **Demo-grade nhưng đúng bản chất** | Một máy (Docker Compose), một tenant; không HA/multi-region; bảo mật, quyền, audit làm thật |
 
 ---
 
-## 2. Tech Stack
+## 2. Tech stack
 
-### 2.1. Stack kỹ thuật (khớp 100% `CLAUDE.md` § Tech Stack)
+### 2.1. Stack (giữ theo `CLAUDE.md` + DEC-001/064/129/131)
 
-| Layer | Công nghệ | Version | Vai trò trong Aureon Demo |
-|---|---|---|---|
-| Frontend | Next.js / React | 14+ / 18+ | App Router; Server Components mặc định; dashboard, IDP UI, role switcher |
-| UI | shadcn/ui + Radix + Tailwind | latest | Design system (xem `06-UI-UX-SPEC.md`) |
-| Backend | FastAPI (Python) | 3.12+ | REST API `/api/v1/*`, RBAC, Action Registry, alert engine |
-| Package manager (BE) | uv | latest | Quản lý deps Python (`uv sync`, `uv run`) |
-| Test (BE) | pytest + pytest-asyncio | latest | Unit/integration test backend |
-| Lint/Format (BE) | ruff | latest | Lint + format Python |
-| Type check (BE) | mypy | latest | Type check `app/` |
-| DB | PostgreSQL | 16+ | Nguồn dữ liệu duy nhất (entity, metric, audit, trạng thái pipeline) |
-| Vector | pgvector | 0.7+ | Embedding chunk tài liệu cho truy hồi/citation của Panel AI (chỉ khi 06/09 xác nhận trong scope, xem §3.4) |
-| ORM | SQLAlchemy | 2.0+ | ORM (session theo request; Alembic cho migration) |
-| Queue | Celery + Redis | latest | Pipeline IDP bất đồng bộ; Redis làm broker + result backend |
-| Storage | MinIO (dev) / S3 (prod) | latest | Lưu file gốc, ảnh trang, artefact OCR |
-| Auth | NextAuth + JWT | latest | Đăng nhập, phát JWT mang role; FastAPI verify JWT (HS256, shared secret — §8.1) |
-| OCR | PaddleOCR (self-host) hoặc Google Vision | latest | OCR trang scan/ảnh khi `text_layer_exists` = false hoặc text layer hỏng |
-| LLM Gateway | OmniRoute | latest | Route request tới provider; fallback model |
-| LLM Providers | OpenAI / DeepSeek / Claude / Gemini | latest | Phân loại, trích xuất, STT (C2), gợi ý mapping; Panel AI (§3.4) |
-| RAG Framework | LlamaIndex | latest | Chunking, indexing vào pgvector, truy hồi có citation |
-| Container | Docker Compose | 24+ | Chạy toàn bộ hạ tầng dev/demo |
-
-**Migration DB:** Alembic (đi kèm SQLAlchemy theo `CLAUDE.md` § Commands/Database).
-
-### 2.2. Công cụ phía frontend (theo `CLAUDE.md` § Commands và § Quy ước code)
-
-| Công cụ | Dùng cho |
-|---|---|
-| pnpm | Package manager frontend (`pnpm install`, `pnpm dev:web`) |
-| TanStack Query | Fetch data phía client (không fetch trực tiếp trong component) |
-| react-hook-form + zod | Form và validation (C1, Review) |
-| i18n | Không hard-code tiếng Việt trong code |
-| Vitest | `pnpm test:web` |
-| Playwright | `pnpm test:e2e` |
-| ESLint | `pnpm lint` |
-
-> Tên thư viện i18n cụ thể chưa được chốt trong `CLAUDE.md` → xem OQ-05.
-
-### 2.3. Khung vận hành build (không thuộc runtime sản phẩm)
-
-| Thành phần | Vai trò |
-|---|---|
-| DeepSeek Harness | Orchestration agent, gate task, quản lý state |
-| OmniRoute | Model gateway cho agent build (Claude Sonnet/Opus cho plan/review/code; free models cho test/docs/task nhỏ) |
-| VS Code | IDE, terminal |
-
-Chi tiết workflow agent ở `11-AGENT-WORKFLOW.md`.
-
-### 2.4. Công nghệ **không** dùng (loại bỏ từ bản nháp cũ)
-
-| Bản nháp cũ | Thay bằng | Lý do |
+| Layer | Công nghệ | Ghi chú v2 |
 |---|---|---|
-| NestJS (TypeScript) backend | FastAPI (Python 3.12+) | `CLAUDE.md` § Tech Stack |
-| Prisma (`packages/db-schema`) | SQLAlchemy 2.0 + Alembic trong `apps/api` | `CLAUDE.md` |
-| BullMQ | Celery + Redis | `CLAUDE.md` |
-| Thư mục gốc `ai-eos-demo/` | Monorepo Aureon (§4) | Tên sản phẩm là Aureon |
+| Frontend | Next.js 14+ (App Router) / React 18+, TypeScript strict | Server Components mặc định |
+| UI | shadcn/ui + Radix + Tailwind, font Be Vietnam Pro | Màu AI tách `primary` (06) |
+| Data fetching / form | TanStack Query; react-hook-form + zod | Mỗi widget một query (FR-DSH-07) |
+| i18n / chart | next-intl (VI + EN — DEC-135), Recharts (DEC-064) | |
+| Auth (FE) | NextAuth (Credentials provider gọi EP-02) | Giữ access/refresh token trong cookie `httpOnly` |
+| Backend | FastAPI, Python 3.12+, Pydantic v2 | |
+| Package / lint / type / test (BE) | uv, ruff, mypy, pytest + pytest-asyncio | |
+| ORM / migration | SQLAlchemy 2.0 (async) + Alembic (đa schema) | `version_table_schema=platform` |
+| DB | PostgreSQL 16 + pgvector 0.7+ | 10 schema (05) |
+| Queue / scheduler | Celery + Redis (broker + result + idempotency + rate limit + cache) | Celery beat **1 instance** |
+| Storage | MinIO (dev) / S3 (prod) | Bucket private + quarantine |
+| JWT | PyJWT (RS256) | DEC-129 |
+| OCR | PaddleOCR in-process (mặc định) hoặc Google Vision | `OCR_PROVIDER` |
+| LLM gateway | `ModelGateway` nội bộ → OmniRoute / OpenRouter / 9router / DeepSeek / OpenAI / Anthropic | DEC-131 |
+| RAG | LlamaIndex + pgvector (SOP/chính sách — `TOOL-search_documents`) | Model embedding: DEC-069 open |
+| Container | Docker Compose 24+ | |
+
+### 2.2. Dependency mới của v2
+
+| Dependency | Dùng cho | Trạng thái quyết định |
+|---|---|---|
+| `cryptography` | Backend RS256 cho PyJWT (`pyjwt[crypto]`), sinh cặp khóa | **DEC-129** ✅ |
+| `asyncpg` | Driver async cho SQLAlchemy (hiện code dùng `psycopg[binary]` 3) | ❗ Chưa có DEC — OQ-01 |
+| `httpx` | Adapter ModelGateway (HTTP tới provider), test client | Đã có trong `pyproject.toml`; chưa có DEC riêng — OQ-02 |
+| `respx` | Mock HTTP provider trong test ModelGateway (test dev-only) | ❗ Chưa có DEC — OQ-02 |
+| ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-02 | ❗ Chưa có DEC — OQ-03 (04 OQ-01) |
+| `argon2-cffi` | Hash mật khẩu | Đã có trong code v1; không có DEC — OQ-02 |
+| `sse-starlette` | SSE | **Không dùng** — dùng `StreamingResponse` thuần (10 OQ-13) |
+
+Mọi dependency ❗ phải có DEC resolved trước khi merge (`CLAUDE.md` § Cấm tự quyết #4; task T-002).
 
 ---
 
-## 3. Kiến trúc tổng thể
-
-### 3.1. Sơ đồ component
+## 3. Sơ đồ thành phần
 
 ```mermaid
 flowchart LR
-    subgraph Client["Trình duyệt (desktop / PWA mobile)"]
-        UI["Next.js App Router<br/>shadcn/ui + Tailwind<br/>TanStack Query"]
-    end
-
-    subgraph Web["apps/web (Next.js :3000)"]
-        NA["NextAuth<br/>(phát JWT có role)"]
-        SC["Server Components /<br/>Server Actions"]
-    end
-
-    subgraph API["apps/api (FastAPI :4000)"]
-        RT["Routers /api/v1/*<br/>Depends(require_role)"]
-        AUD["Audit log<br/>(middleware/dependency)"]
-        AR["Action Registry"]
-        ME["Metric & Alert engine"]
-        MG["ModelGateway service"]
-        CFG["ConfigService<br/>(env)"]
-    end
-
-    subgraph Worker["apps/api workers (Celery)"]
-        W1["preprocess_document<br/>(text_layer_exists → OCR)"]
-        W2["classify_document"]
-        W3["extract_fields"]
-        W4["validate_extraction"]
-        W5["route_and_commit"]
-        W6["index_document<br/>(LlamaIndex → pgvector)"]
-    end
-
-    subgraph Infra["Hạ tầng (Docker Compose)"]
-        PG[("PostgreSQL 16+<br/>+ pgvector")]
-        RD[("Redis<br/>broker/result")]
-        S3[("MinIO<br/>(S3 API)")]
-        OCR["PaddleOCR<br/>(self-host)"]
-    end
-
-    subgraph Ext["Ngoài hệ thống"]
-        OR["OmniRoute"]
-        LLM["OpenAI / DeepSeek /<br/>Claude / Gemini"]
-        GV["Google Vision<br/>(tùy chọn)"]
-    end
-
-    UI --> SC --> RT
-    UI --> NA
-    UI -- "upload file (C3/C4/C5)" --> RT
-    RT --> AUD --> PG
-    RT --> AR --> PG
-    RT --> ME --> PG
-    RT -- "enqueue job" --> RD
-    RT -- "lưu file" --> S3
-    RD --> W1 --> W2 --> W3 --> W4 --> W5
-    W1 --> S3
-    W1 --> OCR
-    W1 -.-> GV
-    W2 --> MG
-    W3 --> MG
-    W5 --> AR
-    W5 --> W6 --> PG
-    MG --> OR --> LLM
-    W1 & W2 & W3 & W4 --> PG
-    AR --> ME
-    CFG -.-> RT & MG & Worker
+  subgraph Client
+    B[Browser / PWA mobile]
+  end
+  subgraph Compose[Docker Compose]
+    WEB[web<br/>Next.js :3000<br/>NextAuth]
+    API[api<br/>FastAPI :4000<br/>11 module]
+    WK[worker<br/>Celery: IDP pipeline,<br/>event consumers, recompute]
+    BEAT[beat<br/>Celery beat ×1:<br/>outbox relay, jobs hằng ngày, briefing 06:00]
+    PG[(postgres :5432<br/>PG16 + pgvector<br/>10 schema)]
+    RD[(redis :6379<br/>broker, cache,<br/>idempotency, rate limit)]
+    S3[(minio :9000<br/>source-documents,<br/>quarantine)]
+    AV[clamav :3310]
+  end
+  subgraph External[LLM providers]
+    OR[OmniRoute]
+    OP[OpenRouter / 9router /<br/>DeepSeek / OpenAI / Anthropic]
+  end
+  B -->|HTTPS| WEB
+  B -->|presigned URL| S3
+  WEB -->|REST + SSE /api/v1| API
+  API --> PG
+  API --> RD
+  API --> S3
+  WK --> PG
+  WK --> RD
+  WK --> S3
+  WK --> AV
+  BEAT --> RD
+  BEAT --> PG
+  API -->|ModelGateway| OR
+  WK -->|ModelGateway| OR
+  API -.fallback.-> OP
+  WK -.fallback.-> OP
 ```
 
-### 3.2. Trách nhiệm component
-
-| Component | Trách nhiệm | Không được làm |
+| Thành phần | Trách nhiệm | Không làm |
 |---|---|---|
-| `apps/web` | Render UI theo role, gọi API, hiển thị trạng thái AI (P02), source viewer | Gọi LLM; ghi DB; chứa secret phía client |
-| NextAuth | Đăng nhập, phát JWT chứa `user_id`, `role` active | Quyết định quyền chi tiết (backend quyết) |
-| FastAPI routers | Validate input (Pydantic v2), RBAC, `response_model` tường minh, trả `{ data, meta? }` / `{ error }` | Ghi DB nghiệp vụ không qua Action Registry khi dữ liệu đến từ IDP |
-| Action Registry | Cổng ghi dữ liệu nghiệp vụ duy nhất của IDP: validate schema, check quyền/autonomy, idempotency, transaction + lineage + audit | Nhận lệnh từ text của LLM |
-| Metric & Alert engine | Tính lại metric value và đánh giá ngưỡng sau commit (`03-DASHBOARD-SPEC.md`) | — |
-| ModelGateway | Điểm duy nhất gọi LLM: chọn model, timeout, retry, fallback, log chi phí/token, fixture mode | Bị bypass (cấm gọi SDK provider trực tiếp) |
-| Celery workers | Chạy pipeline IDP idempotent | Ghi bảng nghiệp vụ trực tiếp |
-| PostgreSQL + pgvector | Entity, metric, trạng thái, audit, embedding | — |
-| Redis | Broker + result backend Celery; cache ngắn hạn | Lưu dữ liệu nghiệp vụ lâu dài |
-| MinIO | File gốc (private bucket), ảnh trang | Public bucket |
-
-### 3.3. Kiểu giao tiếp
-
-| Từ → Đến | Giao thức | Ghi chú |
-|---|---|---|
-| Browser → Next.js | HTTPS (dev: HTTP localhost) | — |
-| Next.js / Browser → FastAPI | REST JSON `/api/v1/*`, header `Authorization: Bearer <JWT>` | Upload multipart, stream (`UploadFile`, chunked read) |
-| FastAPI → Celery | Redis (enqueue task với `task_id` xác định) | Idempotent |
-| Worker → MinIO | S3 API | URL ký (presigned) thời hạn ≤ 15 phút cho frontend |
-| ModelGateway → OmniRoute | HTTPS | Key đọc từ env qua ConfigService |
-| Frontend cập nhật trạng thái | Polling API theo chu kỳ ngắn (TanStack Query `refetchInterval`) | Không thêm WebSocket/SSE khi chưa có DEC (OQ-06) |
-| Dashboard sau commit | Xem §3.5 | — |
-
-### 3.4. Panel AI — ranh giới phạm vi
-
-Panel AI (hỏi đáp theo ngữ cảnh, trả lời kèm nguồn, mức L1) **không** do 07 đặt ra: nó được định nghĩa ở `06-UI-UX-SPEC.md` (nguyên tắc U2) và `03-DASHBOARD-SPEC.md` (layout). 01 và 04 không nêu tính năng này. 07 chỉ mô tả hạ tầng sẽ dùng **nếu** 06/09 xác nhận Panel AI nằm trong MVP: LlamaIndex + pgvector + ModelGateway (`task_type = assistant`). Nếu Panel AI bị loại khỏi MVP thì bỏ task `index_document` và các phần liên quan; không thành phần IDP/dashboard nào phụ thuộc vào nó (OQ-13).
-
-### 3.5. Cập nhật dashboard sau commit
-
-1. Action Registry commit transaction xong → enqueue task Celery `recompute_metrics(affected_metric_ids)` (queue `default`), idempotent theo `(document_id, action_name)`.
-2. Task tính lại `ENT-MetricValue` liên quan và chạy alert engine (tạo/đóng `ENT-Alert`).
-3. Frontend:
-   - Ngay sau thao tác Approve/Undo thành công: TanStack Query `invalidateQueries` cho các query metric/alert/document liên quan.
-   - Màn dashboard: polling (`refetchInterval`, đề xuất 5 giây khi có job recompute đang chạy, 30 giây khi rảnh) để nhận kết quả từ job nền (kể cả commit STP do AI thực hiện).
-4. Mục tiêu: metric hiển thị giá trị mới ≤ 10 giây sau commit ở môi trường demo. Lựa chọn polling hay SSE vẫn là OQ-06.
+| `web` | SSR/CSR, NextAuth session, gọi API qua `apiClient` (bóc envelope), SSE client, i18n | Không tự tính KPI; không giữ secret (`NEXT_PUBLIC_*` không chứa secret) |
+| `api` | REST + SSE, auth, RBAC, data scoping, service domain, Action Registry, chat AI (đồng bộ trong request) | Không chạy OCR/extraction dài |
+| `worker` | Pipeline IDP (scan → OCR → classify → extract → validate → route → commit), consumer event, recompute metric, sinh insight | Không nhận HTTP |
+| `beat` | Outbox relay (mỗi 2 s), job hằng ngày (`task_overdue`, `hiring_plan_delayed`, `invoice overdue`, burn vs forecast), Briefing 06:00, dọn idempotency/retention | **Chỉ 1 instance** |
+| `postgres` | Dữ liệu nghiệp vụ + AI log + outbox + vector | |
+| `redis` | Broker Celery, result (expire), cache dashboard 60 s, idempotency 24 h, rate limit, khóa review | Không phải nguồn dữ liệu chuẩn |
+| `minio` | File gốc (private), trang render, file dòng lỗi, bucket `quarantine` | Không public bucket |
+| `clamav` | Quét mã độc qua `clamd` TCP | |
 
 ---
 
-## 4. Cấu trúc monorepo (khớp `CLAUDE.md`)
+## 4. Module (DEC-125)
+
+| Module | Schema PG | Trách nhiệm | EP | Publish | Consume |
+|---|---|---|---|---|---|
+| `auth` | `auth` | Login, refresh, RS256 ký token, user/role, mật khẩu | EP-02..08 | — | — |
+| `platform` | `platform` | Metric store + engine alert, lineage, audit, notification, outbox/processed events, system setting, user admin | EP-01, EP-09, EP-52..59 | `EVT-platform.alert_raised` | Mọi event ảnh hưởng metric (tính lại `ENT-MetricValue`), `alert_raised` (notification) |
+| `dashboard` | — (đọc `platform` qua service) | Briefing, metric detail, drill-down, alert ack, cấu hình ngưỡng | EP-10..19, EP-55 | — | — |
+| `finance` | `finance` | Doanh thu, chi phí, ngân sách, dự báo, hóa đơn, tiền mặt, burn/runway | EP-60..69 | `budget_exceeded`, `invoice_paid`, `forecast_updated`, `burn_over_forecast` | `hr.employee_onboarded/terminated/salary_updated/hiring_plan_delayed`, `sales.deal_closed_won/lost`, `product.product_launched`, `risk.*` |
+| `sales` | `sales` | Khách hàng, deal, giai đoạn, mục tiêu, hợp đồng, pipeline | EP-70..78 | `deal_closed_won`, `deal_closed_lost` | `finance.invoice_paid`, `product.product_launched`, `product.feature_released` |
+| `hr` | `hr` | Phòng ban, nhân viên, lương, tuyển dụng, workload | EP-80..87 | `employee_onboarded`, `employee_terminated`, `salary_updated`, `hiring_plan_delayed` | `finance.budget_exceeded`, `risk.*` |
+| `product` | `product` | Sản phẩm, tính năng, roadmap, release, chỉ số | EP-90..95 | `product_launched`, `feature_released`, `metric_anomaly` | `sales.deal_closed_won`, `finance.invoice_paid`, `risk.risk_identified` |
+| `risk` | `risk` | Sổ rủi ro, đánh giá, mitigation, what-if, rủi ro tự sinh | EP-100..106 | `risk_identified`, `risk_level_changed`, `risk_mitigated` | `hr.employee_terminated`, `hr.hiring_plan_delayed`, `sales.deal_closed_lost`, `finance.budget_exceeded/forecast_updated/burn_over_forecast`, `product.metric_anomaly`, `idp.document_committed` |
+| `execution` | `execution` | Họp, quyết định, task, dự án, OKR, KPI, check-in | EP-42..49 | `task_overdue`, `kpi_measured` | — |
+| `idp` | `idp` | Pipeline tài liệu, review, Action Registry, doc type/schema, batch | EP-20..41, EP-50, EP-51 | `document_committed`, `document_rolled_back` | — |
+| `ai_core` | `ai` | Chat/SSE, Tool Registry, ModelGateway, insight, AI action, autonomy policy, kill switch, chi phí | EP-110..119 | — (không phát event nghiệp vụ) | **Mọi** event (insight, briefing) |
+
+Bảng event đầy đủ (publisher, consumer, hành động): `10-API-SPECIFICATION.md` §8.3. `ModelGateway` vật lý nằm ở `core/model_gateway/` (dùng chung bởi `ai_core` và `idp`), cấu hình và log thuộc `ai_core`.
+
+### 4.1. Cấu trúc thư mục
 
 ```
 apps/
-  web/                  # Next.js
-    src/
-      app/              # App Router
-      components/       # UI components
-      features/         # Feature modules (idp, dashboard, auth)
-      lib/              # Utilities, hooks
-  api/                  # FastAPI
-    src/
-      modules/          # Feature modules (idp, dashboard, auth)
-      core/             # Config, security, dependencies
-      db/               # SQLAlchemy session, base model
-      workers/          # Celery tasks
-    alembic/            # Migrations
-      versions/
-    tests/
-    pyproject.toml
-packages/
-  shared-types/         # DTO, types dùng chung
+  web/src/
+    app/(auth)/login, app/(app)/[locale]/...   # route theo SCR-xx (06)
+    components/ui, components/ai               # AIBadge, ThinkingState, SourceChip, ActionCard, UndoToast
+    features/<area>/                           # dashboard, finance, sales, hr, product, risk, execution, idp, ai, admin
+    lib/api-client.ts, lib/sse.ts, lib/query-keys.ts
+    i18n/{vi,en}.json
+  api/
+    src/app/
+      main.py                                  # tạo app, mount router /api/v1, middleware
+      worker.py                                # Celery app (autodiscover workers/ + modules/*/events)
+      core/
+        config.py                              # ConfigService (pydantic-settings) — nguồn env duy nhất
+        envelope.py, errors.py, handlers.py    # {data, meta} / {error}; bảng mã lỗi 10 §1.4
+        pagination.py                          # limit/offset/sort_by/order (DEC-130)
+        security.py                            # RS256 sign/verify, require_permission, data scope
+        idempotency.py, request_id.py, rate_limit.py
+        audit.py                               # ghi ENT-AuditLog trong transaction
+        storage.py                             # S3/MinIO, presigned URL
+        events/                                # outbox.py (publish_in_tx), relay.py, consumer.py (dedupe, retry, DLQ), envelope.py
+        model_gateway/                         # gateway.py, providers/{openai_compat.py, anthropic.py}, routing.py, budget.py, fixtures.py, pii.py, prompting.py
+      db/                                      # engine, async session, Base (UUID, timestamps, soft delete)
+      modules/<module>/
+        routes.py                              # APIRouter, Depends(require_permission(...)), response_model
+        schemas.py                             # Pydantic v2 In/Out
+        models.py                              # SQLAlchemy, __table_args__ = {"schema": "<module>"}
+        repositories.py                        # truy vấn — chỉ module này dùng
+        services.py                            # use case + public interface cho module khác
+        events.py                              # publisher helpers + consumer handlers (on_<event>)
+        actions.py                             # (module đích) ACT-* đăng ký vào Action Registry
+      workers/                                 # Celery task không thuộc module: idp_pipeline, recompute_metrics, daily_jobs, briefing, retention
+      seed/, reset.py
+    alembic/versions/
+    tests/{unit,integration,contract,ai_eval}/
+packages/shared-types/                         # type sinh từ OpenAPI
+secrets/                                       # jwt_private.pem, jwt_public.pem — gitignored
 ```
 
-### 4.1. Gợi ý bố trí bên trong (không thêm thư mục cấp 1/2 mới)
-
-| Vị trí | Nội dung |
-|---|---|
-| `apps/web/src/features/idp/` | Upload Wizard, Inbox, Review, SourceViewer |
-| `apps/web/src/features/dashboard/` | MetricCard, AlertCard, TrendChart, drill-down |
-| `apps/web/src/features/auth/` | NextAuth config, role switcher |
-| `apps/api/src/modules/idp/` | Router upload/document/extraction/review, Action Registry, Extraction Schema |
-| `apps/api/src/modules/dashboard/` | Router metric/alert, metric & alert engine |
-| `apps/api/src/modules/auth/` | Verify JWT, `require_role`, data scoping (02 §4) |
-| `apps/api/src/core/` | `ConfigService`, security, `deps.py` (tách riêng để tránh DI vòng tròn), `ModelGateway` |
-| `apps/api/src/db/` | `SessionLocal`, base model (`id` UUID, `created_at`, `updated_at`, `deleted_at`) |
-| `apps/api/src/workers/` | Celery app + task pipeline IDP |
-| `packages/shared-types/` | DTO dùng chung FE/BE (sinh từ contract `10-API-SPECIFICATION.md`) |
-
-> Vị trí đặt tài liệu mẫu DOC-01→07 và script seed do `08-DEMO-DATA-SPEC.md` quy định (OQ-03).
-
-### 4.2. Naming (tóm tắt `CLAUDE.md`)
-
-| Loại | Convention | Ví dụ |
-|---|---|---|
-| Folder | kebab-case | `idp-worker` |
-| File component | PascalCase | `MetricCard.tsx` |
-| File non-component | kebab-case | `metric.service.ts` |
-| DB table / column | snake_case (plural) / snake_case | `source_documents.uploaded_at` |
-| Enum | PascalCase + SCREAMING values | `DocumentStatus.PROCESSING` |
+Quy tắc phụ thuộc: `routes → services → repositories → models`; `services` module A gọi `services` module B (interface public); `core/` không import `modules/`. Package Python là `app` tại `apps/api/src/app/` (giữ OQ-12 v1). `CLAUDE.md` ghi `apps/api/src/modules/` (thiếu `app/`) — OQ-04.
 
 ---
 
-## 5. Luồng IDP kỹ thuật (Celery → ModelGateway → Action Registry)
+## 5. Luồng chính
 
-Nghiệp vụ chi tiết ở `04-IDP-FEATURE-SPEC.md` §3; mục này mô tả hiện thực kỹ thuật.
+### 5.1. Request (REST)
+
+| Bước | Thành phần | Việc |
+|---|---|---|
+| 1 | `request_id` middleware | Lấy/sinh `X-Request-Id`, gắn vào contextvar log |
+| 2 | Auth middleware | Verify JWT RS256 (`JWT_PUBLIC_KEY_PATH`, `iss`, `aud`, `exp`, `kid`); public chỉ EP-01, EP-02, EP-06 |
+| 3 | Rate limit | Redis token bucket: chung 120/phút, AI 20/phút, login 10 lần sai/15 phút |
+| 4 | Route dependency | `require_permission("<domain>:<action>")` → `403 FORBIDDEN_ROLE` |
+| 5 | Idempotency | Mutation có `Idempotency-Key` → tra Redis; trùng → trả response cũ |
+| 6 | Service | Validate nghiệp vụ (BR-*), data scope (02 §6) → `403 FORBIDDEN_SCOPE` |
+| 7 | Transaction | Ghi bản ghi + `ENT-AuditLog` + `ENT-OutboxEvent` (+ lineage) → commit |
+| 8 | Response | Envelope `{data, meta}`, `response_model` lọc field nhạy cảm; header cache theo 10 §1.7 |
+| 9 | Exception handler | Map `AppError` → `{error}` theo 10 §1.4; lỗi lạ → `500 INTERNAL_ERROR` (log stack, không trả) |
+
+### 5.2. Dashboard
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant U as Người dùng (web)
-    participant API as FastAPI
-    participant S3 as MinIO
-    participant DB as PostgreSQL
-    participant Q as Redis/Celery
-    participant W as Worker
-    participant OCR as PaddleOCR / Google Vision
-    participant MG as ModelGateway
-    participant OR as OmniRoute → LLM
-    participant AR as Action Registry
-    participant ME as Metric & Alert engine
-
-    U->>API: Upload (multipart, stream) + JWT
-    API->>API: require_role, kiểm tra kích thước/định dạng
-    API->>S3: Lưu file (private bucket), tính SHA-256
-    API->>DB: ENT-SourceDocument (UPLOADED) + audit log
-    API->>Q: enqueue preprocess_document(document_id)
-    API-->>U: { data: { id, status: UPLOADED } }
-    Q->>W: preprocess_document
-    W->>W: Kiểm tra text_layer_exists + chất lượng text
-    alt Không có / hỏng text layer
-        W->>OCR: OCR trang
-    end
-    W->>DB: ENT-DocumentPage (PREPROCESSING → CLASSIFYING)
-    W->>MG: classify(document text trong delimiter)
-    MG->>OR: request (timeout, retry, fallback)
-    OR-->>MG: doc_type + confidence (JSON)
-    W->>MG: extract(schema, chunk theo trang)
-    MG-->>W: [{value, confidence, source_location}] (validate Pydantic)
-    W->>DB: ENT-ExtractionJob, ENT-ExtractedField (EXTRACTING → VALIDATING)
-    W->>W: validate_extraction (rule engine, XD-01→05)
-    alt Đạt điều kiện STP (L3)
-        W->>AR: invoke action (actor = ai:idp)
-    else Cần review
-        W->>DB: NEEDS_REVIEW + routing_reason
-        U->>API: Approve/Edit/Reject (Review)
-        API->>AR: invoke action (actor = user)
-    end
-    AR->>DB: Transaction: bản ghi nghiệp vụ + lineage + audit (COMMITTED)
-    AR->>ME: recompute metric + alert
-    W->>DB: index chunk (LlamaIndex → pgvector)
-    U->>API: Polling trạng thái / dashboard
+  participant W as web (5 query song song)
+  participant D as /{domain}/dashboard
+  participant C as Redis cache
+  participant P as platform.metric_values
+  W->>D: GET ?period=current_month (Bearer)
+  D->>C: key (user_scope, domain, period)
+  alt hit (≤ 60 s)
+    C-->>D: payload
+  else miss
+    D->>P: đọc MetricValue đã tính sẵn + aggregate domain
+    D->>C: set TTL 60 s
+  end
+  D-->>W: {summary, metrics[], *_trend} + Cache-Control private, max-age=60, Vary: Authorization
 ```
 
-### 5.1. Celery — cấu hình bắt buộc
+- Metric **tính sẵn**: consumer `platform.on_<event>` + task `recompute_metrics(metric_codes, scope)` sau mỗi event ảnh hưởng (≤ 10 s sau commit IDP) → ghi `ENT-MetricValue`, đánh giá alert, xóa cache key liên quan. Job đêm tính lại toàn bộ để chống trôi.
+- Mỗi widget một query (TanStack Query, `refetchInterval` 60 s — FR-DSH-06); endpoint lỗi → widget `unavailable`, widget khác vẫn hiện (FR-DSH-07).
+- Briefing (EP-10) tính sẵn 06:00 bởi `beat` + cập nhật gia tăng khi alert critical; mở trang không gọi LLM.
 
-| Cấu hình | Giá trị đề xuất | Lý do (`CLAUDE.md` § Celery) |
-|---|---|---|
-| Idempotency | `task_id` xác định = `{document_id}:{step}:{attempt_key}`; worker kiểm tra trạng thái trước khi chạy | Retry không tạo bản ghi trùng |
-| `soft_time_limit` / `time_limit` | 120 s / 150 s mỗi bước (extract tài liệu dài: 300 s / 330 s) | Tránh worker treo |
-| `result_expires` | 24 giờ | Redis không đầy |
-| Retry | Tối đa 3 lần, backoff 2s → 8s → 30s | Theo `04` IDP-E06 |
-| Celery beat | Chỉ 1 instance (nếu dùng) | Tránh duplicate schedule |
-| Queue | `idp` (pipeline), `default` (recompute metric, index) | Tách tải |
-| Concurrency demo | 2–4 worker process | Batch UC-07 (7 tài liệu) xong ≤ 5 phút |
+### 5.3. AI chat (EP-110/111)
 
-### 5.2. ModelGateway
+```mermaid
+sequenceDiagram
+  participant U as web (Panel/⌘K/SCR-16)
+  participant A as ai_core
+  participant G as ModelGateway
+  participant T as Tool executor
+  participant S as service domain
+  U->>A: POST /ai/chat/stream {message, context}
+  A->>A: rate limit 20/phút, kill switch, ngân sách
+  A->>A: Tool filter theo permissions[] của JWT
+  A-->>U: SSE start
+  loop ≤ 8 tool call, ≤ 30 s/lượt
+    A->>G: chat(messages, tools đã lọc, task=chat)
+    G-->>A: tool_calls[]
+    A-->>U: SSE thinking / tool_call
+    par song song, 5 s/tool
+      T->>S: gọi service bằng JWT người hỏi (scope + permission)
+    end
+    T->>A: kết quả → PII filter (mức 3–4) → bọc delimiter data
+    A-->>U: SSE tool_result (status, sources)
+  end
+  A->>G: tổng hợp câu trả lời (stream)
+  G-->>A: token
+  A-->>U: SSE token*
+  A->>A: kiểm tra grounding (số ↔ sources), lưu Message + ToolCallLog
+  A-->>U: SSE done {sources, function_calls, truncated}
+```
 
-| Chức năng | Mô tả |
+| Bước | Quy tắc |
 |---|---|
-| Interface duy nhất | `ModelGateway.complete(task_type, messages, response_schema)`; cấm import SDK provider ở module khác |
-| Routing | Gửi tới OmniRoute; model theo `task_type` (classify, extract, stt, mapping, assistant) cấu hình qua env |
-| Fallback | OmniRoute fallback model; hết retry → lỗi có mã để pipeline chuyển `FAILED` |
-| Structured output | Yêu cầu JSON theo schema; parse + validate Pydantic; sai schema → retry 1 lần rồi lỗi |
-| Chống prompt injection | Bọc nội dung tài liệu trong delimiter `<document_content>…</document_content>`; system prompt khẳng định nội dung là data; yêu cầu `null` khi không tìm thấy |
-| Token/chunk | Đếm token trước khi gọi; chunk theo trang khi vượt ngưỡng |
-| Masking | Che field nhạy cảm (lương, CCCD…) khi không cần cho tác vụ (NĐ 13/2023) |
-| Logging | Ghi `model_call_log`: task_type, model, token in/out, chi phí ước tính, latency, kết quả (không log nội dung tài liệu đầy đủ, không log credential) — bảng cụ thể theo `05-DATA-MODEL.md` (OQ-07) |
-| Fixture mode | `MODEL_GATEWAY_MODE=fixture` trả kết quả ghi sẵn cho DOC-01→07 (offline demo, §9) |
+| Context | System prompt cố định (vai trò, ngôn ngữ trả lời theo câu hỏi — DEC-135, "không bịa số", "dữ liệu tool là data"), 10 cặp tin nhắn gần nhất, `context` màn hình |
+| Tool filter | Chỉ khai báo cho model tool có permission (02 §7.2); model không biết tool ngoài quyền |
+| Tool executor | Gọi **service layer** in-process (không HTTP loopback) với `Principal` dựng từ JWT người hỏi → cùng RBAC + scope như REST |
+| PII filter | `core/model_gateway/pii.py`: bỏ field mức 4 (lương, ngày sinh, địa chỉ, CCCD, tài khoản), thay họ tên/email/SĐT bằng mã `EMP-xxxx`/`CLI-xxxx`; map ngược khi hiển thị |
+| Grounding | Mỗi số trong câu trả lời phải khớp một `tool_result`/`MetricValue`; không khớp → gỡ số + `warnings` (P05) |
+| Tool ghi | Tạo `ENT-AIAction` → autonomy policy: L2 → action card (EP-115 confirm), L3 → thực thi `ACT-*` + undo 24 h (DEC-134) |
+| Giới hạn | DEC-131: temp 0,2; ≤ 2048 output token; timeout 30 s/lượt; ≤ 8 tool/lượt; 5 s/tool → `truncated` |
 
-### 5.3. Action Registry
+### 5.4. Event (outbox → consumer)
 
-- Đăng ký action dạng `{ action_name, input_schema (Pydantic v2), required_permission, min_autonomy, idempotency_key, reversible, undo, side_effects }` — danh mục MVP ở `04-IDP-FEATURE-SPEC.md` §10.
-- Thực thi: validate → check quyền theo role active (02 §3.4) và autonomy → check idempotency → **một transaction** ghi bản ghi + lineage + `ENT-AuditLog` → phát sự kiện recompute (task Celery queue `default`).
-- Lỗi bất kỳ → rollback transaction, tài liệu về `NEEDS_REVIEW` kèm lý do.
-- LLM không có quyền gọi action; việc chọn action do rule xác định theo doc type.
+```mermaid
+sequenceDiagram
+  participant S as service (publisher)
+  participant DB as postgres
+  participant R as beat: outbox relay
+  participant Q as Redis broker
+  participant C as worker: consumer
+  S->>DB: BEGIN; ghi bản ghi + outbox_events(PENDING); COMMIT
+  loop mỗi 2 s
+    R->>DB: SELECT … WHERE status=PENDING FOR UPDATE SKIP LOCKED LIMIT 100
+    R->>Q: publish envelope tới queue của từng consumer
+    R->>DB: status=PUBLISHED
+  end
+  Q->>C: deliver (acks_late)
+  C->>DB: processed_events (event_id, consumer) đã có? → bỏ qua
+  C->>DB: xử lý + ghi processed_events(DONE) cùng transaction
+  C-->>Q: ack
+  Note over C: lỗi → retry 5 s / 30 s / 120 s → DLQ (processed_events.status=DLQ, alert ADMIN)
+```
+
+- Routing: bảng đăng ký `event_type → [consumer task]` khai báo trong `modules/<module>/events.py`; relay fan-out mỗi consumer một message (mỗi consumer khử trùng độc lập).
+- Celery: `task_acks_late=True`, `task_reject_on_worker_lost=True`, `time_limit`/`soft_time_limit` mọi task, `result_expires=3600`.
+- Outbox giữ 30 ngày rồi archive; DLQ phát lại qua EP-56.
+
+### 5.5. IDP
+
+| Bước (04 §3) | Nơi chạy | Ghi chú kỹ thuật |
+|---|---|---|
+| 0 Intake | `api` EP-20 | `UploadFile` đọc chunk 1 MB → stream MinIO, SHA-256 song song; trả ≤ 2 s |
+| 1 Malware scan | `worker` `scan_document` | `clamd` INSTREAM; `INFECTED` → copy sang `quarantine`, `FAILED`; ClamAV down → `scan_status=SKIPPED` + cờ chặn STP (OQ-03) |
+| 2–4 Preprocess / text layer / OCR | `worker` | `text_layer_exists` + chất lượng trước OCR (IDP-E04); PaddleOCR in-process; render trang → MinIO |
+| 5–6 Classify / extract | `worker` → ModelGateway (`task=classify`, `task=extract`) | Nội dung tài liệu bọc delimiter; output JSON schema; `null` khi không thấy; chunk theo trang |
+| 7–8 Normalize / validate / XD | `worker` | Pydantic + `ENT-ValidationRule`; master data match |
+| 9 Routing | `worker` | DEC-133 + autonomy policy + trường trọng yếu → `STP` / `REVIEW` |
+| 10 Review | `api` EP-28..35 | Khóa mềm Redis 15 phút |
+| 11 Commit | `api` (approve) / `worker` (STP) | Action Registry: một transaction / tài liệu (04 §10.3); phát `EVT-idp.document_committed` |
+
+Retry task IDP: 3 lần 5 s/30 s/120 s (IDP-E07) + fallback provider; hết → `FAILED` "cần nhập tay". Throughput mục tiêu: NFR-21, NFR-22.
 
 ---
 
-## 6. Deployment & môi trường
+## 6. ModelGateway (DEC-013, DEC-131)
 
-### 6.1. Môi trường
+Điểm duy nhất gọi LLM/STT/embedding cho `ai_core` và `idp` (`core/model_gateway/`). Interface:
 
-| Môi trường | Mục đích | Hạ tầng |
-|---|---|---|
-| `dev` | Phát triển trên máy dev | Docker Compose cho postgres/redis/minio; web + api + worker chạy local (`pnpm dev`, `uv run …`) |
-| `demo` | Trình diễn 15 phút | Toàn bộ service trong Docker Compose trên một máy (laptop hoặc 1 VPS); có thể bật fixture mode để chạy offline |
-| `prod` | Ngoài phạm vi MVP | Chỉ ghi chú: MinIO → S3 |
+```python
+class ModelGateway(Protocol):
+    async def chat(self, req: ChatRequest) -> ChatResponse: ...            # tool calling, non-stream
+    def stream(self, req: ChatRequest) -> AsyncIterator[ChatChunk]: ...     # token + tool_call delta
+    async def extract(self, req: ExtractRequest) -> ExtractResponse: ...    # JSON schema output
+    async def embed(self, texts: list[str], task: TaskKind = "embed") -> list[list[float]]: ...
+# ChatRequest: task (chat|classify|extract|mapping|insight|stt), messages, tools, max_output_tokens, temperature, user_id, caller_module
+```
 
-### 6.2. Service Docker Compose
+### 6.1. Adapter provider
 
-| Service | Image/Build | Port (host) | Volume | Ghi chú |
+| Provider id | Adapter | Base URL env | Key env | Ghi chú |
 |---|---|---|---|---|
-| `postgres` | PostgreSQL 16 + extension pgvector | 5432 | `pg_data` (named volume) | Tạo extension `vector` qua Alembic migration |
-| `redis` | Redis | 6379 | `redis_data` (tùy chọn) | Broker + result backend Celery |
-| `minio` | MinIO | 9000 (S3 API), 9001 (console) | `minio_data` | Bucket private `source-documents` |
-| `ocr` | PaddleOCR self-host | nội bộ | model cache | Có thể chạy in-process trong worker thay vì service riêng (OQ-04) |
-| `api` | build `apps/api` | 4000 | — | `uv run uvicorn app.main:app --port 4000` |
-| `worker` | build `apps/api` | — | — | `uv run celery -A app.worker worker --loglevel=info` |
-| `web` | build `apps/web` | 3000 | — | Next.js |
+| `omniroute` | OpenAI-compatible (`/v1/chat/completions`, tools) | `OMNIROUTE_BASE_URL` | `OMNIROUTE_API_KEY` | Mặc định primary; model alias `auto/*` |
+| `openrouter` | OpenAI-compatible | `OPENROUTER_BASE_URL` | `OPENROUTER_API_KEY` | DEC-102 |
+| `ninerouter` (9router) | OpenAI-compatible | `NINEROUTER_BASE_URL` | `NINEROUTER_API_KEY` | |
+| `deepseek` | OpenAI-compatible | `DEEPSEEK_BASE_URL` | `DEEPSEEK_API_KEY` | |
+| `openai` | OpenAI-compatible | `OPENAI_BASE_URL` | `OPENAI_API_KEY` | |
+| `anthropic` | Anthropic Messages API (`/v1/messages`, tool_use) | `ANTHROPIC_BASE_URL` | `ANTHROPIC_API_KEY` | Map tool schema ↔ `tool_use`/`tool_result` |
+| `fixture` | Đọc response ghi sẵn (`core/model_gateway/fixtures/`) theo hash prompt + task | — | — | Test/CI/demo offline |
 
-> **Bẫy Docker:** kiểm tra volume mount trong `docker-compose.yml` trước khi `docker compose down`; không dùng `down -v` trên môi trường demo đã seed.
+Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không dùng SDK vendor (A10). Test mock bằng `respx` (OQ-02).
 
-### 6.3. Quy trình khởi tạo (theo `CLAUDE.md` § Commands)
+### 6.2. Routing theo task & fallback
 
-| Bước | Lệnh |
-|---|---|
-| 1. Cài deps | `pnpm install` · `uv sync` |
-| 2. Hạ tầng | `docker compose up -d postgres redis minio` |
-| 3. Migration | `uv run alembic upgrade head` |
-| 4. Seed | `uv run python -m app.seed` (hoặc `pnpm db:seed` — xem OQ-03) |
-| 5. Env | `cp .env.example .env` rồi điền giá trị |
-| 6. Chạy | `pnpm dev:web` · `uv run uvicorn app.main:app --reload --port 4000` · `uv run celery -A app.worker worker --loglevel=info` |
-| Reset demo | `uv run python -m app.reset` rồi seed lại |
+| Task | Biến model | Dùng bởi | Đặc điểm |
+|---|---|---|---|
+| `chat` | `MODEL_CHAT` | ai_core chat/SSE | Tool calling, streaming, model lớn |
+| `classify` | `MODEL_CLASSIFY` | idp phân loại | Model nhỏ/rẻ, JSON |
+| `extract` | `MODEL_EXTRACT` | idp trích xuất, C2, mapping C5 | JSON schema, context dài |
+| `insight` | `MODEL_INSIGHT` | ai_core insight, briefing | Batch, chạy nền |
+| `embed` | `MODEL_EMBED` | RAG | DEC-069 open — mặc định tắt RAG nếu chưa cấu hình |
+| `stt` | `MODEL_STT` | C2 voice (P1) | 04 OQ-10 |
 
-### 6.4. Chất lượng trước commit
+- Chuỗi provider: `MODEL_PROVIDER_PRIMARY` rồi lần lượt `MODEL_PROVIDER_FALLBACKS` (CSV). Model mỗi provider: `MODEL_<TASK>` mặc định, ghi đè `MODEL_<TASK>__<PROVIDER>` (VD `MODEL_CHAT__ANTHROPIC`) khi alias khác nhau.
+- Mỗi provider: retry tối đa 2 lần với 5xx/timeout/429 tạm thời (backoff 1 s, 3 s) → chuyển provider kế; lỗi 4xx nội dung (schema/context) không fallback. Hết chuỗi → `AI_PROVIDER_ERROR` / `AI_PROVIDER_TIMEOUT`.
+- Circuit breaker đơn giản: provider lỗi ≥ 5 lần/60 s → bỏ qua 120 s.
+- Dữ liệu mật / data residency: `MODEL_SENSITIVE_PROVIDER` (VD provider on-prem/VN) cho task có cờ `sensitive=True` — mặc định trùng primary (OQ-05).
 
-`pnpm lint && pnpm test && pnpm contract:validate`; backend: `uv run ruff check .`, `uv run mypy app/`, `uv run pytest`. Migration phải có `upgrade()` + `downgrade()`.
+### 6.3. Ngân sách & giới hạn
+
+| Hạng mục | Giá trị mặc định | Env |
+|---|---|---|
+| Temperature | 0,2 | `MODEL_TEMPERATURE` |
+| Output token / lượt | 2048 | `MODEL_MAX_OUTPUT_TOKENS` |
+| Timeout / lượt chat | 30 s | `AI_TURN_TIMEOUT_SEC` |
+| Tool call / lượt; timeout / tool | 8; 5 s | `AI_MAX_TOOL_CALLS`, `AI_TOOL_TIMEOUT_SEC` |
+| Rate limit | 20 request/phút/người | `AI_RATE_LIMIT_PER_MIN` |
+| Ngân sách tháng | 50 USD (demo) | `AI_MONTHLY_BUDGET_USD` |
+| Cảnh báo | 80% ngân sách → `EVT-platform.alert_raised` cho ADMIN | `AI_BUDGET_ALERT_PCT` |
+| Vượt 100% | `chat` → `429 AI_QUOTA_EXCEEDED`; `idp` → IDP-E13 (nhập tay) | — |
+| Bảng giá | `MODEL_PRICING_JSON` (USD / 1M token theo `provider:model`) | ước tính `estimated_cost_micro_usd` |
+
+### 6.4. Log & chế độ
+
+- Mỗi lần gọi (kể cả fallback, lỗi) ghi `ENT-ModelCallLog`: `caller_module`, `task_kind`, `provider`, `model`, `fallback_from`, token in/out, chi phí ước tính, latency, status, `error_code`, `prompt_sha256` (không lưu prompt thô — 05 §4.8).
+- `MODEL_GATEWAY_MODE`: `fixture` (mặc định dev/CI — không gọi mạng; thiếu fixture → lỗi rõ ràng), `live` (gọi provider), `record` (gọi live + ghi fixture đã mask — chỉ dev).
+- EP-01 báo `model_gateway: { mode, primary, reachable }`; EP-119 `/ai/usage` tổng hợp từ log.
 
 ---
 
 ## 7. Cấu hình & secret
 
-| Quy tắc | Chi tiết |
-|---|---|
-| Nguồn cấu hình | Biến môi trường; backend đọc **chỉ** qua `ConfigService` (`apps/api/src/core/`), frontend qua env của Next.js (chỉ biến `NEXT_PUBLIC_*` được lộ ra client và không chứa secret) |
-| File mẫu | `.env.example` với placeholder; **không** commit `.env`, `.env.local`, `*.pem`, `*.key` |
-| Cấm | Hard-code key/password/token/connection string; log credential (kể cả debug); đưa credential vào prompt |
-| Rò rỉ | Phát hiện credential lộ → dừng task, raise `DEC-xxx` blocking |
+Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydantic-settings) — không `os.environ` rải rác; `.env.example` chỉ chứa **placeholder**; không commit `.env`, `*.pem`, `*.key`, `secrets/`; `NEXT_PUBLIC_*` không chứa secret; không log secret (lọc key chứa `KEY|SECRET|PASSWORD|TOKEN`). Thiếu biến bắt buộc → app không khởi động (fail fast).
 
-Nhóm biến môi trường (tên cụ thể chốt khi implement, giữ đúng nhóm):
+| Nhóm | Biến | Ví dụ placeholder | Bắt buộc |
+|---|---|---|---|
+| Chung | `APP_ENV` | `development` \| `test` \| `production` | ✅ |
+| | `API_BASE_URL`, `WEB_BASE_URL` | `http://localhost:4000/api/v1`, `http://localhost:3000` | ✅ |
+| | `LOG_LEVEL` | `INFO` | |
+| Database | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | `aureon`, `<change-me>`, `aureon`, `5432` | ✅ |
+| | `DATABASE_URL` | `postgresql+psycopg://aureon:<change-me>@localhost:5432/aureon` (driver theo OQ-01) | ✅ |
+| Redis / Celery | `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | `redis://localhost:6379/0`, `/1`, `/2` | ✅ |
+| Storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` | `http://localhost:9000`, `<access-key>`, `<secret-key>`, `us-east-1` | ✅ |
+| | `S3_BUCKET_DOCUMENTS`, `S3_BUCKET_QUARANTINE`, `S3_PRESIGN_TTL_SEC` | `source-documents`, `quarantine`, `900` | ✅ |
+| | `MINIO_API_PORT`, `MINIO_CONSOLE_PORT` | `9000`, `9001` | |
+| Auth / JWT | `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH` | `./secrets/jwt_private.pem`, `./secrets/jwt_public.pem` | ✅ |
+| | `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE` | `aureon-2026-10`, `aureon`, `aureon-api` | ✅ |
+| | `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS` | `900`, `604800` | ✅ |
+| | `PASSWORD_MIN_LENGTH`, `LOGIN_MAX_FAILED`, `LOGIN_LOCK_MINUTES` | `8`, `5`, `15` | |
+| | `NEXTAUTH_URL`, `NEXTAUTH_SECRET` | `http://localhost:3000`, `<random-32-bytes>` | ✅ (web) |
+| API | `API_RATE_LIMIT_PER_MIN`, `IDEMPOTENCY_TTL_SEC`, `DASHBOARD_CACHE_TTL_SEC` | `120`, `86400`, `60` | |
+| ModelGateway | `MODEL_GATEWAY_MODE` | `fixture` \| `live` \| `record` | ✅ |
+| | `MODEL_PROVIDER_PRIMARY`, `MODEL_PROVIDER_FALLBACKS` | `omniroute`, `openrouter,deepseek` | ✅ (live) |
+| | `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY` | `http://localhost:20128/v1`, `<omniroute-key>` | khi dùng |
+| | `OPENROUTER_BASE_URL`, `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1`, `<openrouter-key>` | khi dùng |
+| | `NINEROUTER_BASE_URL`, `NINEROUTER_API_KEY` | `http://localhost:20129/v1`, `<9router-key>` | khi dùng |
+| | `DEEPSEEK_BASE_URL`, `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1`, `<deepseek-key>` | khi dùng |
+| | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | `https://api.openai.com/v1`, `<openai-key>` | khi dùng |
+| | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` | `https://api.anthropic.com`, `<anthropic-key>` | khi dùng |
+| | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_EMBED`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `<embed-model>`, `<stt-model>` | ✅ (live) |
+| | `MODEL_<TASK>__<PROVIDER>` | `MODEL_CHAT__ANTHROPIC=<model-id>` | |
+| | `MODEL_SENSITIVE_PROVIDER` | `omniroute` | |
+| | `MODEL_TEMPERATURE`, `MODEL_MAX_OUTPUT_TOKENS`, `MODEL_PRICING_JSON` | `0.2`, `2048`, `./config/model-pricing.json` | |
+| AI Core | `AI_RATE_LIMIT_PER_MIN`, `AI_MAX_TOOL_CALLS`, `AI_TOOL_TIMEOUT_SEC`, `AI_TURN_TIMEOUT_SEC` | `20`, `8`, `5`, `30` | |
+| | `AI_MONTHLY_BUDGET_USD`, `AI_BUDGET_ALERT_PCT`, `AI_UNDO_WINDOW_HOURS` | `50`, `80`, `24` | |
+| IDP | `MAX_FILE_SIZE_MB`, `MAX_PAGES`, `MAX_FILES_PER_UPLOAD`, `MAX_IMPORT_ROWS` | `50`, `300`, `100`, `5000` (04 §15.1; v1 là 20/50 — OQ-06) | |
+| | `OCR_PROVIDER`, `GOOGLE_APPLICATION_CREDENTIALS` | `paddle` \| `google_vision`, `./secrets/gcp.json` | |
+| | `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_REQUIRED` | `clamav`, `3310`, `false` (demo) | |
+| | `IDP_UNDO_WINDOW_DAYS`, `REVIEW_LOCK_MINUTES` | `7`, `15` | |
+| Dashboard / ngưỡng | `THR_<METRIC>_WARN`, `THR_<METRIC>_CRIT`, `PILLAR_NO_DATA_RATIO`, `FRESHNESS_STALE_DAYS`, `DASHBOARD_REFRESH_SEC` | theo 03 (giá trị mặc định ở 03 §2) | |
+| Notification | `NOTIFY_EMAIL_ENABLED`, `SMTP_URL` | `false`, `smtp://<user>:<pass>@<host>:587` | |
+| Demo | `DEMO_MODE`, `NEXT_PUBLIC_DEMO_MODE`, `DEMO_REFERENCE_DATE` | `true`, `true`, `2026-10-20` | |
+| | `DEMO_<ROLE>_PASSWORD` (10 role, VD `DEMO_CEO_PASSWORD`) | `<demo-password>` | khi `DEMO_MODE` |
+| Retention | `RETENTION_AUDIT_DAYS`, `RETENTION_MODEL_LOG_DAYS`, `RETENTION_CONVERSATION_DAYS` | `3650`, `180`, `365` | |
 
-| Nhóm | Ví dụ biến | Dùng bởi |
-|---|---|---|
-| Database | `DATABASE_URL` | api, worker |
-| Redis/Celery | `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | api, worker |
-| Storage | `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | api, worker |
-| Auth | `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (web); `JWT_SECRET` (dùng chung web + api để ký/verify HS256), `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_EXPIRES_IN` (đề xuất 8 giờ) | web, api |
-| Model | `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_GATEWAY_MODE` (`live`/`fixture`) | api, worker |
-| OCR | `OCR_PROVIDER` (`paddle`/`google_vision`), `GOOGLE_APPLICATION_CREDENTIALS` (chỉ khi dùng Vision) | worker |
-| Giới hạn | `MAX_FILE_SIZE_MB=20`, `MAX_PAGES=50` | api |
-| Demo | `DEMO_MODE` (backend, `true`/`false`, mặc định `false`), `NEXT_PUBLIC_DEMO_MODE` (frontend, chỉ để hiện/ẩn role switcher — không phải cơ chế bảo mật). Hành vi khi tắt: §8.1.1 | web, api |
+Thay đổi so với `.env.example` hiện tại: bỏ `JWT_SECRET`/`JWT_EXPIRES_IN` (HS256) → cặp khóa RS256 + TTL (DEC-129); bỏ `NEXT_PUBLIC_DEMO_PASSWORD_*` (lộ mật khẩu ra client — OQ-07); thêm 5 role demo mới. Cập nhật bởi task T-014.
 
----
-
-## 8. Bảo mật
-
-### 8.1. Xác thực & phân quyền (RBAC)
-
-| Hạng mục | Thiết kế |
-|---|---|
-| Xác thực | NextAuth đăng nhập → JWT chứa `sub`, `role` active, `exp`; FastAPI verify chữ ký JWT ở mọi request (chi tiết §8.1.2) |
-| Phân quyền | Mọi endpoint (trừ health check) có `Depends(require_role(...))`; ma trận quyền theo `02-PERSONAS-PERMISSIONS.md` §3 |
-| Data scoping | Lọc ở backend theo trụ (02 §4.1–4.2): default deny, `view-agg` chỉ trả số tổng hợp, lineage không dẫn ra ngoài scope |
-| Response model | Mọi endpoint khai báo `response_model`; field nhạy cảm (lương cá nhân, `password_hash`) không có trong response model của role không có quyền (02 §4.3) |
-| Role switcher | Chỉ cho demo; mặc định đề xuất ở §8.1.1; mỗi lần chuyển ghi audit log |
-
-### 8.1.1. Cơ chế chuyển vai trò demo (mặc định đề xuất, chờ DEC — OQ-14)
-
-| Hạng mục | Mặc định |
-|---|---|
-| User | Seed sẵn **5 user demo**, mỗi user gắn đúng 1 role ROLE-01..05 (`08-DEMO-DATA-SPEC.md`); role không đổi trên user |
-| Chuyển vai trò | Client gọi endpoint role switch (path, request/response do `10-API-SPECIFICATION.md` định nghĩa) với user/role đích. Backend kiểm `DEMO_MODE=true`, cấp **JWT mới** cho user đích, ghi `ENT-AuditLog` (actor, role cũ → role mới, thời điểm) |
-| Phía client | Thay JWT cũ bằng JWT mới trong session NextAuth; xóa toàn bộ cache TanStack Query (`queryClient.clear()`); điều hướng về dashboard của role mới |
-| JWT cũ | Không còn được client dùng; hết hạn tự nhiên theo `exp` (demo không có danh sách thu hồi — chấp nhận ở mức demo) |
-| `DEMO_MODE=false` | Endpoint role switch trả **404** (coi như không tồn tại) và không được đăng ký trong router; `NEXT_PUBLIC_DEMO_MODE=false` ẩn dropdown. Người dùng chỉ đổi vai trò bằng đăng xuất/đăng nhập user khác |
-| KPI | Chuyển vai trò → dashboard role mới hiển thị xong **≤ 2 giây** (01 §4); không reload toàn trang, không logout |
-| Quyền | Quyền luôn tính theo role trong JWT mới ở backend (02 §4.1); không tin giá trị role do client gửi kèm request khác |
-
-### 8.1.2. FastAPI verify JWT do NextAuth phát hành (mặc định)
-
-| Hạng mục | Mặc định |
-|---|---|
-| Định dạng | NextAuth dùng chiến lược `jwt` và **ký** token (JWS, HS256) bằng `JWT_SECRET` qua callback encode tùy chỉnh — không dùng JWE mã hóa mặc định của NextAuth, để FastAPI đọc được |
-| Truyền token | Frontend/Server Actions gửi `Authorization: Bearer <JWT>` tới FastAPI |
-| Verify | Dependency `get_current_user` trong `apps/api/src/core/` (qua `deps.py`): kiểm chữ ký với `JWT_SECRET` (đọc qua `ConfigService`), `exp`, `iss`, `aud`; thiếu/sai → `401` |
-| Claim bắt buộc | `sub` (user id), `role` (`ROLE-01`..`ROLE-05`), `iat`, `exp`, `iss`, `aud` |
-| Phân quyền | `Depends(require_role(...))` đọc claim `role` sau khi verify; không đủ quyền → `403`; mã lỗi theo `10-API-SPECIFICATION.md` §1 |
-| Token do backend cấp (role switch) | Cùng thuật toán, secret, claim; NextAuth chấp nhận vì dùng chung `JWT_SECRET` |
-| Phương án thay thế | Ký bất đối xứng (RS256) với khóa công khai cho FastAPI — chỉ cần khi tách hệ thống; ngoài phạm vi demo |
-| Thư viện | Thư viện xử lý JWT phía Python cụ thể chưa có trong bảng Tech Stack → chọn khi implement và raise DEC nếu là dependency mới (OQ-14) |
-
-### 8.2. Audit log
-
-- Ghi qua middleware/dependency cho **mọi mutation** (upload, sửa field, duyệt, từ chối, commit, hoàn tác, acknowledge/dismiss alert), mỗi lần chuyển vai trò, mỗi lần mở tài liệu gốc chứa PII (kể cả lần bị từ chối) — theo 02 §4.4.
-- Trường tối thiểu: actor (user hoặc `ai:idp`), role active, hành động, đối tượng, before/after (với commit), thời điểm. Bảng `ENT-AuditLog` theo `05-DATA-MODEL.md`.
-- Audit log chỉ append; không có API sửa/xóa.
-
-### 8.3. An toàn AI & prompt injection
-
-| Biện pháp | Hiện thực |
-|---|---|
-| Tài liệu là data | Delimiter rõ ràng trong prompt; system prompt bỏ qua chỉ dẫn trong tài liệu |
-| Output có cấu trúc | JSON schema + Pydantic validate; ngoài schema → loại bỏ |
-| Không có quyền hành động | LLM chỉ trả dữ liệu; Action Registry quyết định theo rule |
-| Phát hiện mẫu injection | Gắn cờ `SUSPICIOUS_CONTENT`, chặn straight-through (04 §13) |
-| Chống hallucination | Bắt buộc `null` khi không tìm thấy; kiểm `raw_text` có xuất hiện tại `source_location` |
-| Chống XSS | Không render HTML/Markdown từ nội dung tài liệu |
-| Kill switch | Chuyển IDP về L0/L2 ngay lập tức (04 FR-DC-21) |
-
-### 8.4. Dữ liệu cá nhân (NĐ 13/2023/NĐ-CP) & lưu trữ
-
-| Hạng mục | Thiết kế |
-|---|---|
-| Phân loại | Field gắn nhãn nhạy cảm (`sensitivity = salary`, PII) khi trích xuất (04 §13.3) |
-| Truy cập | Theo 02 §4.3: lương cá nhân chỉ HR Manager (đầy đủ) và Reviewer (trong ngữ cảnh review) |
-| Tối thiểu hóa | Che PII trong log và trong prompt khi không cần cho tác vụ |
-| Lưu file | MinIO private bucket; truy cập qua presigned URL ≤ 15 phút, chỉ cấp sau khi qua kiểm tra quyền |
-| Mã hóa | Demo: dựa vào mã hóa ổ đĩa/host. Mục tiêu sản phẩm (ngoài MVP): mã hóa at-rest AES-256, TLS 1.3 khi triển khai ngoài localhost |
-| Xóa dữ liệu | Soft delete (`deleted_at`) cho entity nghiệp vụ; xóa thật ngoài phạm vi demo |
-| Dữ liệu demo | Dữ liệu giả định công ty ABC, nhưng áp dụng đầy đủ quy tắc |
+Sinh khóa RS256 (dev): `uv run python -m app.scripts.gen_jwt_keys --out ./secrets` (tạo `jwt_private.pem` 0600 + `jwt_public.pem`); production dùng secret manager / mount read-only.
 
 ---
 
-## 9. Chạy offline ở mức demo
+## 8. Triển khai
 
-Theo 01 §7 "Chạy được offline ở mức demo" và 04 OQ-06 (đề xuất mặc định: fixture/replay):
+### 8.1. Docker Compose
 
-| Thành phần | Online | Offline (demo) |
-|---|---|---|
-| Hạ tầng | Docker Compose local | Như online (không cần internet sau khi đã pull image) |
-| OCR | PaddleOCR self-host (hoặc Google Vision) | **PaddleOCR self-host**; Google Vision không dùng được |
-| LLM | ModelGateway → OmniRoute → provider | `MODEL_GATEWAY_MODE=fixture`: trả kết quả classify/extract đã ghi sẵn cho DOC-01→07 (khóa theo SHA-256 file); tài liệu ngoài bộ mẫu → `FAILED` với thông báo "AI không khả dụng offline — nhập tay (C1)" |
-| Embedding/RAG | LlamaIndex + embedding qua ModelGateway | Embedding đã seed sẵn cho tài liệu mẫu; câu hỏi panel AI mới → thông báo không khả dụng |
-| Font/asset | — | Đóng gói local (không tải từ CDN) |
-| Seed | `uv run python -m app.seed` | Như online; seed có sẵn extraction để dashboard có dữ liệu ngay (08) |
+| Service | Image / lệnh | Port | Volume | Health check |
+|---|---|---|---|---|
+| `postgres` | `pgvector/pgvector:pg16` | 5432 | `pgdata` | `pg_isready` |
+| `redis` | `redis:7-alpine` (`appendonly yes`) | 6379 | `redisdata` | `redis-cli ping` |
+| `minio` | MinIO (S3-compatible) | 9000 / 9001 | `miniodata` | `/minio/health/live` |
+| `clamav` | `clamav/clamav` (OQ-03) | 3310 | `clamdb` (signature) | `clamdscan --ping` |
+| `api` | `uv run uvicorn app.main:app --host 0.0.0.0 --port 4000` | 4000 | `./secrets:ro` | `GET /api/v1/health` |
+| `worker` | `uv run celery -A app.worker worker --loglevel=info -Q default,idp,events` | — | `./secrets:ro` | `celery inspect ping` |
+| `beat` | `uv run celery -A app.worker beat --loglevel=info` (**replicas: 1**) | — | — | — |
+| `web` | `pnpm --filter web start` (build trước) | 3000 | — | `GET /` |
 
-Fixture mode vẫn đi qua đúng pipeline (Celery → ModelGateway → validate → Action Registry) để demo trung thực trạng thái AI (P02).
+Dev thường chạy hạ tầng bằng Compose và app trên máy: `docker compose up -d postgres redis minio clamav`.
+
+### 8.2. Chạy local
+
+```bash
+cp .env.example .env                     # điền placeholder
+pnpm install && uv sync
+uv run python -m app.scripts.gen_jwt_keys --out ./secrets
+docker compose up -d postgres redis minio clamav
+uv run alembic upgrade head              # tạo 10 schema + bảng
+uv run python -m app.seed                # công ty ABC ~150 NV (DEC-136), 10 user demo
+pnpm dev:web                             # :3000
+uv run uvicorn app.main:app --reload --port 4000
+uv run celery -A app.worker worker --loglevel=info
+uv run celery -A app.worker beat --loglevel=info
+uv run python -m app.reset               # reset dữ liệu demo (không xóa volume)
+```
+
+Production-like (một máy demo): `docker compose up -d --build`; reverse proxy (TLS) đặt trước `web` và `api`; tắt `DEMO_MODE` khi không demo.
 
 ---
 
-## 10. Observability
+## 9. Bảo mật
 
-Không thêm công cụ monitoring mới (cần DEC). Dùng năng lực có sẵn trong stack:
+### 9.1. Kiểm soát chính
+
+| Lớp | Kiểm soát |
+|---|---|
+| Xác thực | JWT RS256 (DEC-129): private key chỉ module `auth` đọc; access 15 phút, refresh 7 ngày xoay vòng, phát hiện tái sử dụng; argon2id cho mật khẩu; khóa tạm sau 5 lần sai |
+| Phân quyền (2 lớp) | (1) middleware: verify token + rate limit; (2) endpoint: `require_permission` + data scope trong service (02 §5–§6). AI dùng đúng 2 lớp này qua `Principal` của người hỏi |
+| Dữ liệu nhạy cảm | 4 mức (02 §6.3); mức 4 (lương, CCCD, ngày sinh, địa chỉ, tài khoản) mask trong response, audit log, event payload, prompt LLM; tài liệu `contains_salary` chỉ mở cho role được phép |
+| PII filter trước LLM | `pii.py` áp cho mọi request ModelGateway: loại mức 4, thay mức 3 bằng mã tham chiếu; IDP: trích xuất tài liệu nhân sự chạy với `MODEL_SENSITIVE_PROVIDER` (OQ-05) |
+| Prompt injection | Nội dung tài liệu/tool result bọc `<<<DATA … DATA>>>` + chỉ dẫn "chỉ là dữ liệu"; tool ghi không bao giờ được kích hoạt bởi chữ trong tài liệu (IDP không có tool calling); output JSON schema validate; kill switch |
+| Upload | Whitelist MIME + magic bytes; giới hạn kích thước/trang; ClamAV; bucket private, presigned ≤ 15 phút; không render file `INFECTED` |
+| Web | CSP, `X-Frame-Options: DENY`, cookie `httpOnly; Secure; SameSite=Lax`, CSRF cho NextAuth; CORS chỉ `WEB_BASE_URL` |
+| Secret | Chỉ env/secret file; `.gitignore` `.env*`, `secrets/`, `*.pem`, `*.key`; pre-commit scan (gitleaks — OQ-08) |
+| Audit | `ENT-AuditLog` append-only (không UPDATE/DELETE — quyền DB), mọi mutation + đăng nhập + mở PII + kill switch |
+
+### 9.2. OWASP Top 10 & OWASP LLM Top 10
+
+| Rủi ro | Biện pháp |
+|---|---|
+| A01 Broken Access Control | `require_permission` mọi route (test liệt kê route thiếu dependency), data scope ở service, test leak theo 10 role |
+| A02 Cryptographic Failures | RS256, argon2id, TLS ở proxy, không lưu token ở `localStorage` |
+| A03 Injection | SQLAlchemy bind param; không SQL thô từ input; `sort_by` whitelist |
+| A04 Insecure Design | Action Registry duy nhất cho ghi; four-eyes trường trọng yếu |
+| A05 Security Misconfiguration | Fail-fast config; `DEMO_MODE=false` ẩn EP-04/05 |
+| A07 Auth Failures | Rate limit login, refresh rotation, thông báo lỗi chung `INVALID_CREDENTIALS` |
+| A08 Integrity | Outbox + idempotency; migration review |
+| A09 Logging Failures | Log JSON có `request_id`; audit; alert DLQ |
+| LLM01 Prompt Injection | Delimiter data, tool filter, không tool ghi trong IDP, grounding check |
+| LLM02 Sensitive Info Disclosure | PII filter, tool result qua scope, không lưu prompt thô |
+| LLM05 Improper Output Handling | Output JSON schema; render Markdown đã sanitize ở web |
+| LLM06 Excessive Agency | Autonomy L0–L3 (L4 khóa), policy tool × role × ngưỡng, undo 24 h, kill switch |
+| LLM09 Misinformation | P05: số phải có nguồn; confidence band; `AI_NO_DATA_AVAILABLE` |
+| LLM10 Unbounded Consumption | Rate limit 20/phút, ≤ 8 tool, 2048 token, ngân sách tháng + cảnh báo 80% |
+
+### 9.3. Tuân thủ Việt Nam & retention
+
+| Hạng mục | Quy tắc |
+|---|---|
+| NĐ 13/2023/NĐ-CP | Phân loại dữ liệu cá nhân (02 §6.3); consent cho CV ứng viên / ghi âm họp (`recording_consent`); quyền truy cập/xóa của chủ thể qua ADMIN; kiểm soát chuyển dữ liệu ra nước ngoài: PII mức 3–4 không gửi provider cloud |
+| Data residency | Tùy chọn provider VN/on-prem qua `MODEL_SENSITIVE_PROVIDER`; DB/MinIO đặt tại VN khi triển khai thật |
+| Chứng từ kế toán | Tài liệu gốc hóa đơn/BCTC giữ ≥ 10 năm (Luật Kế toán) — không xóa cứng, chỉ archive |
+| CV / dữ liệu ứng viên | Xóa khi hết consent |
+| Log | Audit ≥ 10 năm (`RETENTION_AUDIT_DAYS`); `ModelCallLog` 180 ngày; hội thoại 365 ngày (người dùng xóa sớm được) |
+
+---
+
+## 10. Quan sát (observability)
 
 | Hạng mục | Cách làm |
 |---|---|
-| Log ứng dụng | Logging có cấu trúc (JSON) của Python ở api/worker, có `request_id`/`document_id`/`task_id`; không log credential, che PII |
-| Trạng thái pipeline | Lưu trong DB (`DocumentStatus`, `ENT-ExtractionJob` với thời điểm từng bước) → đo thời gian xử lý (NFR-IDP-01) |
-| LLM usage & chi phí | Log của ModelGateway (token, chi phí, latency, model, lỗi) → tổng hợp theo ngày; vượt ngân sách → raise `DEC-xxx` blocking (`CLAUDE.md` § Escalation) |
-| Chất lượng AI | Field accuracy, straight-through rate, thời gian review lấy từ `ENT-ExtractedField`/`ENT-ExtractionReview` → màn Analytics (06) |
-| KPI UI | Log UI cho chuyển vai trò (≤ 2s), drill-down (≤ 3 click), review (≤ 60s) — 01 §4 |
-| Health check | `GET /api/v1/health` (không yêu cầu role) kiểm tra DB, Redis, MinIO; chi tiết endpoint theo `10-API-SPECIFICATION.md` |
-| Celery | Theo dõi qua log worker + trạng thái job trong DB |
+| Log | JSON một dòng (`structlog` hoặc `logging` + formatter — không thêm dependency nếu chưa có DEC): `ts`, `level`, `request_id`, `user_id`, `role`, `module`, `event`, `latency_ms`; không log body chứa PII/secret |
+| Correlation | `X-Request-Id` → log → `ENT-AuditLog.metadata` → envelope event `correlation_id` → `ENT-ToolCallLog` / `ENT-ModelCallLog` |
+| AI | `ENT-ToolCallLog` (mọi tool call), `ENT-ModelCallLog` (token, chi phí, provider, fallback); EP-119 `/ai/usage`; feedback 👍/👎 (EP-113) làm dữ liệu evaluation |
+| IDP | `ENT-ExtractionJob` (thời gian từng bước, `error_code`), thống kê accuracy/STP (EP-39) |
+| Event | `outbox_pending`, `dlq_count`, độ trễ relay — hiển thị EP-57; DLQ > 0 → alert ADMIN |
+| Health | EP-01 kiểm tra DB, Redis, MinIO, ClamAV, ModelGateway (`degraded` khi dependency phụ lỗi) |
+| Metric hệ thống | Middleware đo p50/p95 theo route (lưu Redis cửa sổ 1 giờ) cho EP-57; Prometheus/Grafana ngoài phạm vi demo |
 
 ---
 
-## 11. Phi chức năng (NFR) kỹ thuật
+## 11. Yêu cầu phi chức năng (NFR)
 
-| Hạng mục | Mục tiêu demo | Nguồn |
+NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI-EOS §5.3 và DEC-131. Test chứng minh: `14-TEST-TRACEABILITY.md`.
+
+| ID | Nhóm | Yêu cầu | Cách đo |
+|---|---|---|---|
+| NFR-01 | Hiệu năng | Endpoint dashboard p95 **< 800 ms**; cả 5 trụ tải xong **< 3 s** | Load test 20 user đồng thời trên seed ABC |
+| NFR-02 | Hiệu năng AI | Chat p95 **≤ 30 s** (non-stream); token đầu tiên **≤ 5 s** (stream) | Bộ câu hỏi eval, `ModelCallLog.latency_ms` |
+| NFR-03 | Độ tươi | Dữ liệu dashboard trễ **≤ 60 s** so với nguồn; metric cập nhật ≤ 10 s sau commit IDP | Test tích hợp event → metric |
+| NFR-04 | Khả dụng từng phần | Một module hoặc AI lỗi không làm hỏng dashboard (FR-DSH-07) | Test tắt module/ModelGateway |
+| NFR-05 | Xác thực | JWT RS256; private key chỉ `auth` đọc; mật khẩu ≥ 8 ký tự đủ 4 loại | Unit + review cấu hình |
+| NFR-06 | Phân quyền | RBAC 2 lớp; AI không trả dữ liệu vượt quyền; không self-register (DEC-137) | Test leak 10 role × endpoint × tool |
+| NFR-07 | Cache | Hai tài khoản cùng trình duyệt không đọc chung cache (`Vary: Authorization`) | Test header + e2e |
+| NFR-08 | Token | Token trong cookie `httpOnly` (không `localStorage`/`sessionStorage`) | Review + e2e |
+| NFR-09 | Secret | Secret chỉ qua env/secret file; không commit `.env`, `secrets/`, `*.pem` | Pre-commit scan, review |
+| NFR-10 | Ứng dụng | Phòng chống OWASP Top 10 và OWASP LLM Top 10 (§9.2) | Checklist + test injection |
+| NFR-11 | Riêng tư | PII mức 3–4 và lương cá nhân không gửi provider LLM; tuân thủ NĐ 13/2023 | Test PII filter trên prompt ghi lại (fixture `record`) |
+| NFR-12 | Riêng tư hội thoại | Chỉ chủ hội thoại đọc/xóa | Test EP-112 chéo user |
+| NFR-13 | Toàn vẹn | Consumer idempotent theo `event_id`; retry 3 lần rồi DLQ; không mất message | Test gửi trùng + lỗi giả lập |
+| NFR-14 | Giới hạn AI | 20 request/phút/người; ≤ 8 tool call/lượt | Test rate limit |
+| NFR-15 | Mở rộng | Thêm domain = thêm module + binding event + tool registry, không sửa module khác | Review kiến trúc, import-boundary test |
+| NFR-16 | Chất lượng mã | Coverage **≥ 80%** tầng `services/`; ruff sạch; mypy sạch; test AI chạy fixture (không gọi provider thật); contract test response ↔ 10 | CI |
+| NFR-17 | Quan sát | Correlation ID xuyên suốt; log đầy đủ tool call / model call | Test có `request_id` trong log + log AI |
+| NFR-18 | Trải nghiệm | Dashboard đọc được ≥ 1280 px không cuộn ngang; mobile PWA (SCR-28) | e2e viewport |
+| NFR-19 | Cấu hình | Mọi ngưỡng F.O.C.U.S là biến cấu hình (EP-55 / env) | Review + test đổi ngưỡng |
+| NFR-20 | Quy mô | Một doanh nghiệp 150–300 nhân sự, một pháp nhân, VND (seed ABC ~150 — DEC-136) | Seed + load test |
+| NFR-21 | Hiệu năng IDP | Tài liệu ≤ 5 trang: extraction p95 **≤ 60 s**; upload trả id ≤ 2 s | Bộ 9 tài liệu mẫu (08) |
+| NFR-22 | Thông lượng IDP | **≥ 1.000 trang/giờ** (1 worker OCR + mở rộng ngang bằng thêm worker) | Benchmark batch |
+| NFR-23 | Phục hồi | **RPO ≤ 15 phút**, **RTO ≤ 4 giờ** (core): WAL archiving/`pg_dump` mỗi 15 phút + snapshot MinIO; runbook khôi phục | Diễn tập khôi phục một lần trước demo |
+| NFR-24 | Khả dụng AI | Model chính lỗi → tự chuyển fallback (§6.2); nhập tay C1 luôn hoạt động khi AI tắt | Test fault injection `respx` |
+| NFR-25 | Ngôn ngữ | UI và AI tiếng Việt + tiếng Anh; hiểu câu hỏi trộn hai ngôn ngữ (DEC-135) | Eval song ngữ |
+| NFR-26 | Chi phí AI | Ngân sách tháng `AI_MONTHLY_BUDGET_USD`, cảnh báo 80%, báo cáo chi phí theo provider/task/user (DEC-131) | EP-119 |
+| NFR-27 | Chất lượng AI | Eval set ≥ 30 câu hỏi (5 trụ × role) chạy CI ở fixture mode: 100% câu trả lời có số có source chip; 0 leak ngoài quyền; field accuracy IDP ≥ 90%, error leakage trường trọng yếu < 0,5% (01 KPI) | `tests/ai_eval/` |
+| NFR-28 | Data residency | Cấu hình được vùng lưu trữ; tùy chọn xử lý tại VN (`MODEL_SENSITIVE_PROVIDER`) | Review cấu hình |
+
+---
+
+## 12. Bẫy kỹ thuật (bổ sung `CLAUDE.md` § Gotchas)
+
+| Chủ đề | Bẫy | Cách tránh |
 |---|---|---|
-| Chuyển vai trò dashboard | ≤ 2 giây | 01 §4 |
-| Thời gian đến insight đầu tiên (CEO) | ≤ 10 giây | 01 §4 |
-| Upload trả document id | ≤ 2 giây | 04 FR-DC-01 |
-| Xử lý tự động 1 tài liệu ≤ 10 trang | p95 ≤ 60 giây | 04 NFR-IDP-01 |
-| Batch UC-07 (7 tài liệu) | ≤ 5 phút xử lý tự động; toàn luồng ≤ 15 phút | 04 NFR-IDP-02, 01 §4 |
-| Giới hạn file | ≤ 20 MB, ≤ 50 trang | 04 FR-DC-01 |
-| Thiết bị | Desktop + responsive/PWA (không native) | 01 §3, §7 |
+| Schema per module | Alembic autogenerate bỏ sót schema không có trong `include_schemas` | `include_schemas=True`, `version_table_schema="platform"`; migration đầu tạo `CREATE SCHEMA` cho 10 schema |
+| Ranh giới module | Import `models` của module khác để join "cho nhanh" | Gọi `services` public; cần số liệu chéo → service trả DTO; test import-boundary chặn |
+| Transaction chéo schema | Gọi service module khác mở session riêng → mất tính nguyên tử | Truyền `AsyncSession` của request/Action Registry vào service đích |
+| Outbox | Publish trực tiếp lên Redis trong request → event mất khi rollback | Chỉ `publish_in_tx()`; relay mới gửi broker |
+| Celery beat | 2 instance → relay/job chạy trùng | `beat` replicas 1; job hằng ngày idempotent theo (job, ngày) |
+| Consumer | Ack trước khi xử lý xong → mất event | `acks_late=True`; ghi `processed_events` cùng transaction |
+| Async SQLAlchemy | Lazy load trong async → `MissingGreenlet` | `selectinload`/`joinedload`; `expire_on_commit=False` |
+| SSE | Proxy/Next buffer stream → người dùng không thấy token | Header `X-Accel-Buffering: no`; Route Handler Next.js stream trực tiếp, không qua Server Action |
+| SSE hủy | Client đóng kết nối nhưng tool vẫn chạy | Kiểm tra `request.is_disconnected()`; hủy task, lưu `truncated` |
+| Tool executor | Gọi HTTP loopback tới chính API → gấp đôi latency, mất transaction | Gọi service in-process với `Principal` người hỏi |
+| RS256 | Đặt private key trong image/repo | Mount `./secrets` read-only; `kid` để xoay khóa |
+| Cache dashboard | Thiếu `Vary: Authorization` → lộ dữ liệu role khác | Middleware set header cho EP dashboard; test NFR-07 |
+| Tiền | Dùng float cho VND | BIGINT + `currency`; `Decimal` khi tính tỷ lệ |
+| Fixture mode | Test "xanh" nhưng prompt đổi làm fixture lệch | Fixture key = hash (task, schema version, input đã chuẩn hóa); thiếu fixture → fail rõ |
+| Docker | `docker compose down -v` xóa volume dữ liệu demo | Không dùng `-v`; reset bằng `app.reset` |
 
 ---
 
-## 12. Bẫy kỹ thuật cần tuân thủ (tóm tắt `CLAUDE.md` § Gotchas)
+## 13. Open questions
 
-| Khu vực | Quy tắc |
+| # | Câu hỏi | Đề xuất mặc định | Ảnh hưởng |
+|---|---|---|---|
+| OQ-01 | `asyncpg` (driver async) chưa có DEC; code hiện dùng `psycopg[binary]` 3 (hỗ trợ async) | Dùng `psycopg` async (`postgresql+psycopg://`) → **không** cần `asyncpg`; nếu chọn `asyncpg` → raise DEC (T-002) | `pyproject.toml`, `DATABASE_URL` |
+| OQ-02 | `httpx`, `respx`, `argon2-cffi` chưa có DEC riêng (httpx, argon2 đã có trong code v1) | Gộp vào một DEC dependency v2 (T-002) | 13 |
+| OQ-03 | ClamAV (container + client `clamd`) chưa có DEC; 04 OQ-01 | Thêm vào Compose, `CLAMAV_REQUIRED=false` ở demo (scan lỗi → `SKIPPED` + chặn STP) | 04 FR-DC-02, Compose |
+| OQ-04 | `CLAUDE.md` mô tả: 4 trụ, 5 role, HS256 ngầm định ("NextAuth + JWT"), `require_role`, `apps/api/src/modules/` (thiếu `app/`), phạm vi MVP v1, cấm đọc `_reference/`, ma trận load thiếu "Scaffold", "Code domain module", "Code AI Core", "Code UI" | Human cập nhật `CLAUDE.md` theo v2 (DEC-124); agent không tự sửa | CLAUDE.md, 11 |
+| OQ-05 | Provider cho dữ liệu nhạy cảm / data residency VN (`MODEL_SENSITIVE_PROVIDER`) | Demo: trùng primary + PII filter; production: provider on-prem/VN | NFR-11, NFR-28 |
+| OQ-06 | Giới hạn upload v1 (`MAX_FILE_SIZE_MB=20`, `MAX_PAGES=50`) khác v2 (50 MB / 300 trang / 100 file) | Theo 04 §15.1 | `.env.example` |
+| OQ-07 | `.env.example` hiện có `NEXT_PUBLIC_DEMO_PASSWORD_*` (mật khẩu demo lộ ra bundle client) | Bỏ; dùng EP-04/EP-05 role switch | `.env.example`, 06 |
+| OQ-08 | Pre-commit secret scan (gitleaks) là dependency dev mới | Raise DEC hoặc dùng script grep đơn giản | CI |
+| OQ-09 | Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
+| OQ-10 | Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
+| OQ-11 | Alias `auto/coding`, `auto/cheap` (OmniRoute) cho `MODEL_*` runtime trùng tên với alias build-agent (11) | Chấp nhận — hai cấu hình tách biệt (runtime env vs agent config) | 11 |
+
+---
+
+## 14. Liên kết
+
+| Nội dung | File |
 |---|---|
-| Next.js | Data real-time dùng `{ cache: 'no-store' }`; tách rõ code server/client |
-| FastAPI | Luôn `response_model`; tách `deps.py`; upload stream bằng `UploadFile`; Pydantic v2 |
-| SQLAlchemy | Session dùng context manager / DI theo request; tránh N+1 (`selectinload`/`joinedload`); review migration autogenerate |
-| Celery | Idempotent, time limit, `result_expires`, 1 beat |
-| LLM | Delimiter, chunk tài liệu dài, `null` thay vì bịa |
-| OCR | Kiểm `text_layer_exists` trước OCR; luôn trả `confidence` |
-| Docker | Kiểm volume trước `down` |
+| Endpoint, SSE, Tool Registry, event | `10-API-SPECIFICATION.md` |
+| Bảng, outbox, ModelCallLog | `05-DATA-MODEL.md` |
+| Pipeline IDP, Action Registry | `04-IDP-FEATURE-SPEC.md` |
+| Quyền, scope, mức nhạy cảm | `02-PERSONAS-PERMISSIONS.md` |
+| Task S0 hạ tầng (T-002..T-017) | `09-BUILD-PLAN-TASKS.md` |
+| Quy trình agent, routing model build | `11-AGENT-WORKFLOW.md` |
 
 ---
 
-## 13. Liên kết
+## Version
 
-| Chủ đề | File |
-|---|---|
-| Tầm nhìn, scope, ràng buộc | `01-PROJECT-OVERVIEW.md` |
-| Quyền, data scoping, audit | `02-PERSONAS-PERMISSIONS.md` |
-| Metric, alert engine | `03-DASHBOARD-SPEC.md` |
-| Pipeline IDP, Action Registry, an toàn AI | `04-IDP-FEATURE-SPEC.md` |
-| Entity, bảng, index | `05-DATA-MODEL.md` |
-| Màn hình, design system | `06-UI-UX-SPEC.md` |
-| Tài liệu mẫu, seed | `08-DEMO-DATA-SPEC.md` |
-| Task build | `09-BUILD-PLAN-TASKS.md` |
-| API contract | `10-API-SPECIFICATION.md` |
-| Workflow agent | `11-AGENT-WORKFLOW.md` |
-| Quyết định | `13-DECISION-LOG.md` |
-
----
-
-## 14. Open questions
-
-| # | Câu hỏi / điểm lệch | Nguồn lệch | Đề xuất mặc định | Ảnh hưởng |
-|---|---|---|---|---|
-| OQ-01 | Queue: 01 §9 ghi "Redis + Celery (**hoặc ARQ**)", `CLAUDE.md` chỉ ghi Celery + Redis | 01 §9 ↔ CLAUDE.md | Dùng **Celery + Redis** (CLAUDE.md là hợp đồng vận hành); không dùng ARQ. Cần DEC xác nhận và cập nhật 01 | 07, 09 |
-| OQ-02 | LLM provider: 01 §9 ghi "Claude + GPT qua OmniRoute", `CLAUDE.md` ghi "OpenAI / DeepSeek / Claude / Gemini" | 01 §9 ↔ CLAUDE.md | Theo CLAUDE.md (đều qua OmniRoute); model cụ thể từng `task_type` cấu hình qua env | 07 |
-| OQ-03 | Seed: `CLAUDE.md` § Setup ghi `pnpm db:seed` (ghi chú "hoặc `uv run python -m app.seed`"), § Database ghi `uv run python -m app.seed`; bản nháp 08 ghi `scripts/seed-demo-data.ts` | CLAUDE.md nội bộ, 08 stub | Seed phía backend `uv run python -m app.seed` (dùng SQLAlchemy/Action Registry); vị trí tài liệu mẫu do 08 chốt | 08, 09 |
-| OQ-04 | PaddleOCR chạy service riêng hay in-process trong worker? Google Vision có dùng trong demo không? | — | In-process trong worker (ít service hơn); Google Vision tắt mặc định (offline) | 07 |
-| OQ-05 | Thư viện i18n cho Next.js chưa được nêu trong CLAUDE.md (thêm dependency cần DEC) | CLAUDE.md | Raise DEC chọn thư viện i18n | 06, 09 |
-| OQ-06 | Cập nhật trạng thái realtime: polling hay SSE/WebSocket? | — | Polling (không thêm công nghệ) | 06, 10 |
-| OQ-07 | Bảng log LLM (`model_call_log`) và job tracking có nằm trong 12 entity của 05 không? | 05 | Bổ sung vào 05 hoặc gộp vào `ENT-ExtractionJob`/`ENT-AuditLog` | 05 |
-| OQ-08 | Python: 01 §9 ghi "3.12", CLAUDE.md ghi "3.12+"; PostgreSQL: 01 "16", CLAUDE.md "16+" | 01 ↔ CLAUDE.md | Pin Python 3.12 và PostgreSQL 16 cho demo (thỏa cả hai) | 07 |
-| OQ-09 | Bản nháp 09 hiện còn NestJS/Prisma (T-001, T-003) — mâu thuẫn CLAUDE.md | 09 stub | 09 (Phase 4) sinh lại theo FastAPI/SQLAlchemy/Alembic | 09 |
-| OQ-10 | Embedding model cho pgvector/LlamaIndex chạy qua ModelGateway (cloud) — offline chỉ dùng embedding seed sẵn | 01 §7 | Giữ như §9; nếu cần embedding local → raise DEC (dependency mới) | 07, 08 |
-| OQ-11 | Bản nháp cũ có "Encryption at rest AES-256, TLS 1.3" — có bắt buộc cho demo? | Bản nháp 07 | Ghi là mục tiêu sản phẩm, không bắt buộc ở demo localhost (01 §7 không production-grade) | 07 |
-| OQ-12 | Lệnh chạy dùng module `app.main:app`, `app.worker`, `mypy app/`, `--cov=app`, nhưng cấu trúc thư mục là `apps/api/src/...` (không có package `app`) | CLAUDE.md § Commands ↔ § Cấu trúc thư mục | Python package tên `app` đặt trong `apps/api/src/app/` (hoặc cấu hình package mapping trong `pyproject.toml`) để lệnh giữ nguyên; cần DEC chốt | 07, 09 |
-| OQ-13 | Panel AI (U2 ở 06, layout ở 03) không có trong 01 §2/§3 và 04 — có thuộc MVP không? | 06 ↔ 01 | 07 chỉ mô tả hạ tầng (LlamaIndex + pgvector) theo điều kiện; nếu ngoài MVP thì bỏ `index_document` và task Panel AI trong 09 | 03, 06, 09 |
-| OQ-14 | Cơ chế chuyển vai trò và verify JWT (§8.1.1–8.1.2): 5 user seed + backend cấp JWT mới khi `DEMO_MODE=true`; HS256 shared secret `JWT_SECRET`; thư viện JWT Python | 02 §5, CLAUDE.md | Dùng mặc định §8.1.1–8.1.2 để 05/08/10 bám theo; cần DEC xác nhận (và DEC dependency nếu thư viện JWT mới) | 02, 05, 08, 10 |
-
----
-
-## 15. Version
-
-- **Version:** 1.0.0
-- **Last updated:** 2026-10-17
-- **Applies to:** Aureon Demo v1.0
+- **Version:** 2.0.0
+- **Last updated:** 2026-10-19
+- **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
+- **Change:** Viết lại toàn bộ theo DEC-124..137: Modular Monolith 11 module / 10 schema (DEC-125), outbox + Celery beat relay (DEC-126), RS256 (DEC-129), ModelGateway đa provider + fallback + ngân sách (DEC-131), SSE, ClamAV, cấu hình đầy đủ, NFR-01..28. Bản 1.x lưu ở nhánh `v1`.

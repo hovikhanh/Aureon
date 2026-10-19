@@ -32,23 +32,27 @@ Mốc audit đợt này: **2026-10-17**. Ngưỡng cảnh báo tiếp theo: **20
 | # | File | Phase | Version | Status | last_reviewed | Owner | Phụ thuộc (đầu vào) | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
 | — | `CLAUDE.md` | Hợp đồng vận hành | 1.1.0 | current | 2026-10-17 | @CyEyes | — | Chỉ con người sửa |
-| 00 | `docs/1.CONTEXT/00-INDEX.md` | Context | 1.0.0 | current | 2026-10-17 | @CyEyes | CLAUDE.md | Navigation, quy ước ID |
-| 01 | `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` | Context | 1.0.0 | current | 2026-10-17 | @CyEyes | — | Nguồn gốc mọi spec |
-| 02 | `docs/2.PRODUCT/02-PERSONAS-PERMISSIONS.md` | 1 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01 | Approved (review round 2) |
-| 03 | `docs/2.PRODUCT/03-DASHBOARD-SPEC.md` | 1 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01, 02 | Approved |
-| 04 | `docs/2.PRODUCT/04-IDP-FEATURE-SPEC.md` | 1 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01, 02 | Approved (review round 2) |
-| 05 | `docs/2.PRODUCT/05-DATA-MODEL.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01, 02, 03, 04 | Approved |
-| 06 | `docs/2.PRODUCT/06-UI-UX-SPEC.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01, 02, 03, 04 | Approved |
-| 07 | `docs/3.EXECUTION/07-TECH-ARCHITECTURE.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | CLAUDE.md, 01, 02, 04 | Approved (review round 2) |
-| 08 | `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | 01, 02, 03, 04, 05, 07 | Approved (review round 2) |
-| 09 | `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` | 4 | 1.0.0 | current | 2026-10-17 | @CyEyes | 00–08, 10–14 | Approved (review round 1) — 62 task, 5 mốc sprint S0–S4; dòng "Status: draft" trong 09 §8 là câu chữ cũ, 12 là nguồn trạng thái |
-| 10 | `docs/3.EXECUTION/10-API-SPECIFICATION.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | 02, 03, 04, 05, 07 | Approved (review round 2) — contract nguồn duy nhất |
-| 11 | `docs/3.EXECUTION/11-AGENT-WORKFLOW.md` | 2 | 1.0.0 | current | 2026-10-17 | @CyEyes | CLAUDE.md, 00 | Approved |
-| 12 | `docs/4.GOVERNANCE/12-DOC-AUDIT.md` | 3 | 1.0.0 | current | 2026-10-17 | @CyEyes | 00–11, 13, 14 | File này; Approved (review round 2) |
-| 13 | `docs/4.GOVERNANCE/13-DECISION-LOG.md` | 3 | 1.0.0 | current | 2026-10-17 | @CyEyes | 02–11 (Open questions) | Approved (review round 1); t27 thêm DEC-107..113 và Routing Log #7–12 |
-| 14 | `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` | 3 | 1.0.0 | current | 2026-10-17 | @CyEyes | 03, 04, 10 | Approved (review round 1); t27 điền cột Task `T-xxx` từ 09; agent được cập nhật khi làm task |
+| 00 | `docs/1.CONTEXT/00-INDEX.md` | Context | 2.0.0 | current | 2026-10-19 | @CyEyes | CLAUDE.md | Navigation + ID registry v2 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 01 | `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` | Context | 2.0.0 | current | 2026-10-19 | @CyEyes | — | Tầm nhìn v2, scope, KPI, roadmap S0–S5 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 02 | `docs/2.PRODUCT/02-PERSONAS-PERMISSIONS.md` | 1 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01 | 10 role, user stories, ma trận permission — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 03 | `docs/2.PRODUCT/03-DASHBOARD-SPEC.md` | 1 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01, 02 | 5 trụ F.O.C.U.S, 31 metric/alert, FR domain — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 04 | `docs/2.PRODUCT/04-IDP-FEATURE-SPEC.md` | 1 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01, 02 | IDP v2 (Domain 22): 5 kênh, review song song, 23 ACT — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 05 | `docs/2.PRODUCT/05-DATA-MODEL.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01, 02, 03, 04 | ERD hợp nhất, 10 schema / 64 entity, outbox, lineage — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 06 | `docs/2.PRODUCT/06-UI-UX-SPEC.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01, 02, 03, 04 | Design system v2, AI components, SCR-01..28, F1–F5 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 07 | `docs/3.EXECUTION/07-TECH-ARCHITECTURE.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | CLAUDE.md, 01, 02, 04 | Modular Monolith, event bus, RS256, ModelGateway đa provider — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 08 | `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | 01, 02, 03, 04, 05, 07 | ABC ~150 NV, 9 tài liệu, seed 31 metric (đối chiếu 03 v2) — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 09 | `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` | 4 | 2.0.0 | current | 2026-10-19 | @CyEyes | 00–08, 10–14 | Checklist task v2 S0–S5 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 10 | `docs/3.EXECUTION/10-API-SPECIFICATION.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | 02, 03, 04, 05, 07 | Contract API + event + Tool Registry v2 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 11 | `docs/3.EXECUTION/11-AGENT-WORKFLOW.md` | 2 | 2.0.0 | current | 2026-10-19 | @CyEyes | CLAUDE.md, 00 | Agent workflow v2 — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 12 | `docs/4.GOVERNANCE/12-DOC-AUDIT.md` | 3 | 2.0.0 | current | 2026-10-19 | @CyEyes | 00–11, 13, 14 | File này — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 13 | `docs/4.GOVERNANCE/13-DECISION-LOG.md` | 3 | 2.0.0 | current | 2026-10-19 | @CyEyes | 02–11 (Open questions) | Thêm DEC-124..137; supersede DEC-016/018/039/072 (+ một phần 010/014/073) — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
+| 14 | `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` | 3 | 2.0.0 | current | 2026-10-19 | @CyEyes | 03, 04, 10 | Reset danh mục test v2 (108 TC Planned) — viết lại theo DEC-124..137; promote bởi human (@CyEyes ủy quyền trong phiên 2026-10-19) |
 
-> Toàn bộ 15 file (00–14) + CLAUDE.md đều ở status `current`, `last_reviewed` 2026-10-17; không còn file `draft`. 09, 13, 14 đã Approved (t26, t22, t23) và được promote ở t27. **Kết luận Gate A: ĐẠT.** Gate B: 10 DEC open + blocking (13 §5; DEC-068 đã resolved sau khi 09 Approved) chặn các task ghi ở 09 §2. Gate C: 14 map đủ spec ↔ TC ↔ T-xxx.
+> ~~Toàn bộ 15 file (00–14) + CLAUDE.md đều ở status `current`~~ (trạng thái đến 2026-10-18).
+>
+> ~~Cập nhật 2026-10-19 — Nâng cấp Aureon v2 (DEC-124): 9 file 01, 02, 03, 04, 05, 06, 07, 09, 10 chuyển `draft` (đang tái cấu trúc). `version` giữ nguyên 1.0.0 — human bump khi promote. 00, 08, 11, 12, 13, 14 giữ `current` (sẽ đồng bộ sau Phase 3 nếu bị ảnh hưởng). Kết luận Gate A: KHÔNG ĐẠT cho mọi task code chạm các file `draft` cho tới khi human promote về `current`. Chỉ task tài liệu v2 theo DEC-124 được phép làm việc trên các file này.~~
+>
+> **Hoàn tất Phase 3 — 2026-10-19 (DEC-124..137):** 00–14 đã viết lại cho Aureon v2 và được promote về `current`, **version 2.0.0** (human @CyEyes ủy quyền trực tiếp trong phiên). Ngoại lệ DEC-124 (đọc `_reference/`, agent sửa docs) **hết hiệu lực** sau commit Phase 3. **Gate A: ĐẠT** cho task v2. ⚠️ `CLAUDE.md` 1.1.0 vẫn mô tả v1 — human cần cập nhật (13 §5.2); khi mâu thuẫn, spec v2 trong `docs/` + DEC-125..137 thắng.
 
 ---
 
@@ -139,6 +143,8 @@ Rà soát nội dung các tài liệu không-spec (báo cáo/README/traceability
 | _reference/SOURCE-BRD.md | 1.0 | archived | Đã distill vào 14 spec files |
 | _reference/SOURCE-UIUX.md | 1.0 | archived | Đã distill vào 14 spec files |
 
+> **Ngoại lệ DEC-124 (2026-10-19):** riêng task nâng cấp Aureon v2 được phép đọc toàn bộ `_reference/` (A-EMS, AI-EOS, `SOURCE-*`) để hợp nhất BRD v2. Mọi task khác vẫn áp dụng quy tắc dưới đây.
+
 **Quy tắc:** 
 - Status `archived` → agent KHÔNG được load
 - Nếu cần update → tạo file mới trong docs/, không sửa file archive
@@ -148,7 +154,7 @@ Rà soát nội dung các tài liệu không-spec (báo cáo/README/traceability
 
 ## Version
 
-- **Version:** 1.0.0
-- **Last updated:** 2026-10-17
-- **Applies to:** Aureon Demo v1.0
+- **Version:** 2.0.0
+- **Last updated:** 2026-10-19
+- **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes

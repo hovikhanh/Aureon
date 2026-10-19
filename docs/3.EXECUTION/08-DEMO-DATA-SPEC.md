@@ -1,8 +1,14 @@
-# 08 — DEMO DATA SPEC
+# 08 — DEMO DATA SPEC (v2)
 
-> Hồ sơ Công ty TNHH TM&DV ABC, 5 tài khoản demo ROLE-01..05, 7 tài liệu mẫu với ground truth, seed data cho 18 metric và các alert dùng trong kịch bản demo 15 phút (§11, `01-PROJECT-OVERVIEW.md`).
-> Nguồn: `01-PROJECT-OVERVIEW.md` §8; quyền/role theo `02-PERSONAS-PERMISSIONS.md`; metric/alert theo `03-DASHBOARD-SPEC.md`; extraction schema/theo chuẩn IDP theo `04-IDP-FEATURE-SPEC.md`; entity theo `05-DATA-MODEL.md`.
-> **Gate A / B / C:** `12-DOC-AUDIT.md` — N/A (Phase 3); `13-DECISION-LOG.md` — chờ OQ-12 human chốt DEC blocking; `14-TEST-TRACEABILITY.md` — mapping task seed ↔ test case sẽ thêm ở Phase 3.
+> Dữ liệu demo của **Aureon v2**: hồ sơ Công ty TNHH TM&DV ABC mở rộng (~150 nhân sự, DEC-136), 10 tài khoản demo (ROLE-01..10, DEC-128), ground truth 9 tài liệu mẫu, quy tắc nhất quán XD, seed cho 31 metric của 5 trụ F.O.C.U.S (00 §4.2), seed sự kiện (00 §4.5) và kịch bản demo 20 phút (01 §11).
+> Nguồn: 00 §4, 01 §8/§11, 02 (quyền), 03 (metric — xem lưu ý §0), 04 (doc type, schema), 05 (entity). Bản v1 (45 NV, 7 tài liệu, 18 metric) lưu ở nhánh `v1`.
+> **Mọi số trong file được tính bằng script** (DEC-022); kết quả kiểm tra ở §9.
+
+---
+
+## 0. Lưu ý về công thức và ngưỡng
+
+§6 đã **đối chiếu với `03-DASHBOARD-SPEC.md` 2.0.0** (2026-10-19): công thức, đơn vị, ngưỡng mặc định và bảng level rủi ro (BR-RSK-02) lấy từ 03; 03 thắng khi lệch. "Δ3k" = so với trung bình 3 kỳ gần nhất. Quy ước đánh giá: kiểm điều kiện **Critical trước, Warning sau**; còn lại OK.
 
 ---
 
@@ -11,615 +17,562 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Tên đầy đủ | Công ty TNHH Thương mại & Dịch vụ ABC |
-| Mã số thuế (MST) | `0301234567` (10 số, định dạng VN) |
-| Ngành | Phân phối thiết bị văn phòng (giấy, bút, máy in, phụ kiện) |
-| Quy mô | **45 nhân sự** đang làm việc (ACTIVE) |
-| Doanh thu dự kiến | ~100 tỷ VNĐ/năm → trung bình **~8,3 tỷ/tháng** |
-| Trụ sở chính | `Tầng 7, Tòa nhà Bitexco Financial Tower, 2 Hải Triều, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh` |
-| Chi nhánh | `Số 45 đường Lê Duẩn, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh` |
-| Người đại diện | Ông **Nguyễn Văn An** — Giám đốc |
-| Niên độ tài chính | Năm dương lịch (01/01 – 31/12) |
-| Kỳ dữ liệu demo | Tháng 9/2026 (`T9/2026`), Quý 3/2026 (`Q3/2026`) |
-| Đơn vị tiền tệ | VNĐ (VND); tiền lưu `bigint` — số nguyên, không thập phân |
+| Mã số thuế (MST) | `0301234567` |
+| Ngành | Phân phối thiết bị văn phòng + dịch vụ bảo trì + nền tảng đặt hàng B2B |
+| Quy mô | **150 nhân sự ACTIVE**, 7 phòng ban (§1.1) |
+| Doanh thu | ~**294 tỷ VNĐ** 12 tháng gần nhất (10/2025–09/2026); Q3/2026 = **73,5 tỷ** |
+| Trụ sở | Tầng 7, Tòa nhà Bitexco Financial Tower, 2 Hải Triều, Phường Sài Gòn, TP. Hồ Chí Minh |
+| Chi nhánh | Số 12 Trần Hưng Đạo, Phường Cửa Nam, TP. Hà Nội |
+| Người đại diện | Ông **Nguyễn Văn An** — Tổng giám đốc |
+| Niên độ | Năm dương lịch |
+| Kỳ demo | T9/2026, Q3/2026; kế hoạch Q4/2026 |
+| `DEMO_REFERENCE_DATE` | **2026-10-20** — "hôm nay" cho mọi metric phụ thuộc ngày |
+| Tiền tệ | VND, lưu `BIGINT` số nguyên (05 §1) |
 
-**Quy tắc P04 áp dụng cho mọi dữ liệu:**
-- Ngày: `dd/mm/yyyy` khi hiển thị; ISO `yyyy-mm-dd` khi lưu.
-- Tiền: `1.250.000 đ` / `1,2 tỷ` / `850 tr` — dấu chấm phân cách nghìn, dấu phẩy thập phân.
-- MST: 10 số, định dạng `0301234567`.
-- Nhân sự: tên giả định, không PII thật; CCCD/số điện thoại dùng giá trị placeholder `0123456789` / `09xxxxxxxx`.
+**Sản phẩm / dịch vụ (trụ U):**
+
+| Mã | Tên | Mô tả | Doanh thu T9/2026 (trước VAT) |
+|---|---|---|---|
+| `PRD-SUP` | ABC Supply | Phân phối giấy, mực, máy in, thiết bị | `19.125.000.000` |
+| `PRD-CARE` | ABC Care | Gói bảo trì máy văn phòng theo hợp đồng | `4.080.000.000` |
+| `PRD-ORDER` | ABC Order | Nền tảng đặt hàng B2B (phí thuê bao + phí giao dịch) | `2.295.000.000` |
+| | **Tổng** | | **`25.500.000.000`** (= doanh thu T9 DOC-01) |
+
+**Quy tắc P04:** ngày `dd/mm/yyyy` khi hiển thị, ISO khi lưu; tiền `1.250.000 đ` / `1,2 tỷ`; MST 10 số; tên người giả định, CCCD/SĐT placeholder `0123456789` / `09xxxxxxxx`; địa chỉ theo đơn vị hành chính mới (2 cấp).
+
+### 1.1. Phòng ban (`ENT-Department`)
+
+| Mã | Phòng ban | Trưởng bộ phận | Headcount ACTIVE | Trụ liên quan |
+|---|---|---|---|---|
+| `BOD` | Ban Giám đốc | Nguyễn Văn An (CEO) | 6 | Toàn bộ |
+| `FIN` | Tài chính – Kế toán | Trần Thị Minh (CFO) | 14 | F |
+| `SAL` | Kinh doanh | Lê Hoàng Giang (VP Sales) | 42 | C |
+| `LOG` | Kho vận & Giao hàng | Hoàng Minh Tuấn (Manager) | 38 | O |
+| `SVC` | Kỹ thuật & Dịch vụ (ABC Care) | Đặng Văn Khải | 24 | O, U |
+| `PRD` | Sản phẩm & Công nghệ (ABC Order) | Đỗ Quang Huy (CPO) | 18 | U |
+| `HRA` | Nhân sự – Hành chính | Phạm Thị Hạnh (HR Manager) | 8 | O |
+| | **Tổng** | | **150** | |
+
+BOD gồm: CEO, CFO, VP Sales, CPO, Risk Manager (Bùi Thu Trang), Trợ lý TGĐ. CFO/VP Sales/CPO được tính ở BOD, đồng thời là trưởng bộ phận FIN/SAL/PRD (`head_employee_id`).
 
 ---
 
-## 2. Tài khoản demo — 5 user, 1 role mỗi người
+## 2. Tài khoản demo — 10 user, 1 role mỗi người
 
-Theo `02-PERSONAS-PERMISSIONS.md` §5.2 R5 và `07-TECH-ARCHITECTURE.md` §8.1.1 (đã chốt): mỗi user tương ứng 1 role cố định; switcher chỉ hoạt động khi `DEMO_MODE=true`; mật khẩu đặt qua `.env.example` — **không ghi cứng**.
+Mỗi user một role cố định (02); switcher chỉ bật khi `DEMO_MODE=true`. **Mật khẩu chỉ qua env**, seed băm (bcrypt/argon2) và chỉ lưu hash; không ghi giá trị trong tài liệu, repo hay log.
 
-| ID tài khoản | Email (demo) | Full name | Role | Ghi chú |
-|---|---|---|---|---|
-| `acc-ceo` | `ceo@abc.demo` | **Ông Nguyễn Văn An** | **ROLE-01 CEO** | Giám đốc điều hành; xem 4 trụ, xem tất cả alert; **không** có quyền duyệt IDP (§3.4) |
-| `acc-cfo` | `cfo@abc.demo` | **Bà Trần Thị Minh** | **ROLE-02 CFO** | Giám đốc tài chính; xem FIN + OPS; duyệt tài liệu FIN; drill-down dừng ở bản ghi tổng hợp với lương cá nhân |
-| `acc-sales` | `sales@abc.demo` | **Ông Lê Hoàng Giang** | **ROLE-03 Sales Dir** | Giám đốc kinh doanh; xem CUS + doanh thu FIN; không duyệt IDP |
-| `acc-hr` | `hr@abc.demo` | **Cô Phạm Thị Hạnh** | **ROLE-04 HR Manager** | Trưởng phòng nhân sự; xem HR + OPS; duy nhất có quyền mở/tải file #6 lương cá nhân |
-| `acc-reviewer` | `reviewer@abc.demo` | **Anh Vũ Đức Thắng** | **ROLE-05 Reviewer** | Nhân viên vận hành dữ liệu; dashboard duy nhất = hàng chờ IDP; duyệt được mọi trụ |
-
-**Quy tắc mật khẩu (chỉ ghi trong `.env.example`, không commit vào repo):**
+| Role | Email | Họ tên | Phòng ban | Env mật khẩu | Trang chủ (06) |
+|---|---|---|---|---|---|
+| ROLE-01 `CEO` | `ceo@abc.demo` | Ông Nguyễn Văn An | BOD | `DEMO_CEO_PASSWORD` | SCR-01 Briefing công ty |
+| ROLE-02 `CFO` | `cfo@abc.demo` | Bà Trần Thị Minh | BOD/FIN | `DEMO_CFO_PASSWORD` | SCR-01 (F + S) |
+| ROLE-03 `VP_SALES` | `sales@abc.demo` | Ông Lê Hoàng Giang | BOD/SAL | `DEMO_VP_SALES_PASSWORD` | SCR-01 (C) |
+| ROLE-04 `HR_MANAGER` | `hr@abc.demo` | Bà Phạm Thị Hạnh | HRA | `DEMO_HR_MANAGER_PASSWORD` | SCR-01 (O) |
+| ROLE-05 `REVIEWER` | `reviewer@abc.demo` | Anh Vũ Đức Thắng | FIN | `DEMO_REVIEWER_PASSWORD` | SCR-08 / SCR-10 |
+| ROLE-06 `CPO` | `cpo@abc.demo` | Ông Đỗ Quang Huy | BOD/PRD | `DEMO_CPO_PASSWORD` | SCR-01 (U) |
+| ROLE-07 `RISK_MANAGER` | `risk@abc.demo` | Bà Bùi Thu Trang | BOD | `DEMO_RISK_MANAGER_PASSWORD` | SCR-01 (S) |
+| ROLE-08 `MANAGER` | `manager@abc.demo` | Ông Hoàng Minh Tuấn | LOG | `DEMO_MANAGER_PASSWORD` | SCR-01 đơn vị LOG |
+| ROLE-09 `EMPLOYEE` | `employee@abc.demo` | Chị Ngô Thị Lan | SAL | `DEMO_EMPLOYEE_PASSWORD` | SCR-01 việc hôm nay |
+| ROLE-10 `ADMIN` | `admin@abc.demo` | Anh Trịnh Văn Khoa | HRA (IT) | `DEMO_ADMIN_PASSWORD` | SCR-15 |
 
 ```env
+# .env.example — chỉ placeholder
+DEMO_MODE=true
+DEMO_REFERENCE_DATE=2026-10-20
 DEMO_CEO_PASSWORD=<change-me>
 DEMO_CFO_PASSWORD=<change-me>
-DEMO_SALES_PASSWORD=<change-me>
-DEMO_HR_PASSWORD=<change-me>
+DEMO_VP_SALES_PASSWORD=<change-me>
+DEMO_HR_MANAGER_PASSWORD=<change-me>
 DEMO_REVIEWER_PASSWORD=<change-me>
+DEMO_CPO_PASSWORD=<change-me>
+DEMO_RISK_MANAGER_PASSWORD=<change-me>
+DEMO_MANAGER_PASSWORD=<change-me>
+DEMO_EMPLOYEE_PASSWORD=<change-me>
+DEMO_ADMIN_PASSWORD=<change-me>
 ```
 
-> ⚠️ Mật khẩu chỉ đặt qua biến `DEMO_*_PASSWORD` trong `.env` (mẫu `.env.example` chỉ chứa `<change-me>`); không ghi giá trị thật trong tài liệu hay repo. Khi chạy seed, hệ thống băm bcrypt và chỉ lưu hash. Không in mật khẩu ra log/console.
-
-**Demo mode flag:** `DEMO_MODE=true` — khi tắt, dropdown switcher ẩn và endpoint role switch trả `404` (theo `07-TECH-ARCHITECTURE.md` §8.1.1; path do `10-API-SPECIFICATION.md` định nghĩa).
+Thiếu biến nào → seed **bỏ qua** tài khoản đó và báo lỗi rõ ràng (không tạo mật khẩu mặc định). Tên biến v1 `DEMO_SALES_PASSWORD`, `DEMO_HR_PASSWORD` đổi theo mã role (OQ-02).
 
 ---
 
-## 3. Bảy tài liệu mẫu — ground truth chi tiết
+## 3. Chín tài liệu mẫu — ground truth
 
-### DOC-01 — Báo cáo tài chính Q3/2026
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `FINANCIAL_REPORT` |
-| Định dạng | PDF scan (12 trang), **trang 7 mờ** (ocr_confidence < 0,70) |
-| Trụ đích | **Tài chính** |
-| Period | `Q3/2026` |
-| Ground truth fields | |
-
-| Field | Giá trị ground truth | Nguồn gốc |
-|---|---|---|
-| `company_name` | `Công ty TNHH TM&DV ABC` | Tiêu đề BCTC |
-| `tax_code` | `0301234567` | Thống nhất MST công ty |
-| `period` | `2026-Q3` | Header BCTC |
-| `revenue` (cả quý) | `24.500.000.000 đ` | Tổng doanh thu Q3 (trang 3 P&L) |
-| `revenue_by_month[]` | Bảng doanh thu tháng trước VAT (trang 4) | Xem bảng bên dưới |
-| `cogs` | `20.000.000.000 đ` | Giá vốn hàng bán Q3 (< doanh thu) |
-| `gross_profit` | `4.500.000.000 đ` | = `24.500.000.000 − 20.000.000.000` → biên gộp **18,4%** |
-| `operating_expenses` | `3.400.000.000 đ` | Chi phí bán hàng + quản lý Q3; **gồm quỹ lương quý 2.565.000.000** (= 855.000.000 × 3, khớp DOC-06) + chi phí khác 835.000.000 |
-| `profit_before_tax` | `1.100.000.000 đ` | = `4.500.000.000 − 3.400.000.000` |
-| `income_tax` | `220.000.000 đ` | Thuế TNDN 20% × 1.100.000.000 |
-| `net_profit` | `880.000.000 đ` | = `1.100.000.000 − 220.000.000` |
-| `budget_opex` | `3.150.000.000 đ` | Ngân sách chi phí vận hành Q3 (trang 9) → METRIC-FIN-06 |
-| `cash_end_of_period` | `6.800.000.000 đ` | Tiền cuối Q3 (30/09/2026) |
-| `net_cash_flow_by_month[]` | T7 `−700.000.000`, T8 `−850.000.000`, T9 `−1.000.000.000` | Dòng tiền ròng âm do tăng tồn kho + phải thu; bình quân 3 tháng `−850.000.000` → METRIC-FIN-03 |
-| `receivables` | `13.000.000.000 đ` | Phải thu khách hàng tại 30/09/2026 (gồm VAT) = 47 HĐ T9 chưa thu `9.312.000.000` + HL-001 `242.000.000` + HĐ T8 chưa thu `3.446.000.000` |
-
-**Bảng `revenue_by_month` (bắt buộc theo XD-01 §12.1):**
-
-| Tháng | Doanh thu (trước VAT, VND) |
-|---|---|
-| T7/2026 (`2026-07`) | `7.800.000.000` |
-| T8/2026 (`2026-08`) | `8.200.000.000` |
-| T9/2026 (`2026-09`) | `8.500.000.000` |
-| **Tổng Q3** | `24.500.000.000` (= SUM 3 tháng ✓) |
-
-> 📌 **Doanh thu T9 = 8.500.000.000 VND** phải khớp `SUM(INVOICE.subtotal)` của 47 hóa đơn trong DOC-02 (xem §4.1). Nếu BCTC không có bảng `revenue_by_month` → `NOT_COMPARABLE` (04 §12.1).
-
-**Doc field mapping:**
-- `revenue_by_month[2026-09]` → METRIC-FIN-01 (doanh thu tháng)
-- `gross_profit / revenue × 100` → METRIC-FIN-02
-- `cash_end_of_period` / bình quân `net_cash_flow_by_month` → METRIC-FIN-03 (cash runway)
-- `receivables` / `revenue` × 90 → METRIC-FIN-04 (DSO)
-- `operating_expenses` vs `budget_opex` → METRIC-FIN-06
-
----
-
-### DOC-02 — Danh sách hóa đơn T9/2026
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `INVOICE` |
-| Định dạng | Excel (`.xlsx`), **47 dòng** (header + 47 bản ghi hóa đơn) |
-| Trụ đích | **Tài chính** |
-| Kỳ | Tháng 9/2026 (`T9/2026`) |
-| Tổng subtotal (trước VAT) | **8.500.000.000 đ** (= `revenue_by_month[2026-09]` của DOC-01 ✓ MATCH) |
-| Tổng VAT | `812.000.000 đ` (cộng theo từng dòng: 33 dòng 10% + 14 dòng 8%; thuế suất bình quân 9,55%) |
-| Tổng thanh toán (subtotal + VAT) | `9.312.000.000 đ` |
-| Hạn thanh toán | `issue_date + điều khoản`: 30 ngày (Giáo dục Việt Nam, HĐ-2026-001), 60 ngày (Minh Phát, HĐ-2026-002), 45 ngày (khách còn lại). Luôn `due_date ≥ issue_date` |
-| Cột "Đã thu" | Số tiền đã thu **tính đến `DEMO_REFERENCE_DATE` = 20/10/2026**; mọi khoản thu đều phát sinh từ 01/10/2026 (tức tại 30/09/2026 cả 47 hóa đơn đều chưa thu — dùng cho DSO §5.1) |
-
-**Schema Excel (10 cột, chuẩn `business_records` §05 §4.8.1):**
-
-| STT | Số HĐ | Ngày | Khách hàng | MST khách | Subtotal (VND) | VAT % | Đã thu (VND) | Hạn TT | Trạng thái |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | HV-001 | 02/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 260.000.000 | 10% | 0 | 02/10/2026 | UNPAID |
-| 2 | HV-002 | 03/09/2026 | Công ty TNHH TechSoft | 0305551234 | 250.000.000 | 10% | 275.000.000 | 18/10/2026 | PAID |
-| 3 | HV-003 | 04/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 150.000.000 | 8% | 0 | 19/10/2026 | UNPAID |
-| 4 | HV-004 | 05/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 95.000.000 | 10% | 104.500.000 | 20/10/2026 | PAID |
-| 5 | HV-005 | 06/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 320.000.000 | 10% | 0 | 05/11/2026 | UNPAID |
-| 6 | HV-006 | 07/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 165.000.000 | 8% | 178.200.000 | 22/10/2026 | PAID |
-| 7 | HV-007 | 08/09/2026 | Công ty TNHH Đại Lợi | 0307778889 | 240.000.000 | 10% | 0 | 23/10/2026 | UNPAID |
-| 8 | HV-008 | 09/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 140.000.000 | 10% | 0 | 09/10/2026 | UNPAID |
-| 9 | HV-009 | 10/09/2026 | Công ty TNHH An Khang | 0308889990 | 85.000.000 | 8% | 91.800.000 | 25/10/2026 | PAID |
-| 10 | HV-010 | 11/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 195.000.000 | 10% | 0 | 26/10/2026 | UNPAID |
-| 11 | HV-011 | 12/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 290.000.000 | 10% | 319.000.000 | 27/10/2026 | PAID |
-| 12 | HV-012 | 13/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 140.000.000 | 8% | 0 | 28/10/2026 | UNPAID |
-| 13 | HV-013 | 14/09/2026 | Công ty Cổ phần Thương mại Quốc tế | 0305556677 | 200.000.000 | 10% | 220.000.000 | 29/10/2026 | PAID |
-| 14 | HV-014 | 15/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 175.000.000 | 10% | 0 | 14/11/2026 | UNPAID |
-| 15 | HV-015 | 16/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 185.000.000 | 10% | 203.500.000 | 31/10/2026 | PAID |
-| 16 | HV-016 | 17/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 270.000.000 | 10% | 0 | 01/11/2026 | UNPAID |
-| 17 | HV-017 | 18/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 130.000.000 | 8% | 140.400.000 | 18/10/2026 | PAID |
-| 18 | HV-018 | 19/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 190.000.000 | 10% | 0 | 03/11/2026 | UNPAID |
-| 19 | HV-019 | 20/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 100.000.000 | 8% | 108.000.000 | 04/11/2026 | PAID |
-| 20 | HV-020 | 21/09/2026 | Công ty TNHH An Khang | 0308889990 | 145.000.000 | 10% | 0 | 05/11/2026 | UNPAID |
-| 21 | HV-021 | 22/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 240.000.000 | 10% | 264.000.000 | 06/11/2026 | PAID |
-| 22 | HV-022 | 23/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 190.000.000 | 10% | 0 | 07/11/2026 | UNPAID |
-| 23 | HV-023 | 24/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 160.000.000 | 8% | 172.800.000 | 08/11/2026 | PAID |
-| 24 | HV-024 | 25/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 230.000.000 | 10% | 0 | 09/11/2026 | UNPAID |
-| 25 | HV-025 | 26/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 175.000.000 | 10% | 192.500.000 | 26/10/2026 | PAID |
-| 26 | HV-026 | 27/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 120.000.000 | 8% | 0 | 26/11/2026 | UNPAID |
-| 27 | HV-027 | 28/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 195.000.000 | 10% | 214.500.000 | 12/11/2026 | PAID |
-| 28 | HV-028 | 29/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 185.000.000 | 10% | 0 | 13/11/2026 | UNPAID |
-| 29 | HV-029 | 30/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 140.000.000 | 8% | 151.200.000 | 14/11/2026 | PAID |
-| 30 | HV-030 | 01/09/2026 | Công ty TNHH An Khang | 0308889990 | 220.000.000 | 10% | 0 | 16/10/2026 | UNPAID |
-| 31 | HV-031 | 02/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 130.000.000 | 10% | 143.000.000 | 17/10/2026 | PAID |
-| 32 | HV-032 | 03/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 200.000.000 | 10% | 0 | 18/10/2026 | UNPAID |
-| 33 | HV-033 | 04/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 155.000.000 | 8% | 167.400.000 | 04/10/2026 | PAID |
-| 34 | HV-034 | 05/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 230.000.000 | 10% | 0 | 20/10/2026 | UNPAID |
-| 35 | HV-035 | 06/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 110.000.000 | 8% | 118.800.000 | 21/10/2026 | PAID |
-| 36 | HV-036 | 07/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 210.000.000 | 10% | 0 | 06/11/2026 | UNPAID |
-| 37 | HV-037 | 08/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 145.000.000 | 10% | 159.500.000 | 23/10/2026 | PAID |
-| 38 | HV-038 | 09/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 195.000.000 | 10% | 0 | 24/10/2026 | UNPAID |
-| 39 | HV-039 | 10/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 160.000.000 | 8% | 172.800.000 | 25/10/2026 | PAID |
-| 40 | HV-040 | 11/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 225.000.000 | 10% | 0 | 26/10/2026 | UNPAID |
-| 41 | HV-041 | 12/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 135.000.000 | 10% | 148.500.000 | 12/10/2026 | PAID |
-| 42 | HV-042 | 13/09/2026 | Công ty TNHH An Khang | 0308889990 | 205.000.000 | 10% | 0 | 28/10/2026 | UNPAID |
-| 43 | HV-043 | 14/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 125.000.000 | 8% | 135.000.000 | 29/10/2026 | PAID |
-| 44 | HV-044 | 15/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 170.000.000 | 10% | 0 | 30/10/2026 | UNPAID |
-| 45 | HV-045 | 16/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 195.000.000 | 10% | 214.500.000 | 31/10/2026 | PAID |
-| 46 | HV-046 | 17/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 160.000.000 | 8% | 100.000.000 | 01/11/2026 | PARTIAL |
-| 47 | HV-047 | 18/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 170.000.000 | 10% | 100.000.000 | 02/11/2026 | PARTIAL |
-
-> ✅ **Xác nhận XD-01:** `Σ(INVOICE.subtotal) = 8.500.000.000 đ` khớp với `revenue_by_month[2026-09]` của DOC-01 — kết quả **MATCH ✓**, dung sai ±0,5%.
-
-**Phân bổ trạng thái tại `DEMO_REFERENCE_DATE` = 20/10/2026:**
-- `PAID`: 22 hóa đơn (`paid_amount = total_amount`)
-- `PARTIAL`: 2 hóa đơn có chủ đích — HV-046 (đã thu 100.000.000 / 172.800.000, còn 72.800.000) và HV-047 (đã thu 100.000.000 / 187.000.000, còn 87.000.000); cả hai chưa đến hạn
-- `UNPAID`: 23 hóa đơn (`paid_amount = 0`)
-  - Quá hạn (1–30 ngày): 5 hóa đơn — HV-001 (18 ngày, 286.000.000), HV-008 (11 ngày, 154.000.000), HV-030 (4 ngày, 242.000.000), HV-032 (2 ngày, 220.000.000), HV-003 (1 ngày, 162.000.000) → tổng **1.064.000.000 đ**
-  - Chưa đến hạn: 18 hóa đơn
-- Không có hóa đơn T9 nào quá hạn > 30 ngày. Khoản quá hạn > 90 ngày đến từ **seed lịch sử** HL-001 (bên dưới), không phải từ DOC-02.
-
-**Seed lịch sử phải thu (không thuộc 7 tài liệu mẫu; seed thẳng `business_records`, `computation='SEED'`):**
-
-| STT | Số HĐ | Ngày | Khách hàng | MST khách | Subtotal (VND) | VAT % | Đã thu (VND) | Hạn TT | Trạng thái |
-|---|---|---|---|---|---|---|---|---|---|
-| L1 | HL-001 | 01/06/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 220.000.000 | 10% | 0 | 16/07/2026 | UNPAID |
-
-- HL-001: tổng 242.000.000 đ, quá hạn **96 ngày** tại 20/10/2026 → điều kiện đỏ "có khoản quá hạn > 90 ngày" của METRIC-FIN-05.
-- Hóa đơn T7, T8 (seed lịch sử, chỉ ở mức tổng): đã thu đủ trước 20/10/2026, trừ HL-001.
-
-> 📌 Mục đích demo: ALERT-FIN-01 (Warning) và ALERT-FIN-05 (Critical) hiển thị trên dashboard CEO/CFO ở bước 1–2 kịch bản (§6). Phép tính ở §4.4.
-
-**Mapping cột Excel → `business_records` (§05 §4.8.1):**
-
-| Cột Excel | Cột `business_records` | Ghi chú |
-|---|---|---|
-| Số HĐ | `code` | Mã nghiệp vụ, UQ `(record_type, series, code)` (nếu có series) |
-| Ngày | `issue_date` | `date` |
-| Khách hàng | `customer_id` → bản ghi `CUSTOMER.name` | XT-02 so khớp với #3, #4 |
-| MST khách | `tax_code` + `attributes.customer_name_raw` | MST 10 số |
-| Subtotal (VND) | `subtotal` | Trước VAT, `bigint` VND — đối chiếu XD-01 |
-| VAT % | `vat_rate` | `0.10` / `0.08` (numeric) |
-| Đã thu (VND) | `paid_amount` | 0 = `UNPAID`; 0 < x < total = `PARTIAL`; = total = `PAID` |
-| Hạn TT | `due_date` | `date` |
-| Trạng thái | `status` | `PAID`/`UNPAID`/`PARTIAL` (05 §4.8.2) |
-
----
-
-### DOC-03 — Báo cáo sales T9/2026
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `SALES_REPORT` |
-| Định dạng | PDF (6 trang) |
-| Trụ đích | **Khách hàng** |
-| Period | `T9/2026` |
-| Trụ đích metrics | METRIC-CUS-01 (pipeline coverage), METRIC-CUS-02 (tỷ lệ chuyển đổi), METRIC-CUS-03 (NRR), METRIC-CUS-04 (tập trung doanh thu) |
-
-**Ground truth fields:**
-
-| Field | Giá trị | Ghi chú |
-|---|---|---|
-| `period` | `T9/2026` | |
-| `pipeline_value_by_stage[]` | Bảng pipeline theo giai đoạn | Xem bên dưới |
-| `deals_won_count` | 12 | Cơ hội `WON` có ngày đóng trong T9 |
-| `deals_won_value` | `3.200.000.000 đ` | Tổng giá trị deal won (deal mới; doanh thu T9 còn gồm khách cũ mua lặp lại) |
-| `deals_lost_count` | 38 | Cơ hội `LOST` có ngày đóng trong T9 |
-| `deals_lost_value` | `6.840.000.000 đ` | Bình quân 180.000.000 đ/deal (deal nhỏ, chủ yếu mất ở giai đoạn đầu) |
-| `revenue_by_customer[]` | Bảng doanh thu theo khách | 14 khách, group-by từ 47 HĐ DOC-02 |
-| `nps_score` | `+32` | Điểm NPS kỳ này |
-| `sales_target` | `9.600.000.000 đ` | Kế hoạch tháng T9 → METRIC-FIN-01 %KH = 8.500.000.000 / 9.600.000.000 = **88,5%** (< 90% → Warning) |
-| `q4_revenue_recognized_to_date` | `5.500.000.000 đ` | Doanh thu T10 đã xuất hóa đơn 01–20/10/2026 (seed `business_records`, không thuộc DOC-02) |
-
-**Bảng pipeline (trạng thái tại `DEMO_REFERENCE_DATE` = 20/10/2026, các deal mở đều có `close_date` ∈ Q4/2026):**
-
-| Stage | Trạng thái | Deal count | Value (VND) | Probability | Weighted value |
+| DOC | Doc type | Định dạng | Kỳ | Entity đích (05) | Trụ |
 |---|---|---|---|---|---|
-| Prospecting | Mở | 15 | `12.000.000.000` | 0,10 | `1.200.000.000` |
-| Qualification | Mở | 10 | `10.000.000.000` | 0,25 | `2.500.000.000` |
-| Proposal | Mở | 8 | `12.000.000.000` | 0,40 | `4.800.000.000` |
-| Negotiation | Mở | 6 | `13.500.000.000` | 0,60 | `8.100.000.000` |
-| **Cộng stage mở** | — | **39** | `47.500.000.000` | — | **`16.600.000.000`** |
-| Closed Won (T9) | Đóng — không tính coverage | 12 | `3.200.000.000` | — | — |
-| Closed Lost (T9) | Đóng — không tính coverage | 38 | `6.840.000.000` | — | — |
+| DOC-01 | `FINANCIAL_REPORT` | PDF scan 12 trang (trang 7 mờ) | Q3/2026 | ENT-Revenue, ENT-Expense, ENT-CashPosition, ENT-Budget | F |
+| DOC-02 | `INVOICE` | Excel 47 dòng | T9/2026 | ENT-Invoice, ENT-InvoiceLine, ENT-Client | F, C |
+| DOC-03 | `SALES_REPORT` | PDF 6 trang | T9/2026 | ENT-Deal, ENT-SalesTarget | C |
+| DOC-04 | `CONTRACT` | 2 PDF scan | 2026 | ENT-Contract | C, F |
+| DOC-05 | `MEETING_MINUTES` | 3 Word | T9/2026 | ENT-Meeting, ENT-Decision, ENT-Task | O, S |
+| DOC-06 | `EMPLOYEE_LIST` | Excel 150 dòng | T9/2026 | ENT-Employee, ENT-Department, ENT-SalaryHistory | O |
+| DOC-07 | `KPI_OKR` | Excel 1 file | Q4/2026 | ENT-Objective, ENT-KeyResult, ENT-KPI | cả 5 |
+| DOC-08 | `PRODUCT_REPORT` | PDF 8 trang | T9/2026 | ENT-ProductMetric, ENT-Release, ENT-RoadmapItem | U |
+| DOC-09 | `RISK_REGISTER` | Excel 11 dòng | Q3/2026 | ENT-Risk, ENT-RiskAssessment, ENT-Mitigation | S |
 
-> **METRIC-CUS-01** (công thức 03): `Σ(value × probability)` stage mở, `close_date ∈ Q4` / (`chỉ tiêu Q4` − `doanh thu Q4 đã ghi nhận`) = `16.600.000.000 / (27.000.000.000 − 5.500.000.000)` = `16.600.000.000 / 21.500.000.000` = **0,77x** → Đỏ (< 2,0x) → **ALERT-CUS-01 Critical**. Chỉ tiêu Q4 lấy từ DOC-07.
-> **Mẫu số ≤ 0** (doanh thu đã ghi nhận ≥ chỉ tiêu quý): hiển thị `—` + nhãn "Đã đạt chỉ tiêu quý", không sinh alert. Không xảy ra với seed này.
-> **METRIC-CUS-02** = `12 / (12 + 38)` = **24,0%** → Vàng (< 25%, ≥ 15%) → **ALERT-CUS-02 Warning**.
+### DOC-01 — Báo cáo tài chính Q3/2026 (`FINANCIAL_REPORT`)
 
-**Bảng `revenue_by_customer` T9 (group-by trực tiếp 47 hóa đơn DOC-02, sắp xếp giảm dần):**
+PDF scan 12 trang; **trang 7 mờ** (`ocr_confidence < 0,60` → Thấp, buộc review — DEC-133).
+
+| Field | Ground truth | Ghi chú |
+|---|---|---|
+| `company_name` / `tax_code` | `Công ty TNHH TM&DV ABC` / `0301234567` | |
+| `period` | `2026-Q3` | |
+| `revenue` | `73.500.000.000` | Trang 3 P&L |
+| `revenue_by_month[]` | T7 `23.400.000.000` · T8 `24.600.000.000` · T9 `25.500.000.000` | Trang 4; Σ = 73.500.000.000 |
+| `cogs` | `60.000.000.000` | |
+| `gross_profit` | `13.500.000.000` | Biên gộp **18,4%** |
+| `operating_expenses` | `10.200.000.000` | Gồm quỹ lương Q3 `8.775.000.000` (khớp DOC-06) + chi phí khác `1.425.000.000` |
+| `budget_opex` | `9.450.000.000` | Trang 9, chi tiết theo phòng ban ở bảng dưới |
+| `profit_before_tax` | `3.300.000.000` | = 13.500.000.000 − 10.200.000.000 |
+| `income_tax` | `660.000.000` | 20% |
+| `net_profit` | `2.640.000.000` | |
+| `cash_end_of_period` | `20.400.000.000` | 30/09/2026 |
+| `net_cash_flow_by_month[]` | T7 `−2.100.000.000` · T8 `−2.550.000.000` · T9 `−3.000.000.000` | Net burn bình quân 3 tháng `2.550.000.000` |
+| `forecast_net_burn_t9` | `2.500.000.000` | Kịch bản cơ sở (ENT-Forecast `BASE`) → METRIC-FIN-07 |
+| `receivables` | `39.000.000.000` | Tại 30/09/2026 (gồm VAT) = 47 HĐ T9 `27.936.000.000` + HL-001 `726.000.000` + HĐ T8 chưa thu `10.338.000.000` |
+
+**Ngân sách vs thực chi Q3 theo phòng ban (`ENT-Budget`, triệu đồng):**
+
+| Phòng ban | Ngân sách | Thực chi | Chênh lệch |
+|---|---|---|---|
+| BOD | 900 | 930 | +3,3% |
+| FIN | 1.100 | 1.120 | +1,8% |
+| SAL | 3.200 | 3.650 | **+14,1%** → `EVT-finance.budget_exceeded` |
+| LOG | 1.850 | 1.980 | +7,0% |
+| SVC | 1.200 | 1.270 | +5,8% |
+| PRD | 800 | 850 | +6,2% |
+| HRA | 400 | 400 | 0,0% |
+| **Tổng** | **9.450** | **10.200** | **+7,9%** |
+
+Ngân sách / thực chi theo phòng ban ở đây là **chi phí vận hành phân bổ** (gồm lương phân bổ). `budget_exceeded` phát khi chênh của một phòng ban > 10% (giả định, OQ-01).
+
+---
+
+### DOC-02 — Danh sách hóa đơn T9/2026 (`INVOICE`)
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Định dạng | Excel, 47 dòng |
+| Σ subtotal (trước VAT) | **`25.500.000.000`** = DOC-01 `revenue_by_month[2026-09]` → XD-01 MATCH |
+| Σ VAT | `2.436.000.000` (33 dòng 10%, 14 dòng 8%; tính theo từng dòng) |
+| Σ thanh toán | `27.936.000.000` |
+| Điều khoản | 30 ngày (Giáo dục Việt Nam), 60 ngày (Minh Phát), 45 ngày (khách còn lại); `due_date ≥ issue_date` |
+| Cột "Đã thu" | Tính đến 20/10/2026; mọi khoản thu phát sinh từ 01/10/2026 (tại 30/09 cả 47 HĐ chưa thu) |
+
+| STT | Số HĐ | Ngày | Khách hàng | MST khách | Subtotal (VND) | VAT % | Đã thu (VND) | Hạn TT | Trạng thái |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | HV-001 | 02/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 780.000.000 | 10% | 0 | 02/10/2026 | UNPAID |
+| 2 | HV-002 | 03/09/2026 | Công ty TNHH TechSoft | 0305551234 | 750.000.000 | 10% | 825.000.000 | 18/10/2026 | PAID |
+| 3 | HV-003 | 04/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 450.000.000 | 8% | 0 | 19/10/2026 | UNPAID |
+| 4 | HV-004 | 05/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 285.000.000 | 10% | 313.500.000 | 20/10/2026 | PAID |
+| 5 | HV-005 | 06/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 960.000.000 | 10% | 0 | 05/11/2026 | UNPAID |
+| 6 | HV-006 | 07/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 495.000.000 | 8% | 534.600.000 | 22/10/2026 | PAID |
+| 7 | HV-007 | 08/09/2026 | Công ty TNHH Đại Lợi | 0307778889 | 720.000.000 | 10% | 0 | 23/10/2026 | UNPAID |
+| 8 | HV-008 | 09/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 420.000.000 | 10% | 0 | 09/10/2026 | UNPAID |
+| 9 | HV-009 | 10/09/2026 | Công ty TNHH An Khang | 0308889990 | 255.000.000 | 8% | 275.400.000 | 25/10/2026 | PAID |
+| 10 | HV-010 | 11/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 585.000.000 | 10% | 0 | 26/10/2026 | UNPAID |
+| 11 | HV-011 | 12/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 870.000.000 | 10% | 957.000.000 | 27/10/2026 | PAID |
+| 12 | HV-012 | 13/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 420.000.000 | 8% | 0 | 28/10/2026 | UNPAID |
+| 13 | HV-013 | 14/09/2026 | Công ty Cổ phần Thương mại Quốc tế | 0305556677 | 600.000.000 | 10% | 660.000.000 | 29/10/2026 | PAID |
+| 14 | HV-014 | 15/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 525.000.000 | 10% | 0 | 14/11/2026 | UNPAID |
+| 15 | HV-015 | 16/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 555.000.000 | 10% | 610.500.000 | 31/10/2026 | PAID |
+| 16 | HV-016 | 17/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 810.000.000 | 10% | 0 | 01/11/2026 | UNPAID |
+| 17 | HV-017 | 18/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 390.000.000 | 8% | 421.200.000 | 18/10/2026 | PAID |
+| 18 | HV-018 | 19/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 570.000.000 | 10% | 0 | 03/11/2026 | UNPAID |
+| 19 | HV-019 | 20/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 300.000.000 | 8% | 324.000.000 | 04/11/2026 | PAID |
+| 20 | HV-020 | 21/09/2026 | Công ty TNHH An Khang | 0308889990 | 435.000.000 | 10% | 0 | 05/11/2026 | UNPAID |
+| 21 | HV-021 | 22/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 720.000.000 | 10% | 792.000.000 | 06/11/2026 | PAID |
+| 22 | HV-022 | 23/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 570.000.000 | 10% | 0 | 07/11/2026 | UNPAID |
+| 23 | HV-023 | 24/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 480.000.000 | 8% | 518.400.000 | 08/11/2026 | PAID |
+| 24 | HV-024 | 25/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 690.000.000 | 10% | 0 | 09/11/2026 | UNPAID |
+| 25 | HV-025 | 26/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 525.000.000 | 10% | 577.500.000 | 26/10/2026 | PAID |
+| 26 | HV-026 | 27/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 360.000.000 | 8% | 0 | 26/11/2026 | UNPAID |
+| 27 | HV-027 | 28/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 585.000.000 | 10% | 643.500.000 | 12/11/2026 | PAID |
+| 28 | HV-028 | 29/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 555.000.000 | 10% | 0 | 13/11/2026 | UNPAID |
+| 29 | HV-029 | 30/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 420.000.000 | 8% | 453.600.000 | 14/11/2026 | PAID |
+| 30 | HV-030 | 01/09/2026 | Công ty TNHH An Khang | 0308889990 | 660.000.000 | 10% | 0 | 16/10/2026 | UNPAID |
+| 31 | HV-031 | 02/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 390.000.000 | 10% | 429.000.000 | 17/10/2026 | PAID |
+| 32 | HV-032 | 03/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 600.000.000 | 10% | 0 | 18/10/2026 | UNPAID |
+| 33 | HV-033 | 04/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 465.000.000 | 8% | 502.200.000 | 04/10/2026 | PAID |
+| 34 | HV-034 | 05/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 690.000.000 | 10% | 0 | 20/10/2026 | UNPAID |
+| 35 | HV-035 | 06/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 330.000.000 | 8% | 356.400.000 | 21/10/2026 | PAID |
+| 36 | HV-036 | 07/09/2026 | Công ty TNHH Minh Phát | 0306667778 | 630.000.000 | 10% | 0 | 06/11/2026 | UNPAID |
+| 37 | HV-037 | 08/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 435.000.000 | 10% | 478.500.000 | 23/10/2026 | PAID |
+| 38 | HV-038 | 09/09/2026 | Công ty TNHH Giải pháp Số | 0304445678 | 585.000.000 | 10% | 0 | 24/10/2026 | UNPAID |
+| 39 | HV-039 | 10/09/2026 | Công ty Cổ phần TechVN | 0301119988 | 480.000.000 | 8% | 518.400.000 | 25/10/2026 | PAID |
+| 40 | HV-040 | 11/09/2026 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | 675.000.000 | 10% | 0 | 26/10/2026 | UNPAID |
+| 41 | HV-041 | 12/09/2026 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | 405.000.000 | 10% | 445.500.000 | 12/10/2026 | PAID |
+| 42 | HV-042 | 13/09/2026 | Công ty TNHH An Khang | 0308889990 | 615.000.000 | 10% | 0 | 28/10/2026 | UNPAID |
+| 43 | HV-043 | 14/09/2026 | Công ty Cổ phần Bút Tre VN | 0304443322 | 375.000.000 | 8% | 405.000.000 | 29/10/2026 | PAID |
+| 44 | HV-044 | 15/09/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 510.000.000 | 10% | 0 | 30/10/2026 | UNPAID |
+| 45 | HV-045 | 16/09/2026 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | 585.000.000 | 10% | 643.500.000 | 31/10/2026 | PAID |
+| 46 | HV-046 | 17/09/2026 | Công ty TNHH FPT Trading | 0303334445 | 480.000.000 | 8% | 300.000.000 | 01/11/2026 | PARTIAL |
+| 47 | HV-047 | 18/09/2026 | Công ty Cổ phần ABC Retail | 0302223334 | 510.000.000 | 10% | 300.000.000 | 02/11/2026 | PARTIAL |
+
+**Trạng thái tại 20/10/2026:** 22 `PAID` · 2 `PARTIAL` (HV-046 đã thu 300.000.000 / 518.400.000, còn 218.400.000; HV-047 đã thu 300.000.000 / 561.000.000, còn 261.000.000 — chưa đến hạn) · 23 `UNPAID`, trong đó **5 quá hạn 1–30 ngày**: HV-001 (18 ngày, 858.000.000), HV-008 (11 ngày, 462.000.000), HV-030 (4 ngày, 726.000.000), HV-032 (2 ngày, 660.000.000), HV-003 (1 ngày, 486.000.000) → **3.192.000.000**.
+
+**Seed lịch sử (không thuộc 9 tài liệu; `ENT-Invoice` với `source='SEED'`):**
+
+| STT | Số HĐ | Ngày | Khách hàng | MST | Subtotal | VAT | Đã thu | Hạn TT | Trạng thái |
+|---|---|---|---|---|---|---|---|---|---|
+| L1 | HL-001 | 01/06/2026 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | 660.000.000 | 10% | 0 | 16/07/2026 | UNPAID |
+
+HL-001 tổng `726.000.000`, quá hạn **96 ngày** → hiện trong aging "> 90 ngày" của METRIC-FIN-05. HĐ T7/T8 chỉ seed ở mức tổng, đã thu đủ trước 20/10/2026 (trừ HL-001).
+
+**Mapping cột → `finance.invoices`:** Số HĐ → `invoice_number` · Ngày → `issue_date` · Khách hàng/MST → `client_id` (master data `sales.clients`, khớp MST trước, tên fuzzy ≥ 0,90) · Subtotal → `subtotal_amount` · VAT % → `vat_rate` · Đã thu → `paid_amount` · Hạn TT → `due_date` · Trạng thái → `status` (`PAID`/`UNPAID`/`PARTIAL`; `OVERDUE` là trạng thái tính, không lưu).
+
+---
+
+### DOC-03 — Báo cáo sales T9/2026 (`SALES_REPORT`)
+
+| Field | Ground truth | Ghi chú |
+|---|---|---|
+| `period` | `2026-09` | |
+| `deals_won_count` / `deals_won_value` | 12 / `9.600.000.000` | Deal mới đóng T9 |
+| `deals_lost_count` / `deals_lost_value` | 38 / `20.520.000.000` | 22 deal lost với lý do "giá" |
+| `avg_sales_cycle_days` | `68` | Deal won T9; Q2/2026 = 54 ngày |
+| `nps_score` | `+32` | Khảo sát 214 phản hồi |
+| `sales_target` (T9) | `28.800.000.000` | → METRIC-FIN-01 = 25,5 / 28,8 = **88,5%** |
+| `q4_revenue_recognized_to_date` | `16.500.000.000` | HĐ xuất 01–20/10/2026 (seed) |
+| `revenue_by_customer[]` | 14 khách, group-by 47 HĐ DOC-02 | Bảng dưới |
+
+**Pipeline mở tại 20/10/2026** (mọi deal mở có `expected_close_date` ∈ Q4/2026):
+
+| Stage | Deal | Giá trị (VND) | Xác suất | Weighted |
+|---|---|---|---|---|
+| `PROSPECTING` | 15 | `36.000.000.000` | 0,10 | `3.600.000.000` |
+| `QUALIFICATION` | 10 | `30.000.000.000` | 0,25 | `7.500.000.000` |
+| `PROPOSAL` | 8 | `36.000.000.000` | 0,40 | `14.400.000.000` |
+| `NEGOTIATION` | 6 | `40.500.000.000` | 0,60 | `24.300.000.000` |
+| **Cộng mở** | **39** | **`142.500.000.000`** | — | **`49.800.000.000`** |
+
+Deal `NEGOTIATION` lớn nhất: **Tập đoàn Giáo dục Hoàng Gia** (khách mới, MST `0316543210`) `12.000.000.000` — cơ hội trong câu chuyện demo.
+
+**Doanh thu T9 theo khách:**
+
 
 | # | Khách hàng | MST | Doanh thu T9 (VND, trước VAT) | Số HĐ | Tỷ trọng T9 |
 |---|---|---|---|---|---|
-| 1 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | `1.065.000.000` | 6 | 12,5% |
-| 2 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | `995.000.000` | 6 | 11,7% |
-| 3 | Công ty TNHH FPT Trading | 0303334445 | `870.000.000` | 4 | 10,2% |
-| 4 | Công ty TNHH Minh Phát | 0306667778 | `825.000.000` | 4 | 9,7% |
-| 5 | Công ty TNHH Giải pháp Số | 0304445678 | `715.000.000` | 4 | 8,4% |
-| 6 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | `680.000.000` | 3 | 8,0% |
-| 7 | Công ty TNHH An Khang | 0308889990 | `655.000.000` | 4 | 7,7% |
-| 8 | Công ty Cổ phần ABC Retail | 0302223334 | `605.000.000` | 4 | 7,1% |
-| 9 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | `560.000.000` | 3 | 6,6% |
-| 10 | Công ty Cổ phần TechVN | 0301119988 | `485.000.000` | 3 | 5,7% |
-| 11 | Công ty Cổ phần Bút Tre VN | 0304443322 | `355.000.000` | 3 | 4,2% |
-| 12 | Công ty TNHH TechSoft | 0305551234 | `250.000.000` | 1 | 2,9% |
-| 13 | Công ty TNHH Đại Lợi | 0307778889 | `240.000.000` | 1 | 2,8% |
-| 14 | Công ty Cổ phần Thương mại Quốc tế | 0305556677 | `200.000.000` | 1 | 2,4% |
-| — | **Tổng** | — | **`8.500.000.000`** | **47** | 100% |
+| 1 | Công ty Cổ phần Văn phòng Phẩm | 0301112223 | `3.195.000.000` | 6 | 12,5% |
+| 2 | Công ty Cổ phần Giáo dục Việt Nam | 0309876543 | `2.985.000.000` | 6 | 11,7% |
+| 3 | Công ty TNHH FPT Trading | 0303334445 | `2.610.000.000` | 4 | 10,2% |
+| 4 | Công ty TNHH Minh Phát | 0306667778 | `2.475.000.000` | 4 | 9,7% |
+| 5 | Công ty TNHH Giải pháp Số | 0304445678 | `2.145.000.000` | 4 | 8,4% |
+| 6 | Công ty TNHH Đầu tư Đại Cường | 0302228877 | `2.040.000.000` | 3 | 8,0% |
+| 7 | Công ty TNHH An Khang | 0308889990 | `1.965.000.000` | 4 | 7,7% |
+| 8 | Công ty Cổ phần ABC Retail | 0302223334 | `1.815.000.000` | 4 | 7,1% |
+| 9 | Công ty TNHH Thương mại Lộc Phát | 0303332211 | `1.680.000.000` | 3 | 6,6% |
+| 10 | Công ty Cổ phần TechVN | 0301119988 | `1.455.000.000` | 3 | 5,7% |
+| 11 | Công ty Cổ phần Bút Tre VN | 0304443322 | `1.065.000.000` | 3 | 4,2% |
+| 12 | Công ty TNHH TechSoft | 0305551234 | `750.000.000` | 1 | 2,9% |
+| 13 | Công ty TNHH Đại Lợi | 0307778889 | `720.000.000` | 1 | 2,8% |
+| 14 | Công ty Cổ phần Thương mại Quốc tế | 0305556677 | `600.000.000` | 1 | 2,4% |
+| — | **Tổng** | — | **`25.500.000.000`** | **47** | 100% |
 
-> ✅ Tên khách hàng và MST khớp 100% với DOC-02 — XD-02 **PASS**. Tổng = `8.500.000.000` / 47 HĐ = `Σ subtotal` DOC-02.
-> Top 5 T9 = `4.470.000.000` / `8.500.000.000` = **52,6%** (chỉ để tham khảo; METRIC-CUS-04 dùng rolling 12 tháng, xem bên dưới).
+Top 5 T9 = `13.410.000.000` / `25.500.000.000` = 52,6% (tham khảo). METRIC-CUS-04 dùng rolling 12 tháng: tổng `294.000.000.000` (9 tháng 10/2025–06/2026 seed `220.500.000.000` + Q3 `73.500.000.000`), Top 5 `149.940.000.000` → **51,0%**; khách lớn nhất (Văn phòng Phẩm) `41.160.000.000` = 14,0%.
 
-**METRIC-CUS-04 — số liệu seed rolling 12 tháng (10/2025 → 09/2026):**
+---
 
-| Thành phần | Giá trị (VND) | Nguồn |
+### DOC-04 — Hợp đồng khách hàng (`CONTRACT`, 2 PDF scan)
+
+| Field | File 1 | File 2 |
 |---|---|---|
-| Tổng doanh thu 12 tháng | `98.000.000.000` | 9 tháng 10/2025–06/2026 = `73.500.000.000` (seed `metric_values`, `computation='SEED'`) + Q3/2026 `24.500.000.000` (DOC-01) |
-| Top 5 khách 12 tháng (cùng 5 khách đứng đầu bảng T9) | `49.980.000.000` | Seed lịch sử theo khách + T9 |
-| Khách lớn nhất 12 tháng (Văn phòng Phẩm) | `13.720.000.000` (14,0%) | < 15% |
-| **METRIC-CUS-04** | `49.980.000.000 / 98.000.000.000` = **51,0%** | Đỏ (Top 5 > 50%) → **ALERT-CUS-04 Critical** |
+| `contract_number` | `HD-2026-001` | `HD-2026-002` |
+| `party_a_name` / `party_a_tax_code` | Công ty TNHH TM&DV ABC / `0301234567` | như File 1 |
+| `party_b_name` | Công ty Cổ phần Giáo dục Việt Nam | Công ty TNHH Minh Phát |
+| `party_b_tax_code` | `0309876543` | `0306667778` |
+| `contract_value` | `15.000.000.000` | `9.000.000.000` |
+| `product_code` | `PRD-SUP` + `PRD-CARE` | `PRD-SUP` |
+| `sign_date` | 15/01/2026 | 20/03/2026 |
+| `effective_date` | 01/02/2026 | 01/04/2026 |
+| `expiry_date` | 31/01/2027 | **30/09/2026** (đã hết hạn, chưa gia hạn) |
+| `payment_terms` | 30 ngày | 60 ngày |
+
+HD-2026-002 hết hạn 30/09/2026 nhưng Minh Phát vẫn có HĐ T9 (HV-005, -014, -026, -036) → nguồn của rủi ro R-04 (DOC-09) và insight "hợp đồng hết hạn nhưng vẫn giao hàng". `contract_value` là trường **trọng yếu** → luôn review.
 
 ---
 
-### DOC-04 — Hợp đồng mẫu (2 file PDF scan)
+### DOC-05 — Biên bản họp giao ban (`MEETING_MINUTES`, 3 Word)
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `CONTRACT` |
-| Định dạng | PDF scan (2 file) |
-| Trụ đích | **Khách hàng** |
-| Đích entity | `ENT-Contract` |
+| File | Ngày | Tiêu đề | Chủ trì | Thành phần | Quyết định | Action item |
+|---|---|---|---|---|---|---|
+| 1 | 05/09/2026 | Giao ban tuần 1 T9 | Nguyễn Văn An | Trần Thị Minh, Lê Hoàng Giang, Phạm Thị Hạnh, Bùi Thu Trang | 2 | 5 |
+| 2 | 12/09/2026 | Giao ban tuần 2 T9 | Nguyễn Văn An | Lê Hoàng Giang, Phạm Thị Hạnh, Đỗ Quang Huy, Hoàng Minh Tuấn | 1 | 4 |
+| 3 | 19/09/2026 | Giao ban tuần 3 T9 | Nguyễn Văn An | Trần Thị Minh, Bùi Thu Trang, Đỗ Quang Huy, Vũ Đức Thắng | 2 | 6 |
+| | | | | **Tổng** | **5** | **15** |
 
-**File 1 — Hợp đồng với Công ty Cổ phần Giáo dục Việt Nam:**
+**5 quyết định (`ENT-Decision`):**
 
-| Field | Giá trị |
-|---|---|
-| `contract_number` | `HD-2026-001` |
-| `party_a_name` | `Công ty TNHH TM&DV ABC` |
-| `party_a_tax_code` | `0301234567` |
-| `party_b_name` | `Công ty Cổ phần Giáo dục Việt Nam` |
-| `party_b_tax_code` | `0309876543` |
-| `contract_value` | `5.000.000.000 đ` |
-| `sign_date` | `15/01/2026` |
-| `effective_date` | `01/02/2026` |
-| `expiry_date` | `31/01/2027` |
-| `payment_terms` | `30 ngày` |
-
-**File 2 — Hợp đồng với Công ty TNHH Minh Phát:**
-
-| Field | Giá trị |
-|---|---|
-| `contract_number` | `HD-2026-002` |
-| `party_a_name` | `Công ty TNHH TM&DV ABC` |
-| `party_a_tax_code` | `0301234567` |
-| `party_b_name` | `Công ty TNHH Minh Phát` |
-| `party_b_tax_code` | `0306667778` |
-| `contract_value` | `3.000.000.000 đ` |
-| `sign_date` | `20/03/2026` |
-| `effective_date` | `01/04/2026` |
-| `expiry_date` | `30/09/2026` |
-| `payment_terms` | `60 ngày` |
-
-> ✅ Tên khách hàng và MST khớp với DOC-02 và DOC-03 — XD-02 **PASS**.
-
----
-
-### DOC-05 — Biên bản họp giao ban (3 file Word)
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `MEETING_MINUTES` |
-| Định dạng | Word (.docx, 3 file) |
-| Trụ đích | **Vận hành** |
-| Kỳ | T9/2026 |
-| Đích entity | `ENT-Task`, `ENT-Decision` |
-
-**File 1 — Họp giao ban tuần 1 (05/09/2026):**
-
-| Field | Giá trị |
-|---|---|
-| `meeting_date` | `05/09/2026` |
-| `meeting_title` | `Giao ban tuần 1 T9` |
-| `chairperson` | **Ông Nguyễn Văn An** (CEO) |
-| `attendees[]` | Ông Lê Hoàng Giang (Sales Dir), Cô Phạm Thị Hạnh (HR Mgr), Bà Trần Thị Minh (CFO) |
-| `decisions[]` | 2 quyết định |
-| `action_items[]` | 5 action items |
-
-**File 2 — Họp giao ban tuần 2 (12/09/2026):**
-
-| Field | Giá trị |
-|---|---|
-| `meeting_date` | `12/09/2026` |
-| `meeting_title` | `Giao ban tuần 2 T9` |
-| `chairperson` | **Ông Nguyễn Văn An** |
-| `attendees[]` | Ông Lê Hoàng Giang, Cô Phạm Thị Hạnh, Ông Vũ Đức Thắng |
-| `decisions[]` | 1 quyết định |
-| `action_items[]` | 4 action items |
-
-**File 3 — Họp giao ban tuần 3 (19/09/2026):**
-
-| Field | Giá trị |
-|---|---|
-| `meeting_date` | `19/09/2026` |
-| `meeting_title` | `Giao ban tuần 3 T9` |
-| `chairperson` | **Ông Nguyễn Văn An** |
-| `attendees[]` | Bà Trần Thị Minh, Cô Phạm Thị Hạnh, Ông Vũ Đức Thắng |
-| `decisions[]` | 2 quyết định |
-| `action_items[]` | 6 action items |
-
-**Tổng action items từ 3 file:** 15 tasks. Trong đó:
-- `DONE` đúng hạn: 9 tasks → **METRIC-OPS-01 = 60%** (chạm đỏ ALERT-OPS-01)
-- `DONE` trễ hạn: 2 tasks
-- `OPEN` quá hạn: 4 tasks
-- Người phụ trách: các nhân sự trong danh sách nhân sự #6 (XD-03 **PASS**)
-- Quyết định: 5 quyết định (2 + 1 + 2); 3 quyết định có hạn ≤ 20/10/2026, trong đó 2 làm xong đúng hạn → **METRIC-OPS-03 = 2 / 3 = 66,7%** (Vàng)
-
-> 📌 Seed đủ để METRIC-OPS-01 = 60% < 70% → kích **ALERT-OPS-01 Critical** ở demo.
-
----
-
-### DOC-06 — Danh sách nhân sự (Excel)
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `EMPLOYEE_LIST` |
-| Định dạng | Excel (`.xlsx`) |
-| Trụ đích | **Con người** |
-| Period | `T9/2026` |
-| Tổng ACTIVE | **45 nhân sự** (khớp 01 §8) |
-| Nhạy cảm | **salary** (`sensitivity=SALARY`, 02 §4.3) |
-
-**Schema (8 cột):**
-
-| Cột Excel | Cột `business_records` | Ghi chú |
-|---|---|---|
-| Mã NV | `code` | Duy nhất |
-| Họ tên | `name` | — |
-| Chức danh | `title` | — |
-| Phòng ban | `department` | FIN / CUS / OPS / HR / ADMIN |
-| Ngày vào | `start_date` | `date` |
-| Ngày nghỉ | `end_date` | `date` (null nếu còn làm) |
-| Trạng thái | `status` | `ACTIVE`/`ON_LEAVE`/`TERMINATED` |
-| Lương (VND) | `salary` | **SALARY** — ẩn với role không có quyền |
-
-**Phân bố nhân sự (seed):**
-
-| Phòng ban | Số lượng | Ghi chú |
-|---|---|---|
-| FIN (Tài chính) | 8 | Bao gồm CFO |
-| CUS (Kinh doanh) | 12 | Bao gồm Sales Director |
-| OPS (Vận hành) | 10 | Bao gồm trưởng phòng OPS |
-| HR (Nhân sự) | 5 | Bao gồm HR Manager |
-| ADMIN (Quản trị) | 10 | Bao gồm CEO, IT, bảo vệ |
-| **Tổng ACTIVE** | **45** | — |
-
-**Seed lịch sử nghỉ việc:**
-- 6 nhân sự TERMINATED trong 12 tháng gần nhất (đã thay người, headcount bình quân 12 tháng = 45) → **METRIC-HR-02 = 6 / 45 = 13,3%** (Xanh, ngưỡng vàng > 15%)
-- 2 nhân sự có > 8 task mở + 2 nhân sự khác có ≥ 3 task trễ → **METRIC-HR-03 = 4 / 45 = 8,9%** (Xanh, ngưỡng vàng > 10%)
-
-**Lương cá nhân (dữ liệu nhạy cảm):**
-- Tổng quỹ lương tháng T9: **855.000.000 đ** (45 người × bình quân 19.000.000 đ); quỹ lương Q3 = 855.000.000 × 3 = **2.565.000.000 đ**, nằm trong `operating_expenses` DOC-01
-- Trung bình: **19.000.000 đ/người**
-- Range: 9.000.000 – 60.000.000 đ
-
-> 📌 CEO/CFO **không** được xem lương cá nhân (02 §4.3): field `salary` hiển thị `••••`, API không trả giá trị.
-> Drill-down của CEO dừng ở bản ghi tổng hợp. HR Manager và Reviewer (trong ngữ cảnh review) được xem đầy đủ.
-
----
-
-### DOC-07 — Bảng KPI/OKR Q4/2026
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Doc type code | `KPI_OKR` |
-| Định dạng | Word/Excel (1 file) |
-| Trụ đích | **Cả 4 trụ** (FIN, CUS, OPS, HR) |
-| Period | `Q4/2026` |
-| Đích | `ENT-MetricValue` (TARGET) |
-
-**Ground truth — kế hoạch Q4/2026 (18 chỉ số):**
-
-| Metric code | Mục tiêu Q4 | Đơn vị |Owner | Ghi chú |
+| Mã | Nội dung | Người chịu trách nhiệm | Hạn | Trạng thái 20/10 |
 |---|---|---|---|---|
-| METRIC-FIN-01 | `27.000.000.000` (Quý) | VND | CFO | Plan T10+T11+T12 |
-| METRIC-FIN-02 | `≥ 18,0%` | % | CFO | Biên LN gộp |
-| METRIC-FIN-03 | `≥ 9,0` | tháng | CFO | Cash runway |
-| METRIC-FIN-04 | `≤ 40 ngày` | days | CFO | DSO |
-| METRIC-FIN-05 | `≤ 10%` | % | CFO | Công nợ quá hạn |
-| METRIC-FIN-06 | `≤ 5%` | % | CFO | Chênh ngân sách |
-| METRIC-CUS-01 | `≥ 3,0x` | ratio | Sales Dir | Pipeline coverage |
-| METRIC-CUS-02 | `≥ 25%` | % | Sales Dir | Tỷ lệ chuyển đổi |
-| METRIC-CUS-03 | `≥ 100%` | % | Sales Dir | NRR |
-| METRIC-CUS-04 | `≤ 40%` | % | Sales Dir | Tập trung doanh thu |
-| METRIC-CUS-05 | `≥ 30` | score | Sales Dir | NPS |
-| METRIC-OPS-01 | `≥ 85%` | % | Ops Mgr | Task đúng hạn |
-| METRIC-OPS-02 | `≤ 1` | count | Ops Mgr | Dự án trễ |
-| METRIC-OPS-03 | `≥ 80%` | % | Ops Mgr | Thực thi quyết định |
-| METRIC-OPS-04 | `≤ 6` | tasks/person | Ops Mgr | Workload |
-| METRIC-HR-01 | `≥ 2,0 tỷ` | VND/person | HR Mgr | Doanh thu/nhân sự |
-| METRIC-HR-02 | `≤ 15%` | % | HR Mgr | Tỷ lệ nghỉ việc |
-| METRIC-HR-03 | `≤ 10%` | % | HR Mgr | Nhân sự quá tải |
+| QD-01 | Tuyển gấp 6 nhân viên kinh doanh khu vực Hà Nội (HiringPlan HP-2026-07) | Phạm Thị Hạnh | 30/09/2026 | Trễ — chưa xong |
+| QD-02 | Siết hạn mức công nợ khách quá hạn > 60 ngày | Trần Thị Minh | 15/10/2026 | Xong đúng hạn |
+| QD-03 | Gia hạn hợp đồng Minh Phát trước 30/09 | Lê Hoàng Giang | 30/09/2026 | Xong đúng hạn *(đàm phán xong, chờ ký — phụ lục chưa scan)* |
+| QD-04 | Ra mắt tính năng "Đặt hàng định kỳ" ABC Order | Đỗ Quang Huy | 31/10/2026 | Chưa đến hạn |
+| QD-05 | Lập kế hoạch dự phòng nhà cung cấp mực in | Bùi Thu Trang | 15/11/2026 | Chưa đến hạn |
 
-> ✅ Tất cả `metric_code` tồn tại trong 18 metric `ENT-Metric` — XD-04 **PASS**.
-> DOC-07 là kế hoạch **Q4/2026** (dùng cho kỳ sau và mẫu số METRIC-CUS-01). Kế hoạch T9 của METRIC-FIN-01 (9,6 tỷ) lấy từ DOC-03 `sales_target`.
+3 quyết định đến hạn (QD-01..03), 2 xong đúng hạn → **METRIC-OPS-03 = 66,7%**.
+
+**15 action item → `ENT-Task`:** 9 xong đúng hạn, 2 xong trễ, 4 mở quá hạn (gồm "Đăng tuyển 6 vị trí sales HN" của Phạm Thị Hạnh, trễ 20 ngày). Người phụ trách đều có trong DOC-06 (XD-03).
 
 ---
 
-## 4. Quy tắc nhất quán liên tài liệu
+### DOC-06 — Danh sách nhân sự (`EMPLOYEE_LIST`, Excel 150 dòng)
 
-### 4.1. XD-01 — Doanh thu BCTC vs Hóa đơn
+Cột: Mã NV · Họ tên · Chức danh · Phòng ban · Ngày vào · Ngày nghỉ · Trạng thái (`ACTIVE`/`ON_LEAVE`/`TERMINATED`) · Lương (VND). **Lương = "rất nhạy cảm"** (02, 05 §dữ liệu nhạy cảm): chỉ CEO và HR_MANAGER xem; REVIEWER chỉ thấy trong ngữ cảnh review DOC-06 được giao; **không bao giờ gửi LLM** (AI chỉ nhận tổng hợp theo phòng ban).
 
-Theo 04 §12.1:
-
-| Bên so sánh | Nguồn | Giá trị ground truth |
-|---|---|---|
-| BCTC Q3 — doanh thu tháng T9 | DOC-01 `revenue_by_month[2026-09]` | `8.500.000.000 đ` |
-| SUM hóa đơn T9 | DOC-02 `Σ(subtotal)` | `8.500.000.000 đ` |
-| Chênh lệch | — | **0 đ (0,0%)** → **MATCH ✓** |
-
-> 📌 **Open question OQ-12:** 01 §8 yêu cầu so #1 (Q3) với #2 (T9) — hai bên khác kỳ. Quy tắc kỳ đã được 04 §12.1 định nghĩa (so tháng M trong BCTC với SUM hóa đơn tháng M). Cần human chốt DEC blocking ở Phase 3.
-
-### 4.2. XD-02 — Tên khách hàng
-
-| Nguồn | Trường | Giá trị ground truth |
-|---|---|---|
-| DOC-02 | `customer_name` (14 khách) | Tên + MST như bảng §3 DOC-02 |
-| DOC-03 | `revenue_by_customer[].customer_name` | Cùng 14 tên + MST |
-| DOC-04 | `party_b_name` + `party_b_tax_code` | 2 khách trong #4 có trong #2 |
-
-> ✅ Tên khách hàng khớp 100% — XD-02 **PASS** (fuzzy ≥ 0,90, ưu tiên MST).
-
-### 4.3. XD-03 — Người trong biên bản vs danh sách nhân sự
-
-| Nguồn | Trường | Giá trị ground truth |
-|---|---|---|
-| DOC-05 | `chairperson`, `attendees[]`, `action_items.assignee` | 8 tên riêng |
-| DOC-06 | `EMPLOYEE.name` (45 ACTIVE) | Tất cả 8 tên đều có trong DS nhân sự |
-
-> ✅ Người trong biên bản khớp với danh sách nhân sự — XD-03 **PASS**.
-
----
-
-### 4.4. Kiểm tra số học (chạy lại bằng script trước khi seed)
-
-Mọi số dưới đây được tính lại từ bảng trong file này (script kiểm tra cộng từng dòng DOC-02, `DEMO_REFERENCE_DATE` = 20/10/2026).
-
-| # | Phép kiểm tra | Phép tính | Kết quả | Khớp |
-|---|---|---|---|---|
-| K1 | Σ subtotal 47 HĐ DOC-02 | cộng 47 dòng | `8.500.000.000` = DOC-01 `revenue_by_month[2026-09]` | ✓ |
-| K2 | Σ VAT 47 HĐ | Σ(subtotal × VAT%) theo dòng | `812.000.000` | ✓ |
-| K3 | Σ tổng thanh toán | `8.500.000.000 + 812.000.000` | `9.312.000.000` | ✓ |
-| K4 | PAID ⇒ `paid_amount = total_amount` | 22 HĐ `PAID` | Không lệch dòng nào | ✓ |
-| K5 | `due_date ≥ issue_date` | 47 HĐ + HL-001 | Không vi phạm | ✓ |
-| K6 | Σ `revenue_by_customer` | 14 khách | `8.500.000.000` / 47 HĐ = K1 | ✓ |
-| K7 | Doanh thu Q3 | `7.800.000.000 + 8.200.000.000 + 8.500.000.000` | `24.500.000.000` = `revenue` | ✓ |
-| K8 | LN gộp | `24.500.000.000 − 20.000.000.000` | `4.500.000.000` (18,4%) | ✓ |
-| K9 | LN ròng | `(4.500.000.000 − 3.400.000.000) × (1 − 20%)` | `880.000.000` | ✓ |
-| K10 | Quỹ lương ⊂ opex | `855.000.000 × 3 = 2.565.000.000 ≤ 3.400.000.000` | ✓ | ✓ |
-| K11 | Tổng phải thu tại 20/10/2026 | còn nợ 47 HĐ `5.217.100.000` (23 UNPAID + 2 PARTIAL) + HL-001 `242.000.000` | `5.459.100.000` | ✓ |
-| K12 | Quá hạn tại 20/10/2026 | 5 HĐ T9 `1.064.000.000` (1–30 ngày) + HL-001 `242.000.000` (96 ngày, > 90) | `1.306.000.000` | ✓ |
-| K13 | METRIC-FIN-05 | `1.306.000.000 / 5.459.100.000 × 100` | `23,9%` → Đỏ | ✓ |
-| K14 | DSO (phải thu 30/09/2026) | `9.312.000.000 + 242.000.000 + 3.446.000.000` | `13.000.000.000`; `13.000.000.000 / 24.500.000.000 × 90 = 47,8` ngày | ✓ |
-| K15 | Pipeline coverage | `1.200 + 2.500 + 4.800 + 8.100` (triệu) / `(27.000 − 5.500)` | `16.600.000.000 / 21.500.000.000 = 0,77x` | ✓ |
-| K16 | NRR | `23.300.000.000 / 22.300.000.000` | `104,5%`; `23.300 + 1.200 = 24.500` (triệu) | ✓ |
-
----
-
-## 5. Seed dữ liệu cho 18 metric và alert demo
-
-### 5.1. Giá trị metric (ACTUAL) tại `DEMO_REFERENCE_DATE` = 20/10/2026
-
-Ngưỡng lấy nguyên văn từ `03-DASHBOARD-SPEC.md` §2 (đánh giá Đỏ trước, Vàng sau). Không chỉnh ngưỡng; chỉ chọn số liệu gốc.
-
-| Metric | Phép tính từ seed | Giá trị | Ngưỡng 03 | Trạng thái | Alert |
-|---|---|---|---|---|---|
-| METRIC-FIN-01 Doanh thu tháng | `8.500.000.000 / 9.600.000.000` (KH T9, DOC-03) | `8,5 tỷ` · **88,5% KH** | V < 90%; Đ < 80% | Vàng | **ALERT-FIN-01 Warning** |
-| METRIC-FIN-02 Biên LN gộp | `4.500.000.000 / 24.500.000.000` | `18,4%` | V < 15%; Đ < 10% | Xanh | — |
-| METRIC-FIN-03 Cash runway | `6.800.000.000 / 850.000.000` (dòng tiền ra ròng bình quân 3 tháng) | `8,0 tháng` | V < 9; Đ < 6 | Vàng | **ALERT-FIN-03 Warning** |
-| METRIC-FIN-04 DSO | `13.000.000.000 / 24.500.000.000 × 90` | `47,8 ngày` | V > 45; Đ > 60 | Vàng | **ALERT-FIN-04 Warning** |
-| METRIC-FIN-05 Công nợ quá hạn | `1.306.000.000 / 5.459.100.000` (§4.4) | `23,9%` · `1,3 tỷ` | V > 10%; Đ > 20% hoặc khoản > 90 ngày | Đỏ (cả 2 điều kiện) | **ALERT-FIN-05 Critical** |
-| METRIC-FIN-06 Chênh ngân sách | `(3.400.000.000 − 3.150.000.000) / 3.150.000.000` | `+7,9%` | V > 5%; Đ > 10% | Vàng | **ALERT-FIN-06 Warning** |
-| METRIC-CUS-01 Pipeline coverage | `16.600.000.000 / (27.000.000.000 − 5.500.000.000)` | `0,77x` | V < 3,0x; Đ < 2,0x | Đỏ | **ALERT-CUS-01 Critical** |
-| METRIC-CUS-02 Tỷ lệ chuyển đổi | `12 / (12 + 38)` | `24,0%` | V < 25%; Đ < 15% | Vàng | **ALERT-CUS-02 Warning** |
-| METRIC-CUS-03 NRR | `23.300.000.000 / 22.300.000.000` (§5.2) | `104,5%` | V < 100%; Đ < 90% | Xanh | — |
-| METRIC-CUS-04 Tập trung DT | `49.980.000.000 / 98.000.000.000` (rolling 12 tháng) | `51,0%` | V Top5 > 40%; Đ Top5 > 50% | Đỏ | **ALERT-CUS-04 Critical** |
-| METRIC-CUS-05 NPS | DOC-03 `nps_score` | `+32` | V < 30; Đ < 0 | Xanh | — |
-| METRIC-OPS-01 Task đúng hạn | `9 / 15` (DOC-05) | `60,0%` | V < 85%; Đ < 70% | Đỏ | **ALERT-OPS-01 Critical** |
-| METRIC-OPS-02 Dự án trễ | 2 dự án trễ ≤ 30 ngày (seed `PROJECT`) | `2` | V ≥ 1; Đ ≥ 3 hoặc trễ > 30 ngày | Vàng | **ALERT-OPS-02 Warning** |
-| METRIC-OPS-03 Thực thi quyết định | `2 / 3` quyết định đến hạn làm đúng hạn (trong 5 quyết định DOC-05) | `66,7%` | V < 80%; Đ < 60% | Vàng | **ALERT-OPS-03 Warning** |
-| METRIC-OPS-04 Workload | `81` task mở / `15` assignee; 2 người > 8 task | `5,4 task/người` | V > 6 hoặc ≥ 1 người > 8; Đ > 8 hoặc ≥ 3 người > 8 | Vàng (2 người > 8) | **ALERT-OPS-04 Warning** |
-| METRIC-HR-01 Doanh thu/nhân sự | `98.000.000.000 / 45` | `2,18 tỷ/người` | V < 2,0; Đ < 1,7 | Xanh | — |
-| METRIC-HR-02 Tỷ lệ nghỉ việc | `6 / 45` (headcount bình quân 12 tháng) | `13,3%` | V > 15%; Đ > 25% | Xanh | — |
-| METRIC-HR-03 Nhân sự quá tải | `(2 người > 8 task mở + 2 người ≥ 3 task trễ) / 45` | `8,9%` | V > 10%; Đ > 20% | Xanh | — |
-
-Tổng: **12 alert** (4 Critical: FIN-05, CUS-01, CUS-04, OPS-01; 8 Warning: FIN-01, FIN-03, FIN-04, FIN-06, CUS-02, OPS-02, OPS-03, OPS-04); 6 metric xanh (FIN-02, CUS-03, CUS-05, HR-01, HR-02, HR-03). Task mở OPS-04 gồm 15 action item DOC-05 và 66 task seed thẳng `business_records` (`record_type='TASK'`).
-
-> 📌 **Alert dùng trong kịch bản demo (02 §5.3, 01 §11):**
-> - Bước 1 (CEO): ALERT-FIN-05 Critical, ALERT-CUS-04 Critical, ALERT-OPS-01 Critical nổi bật đầu danh sách
-> - Bước 2 (CEO): click **ALERT-FIN-01 Warning** (doanh thu 88,5% KH) → drill-down DOC-02, DOC-01
-> - Bước 3 (CFO): ALERT-FIN-06 Warning (chênh ngân sách +7,9%), ALERT-FIN-03 Warning (runway 8,0 tháng)
-
-### 5.2. Seed lịch sử cho NRR (METRIC-CUS-03)
-
-Định nghĩa 03: `doanh thu kỳ này từ nhóm khách đã có ở kỳ gốc / doanh thu kỳ gốc của chính nhóm đó × 100`, kỳ gốc = Q3/2025.
-
-| Thành phần | Giá trị (VND) | Ghi chú |
-|---|---|---|
-| Nhóm khách kỳ gốc | 12 khách | 14 khách T9 trừ TechSoft và Thương mại Quốc tế (khách mới 2026) |
-| Doanh thu Q3/2025 của nhóm 12 khách | `22.300.000.000` | Seed `metric_values.breakdown`, `computation='SEED'` |
-| Doanh thu Q3/2026 của cùng nhóm 12 khách | `23.300.000.000` | Từ seed T7, T8 + DOC-02 T9 |
-| Doanh thu Q3/2026 từ khách mới | `1.200.000.000` | Không tính vào NRR |
-| Tổng Q3/2026 | `24.500.000.000` | = 23.300.000.000 + 1.200.000.000 = DOC-01 `revenue` ✓ |
-| **NRR** | `23.300.000.000 / 22.300.000.000 × 100` = **104,5%** | Xanh |
-
----
-
-## 6. Quy tắc demo và kịch bản 15 phút
-
-### 6.1. Kịch bản theo 02 §5.3
-
-| Bước | Role | Hành động | Alert/metric liên quan |
+| Phòng ban | ACTIVE | Quỹ lương T9 (VND) | Bình quân |
 |---|---|---|---|
-| 1 | ROLE-01 CEO | Mở app → xem dashboard 4 trụ | ALERT-FIN-05, ALERT-CUS-04, ALERT-OPS-01 (Critical) nổi bật |
-| 2 | ROLE-01 CEO | Click ALERT-FIN-01 (88,5% KH) → drill-down | → DOC-02, DOC-01 |
-| 3 | ROLE-02 CFO | Chuyển vai → xem ngân sách | ALERT-FIN-06 (+7,9%), ALERT-FIN-03 (8,0 tháng) |
-| 4 | ROLE-01 CEO | "Nạp doanh nghiệp" UC-07 | Upload 7 tài liệu |
-| 5 | ROLE-05 Reviewer | Duyệt 1 tài liệu FIN | → commit, metric cập nhật |
-| 6 | ROLE-01 CEO | Quay lại dashboard | → drill-down đến tài liệu vừa duyệt |
+| BOD | 6 | `305.000.000` | ~50,8 tr |
+| FIN | 14 | `294.000.000` | 21,0 tr |
+| SAL | 42 | `777.000.000` | 18,5 tr |
+| LOG | 38 | `513.000.000` | 13,5 tr |
+| SVC | 24 | `408.000.000` | 17,0 tr |
+| PRD | 18 | `504.000.000` | 28,0 tr |
+| HRA | 8 | `124.000.000` | 15,5 tr |
+| **Tổng** | **150** | **`2.925.000.000`** | **19,5 tr** |
 
-### 6.2. Demo mode flag
+Quỹ lương Q3 = 2.925.000.000 × 3 = `8.775.000.000` ⊂ `operating_expenses` DOC-01 (XD-05). Khoảng lương 9–85 triệu.
 
-- `DEMO_MODE=true` bật dropdown switcher (02 §5.2 R5, 07 §8.1.1)
-- Khi tắt: dropdown ẩn, endpoint role switch trả `404` (07 §8.1.1)
+**Seed lịch sử nhân sự:** 20 nhân sự `TERMINATED` trong 12 tháng (10/2025–09/2026), headcount bình quân 12 tháng = 150 → METRIC-HR-02 = **13,3%**. 13 nhân sự quá tải (> 8 task mở hoặc ≥ 3 task trễ) → METRIC-HR-03 = **8,7%**.
+
+**Kế hoạch tuyển dụng (`ENT-HiringPlan`):**
+
+| Mã | Phòng ban | Số lượng | Hạn tuyển | Trạng thái | Ngày trễ tại 20/10 |
+|---|---|---|---|---|---|
+| HP-2026-05 | PRD | 2 (Backend dev) | 31/10/2026 | `APPROVED` (CFO duyệt) | — |
+| HP-2026-06 | SVC | 3 (Kỹ thuật viên) | 30/09/2026 | `IN_PROGRESS` | 20 |
+| HP-2026-07 | SAL | 6 (Sales HN) | 15/09/2026 | `IN_PROGRESS` | **35** → `EVT-hr.hiring_plan_delayed` |
 
 ---
 
-## 7. Open questions
+### DOC-07 — Kế hoạch KPI/OKR Q4/2026 (`KPI_OKR`)
+
+| Objective | Key result | Mục tiêu | Owner | Trụ |
+|---|---|---|---|---|
+| O1 Tăng trưởng doanh thu bền vững | KR1.1 Doanh thu Q4 | `81.000.000.000` (27 tỷ/tháng) | Lê Hoàng Giang | C, F |
+| | KR1.2 Pipeline coverage | ≥ 3,0x | Lê Hoàng Giang | C |
+| O2 Giữ dòng tiền an toàn | KR2.1 Cash runway | ≥ 9 tháng | Trần Thị Minh | F |
+| | KR2.2 Công nợ quá hạn | ≤ 10% | Trần Thị Minh | F |
+| O3 Đủ người, vận hành đúng hạn | KR3.1 Hoàn thành HP-2026-06/07 | 9 người trước 30/11 | Phạm Thị Hạnh | O |
+| | KR3.2 Task đúng hạn | ≥ 85% | Hoàng Minh Tuấn | O |
+| O4 ABC Order được dùng thật | KR4.1 MAU | ≥ 75% | Đỗ Quang Huy | U |
+| | KR4.2 Churn | ≤ 1,5%/tháng | Đỗ Quang Huy | U |
+| O5 Kiểm soát rủi ro trọng yếu | KR5.1 Rủi ro high chưa có chủ | 0 | Bùi Thu Trang | S |
+| | KR5.2 Mitigation quá hạn | ≤ 10% | Bùi Thu Trang | S |
+
+**KPI** (`ENT-KPI`, mỗi dòng có `metric_code` tồn tại trong 00 §4.2 — XD-04): METRIC-FIN-01, FIN-03, FIN-05, OPS-01, HR-04, CUS-01, CUS-02, PRD-01, PRD-02, RSK-02. Mục tiêu doanh thu Q4 `81.000.000.000` là mẫu số METRIC-CUS-01. **Seed Q3 (đã đóng):** 15 KR với tiến độ 100, 90, 60, 85, 70, 100, 50, 80, 75, 90, 60, 70, 80, 65, 88 (%) → METRIC-RSK-06 = **77,5%**.
+
+---
+
+### DOC-08 — Báo cáo chỉ số sản phẩm T9/2026 (`PRODUCT_REPORT`)
+
+| Field | Ground truth | Ghi chú |
+|---|---|---|
+| `product_code` | `PRD-ORDER` (ABC Order) | Kèm phần tóm tắt ABC Care |
+| `period` | `2026-09` | |
+| `accounts_start` / `new` / `churned` / `end` | 1.950 / 63 / 47 / 1.966 | 1.950 + 63 − 47 = 1.966 |
+| `monthly_active_accounts` | 1.392 | MAU = 70,8% |
+| `churn_pct` | 2,41% | T6–T8: 1,5 · 1,4 · 1,6 (BQ 1,5) → tăng **60,7%** > 50% và ≥ 2% → `EVT-product.metric_anomaly` (BR churn anomaly) |
+| `cohort_new_aug` / `retained_30d` | 60 / 41 | Retention 30 ngày 68,3% |
+| `roadmap_due` / `roadmap_on_time` | 12 / 8 | 66,7%; 4 trễ do thiếu 2 backend dev (HP-2026-05) |
+| `releases[]` | v3.4 "Báo giá nhanh" (04/09), v3.4.1 sửa lỗi thanh toán (12/09), v3.5 "Duyệt đơn nhiều cấp" (26/09) | 3 `ENT-Release`, `EVT-product.feature_released` |
+| `top_churn_reason` | "Lỗi đồng bộ tồn kho", "Giá thuê bao" | Văn bản tự do — AI tóm tắt, không suy số |
+| `abc_care_contracts_active` | 412 | ABC Care, tham khảo |
+
+`ENT-ProductMetric` là append-only (05): mỗi lần duyệt tạo snapshot mới, không ghi đè.
+
+---
+
+### DOC-09 — Sổ rủi ro Q3/2026 (`RISK_REGISTER`, Excel 11 dòng)
+
+Score = Likelihood × Impact (1–5); level theo 03 BR-RSK-02: **critical 16–25**, high 10–15, medium 5–9, low 1–4.
+
+| Mã | Rủi ro | Liên kết entity | L | I | Score | Level | Owner | Mở từ | Mitigation |
+|---|---|---|---|---|---|---|---|---|---|
+| R-01 | Thiếu hụt dòng tiền Q4 do công nợ tăng | finance.invoices (HL-001), cash | 4 | 5 | **20** | **critical** | Trần Thị Minh | 10/09/2026 | 2 (1 quá hạn) |
+| R-02 | Mất khách lớn Văn phòng Phẩm (14% doanh thu) | sales.clients | 4 | 3 | 12 | high | Lê Hoàng Giang | 01/09/2026 | 2 |
+| R-03 | Nhà cung cấp mực in duy nhất | product PRD-SUP | 3 | 5 | 15 | high | Bùi Thu Trang | 01/08/2026 | **0** (> 30 ngày) |
+| R-04 | Giao hàng khi hợp đồng HD-2026-002 hết hạn | sales.contracts | 4 | 4 | 16 | **critical** | Lê Hoàng Giang | 01/10/2026 | 1 |
+| R-05 | Churn ABC Order tăng | product.product_metrics | 4 | 4 | 16 | **critical** | Đỗ Quang Huy | 05/10/2026 | 2 |
+| R-06 | Rò rỉ dữ liệu khách hàng qua email cá nhân | platform | 3 | 5 | 15 | high | **—** | 15/09/2026 | 1 |
+| R-07 | Biến động tỷ giá nhập máy in | finance.expenses | 2 | 5 | 10 | medium | Trần Thị Minh | 01/07/2026 | 2 (1 quá hạn) |
+| R-08 | Quá tải kho Q4 | hr.departments LOG | 3 | 3 | 9 | medium | Hoàng Minh Tuấn | 01/09/2026 | 1 |
+| R-09 | Nghỉ việc nhóm kỹ thuật SVC | hr.departments SVC | 3 | 3 | 9 | medium | Phạm Thị Hạnh | 15/08/2026 | 1 |
+| R-10 | Chậm phê duyệt hóa đơn điện tử | finance.invoices | 2 | 4 | 8 | medium | Trần Thị Minh | 01/09/2026 | 1 (quá hạn) |
+| R-11 | Thay đổi quy định NĐ 13 về dữ liệu cá nhân | platform | 2 | 3 | 6 | medium | Bùi Thu Trang | 01/07/2026 | 1 |
+
+**R-12 (không có trong file — tự sinh từ event, `source='EVENT'`):** "Chậm tuyển 6 sales HN ảnh hưởng doanh thu Q4", liên kết HP-2026-07, L 3 × I 4 = **12 high**, owner **—** (chờ phân công), mở 20/10/2026, 0 mitigation (chưa tính vào RSK-03 vì < 30 ngày). Tổng **14 mitigation đang mở, 3 quá hạn**.
+
+---
+
+## 4. Quy tắc nhất quán liên tài liệu (XD)
+
+| Mã | Quy tắc | Bên A | Bên B | Ground truth | Kết quả |
+|---|---|---|---|---|---|
+| XD-01 | Doanh thu tháng M trong BCTC khớp Σ subtotal hóa đơn tháng M, dung sai ±0,5% (DEC-030) | DOC-01 `revenue_by_month[2026-09]` | DOC-02 Σ subtotal | 25.500.000.000 vs 25.500.000.000 (0,0%) | MATCH |
+| XD-02 | Tên + MST khách khớp giữa hóa đơn, báo cáo sales, hợp đồng (MST trước, tên fuzzy ≥ 0,90) | DOC-02 (14 khách) | DOC-03, DOC-04 | 14/14; 2 khách DOC-04 có trong DOC-02 | PASS |
+| XD-03 | Người trong biên bản / OKR / sổ rủi ro tồn tại trong danh sách nhân sự | DOC-05, DOC-07, DOC-09 | DOC-06 (150) | 10 tên riêng đều có | PASS |
+| XD-04 | `metric_code` trong KPI tồn tại trong registry | DOC-07 | 00 §4.2 (31 metric) | 10/10 | PASS |
+| XD-05 | Quỹ lương × 3 ⊂ chi phí vận hành quý | DOC-06 | DOC-01 | 8.775.000.000 ≤ 10.200.000.000 | PASS |
+| XD-06 | Doanh thu theo sản phẩm khớp doanh thu tháng | §1 bảng sản phẩm | DOC-01 T9 | 19,125 + 4,08 + 2,295 = 25,5 tỷ | PASS |
+| XD-07 | `linked_entity` của rủi ro trỏ tới entity tồn tại | DOC-09 | DOC-02/04/06/08 | 11/11 | PASS |
+| XD-08 | Sản phẩm trong báo cáo sản phẩm / hợp đồng có trong danh mục | DOC-04, DOC-08 | `product.products` | PRD-SUP, PRD-CARE, PRD-ORDER | PASS |
+
+Bộ "tài liệu lệch" để demo MISMATCH: bản sao DOC-02 có HV-047 subtotal `1.020.000.000` thay vì `510.000.000` → Σ lệch +2,0% → XD-01 `MISMATCH` (vượt 0,5%) → review bắt buộc.
+
+---
+
+## 5. Master data và seed nền
+
+| Nhóm | Số lượng | Ghi chú |
+|---|---|---|
+| `sales.clients` | 14 khách DOC-02 + 1 prospect (Hoàng Gia) + 25 khách lịch sử | Dedupe theo MST |
+| `sales.deals` | 39 mở + 12 won T9 + 38 lost T9 + 140 lịch sử | |
+| `hr.employees` | 150 ACTIVE + 20 TERMINATED (12 tháng) | Tên giả định |
+| `execution.tasks` | 105 seed + 15 từ DOC-05; 243 task mở tổng cộng | |
+| `execution.projects` | 6 (2 trễ: "Mở kho Bình Dương", "Tích hợp ABC Order – ERP") | |
+| `product.products` / `features` / `roadmap_items` | 3 / 28 / 12 (T9 đến hạn) | |
+| `risk.risks` | 11 (DOC-09) + 1 tự sinh (R-12) | |
+| `finance.*` lịch sử | Doanh thu 12 tháng theo khách; HĐ T7/T8 tổng hợp; HL-001; ngân sách Q3; forecast 3 kịch bản Q4 | `source='SEED'`, drill-down P01 dừng ở bản ghi seed có nhãn "Dữ liệu seed lịch sử" |
+
+---
+
+## 6. Seed 31 metric tại `DEMO_REFERENCE_DATE` = 20/10/2026
+
+Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9 (hoặc Q3 với metric quý). Ngưỡng là **biến cấu hình** (`platform.metrics.threshold_*`), giá trị mặc định ở cột "Ngưỡng".
+
+| Metric | Tên | Công thức (theo 03 §2) | Đơn vị | Ngưỡng mặc định (03) | Trend T4→T9/2026 | Hiện tại | Nguồn seed | Trạng thái | Alert |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-FIN-01 | Doanh thu vs kế hoạch | DT kỳ / SalesTarget kỳ × 100 | % | W < 90 · C < 80 | 96,2 · 94 · 93,1 · 91,5 · 90,4 · 88,5 | **88,5** | 25,5 tỷ / 28,8 tỷ (DOC-01, DOC-03) | Warning | ALERT-FIN-01 Warning |
+| METRIC-FIN-02 | Biên LN gộp | (DT − giá vốn `cogs`) / DT × 100 | % | W giảm > 3 đ% so Δ3k · C giảm > 5 đ% | 19,6 · 19,2 · 19 · 18,8 · 18,6 · 18,4 | **18,4** | 13,5 / 73,5 tỷ (DOC-01); giảm 0,4 đ% so Δ3k | OK | — |
+| METRIC-FIN-03 | Cash runway | số dư cuối kỳ / burn tháng (BR-FIN-01/02) | tháng | W < 12 · C < 6 | 11,8 · 11 · 10,4 · 9,6 · 8,7 · 8 | **8,0** | 20,4 tỷ / 2,55 tỷ (DOC-01) | Warning | ALERT-FIN-03 Warning |
+| METRIC-FIN-04 | DSO | phải thu cuối kỳ / DT kỳ × số ngày | ngày | W tăng > 15% so Δ3k · C tăng > 30% | 41 · 42,5 · 43 · 44,2 · 46,1 · 47,8 | **47,8** | 39,0 / 73,5 tỷ × 90; +7,6% so Δ3k | OK | — |
+| METRIC-FIN-05 | Công nợ quá hạn | phải thu quá hạn / tổng phải thu × 100 | % | W > 15 · C > 25 | 8,5 · 9,8 · 11,2 · 14 · 19,5 · 23,9 | **23,9** | 3,918 / 16,377 tỷ; HL-001 quá hạn 96 ngày (aging > 90) | Warning | ALERT-FIN-05 Warning |
+| METRIC-FIN-06 | Chênh lệch ngân sách | MAX theo phòng ban [(thực chi − ngân sách) / ngân sách × 100], quý | % | W > 0 · C > 10 | 2,1 · 3 · 4,2 · 6,5 · 9,8 · 14,1 | **14,1** | Phòng SAL 3.650 / 3.200 triệu (§3 DOC-01) | **Critical** | ALERT-FIN-06 Critical |
+| METRIC-FIN-07 | Net burn vs dự báo | (net burn dự kiến − dự báo) / \|dự báo\| × 100 | % | W > 10 · C > 25 | -4 · 0 · 2,5 · 6 · 12 · 20 | **20** | 3,0 vs 2,5 tỷ T9 | Warning | ALERT-FIN-07 Warning |
+| METRIC-OPS-01 | Task đúng hạn | task xong đúng hạn / task đến hạn × 100 | % | W < 80 · C < 65 | 84 · 82,5 · 80 · 76 · 71 · 65 | **65** | 78 / 120 (15 DOC-05 + 105 seed) | Warning | ALERT-OPS-01 Warning |
+| METRIC-OPS-02 | Dự án trễ | dự án lệch tiến độ > 10 đ% / dự án đang chạy × 100 | % | W > 20 · C > 35 | 0 · 0 · 16,7 · 16,7 · 33,3 · 33,3 | **33,3** | 2 / 6 dự án (seed) | Warning | ALERT-OPS-02 Warning |
+| METRIC-OPS-03 | Thực thi quyết định | task từ quyết định xong / đến hạn × 100 | % | W < 70 · C < 50 | 100 · 90 · 85 · 80 · 75 · 66,7 | **66,7** | 2 / 3 (DOC-05) | Warning | ALERT-OPS-03 Warning |
+| METRIC-HR-01 | Doanh thu / nhân sự | DT 12 tháng / headcount BQ; so `HR_REVENUE_PER_HEAD_PLAN` = 2,0 tỷ | tỷ/người/năm | W thấp hơn KH > 15% · C > 25% | 2,06 · 2,04 · 2,02 · 2 · 1,98 · 1,96 | **1,96** | 294 tỷ / 150; thấp hơn KH 2% | OK | — |
+| METRIC-HR-02 | Turnover năm hóa | BR-HR-01 | % | W ≥ 15 · C ≥ 20 | 11,5 · 12 · 12,4 · 12,7 · 13 · 13,3 | **13,3** | 20 / 150 | OK | — |
+| METRIC-HR-03 | Nhân sự quá tải | NV workload > 110% 2 tuần liên tiếp / NV active × 100 | % | W > 10 · C > 20 | 4,7 · 5,3 · 6 · 6,7 · 7,3 · 8,7 | **8,7** | 13 / 150 | OK | — |
+| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | đếm HiringPlan quá `target_date` chưa đủ người | kế hoạch | W ≥ 1 trễ 1–30 ngày · C ≥ 1 trễ > 30 ngày | 0 · 0 · 0 · 0 · 0 · 1 | **1** | HP-2026-07 trễ 35 ngày | **Critical** | ALERT-HR-04 Critical |
+| METRIC-CUS-01 | Pipeline coverage | Σ deal_value mở đóng trong quý / mục tiêu quý (BR-SAL-04); kèm coverage có trọng số | x | W < 3,5 · C < 3,0 | 3,4 · 3,1 · 2,9 · 2,6 · 2,2 · 1,8 | **1,8** | 142,5 / 81,0 tỷ = 1,76x; trọng số 49,8 / 81,0 = 0,61x | **Critical** | ALERT-CUS-01 Critical |
+| METRIC-CUS-02 | Win rate | won / (won + lost) × 100 | % | W giảm > 10 đ% so Δ3k · C > 20 đ% | 29 · 28 · 27,5 · 26 · 25,5 · 24 | **24** | 12 / 50 (DOC-03); giảm 2,3 đ% | OK | — |
+| METRIC-CUS-03 | NRR | DT kỳ của nhóm khách kỳ gốc / DT kỳ gốc × 100 | % | W < 100 · C < 90 | 101 · 102,2 · 103 · 103,5 · 104 · 104,5 | **104,5** | 69,9 / 66,9 tỷ (Q3/2026 vs Q3/2025) | OK | — |
+| METRIC-CUS-04 | Tập trung doanh thu top 5 | DT top 5 khách 12 tháng / tổng × 100 | % | W > 50 · C > 65 | 46 · 47,2 · 48,5 · 49,4 · 50,3 · 51 | **51** | 149,94 / 294 tỷ | Warning | ALERT-CUS-04 Warning |
+| METRIC-CUS-05 | NPS | % promoter − % detractor | điểm | W < 30 · C < 0 | 28 · 30 · 31 · 33 · 32 · 32 | **32** | DOC-03, 214 phản hồi | OK | — |
+| METRIC-CUS-06 | Chu kỳ bán TB | AVG(closed_at − created_at) deal won | ngày | W tăng > 20% so Δ3k · C > 40% | 52 · 53 · 54 · 58 · 63 · 68 | **68** | DOC-03; +16,6% so Δ3k | OK | — |
+| METRIC-PRD-01 | Adoption (MAU) | MAU sản phẩm launched (+ adoption %) | người dùng | W MAU giảm > 10% so Δ3k · C > 20% | 1.540 · 1.560 · 1.575 · 1.560 · 1.548 · 1.392 | **1.392** | DOC-08 (adoption 70,8%); giảm 10,8% so Δ3k | Warning | ALERT-PRD-01 Warning |
+| METRIC-PRD-02 | Churn | `churn_rate_pct` (sản phẩm xấu nhất) | %/tháng | W tăng > 25% tương đối & ≥ 2% · C > 50% & ≥ 2% (BR-PRD-01) | 1,4 · 1,5 · 1,5 · 1,4 · 1,6 · 2,41 | **2,41** | 47 / 1.950 (DOC-08); +60,7% so Δ3k | **Critical** | ALERT-PRD-02 Critical |
+| METRIC-PRD-03 | Retention 30 ngày | `retention_30d_pct` | % | W < 40 · C < 25 | 72 · 71 · 70,5 · 70 · 69 · 68,3 | **68,3** | 41 / 60 (DOC-08) | OK | — |
+| METRIC-PRD-04 | Roadmap đúng tiến độ | RoadmapItem không trễ / RoadmapItem của quý × 100 | % | W < 70 · C < 50 | 90 · 88 · 85 · 80 · 75 · 66,7 | **66,7** | 8 / 12 (DOC-08) | Warning | ALERT-PRD-04 Warning |
+| METRIC-PRD-05 | Tính năng release trong kỳ | số feature released; attainment = released / planned × 100 | tính năng (+ %) | W attainment < 70 · C < 40 | 2 · 3 · 2 · 4 · 2 · 3 | **3 (75%)** | 3 release / 4 kế hoạch T9 (DOC-08) | OK | — |
+| METRIC-RSK-01 | Rủi ro high/critical đang mở | đếm level ∈ {high, critical}, chưa closed/accepted | rủi ro | W ≥ 1 high · C ≥ 1 critical | 3 · 4 · 5 · 6 · 7 · 8 | **8** | R-01..07, R-12 (3 critical: R-01, R-04, R-05) | **Critical** | ALERT-RSK-01 Critical |
+| METRIC-RSK-02 | Rủi ro high chưa có chủ | đếm level ≥ high, owner null | rủi ro | W ≥ 1 medium chưa chủ > 7 ngày · C ≥ 1 | 0 · 0 · 0 · 1 · 1 · 2 | **2** | R-06, R-12 | **Critical** | ALERT-RSK-02 Critical |
+| METRIC-RSK-03 | Rủi ro high > 30 ngày không mitigation | level ≥ high, mở > 30 ngày, không có mitigation in_progress | rủi ro | W ≥ 1 · C ≥ 1 rủi ro critical | 0 · 0 · 0 · 0 · 1 · 1 | **1** | R-03 (high) | Warning | ALERT-RSK-03 Warning |
+| METRIC-RSK-04 | Điểm rủi ro tổng hợp | Σ score rủi ro mở / số rủi ro mở (thang 1–25) | điểm | W ≥ 8 · C ≥ 12 | 9,5 · 10,1 · 10,6 · 11,2 · 11,8 · 12,3 | **12,3** | 148 / 12 | **Critical** | ALERT-RSK-04 Critical |
+| METRIC-RSK-05 | Biện pháp quá hạn | đếm mitigation planned/in_progress quá hạn | biện pháp | W ≥ 1 · C ≥ 5 hoặc ≥ 1 thuộc rủi ro critical | 1 · 1 · 1 · 2 · 2 · 3 | **3** | 3 / 14 (R-01, R-07, R-10); 1 thuộc R-01 critical | **Critical** | ALERT-RSK-05 Critical |
+| METRIC-RSK-06 | Strategy execution index | Σ weight × on_track / Σ weight × 100 (Objective Q3) | % | W < 70 · C < 50 | — · — · — · — · — · 66,7 | **66,7** | 4 / 6 Objective Q3 on track (weight bằng nhau) | Warning | ALERT-RSK-06 Warning |
+
+### 6.1. Tổng hợp trạng thái
+
+| Trụ | OK | Warning | Critical | Trạng thái trụ (03 §4: critical nếu có ≥ 1 metric critical) |
+|---|---|---|---|---|
+| PIL-F | 2 | 4 | 1 | **critical** (FIN-06) |
+| PIL-O | 3 | 3 | 1 | **critical** (HR-04) |
+| PIL-C | 4 | 1 | 1 | **critical** (CUS-01) |
+| PIL-U | 2 | 2 | 1 | **critical** (PRD-02) |
+| PIL-S | 0 | 2 | 4 | **critical** (RSK-01/02/04/05) |
+| **Tổng 31** | **11** | **12** | **8** | |
+
+Mỗi trụ có ≥ 1 Warning; trụ S có Critical. 20 alert đang mở (12 Warning + 8 Critical). Briefing CEO lấy tối đa 3 ngoại lệ ưu tiên: ALERT-RSK-02 (R-12 chờ phân công), ALERT-HR-04 (HP-2026-07), ALERT-CUS-01.
+
+---
+
+## 7. Seed sự kiện (`platform.outbox_events`)
+
+Seed phát qua outbox như luồng thật (không ghi thẳng vào bảng consumer), để demo được chuỗi event → rủi ro → insight. Mỗi event có `event_id` cố định (UUID v5 từ mã dưới) để seed chạy lại vẫn idempotent.
+
+| # | Thời điểm | Event | Payload chính | Consumer → kết quả |
+|---|---|---|---|---|
+| E1 | 30/09/2026 | `EVT-finance.budget_exceeded` | dept `SAL`, quý 2026-Q3, utilization 114,1% (6 phòng ban > 100% đều phát event; chỉ SAL > 10% được map sang rủi ro theo `RISK_EVENT_SCORING`, OQ-01) | risk: cập nhật R-02 · ai_core: insight "Chi phí kinh doanh vượt 14%" |
+| E2 | 01/10/2026 | `EVT-finance.burn_over_forecast` | T9 burn 3,0 tỷ vs dự báo 2,5 tỷ (+20%) | risk: tăng L của R-01 (3→4) → `EVT-risk.risk_level_changed` (high → critical) |
+| E3 | 05/10/2026 | `EVT-product.metric_anomaly` | PRD-ORDER churn 2,41% vs BQ 1,5% (+60,7%) | risk: tạo R-05 · ai_core: insight trụ U |
+| E4 | 06/10/2026 | `EVT-risk.risk_level_changed` | R-01 high → critical | platform: ALERT-RSK-01 cập nhật · ai_core: đưa vào Briefing |
+| E5 | 15/10/2026 | `EVT-sales.deal_closed_lost` | deal "Trang bị VP Tân Phú" 0,8 tỷ, lý do giá | risk: < `RISK_LOST_DEAL_MIN_VALUE` (1 tỷ), chỉ log |
+| E6 | 20/10/2026 07:00 | `EVT-hr.hiring_plan_delayed` | HP-2026-07, trễ 35 ngày, 6 vị trí SAL | risk: **tự sinh R-12** (`source='EVENT'`, owner null, high) → `EVT-risk.risk_identified` |
+| E7 | 20/10/2026 07:01 | `EVT-risk.risk_identified` | R-12, score 12 | platform: ALERT-RSK-02 lên Critical (2 rủi ro high chưa có chủ) · ai_core: insight liên miền "Chậm tuyển → rủi ro hụt KR1.1 doanh thu Q4" |
+| E8 | 20/10/2026 07:05 | `EVT-execution.task_overdue` | 4 task DOC-05 quá hạn | platform: METRIC-OPS-01 tính lại |
+
+Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_events`).
+
+---
+
+## 8. Kịch bản demo 20 phút (01 §11)
+
+| Phút | Vai | Bước | Dữ liệu dùng | Kết quả mong đợi |
+|---|---|---|---|---|
+| 0–2 | CEO | F1: mở SCR-01 | §6.1 | "3 việc cần anh, 1 rủi ro mới"; 5 trụ đỏ (xem §6.1, OQ-07) |
+| 2–5 | CEO | Bấm thẻ METRIC-FIN-01 (88,5%) → Panel AI → drill-down | DOC-01, DOC-02 | Nguyên nhân có source chip; ≤ 3 click tới trang 4 PDF DOC-01 và dòng HV-xxx |
+| 5–7 | CEO | Hỏi AI "Rủi ro tuyển dụng chậm ảnh hưởng thế nào đến dự báo tài chính?" rồi "Runway nếu tháng sau không có doanh thu mới?" | R-12, HP-2026-07, forecast | Trả lời có `sources`; runway với doanh thu = 0 tính từ tool Finance, không bịa số |
+| 7–9 | CEO | Chọn phương án → Action card L2 → xác nhận | QD-01 | 3 task tạo, toast hoàn tác 10 giây, quyết định mới ghi log |
+| 9–11 | CFO → Risk Manager | Chuyển vai; SCR-21 what-if R-01 | R-01, cash 20,4 tỷ | Tác động lên runway/nhân sự/sản phẩm; gán owner R-12 và R-06 → METRIC-RSK-02 = 0, ALERT-RSK-02 đóng |
+| 11–16 | CEO | UC-07: thả 9 tài liệu | DOC-01..09 | Phân loại đúng 9/9; trang 7 DOC-01 confidence Thấp |
+| 16–18 | Reviewer | F2: duyệt DOC-02 trên SCR-10 | DOC-02 | Duyệt ≤ 60 giây; XD-01 MATCH; ghi vào `finance.invoices` qua Action Registry |
+| 18–20 | CEO | Quay lại SCR-01 | lineage | Metric cập nhật, insight mới, lineage tới tài liệu vừa duyệt |
+
+**Dự phòng:** nếu provider LLM lỗi → `MODEL_GATEWAY_MODE=fixture` trả kết quả ground truth ở §3; dashboard vẫn chạy (P08).
+
+---
+
+## 9. Kiểm tra số học (script, chạy lại trước khi seed)
+
+| # | Kiểm tra | Phép tính | Kết quả |
+|---|---|---|---|
+| K1 | Σ subtotal 47 HĐ | cộng 47 dòng | 25.500.000.000 = DOC-01 T9 ✓ |
+| K2 | Σ VAT | Σ(subtotal × VAT%) theo dòng | 2.436.000.000 ✓ |
+| K3 | Σ thanh toán | K1 + K2 | 27.936.000.000 ✓ |
+| K4 | PAID ⇒ đã thu = tổng | 22 HĐ | 0 lệch ✓ |
+| K5 | Σ doanh thu theo khách | 14 khách | 25.500.000.000 / 47 HĐ ✓ |
+| K6 | Doanh thu Q3 | 23,4 + 24,6 + 25,5 | 73,5 tỷ ✓ |
+| K7 | LN | 73,5 − 60 = 13,5; 13,5 − 10,2 = 3,3; × 0,8 = 2,64 tỷ | ✓ |
+| K8 | Headcount | 6 + 14 + 42 + 38 + 24 + 18 + 8 | 150 ✓ |
+| K9 | Quỹ lương | Σ 7 phòng ban | 2.925.000.000; × 3 = 8.775.000.000 ✓ |
+| K10 | Ngân sách | Σ 7 phòng ban | 9.450 / 10.200 triệu, +7,9% ✓ |
+| K11 | Phải thu 30/09 | 27.936 + 726 + 10.338 (triệu) | 39.000 triệu; DSO 47,8 ✓ |
+| K12 | Phải thu 20/10 | còn nợ 25 HĐ T9 15.651.300.000 + HL-001 726.000.000 | 16.377.300.000 ✓ |
+| K13 | Quá hạn 20/10 | 5 HĐ 3.192.000.000 + HL-001 726.000.000 | 3.918.000.000 → 23,9% ✓ |
+| K14 | Runway | 20,4 / ((2,1 + 2,55 + 3,0) / 3) | 8,0 tháng ✓ |
+| K15 | Pipeline | 142,5 / 81 (trọng số: 3,6 + 7,5 + 14,4 + 24,3 = 49,8 / 81) | 1,76x → 1,8x; trọng số 0,61x ✓ |
+| K16 | NRR | 69,9 / 66,9; 69,9 + 3,6 (khách mới) = 73,5 | 104,5% ✓ |
+| K17 | Doanh thu theo sản phẩm | 19,125 + 4,08 + 2,295 | 25,5 tỷ ✓ |
+| K18 | Tài khoản ABC Order | 1.950 + 63 − 47 | 1.966; MAU 70,8%; churn 2,41% ✓ |
+| K19 | Rủi ro | 12 rủi ro, score = L × I, Σ 148 / 12 | index 12,3; 8 high+; 3 critical ✓ |
+| K20 | Mitigation | 14 mở, 3 quá hạn (1 thuộc R-01 critical) | METRIC-RSK-05 = 3 → Critical ✓ |
+| K21 | Trạng thái 31 metric | đánh giá theo ngưỡng 03 §2 | 11 OK · 12 W · 8 C, khớp cột "Trạng thái" ✓ |
+
+---
+
+## 10. Open questions
 
 | # | Câu hỏi | Đề xuất | Ảnh hưởng |
 |---|---|---|---|
-| OQ-01 | Kỳ đối chiếu Q3 vs T9 trong 01 §8: nên đổi thành so tháng trong tháng, hay mở rộng #2 thành hóa đơn cả Q3? | Giữ mặc định 04 §12.1 (so tháng trong tháng); human chốt DEC blocking | 01, 04, 13 |
-| OQ-02 | Script seed: dùng `pnpm` hay `uv`? (`07-TECH-ARCHITECTURE.md` OQ-03 chưa chốt) | Chưa chốt — theo quyết định của 07 OQ-03; 09 map task tương ứng | 07, 09 |
-| OQ-03 | NRR (METRIC-CUS-03) cần seed dữ liệu 12 tháng trước — có cần tạo thêm file lịch sử không? | Seed trực tiếp vào `business_records` + `metric_values` với `computation='SEED'` | 03, 05 |
-| OQ-04 | NPS chưa có tài liệu nguồn rõ ràng — có đưa vào #7 KPI/OKR không? | Đưa `nps_score` vào DOC-03 và DOC-07 | 03, 07 |
-| OQ-05 | Ngưỡng vàng/đỏ của 18 metric là đề xuất từ writer — cần business xác nhận? | Dùng làm seed demo; chỉnh trong 08 nếu có DEC mới | 03 |
-| OQ-06 | Có cần seed dữ liệu quá khứ 12 tháng cho METRIC-HR-01, HR-02, CUS-04 (rolling)? | Seed `metric_values` với `period_type='ROLLING_12M'`, `computation='SEED'` | 03, 05 |
-| OQ-07 | Phân phối ALERT-OPS: ROLE-04 (HR) chỉ nhận ALERT-HR-* theo 02 §3.3 — đúng hay cần mở rộng? | Giữ đúng 02 §3.3 | 02, 03 |
-| OQ-08 | `DEMO_REFERENCE_DATE` = 20/10/2026 là hằng số "hôm nay" cho mọi metric phụ thuộc ngày (FIN-05, OPS-01..03). Đặt bằng biến cấu hình nào? | Đề xuất env `DEMO_REFERENCE_DATE`; 07/10 chốt | 07, 10 |
-| OQ-09 | Seed ngoài 7 tài liệu (HL-001, doanh thu T7/T8 + 12 tháng theo khách, 66 task, 5 dự án, doanh thu T10 5,5 tỷ, KH T9 9,6 tỷ) chưa có tài liệu gốc → drill-down P01 dừng ở bản ghi seed. Có cần tạo tài liệu nguồn cho phần này không? | Gắn nhãn "Dữ liệu seed lịch sử" trong panel nguồn | 03 §4, 05 |
-| OQ-10 | Chưa liệt kê đủ 45 nhân viên, chi tiết 15 action item / 5 quyết định DOC-05 và bộ tài liệu "lệch số" để demo MISMATCH | Bổ sung ở vòng sau hoặc khi viết script seed | 04, 09 |
+| OQ-01 | Đã đối chiếu với 03 v2.0.0. Còn mở: 03 BR-FIN-05 phát `budget_exceeded` ở mọi phòng ban > 100%, nhưng ánh xạ event → rủi ro (`RISK_EVENT_SCORING`) chưa có ngưỡng; demo giả định chỉ chênh > 10% mới sinh/cập nhật rủi ro | Bổ sung ngưỡng vào 03 BR-RSK-03 | 03, 08 |
+| OQ-02 | Tên env mật khẩu đổi từ v1 (`DEMO_SALES_PASSWORD`, `DEMO_HR_PASSWORD`) sang theo mã role | Đổi theo mã role, cập nhật `.env.example` ở T-014 | 07, `.env.example` |
+| OQ-03 | NRR cần doanh thu Q3/2025 theo khách (66,9 tỷ) — chỉ có ở seed | Gắn nhãn "Dữ liệu seed lịch sử" (P01) | 03, 05 |
+| OQ-04 | METRIC-RSK-06 dùng tiến độ KR Q3 (đã đóng) trong khi DOC-07 là Q4 | Seed Q3 riêng; từ T11 tính theo Q4 | 03 |
+| OQ-05 | Chưa liệt kê đủ 150 nhân viên, 28 feature, 140 deal lịch sử | Sinh bằng script seed có seed ngẫu nhiên cố định, giữ các tổng ở §9 | T-510 |
+| OQ-06 | R-12 sinh từ event; nếu demo chạy lại trong ngày, thời điểm E6–E8 có cố định 20/10 07:00 không | Cố định theo `DEMO_REFERENCE_DATE` | T-510 |
+| OQ-07 | Với ngưỡng mặc định của 03 (vd CUS-01 C < 3,0x, RSK-04 C ≥ 12) cả 5 trụ đều critical — CEO thấy "toàn đỏ", giảm hiệu quả P07 | Human xem lại ngưỡng CUS-01/RSK-04 ở 03, hoặc chấp nhận cho demo | 03, 08 §6 |
 
 ---
 
-## 8. Version
+## 11. Version
 
-- **Version:** 1.0.0
-- **Last updated:** 2026-10-17
-- **Applies to:** Aureon Demo v1.0
+- **Version:** 2.0.0
+- **Last updated:** 2026-10-19
+- **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
+- **Change:** Viết lại theo DEC-136 (ABC ~150 NV, 9 tài liệu, 31 metric, 10 tài khoản, seed sự kiện); v1.0.0 lưu ở nhánh `v1`.
 

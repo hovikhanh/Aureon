@@ -1,515 +1,507 @@
-# 03 — Dashboard Spec
+# 03 — Dashboard Spec (Executive Dashboard F.O.C.U.S & Domain modules)
 
-> Đặc tả Dashboard 4 trụ của Aureon Demo: 18 metric, 18 alert, drill-down số → chi tiết → tài liệu gốc, hiển thị theo vai trò.
-> Nguồn: `01-PROJECT-OVERVIEW.md` §2.1, §3, §4, §5, §6, §8; quyền theo `02-PERSONAS-PERMISSIONS.md` §3, §4.
+> Đặc tả **5 trụ F.O.C.U.S**, **31 metric**, **31 alert**, quy tắc trạng thái trụ, business rules (BR), yêu cầu chức năng của các module domain (Finance, Sales, HR, Product, Risk), dashboard, insight, Briefing CEO và thông báo.
+> Nguồn: A-EMS (`SOURCE-BRD-v1.0` §II.2–II.9, §III.3, §III.5, §IV), AI-EOS (`SOURCE-BRD-v1.1` §4.1, §4.2, §4.3), UI/UX AI-EOS; quyết định DEC-125, DEC-126, DEC-127, DEC-132.
+> Phụ thuộc: `01-PROJECT-OVERVIEW.md`, `02-PERSONAS-PERMISSIONS.md`. ID theo registry `00-INDEX.md` §4. Endpoint do `10-API-SPECIFICATION.md` sở hữu — file này không dùng số EP.
 
 ---
 
-## 1. Kiến trúc 4 trụ
+## 1. Kiến trúc 5 trụ
 
 ### 1.1. Tổng quan
 
-| Trụ | Mã pillar | Số metric | Số alert | Metric ID | Tài liệu nguồn chính (01 §8) |
+| Trụ | Tên | Câu hỏi lãnh đạo | Metric | Module nguồn chính | Role xem đầy đủ (02 §5.4) |
 |---|---|---|---|---|---|
-| **Tài chính** | FIN | 6 | 6 | METRIC-FIN-01..06 | #1 Báo cáo tài chính Q3, #2 Danh sách hóa đơn T9, #7 KPI/OKR |
-| **Khách hàng** | CUS | 5 | 5 | METRIC-CUS-01..05 | #2 Hóa đơn, #3 Báo cáo sales T9, #4 Hợp đồng, #7 KPI/OKR |
-| **Vận hành** | OPS | 4 | 4 | METRIC-OPS-01..04 | #5 Biên bản họp giao ban, #7 KPI/OKR |
-| **Con người** | HR | 3 | 3 | METRIC-HR-01..03 | #6 Danh sách nhân sự, #1/#2 (doanh thu), #5 (workload) |
-| **Tổng** | — | **18** | **18** | — | — |
+| **PIL-F** | Finance | "Có đủ tiền, và đang kiếm/tiêu tiền hiệu quả không?" | METRIC-FIN-01..07 (7) | `finance` (+ `sales` cho mục tiêu) | CEO, CFO |
+| **PIL-O** | Operations & People | "Có đủ người và vận hành có ổn không?" | METRIC-OPS-01..03, METRIC-HR-01..04 (7) | `execution`, `hr` | CEO, HR_MANAGER |
+| **PIL-C** | Customer & Growth | "Có đang giành và giữ được khách hàng không?" | METRIC-CUS-01..06 (6) | `sales`, `finance` (hóa đơn), `product` (NPS) | CEO, VP_SALES |
+| **PIL-U** | Product & Innovation | "Sản phẩm có đang tiến lên và được dùng thật không?" | METRIC-PRD-01..05 (5) | `product` | CEO, CPO |
+| **PIL-S** | Strategy & Risk | "Điều gì có thể làm hỏng kế hoạch, và đã xử lý tới đâu?" | METRIC-RSK-01..06 (6) | `risk`, `execution` (OKR) | CEO, CFO, RISK_MANAGER |
+| | | | **31** | | |
 
-Quy ước: mỗi metric có **đúng 1 alert** cùng pillar và cùng số thứ tự trong pillar ở mức logic (ví dụ METRIC-FIN-03 ↔ ALERT-FIN-03). Alert có 2 mức: **Warning (vàng)** và **Critical (đỏ)** theo ngưỡng của metric.
+Mỗi metric có đúng **một** alert cùng số (`ALERT-FIN-03` ↔ `METRIC-FIN-03`) — §3.
 
 ### 1.2. Luồng dữ liệu vào dashboard
 
 ```
-Tài liệu gốc (ENT-SourceDocument)
-   ↓ IDP: phân loại → trích xuất → kiểm tra → Reviewer duyệt (04-IDP-FEATURE-SPEC)
-Entity nghiệp vụ (ENT-Invoice, ENT-Contract, ENT-Task, ENT-Employee, …) + giá trị KPI/target
-   ↓ Commit qua Action Registry → job tính metric
-ENT-MetricValue (giá trị theo kỳ, kèm lineage tới bản ghi + tài liệu gốc)
-   ↓ Đánh giá ngưỡng
-ENT-Alert (Warning/Critical) → Dashboard theo role
+Nhập tay (C1) / IDP commit (Action Registry) / thao tác trong workspace
+        ↓  ghi vào bảng của module domain (schema riêng — DEC-125)
+Transactional Outbox → domain event (EVT-*, DEC-126)
+        ↓
+Metric store (module platform): tính lại các ENT-MetricValue phụ thuộc
+        ↓  đánh giá ngưỡng → ENT-Alert (EVT-platform.alert_raised)
+        ↓
+Dashboard domain (5 endpoint /{domain}/dashboard, cache 60s) + Insight (ai_core) + Briefing
+        ↓
+UI: thẻ trụ, chi tiết metric (SCR-07), lineage tới trang tài liệu (P01)
 ```
 
-- Mọi giá trị metric lưu ở `ENT-MetricValue` kèm: kỳ (`period`), `computed_at`, danh sách bản ghi nguồn (lineage) — phục vụ P01.
-- Định nghĩa metric (`ENT-Metric`: công thức, ngưỡng) là **cấu hình seed**, không sửa qua UI trong MVP (02 §3.3).
-- Khi một tài liệu được commit, các metric phụ thuộc được tính lại và alert được đánh giá lại (event-driven); ngoài ra có job tính định kỳ theo cột "Tần suất".
-- Tên entity nghiệp vụ dùng ở đây (ENT-Invoice, ENT-Contract, ENT-Customer, ENT-Opportunity, ENT-Task, ENT-Decision, ENT-Project, ENT-Employee, ENT-Budget, ENT-CashBalance, ENT-Survey) là **tên logic**; cấu trúc chính thức do `05-DATA-MODEL.md` quyết định (xem Open questions OQ-01).
+- **Metric store là nguồn định nghĩa duy nhất** (AI-EOS §4.1 "semantic layer"): công thức, nguồn, bộ lọc khai báo một lần trong `ENT-Metric`; dashboard, Briefing và tool AI đều đọc `ENT-MetricValue` — AI **không** tự tính lại metric (P05).
+- Metric được tính lại **theo event** (cột "Tính lại khi") và **theo lịch** (job Celery beat hằng ngày 01:00 cho metric phụ thuộc thời gian, vd. runway, quá hạn).
+- Frontend **không** tự tính KPI (A-EMS §VII.4); chỉ hiển thị `summary` và chuỗi `*_trend`.
 
-### 1.3. Quy ước chung cho đặc tả metric
+### 1.3. Quy ước đặc tả metric
 
 | Thuộc tính | Quy ước |
 |---|---|
-| Kỳ mặc định | Tháng hiện hành (dữ liệu demo: T9/2026, Q3/2026, KPI Q4/2026) |
-| Định dạng tiền (P04) | `1.250.000 đ`; số lớn rút gọn `1,2 tỷ`, `850 tr` — dấu chấm phân cách nghìn, dấu phẩy thập phân |
-| Định dạng % (P04) | `12,5%` (1 chữ số thập phân) |
-| Định dạng ngày (P04) | `05/10/2026`; kỳ tháng `T9/2026`; quý `Q3/2026` |
-| Ngưỡng | **Xanh** = bình thường; **Vàng** = Warning; **Đỏ** = Critical. Đánh giá theo thứ tự Đỏ trước, Vàng sau |
-| Nhãn độ tươi | Mỗi MetricCard hiển thị "Cập nhật 05/10/2026 08:30" (`computed_at`) |
-| Thiếu dữ liệu | Hiển thị `—` + nhãn "Chưa có dữ liệu nguồn", không hiển thị 0 giả; không sinh alert |
-| Ngưỡng là giá trị seed | Các con số ngưỡng dưới đây là mặc định cho demo công ty ABC (xem OQ-02) |
+| Kỳ (`period`) | `current_month` (mặc định) / `current_quarter` / `ytd`; Finance thêm `custom` (`start_date`, `end_date`) — FR-DSH-05. Metric có cửa sổ riêng (rolling 12 tháng, 3 kỳ…) ghi rõ trong công thức |
+| Tiền | Lưu số nguyên VND + `currency`; hiển thị rút gọn `1,2 tỷ`, `850 tr` (P04) |
+| Tỷ lệ | Hậu tố `_pct`, 1 chữ số thập phân, hiển thị `12,5%` |
+| Ngưỡng | **Biến cấu hình** (yêu cầu NFR của A-EMS) tên `THR_<METRIC_ID>_WARN` / `THR_<METRIC_ID>_CRIT` (vd. `THR_FIN_03_CRIT`) lưu ở `ENT-SystemSetting`, ADMIN sửa qua `dashboard:admin`; giá trị trong bảng là **mặc định** |
+| Hướng | `↑` = càng cao càng tốt (vi phạm khi **thấp hơn** ngưỡng); `↓` = càng thấp càng tốt (vi phạm khi **cao hơn** ngưỡng) |
+| Trạng thái metric | `ok` / `warning` / `critical` / `no_data` (thiếu dữ liệu đầu vào hoặc mẫu số = 0) |
+| Độ tươi | Mỗi `ENT-MetricValue` có `computed_at` và `source_updated_at`; quá `FRESHNESS_STALE_DAYS` (mặc định 7 ngày cho metric tháng, 2 ngày cho metric ngày) → nhãn "dữ liệu cũ" (AI-EOS §4.1) |
+| Chất lượng dữ liệu | `data_quality_pct` = bản ghi kỳ có đủ trường bắt buộc / bản ghi kỳ vọng; < `DATA_QUALITY_WARN_PCT` (80) → nhãn chất lượng trên metric (vd. "Doanh thu T9 mới có 62% hóa đơn được nhập") |
+| "3 kỳ gần nhất" | 3 kỳ cùng loại liền trước kỳ đang xét, không gồm kỳ đang xét |
+| Biểu đồ | `kpi` (số lớn + delta), `line`, `bar`, `stacked-bar`, `gauge`, `heatmap`, `funnel`, `donut`; mặc định trend 12 kỳ |
 
 ---
 
-## 2. Đặc tả 18 chỉ số
+## 2. Đặc tả 31 metric
 
-### 2.1. Trụ Tài chính (6 chỉ số)
+Ghi chú chung:
+- Theo DEC-125, module `platform` **không đọc bảng** của module khác: mỗi module domain cung cấp hàm tính (metric provider) qua service interface; `platform` lưu `ENT-Metric` (định nghĩa) và `ENT-MetricValue` (giá trị theo kỳ, kèm `source_record_refs` cho lineage `ENT-DataLineage`).
+- Cột "Ngưỡng" ghi **giá trị mặc định** của biến `THR_<id>_WARN` / `THR_<id>_CRIT` (§1.3). "Δ3k" = so với trung bình 3 kỳ gần nhất.
 
-#### METRIC-FIN-01 — Doanh thu tháng
+### 2.1. PIL-F — Finance (7)
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tổng doanh thu (chưa VAT) ghi nhận theo hóa đơn bán ra trong tháng, so với kế hoạch tháng |
-| Công thức | `SUM(ENT-Invoice.amount_before_vat) WHERE issue_date ∈ tháng`; `% KH = Doanh thu / Kế hoạch tháng × 100` |
-| Nguồn dữ liệu | ENT-Invoice (tài liệu #2); kế hoạch từ #7 KPI/OKR; đối chiếu tổng quý với #1 (#1 = SUM(#2)) |
-| Tần suất | Khi commit hóa đơn mới + job hằng ngày |
-| Đơn vị / định dạng | VNĐ, rút gọn `8,4 tỷ`; kèm `% KH` dạng `92,5%` |
-| Loại biểu đồ | Bar (doanh thu theo tháng) + line (kế hoạch) |
-| Ngưỡng vàng / đỏ | Vàng: `< 90%` kế hoạch; Đỏ: `< 80%` kế hoạch |
-| Alert | ALERT-FIN-01 |
-| Drill-down | Số → bảng doanh thu theo khách/tháng → danh sách hóa đơn → tài liệu #2 (dòng tương ứng) |
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-FIN-01 | Doanh thu vs kế hoạch | `revenue_attainment_pct = SUM(Revenue.amount, kỳ) / SalesTarget.target_amount(scope=team, kỳ) × 100`; hiển thị kèm doanh thu tuyệt đối và tăng trưởng cùng kỳ `(DT kỳ − DT cùng kỳ năm trước) / DT cùng kỳ năm trước × 100` | % (+ VND) | ENT-Revenue, ENT-SalesTarget | Ghi/sửa Revenue; `EVT-finance.invoice_paid`; đổi SalesTarget | ↑ | < 90 (thấp hơn KH > 10%) | < 80 | `kpi` + `line` thực tế vs kế hoạch 12 kỳ |
+| METRIC-FIN-02 | Biên lợi nhuận gộp | `gross_margin_pct = (DT kỳ − Giá vốn kỳ) / DT kỳ × 100`; Giá vốn = SUM(Expense.amount, category=`cogs`) | % | ENT-Revenue, ENT-Expense | Ghi Revenue/Expense | ↑ | Giảm > 3 điểm % so Δ3k | Giảm > 5 điểm % so Δ3k | `kpi` + `line` |
+| METRIC-FIN-03 | Cash runway | BR-FIN-02 (`closing_balance` kỳ gần nhất ÷ `burn_thang` BR-FIN-01); `null` theo BR-FIN-03 | tháng (1 số thập phân) | ENT-CashPosition, ENT-Revenue, ENT-Expense | Ghi CashPosition/Revenue/Expense; job hằng ngày | ↑ | < 12 | < 6 | `gauge` + `line` số dư tiền mặt |
+| METRIC-FIN-04 | DSO | `DSO = Phải thu cuối kỳ / DT kỳ × số ngày của kỳ`; Phải thu = SUM(Invoice.total − Invoice.paid_amount) với `status ∈ {issued, partially_paid, overdue}` | ngày | ENT-Invoice, ENT-Revenue | Tạo/cập nhật Invoice; `EVT-finance.invoice_paid` | ↓ | Tăng > 15% so Δ3k | Tăng > 30% so Δ3k | `kpi` + `line` |
+| METRIC-FIN-05 | Công nợ quá hạn | `overdue_ar_pct = SUM(phải thu có due_date < hôm nay) / Tổng phải thu × 100`; hiển thị kèm aging 1–30 / 31–60 / 61–90 / > 90 ngày | % (+ VND) | ENT-Invoice | Cập nhật Invoice; job hằng ngày | ↓ | > 15 | > 25 | `kpi` + `stacked-bar` aging |
+| METRIC-FIN-06 | Chênh lệch ngân sách | `budget_variance_pct = MAX theo phòng ban [(Thực chi − Ngân sách) / Ngân sách × 100]` (kỳ quý); `budget_utilization_pct` theo BR-FIN-05 hiển thị từng phòng ban | % | ENT-Budget, ENT-Expense, ENT-Department | Ghi Expense; đổi Budget; `EVT-finance.budget_exceeded` | ↓ | > 0 (utilization > 100% ở bất kỳ phòng ban) | > 10 | `bar` theo phòng ban (thực chi vs ngân sách) |
+| METRIC-FIN-07 | Net burn vs dự báo | `burn_variance_pct = (Net burn dự kiến tháng − Net burn dự báo đầu tháng) / |Net burn dự báo| × 100`; Net burn dự kiến = (Chi MTD − Thu MTD) × số ngày tháng / số ngày đã qua; dự báo = `ForecastLine` kịch bản `base` bản đầu tháng | % | ENT-Revenue, ENT-Expense, ENT-Forecast, ENT-ForecastLine | Job hằng ngày (FR-FIN-08); `EVT-finance.forecast_updated` | ↓ | > 10 | > 25 | `line` dự kiến vs dự báo |
 
-#### METRIC-FIN-02 — Biên lợi nhuận gộp
+### 2.2. PIL-O — Operations & People (7)
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ lợi nhuận gộp trên doanh thu thuần của kỳ |
-| Công thức | `(Doanh thu thuần − Giá vốn hàng bán) / Doanh thu thuần × 100` |
-| Nguồn dữ liệu | Báo cáo tài chính (tài liệu #1: doanh thu, giá vốn, LN gộp) |
-| Tần suất | Khi commit báo cáo tài chính (tháng/quý) |
-| Đơn vị / định dạng | %, `18,5%` |
-| Loại biểu đồ | Line (xu hướng theo kỳ) + sparkline trên card |
-| Ngưỡng vàng / đỏ | Vàng: `< 15%`; Đỏ: `< 10%` |
-| Alert | ALERT-FIN-02 |
-| Drill-down | Số → bảng doanh thu / giá vốn theo kỳ → trang P&L trong tài liệu #1 |
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-OPS-01 | Task đúng hạn | `on_time_task_pct = COUNT(Task đến hạn trong kỳ, completed_at ≤ due_date) / COUNT(Task có due_date trong kỳ) × 100` | % | ENT-Task | Cập nhật Task; `EVT-execution.task_overdue` | ↑ | < 80 | < 65 | `kpi` + `bar` theo phòng ban |
+| METRIC-OPS-02 | Dự án trễ | `late_project_pct = COUNT(Project đang chạy có (planned_progress_pct − actual_progress_pct) > 10) / COUNT(Project đang chạy) × 100`; `planned_progress_pct` nội suy tuyến tính theo `start_date`–`end_date` | % | ENT-Project, ENT-Task | Cập nhật Task/Project; job hằng ngày | ↓ | > 20 | > 35 | `kpi` + danh sách dự án trễ |
+| METRIC-OPS-03 | Thực thi quyết định | `decision_execution_pct = COUNT(Task sinh từ Decision/Meeting, đến hạn trong kỳ, status=done) / COUNT(Task sinh từ Decision/Meeting, đến hạn trong kỳ) × 100` | % | ENT-Decision, ENT-Meeting, ENT-Task | Cập nhật Task; `EVT-idp.document_committed` (biên bản → task, UC-06) | ↑ | < 70 | < 50 | `kpi` + `funnel` quyết định → task → xong |
+| METRIC-HR-01 | Doanh thu / nhân sự | `revenue_per_head = SUM(Revenue.amount, 12 tháng rolling) / headcount active bình quân 12 tháng`; so với kế hoạch `HR_REVENUE_PER_HEAD_PLAN` | VND/người/năm | ENT-Revenue, ENT-Employee | Ghi Revenue; `EVT-hr.employee_onboarded` / `employee_terminated` | ↑ | Thấp hơn kế hoạch > 15% | Thấp hơn kế hoạch > 25% | `kpi` + `line` |
+| METRIC-HR-02 | Turnover năm hóa | BR-HR-01 | % | ENT-Employee | `EVT-hr.employee_terminated`; job hằng tháng | ↓ | ≥ 15 | ≥ 20 | `kpi` + `line` 12 tháng + `bar` theo phòng ban |
+| METRIC-HR-03 | Quá tải | `overload_pct = COUNT(Employee active có workload_pct > 110 trong 2 tuần liên tiếp) / COUNT(Employee active) × 100`; `workload_pct (tuần) = SUM(Task.estimate_hours của task mở được giao trong tuần) / capacity_hours_per_week (mặc định 40) × 100` | % (+ số người) | ENT-Task, ENT-Employee | Giao/cập nhật Task; job hằng tuần | ↓ | > 10 | > 20 | `heatmap` người × tuần (SCR-19) |
+| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | `delayed_hiring_plans = COUNT(HiringPlan status ∈ {approved, in_progress}, target_date < hôm nay, filled < headcount)`; chia theo số ngày trễ | số kế hoạch | ENT-HiringPlan | Cập nhật HiringPlan; job hằng ngày; `EVT-hr.hiring_plan_delayed` | ↓ | ≥ 1 kế hoạch trễ 1–30 ngày | ≥ 1 kế hoạch trễ > 30 ngày (FR-HR-04) | `kpi` + danh sách theo phòng ban |
 
-#### METRIC-FIN-03 — Cash runway
+### 2.3. PIL-C — Customer & Growth (6)
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Số tháng doanh nghiệp duy trì hoạt động với số dư tiền hiện có, theo tốc độ đốt tiền ròng bình quân |
-| Công thức | `Số dư tiền cuối kỳ / Dòng tiền ra ròng bình quân 3 tháng gần nhất`; nếu dòng tiền ròng ≥ 0 → hiển thị `> 24 tháng` |
-| Nguồn dữ liệu | Báo cáo tài chính #1 (tiền & tương đương tiền, lưu chuyển tiền tệ) → ENT-CashBalance (logic) |
-| Tần suất | Khi commit báo cáo tài chính; job hằng tuần |
-| Đơn vị / định dạng | Tháng, 1 chữ số thập phân: `7,5 tháng` |
-| Loại biểu đồ | Gauge (0–24 tháng, vùng xanh/vàng/đỏ) |
-| Ngưỡng vàng / đỏ | Vàng: `< 9 tháng`; Đỏ: `< 6 tháng` |
-| Alert | ALERT-FIN-03 |
-| Drill-down | Số → bảng số dư tiền + dòng tiền ra theo tháng → trang lưu chuyển tiền tệ tài liệu #1 |
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-CUS-01 | Pipeline coverage | BR-SAL-04: `coverage_x = SUM(Deal.deal_value, stage mở, expected_close_date trong quý) / SalesTarget.target_amount(quarter, team)`; hiển thị kèm coverage có trọng số `SUM(weighted_value) / target` (BR-SAL-02) | lần (x, 1 số thập phân) | ENT-Deal, ENT-SalesTarget | Tạo/sửa Deal; chuyển giai đoạn; đổi SalesTarget | ↑ | < 3,5 | < 3,0 | `kpi` + `funnel` theo giai đoạn |
+| METRIC-CUS-02 | Win rate | BR-SAL-03: `win_rate_pct = won / (won + lost) × 100` trong kỳ | % | ENT-Deal, ENT-DealStageHistory | `EVT-sales.deal_closed_won` / `deal_closed_lost` | ↑ | Giảm > 10 điểm % so Δ3k | Giảm > 20 điểm % so Δ3k | `kpi` + `line` |
+| METRIC-CUS-03 | NRR | `nrr_pct = DT kỳ này từ khách đã có doanh thu ở kỳ trước / DT kỳ trước của chính các khách đó × 100` (theo `Revenue.client_id`) | % | ENT-Revenue, ENT-Client | Ghi Revenue; `EVT-finance.invoice_paid` | ↑ | < 100 | < 90 | `kpi` + `line` |
+| METRIC-CUS-04 | Tập trung doanh thu top 5 | `top5_concentration_pct = SUM(DT 5 khách lớn nhất, 12 tháng rolling) / SUM(DT, 12 tháng rolling) × 100` | % | ENT-Revenue, ENT-Client | Ghi Revenue | ↓ | > 50 | > 65 | `donut` top 5 vs còn lại |
+| METRIC-CUS-05 | NPS | `nps = AVG có trọng số MAU của ProductMetric.nps (kỳ gần nhất mỗi sản phẩm)`; NPS sản phẩm = %promoter − %detractor (−100..100) | điểm | ENT-ProductMetric | Ghi ProductMetric | ↑ | < 30 | < 0 | `kpi` + `bar` theo sản phẩm |
+| METRIC-CUS-06 | Chu kỳ bán TB | `avg_sales_cycle_days = AVG(closed_at − created_at)` của deal `closed_won` trong kỳ (FR-SAL-07) | ngày | ENT-Deal, ENT-DealStageHistory | `EVT-sales.deal_closed_won` | ↓ | Tăng > 20% so Δ3k | Tăng > 40% so Δ3k | `kpi` + `bar` ngày TB theo giai đoạn |
 
-#### METRIC-FIN-04 — DSO (Days Sales Outstanding)
+Điều kiện đánh giá METRIC-CUS-02: chỉ đánh giá ngưỡng khi kỳ có ≥ `WIN_RATE_MIN_CLOSED_DEALS` (mặc định 10) deal đã đóng; ít hơn → `ok` kèm nhãn "mẫu nhỏ" (A-EMS §II.8).
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Số ngày bình quân để thu tiền bán hàng |
-| Công thức | `Phải thu khách hàng cuối kỳ / Doanh thu kỳ × Số ngày trong kỳ` (kỳ 90 ngày) |
-| Nguồn dữ liệu | ENT-Invoice (trạng thái thanh toán, tài liệu #2); phải thu từ #1 |
-| Tần suất | Job hằng ngày |
-| Đơn vị / định dạng | Ngày, số nguyên: `52 ngày` |
-| Loại biểu đồ | Line (xu hướng 6 kỳ) + sparkline |
-| Ngưỡng vàng / đỏ | Vàng: `> 45 ngày`; Đỏ: `> 60 ngày` |
-| Alert | ALERT-FIN-04 |
-| Drill-down | Số → bảng phải thu theo khách → danh sách hóa đơn chưa thu → tài liệu #2 |
+### 2.4. PIL-U — Product & Innovation (5)
 
-#### METRIC-FIN-05 — Công nợ quá hạn
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-PRD-01 | Adoption / MAU | `mau = SUM(ProductMetric.mau, kỳ gần nhất, sản phẩm launched)`; `adoption_pct = AVG(ProductMetric.adoption_pct)` có trọng số MAU | người dùng (+ %) | ENT-ProductMetric, ENT-Product | Ghi ProductMetric | ↑ | MAU giảm > 10% so Δ3k | MAU giảm > 20% so Δ3k | `kpi` + `line` theo sản phẩm |
+| METRIC-PRD-02 | Churn | `churn_rate_pct` = ProductMetric.churn_rate_pct (từng sản phẩm; trụ lấy giá trị xấu nhất) | % | ENT-ProductMetric | Ghi ProductMetric; `EVT-product.metric_anomaly` | ↓ | Tăng > 25% tương đối so Δ3k **và** ≥ 2% | BR-PRD-01: tăng > 50% tương đối so Δ3k **và** ≥ 2% | `line` + điểm bất thường |
+| METRIC-PRD-03 | Retention 30 ngày | `retention_30d_pct` = ProductMetric.retention_30d_pct (trọng số MAU) | % | ENT-ProductMetric | Ghi ProductMetric | ↑ | < 40 | < 25 | `line` |
+| METRIC-PRD-04 | Roadmap đúng tiến độ | `roadmap_on_track_pct = COUNT(RoadmapItem của quý, không trễ) / COUNT(RoadmapItem của quý) × 100`; "trễ" = `target_date < hôm nay` và `status ≠ done`, hoặc `done` sau `target_date` | % | ENT-RoadmapItem | Cập nhật RoadmapItem; job hằng ngày | ↑ | < 70 (trễ > 30% — A-EMS) | < 50 | `kpi` + `stacked-bar` theo sản phẩm |
+| METRIC-PRD-05 | Tính năng release trong kỳ | `features_released = COUNT(Feature status=released, released_at trong kỳ)`; `release_attainment_pct = features_released / COUNT(Feature planned_release trong kỳ) × 100` | số tính năng (+ %) | ENT-Feature, ENT-Release | `EVT-product.feature_released` | ↑ | attainment < 70 | attainment < 40 | `bar` theo tháng |
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tổng giá trị hóa đơn đã quá hạn thanh toán chưa thu, và tỷ trọng trên tổng phải thu |
-| Công thức | `SUM(ENT-Invoice.amount_due) WHERE due_date < hôm nay AND status ≠ PAID`; `Tỷ lệ = Quá hạn / Tổng phải thu × 100` |
-| Nguồn dữ liệu | ENT-Invoice (tài liệu #2: số, ngày, hạn thanh toán, khách, tiền); điều khoản hạn TT từ ENT-Contract (#4) |
-| Tần suất | Job hằng ngày |
-| Đơn vị / định dạng | VNĐ rút gọn `1,8 tỷ` + tỷ lệ `12,5%` |
-| Loại biểu đồ | Stacked bar theo tuổi nợ (1–30, 31–60, 61–90, > 90 ngày) |
-| Ngưỡng vàng / đỏ | Vàng: tỷ lệ quá hạn `> 10%`; Đỏ: `> 20%` hoặc có khoản quá hạn `> 90 ngày` |
-| Alert | ALERT-FIN-05 |
-| Drill-down | Số → bảng tuổi nợ theo khách → hóa đơn quá hạn → tài liệu #2 / hợp đồng #4 |
+### 2.5. PIL-S — Strategy & Risk (6)
 
-#### METRIC-FIN-06 — Chênh lệch ngân sách
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Mức chi phí thực tế vượt/thấp hơn ngân sách kỳ |
-| Công thức | `(Chi phí thực tế − Ngân sách) / Ngân sách × 100` (dương = vượt ngân sách) |
-| Nguồn dữ liệu | Chi phí thực tế từ #1; ngân sách từ #7 KPI/OKR → ENT-Budget (logic) |
-| Tần suất | Khi commit #1 hoặc #7; job hằng tháng |
-| Đơn vị / định dạng | %, có dấu: `+8,2%`; kèm số tiền chênh `+420 tr` |
-| Loại biểu đồ | Bar (thực tế vs ngân sách theo khoản mục) |
-| Ngưỡng vàng / đỏ | Vàng: vượt `> 5%`; Đỏ: vượt `> 10%` |
-| Alert | ALERT-FIN-06 |
-| Drill-down | Số → bảng khoản mục chi phí vs ngân sách → trang chi phí tài liệu #1 / dòng ngân sách tài liệu #7 |
-
-### 2.2. Trụ Khách hàng (5 chỉ số)
-
-#### METRIC-CUS-01 — Pipeline coverage
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Bội số giá trị pipeline đang mở (có trọng số) so với chỉ tiêu doanh thu còn lại của kỳ |
-| Công thức | `SUM(ENT-Opportunity.value × probability) WHERE stage mở AND close_date ∈ quý / (Chỉ tiêu quý − Doanh thu đã ghi nhận)` |
-| Nguồn dữ liệu | Báo cáo sales #3 (pipeline theo giai đoạn) → ENT-Opportunity (logic); chỉ tiêu từ #7 |
-| Tần suất | Khi commit #3; job hằng tuần |
-| Đơn vị / định dạng | Bội số, 1 chữ số thập phân: `2,8x` |
-| Loại biểu đồ | Funnel/bar theo giai đoạn pipeline + sparkline coverage |
-| Ngưỡng vàng / đỏ | Vàng: `< 3,0x`; Đỏ: `< 2,0x` |
-| Alert | ALERT-CUS-01 |
-| Drill-down | Số → bảng cơ hội theo giai đoạn → chi tiết cơ hội → bảng pipeline trong tài liệu #3 |
-
-#### METRIC-CUS-02 — Tỷ lệ chuyển đổi
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ cơ hội chốt thắng trên tổng cơ hội đã đóng (thắng + thua) trong kỳ |
-| Công thức | `COUNT(Opportunity stage = WON) / COUNT(stage ∈ {WON, LOST}) × 100` trong kỳ |
-| Nguồn dữ liệu | Báo cáo sales #3 → ENT-Opportunity; hợp đồng đã ký #4 xác nhận WON |
-| Tần suất | Khi commit #3/#4; job hằng tuần |
-| Đơn vị / định dạng | %, `24,0%` |
-| Loại biểu đồ | Line theo tháng + bar số cơ hội thắng/thua |
-| Ngưỡng vàng / đỏ | Vàng: `< 25%`; Đỏ: `< 15%` |
-| Alert | ALERT-CUS-02 |
-| Drill-down | Số → danh sách cơ hội thắng/thua → chi tiết cơ hội → tài liệu #3 / hợp đồng #4 |
-
-#### METRIC-CUS-03 — NRR (Net Revenue Retention)
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ doanh thu giữ lại từ nhóm khách hàng hiện hữu (cùng kỳ năm trước), đã tính mở rộng và sụt giảm |
-| Công thức | `Doanh thu kỳ này từ khách đã có ở kỳ gốc / Doanh thu kỳ gốc của chính nhóm khách đó × 100` (kỳ gốc: cùng quý năm trước) |
-| Nguồn dữ liệu | ENT-Invoice (#2) group theo ENT-Customer; dữ liệu kỳ gốc từ seed lịch sử (xem OQ-03) |
-| Tần suất | Job hằng tháng |
-| Đơn vị / định dạng | %, `104,5%` |
-| Loại biểu đồ | Line theo quý + waterfall (giữ lại / mở rộng / sụt giảm / mất khách) |
-| Ngưỡng vàng / đỏ | Vàng: `< 100%`; Đỏ: `< 90%` |
-| Alert | ALERT-CUS-03 |
-| Drill-down | Số → bảng doanh thu theo khách hiện hữu (kỳ gốc vs kỳ này) → hóa đơn của khách → tài liệu #2 |
-
-#### METRIC-CUS-04 — Tập trung doanh thu
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ trọng doanh thu của Top 5 khách hàng lớn nhất trên tổng doanh thu kỳ (rủi ro phụ thuộc khách) |
-| Công thức | `SUM(doanh thu Top 5 khách) / Tổng doanh thu × 100` trong 12 tháng gần nhất (rolling) |
-| Nguồn dữ liệu | ENT-Invoice (#2) group theo ENT-Customer; đối chiếu tên khách #3, #4 |
-| Tần suất | Job hằng tháng; tính lại khi commit #2 |
-| Đơn vị / định dạng | %, `46,3%`; kèm tỷ trọng khách lớn nhất |
-| Loại biểu đồ | Pareto (bar doanh thu theo khách + line lũy kế %) |
-| Ngưỡng vàng / đỏ | Vàng: Top 5 `> 40%` hoặc 1 khách `> 15%`; Đỏ: Top 5 `> 50%` hoặc 1 khách `> 25%` |
-| Alert | ALERT-CUS-04 |
-| Drill-down | Số → bảng doanh thu theo khách → hóa đơn/hợp đồng của khách → tài liệu #2 / #4 |
-
-#### METRIC-CUS-05 — NPS (Net Promoter Score)
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Mức sẵn sàng giới thiệu của khách hàng, thang điểm 0–10 |
-| Công thức | `% Promoter (9–10) − % Detractor (0–6)` |
-| Nguồn dữ liệu | Kết quả khảo sát khách hàng ghi trong #7 KPI/OKR hoặc nhập tay C1 → ENT-Survey (logic) (xem OQ-04) |
-| Tần suất | Theo quý (khi commit kết quả khảo sát) |
-| Đơn vị / định dạng | Điểm, số nguyên có dấu: `+32` |
-| Loại biểu đồ | Gauge (−100..+100) + stacked bar Promoter/Passive/Detractor |
-| Ngưỡng vàng / đỏ | Vàng: `< 30`; Đỏ: `< 0` |
-| Alert | ALERT-CUS-05 |
-| Drill-down | Số → phân bố điểm khảo sát → danh sách phản hồi → tài liệu/bản ghi nhập tay nguồn |
-
-### 2.3. Trụ Vận hành (4 chỉ số)
-
-#### METRIC-OPS-01 — Tỷ lệ task đúng hạn
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ task (action item) hoàn thành đúng hoặc trước hạn trên tổng task có hạn trong kỳ |
-| Công thức | `COUNT(Task done AND done_at ≤ due_date) / COUNT(Task có due_date ∈ kỳ) × 100` |
-| Nguồn dữ liệu | Biên bản họp giao ban #5 (action items: việc, người phụ trách, hạn) → ENT-Task; trạng thái cập nhật qua C1 |
-| Tần suất | Khi commit #5 / cập nhật task; job hằng ngày |
-| Đơn vị / định dạng | %, `78,0%` |
-| Loại biểu đồ | Line theo tuần + sparkline |
-| Ngưỡng vàng / đỏ | Vàng: `< 85%`; Đỏ: `< 70%` |
-| Alert | ALERT-OPS-01 |
-| Drill-down | Số → danh sách task trễ/đúng hạn theo người → chi tiết task → đoạn action item trong biên bản #5 |
-
-#### METRIC-OPS-02 — Số dự án trễ
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Số dự án/đầu việc lớn đang mở có mốc đã quá hạn hoặc dự báo trễ |
-| Công thức | `COUNT(ENT-Project WHERE status mở AND (milestone_due < hôm nay chưa xong OR có task quan trọng trễ > 7 ngày))` |
-| Nguồn dữ liệu | #7 KPI/OKR (dự án/OKR, mốc) + #5 (tiến độ) → ENT-Project (logic), ENT-Task |
-| Tần suất | Job hằng ngày |
-| Đơn vị / định dạng | Số dự án: `2 / 9 dự án` |
-| Loại biểu đồ | Bar ngang (dự án theo số ngày trễ) / bảng trạng thái |
-| Ngưỡng vàng / đỏ | Vàng: `≥ 1` dự án trễ; Đỏ: `≥ 3` dự án trễ hoặc 1 dự án trễ `> 30 ngày` |
-| Alert | ALERT-OPS-02 |
-| Drill-down | Số → danh sách dự án trễ → mốc/task trễ của dự án → tài liệu #7 / biên bản #5 |
-
-#### METRIC-OPS-03 — Tỷ lệ thực thi quyết định
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ quyết định được ghi trong biên bản họp đã được thực thi (đóng) đúng hạn |
-| Công thức | `COUNT(Decision status = DONE AND done_at ≤ due_date) / COUNT(Decision có due_date ≤ hôm nay) × 100` |
-| Nguồn dữ liệu | Biên bản họp giao ban #5 (mục "Quyết định") → ENT-Decision (logic) liên kết ENT-Task |
-| Tần suất | Khi commit #5; job hằng ngày |
-| Đơn vị / định dạng | %, `66,7%` |
-| Loại biểu đồ | Gauge + bảng quyết định chưa thực thi |
-| Ngưỡng vàng / đỏ | Vàng: `< 80%`; Đỏ: `< 60%` |
-| Alert | ALERT-OPS-03 |
-| Drill-down | Số → danh sách quyết định theo trạng thái → task liên quan → đoạn quyết định trong biên bản #5 |
-
-#### METRIC-OPS-04 — Workload
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Mức tải công việc bình quân: số task đang mở trên mỗi người phụ trách, và số người vượt mức chuẩn |
-| Công thức | `COUNT(Task mở) / COUNT(DISTINCT assignee)`; người quá tải = assignee có `> 8` task mở |
-| Nguồn dữ liệu | ENT-Task (#5) + ENT-Employee (#6, khớp tên người phụ trách) |
-| Tần suất | Job hằng ngày |
-| Đơn vị / định dạng | Task/người, 1 chữ số thập phân: `5,4 task/người`; kèm `3 người > 8 task` |
-| Loại biểu đồ | Bar ngang theo người (heatmap mức tải) |
-| Ngưỡng vàng / đỏ | Vàng: bình quân `> 6` hoặc `≥ 1` người `> 8` task; Đỏ: bình quân `> 8` hoặc `≥ 3` người `> 8` task |
-| Alert | ALERT-OPS-04 |
-| Drill-down | Số → bảng tải theo người → danh sách task của người → biên bản #5 nguồn của task |
-
-### 2.4. Trụ Con người (3 chỉ số)
-
-#### METRIC-HR-01 — Doanh thu / nhân sự
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Năng suất: doanh thu 12 tháng gần nhất trên số nhân sự bình quân |
-| Công thức | `Doanh thu 12 tháng rolling (từ METRIC-FIN-01) / Số nhân sự đang làm việc bình quân kỳ` |
-| Nguồn dữ liệu | Doanh thu tổng từ ENT-Invoice (#2)/#1; headcount từ Danh sách nhân sự #6 → ENT-Employee |
-| Tần suất | Job hằng tháng; tính lại khi commit #2 hoặc #6 |
-| Đơn vị / định dạng | VNĐ/người/năm rút gọn: `2,2 tỷ/người` |
-| Loại biểu đồ | Line theo quý + sparkline |
-| Ngưỡng vàng / đỏ | Vàng: `< 2,0 tỷ/người`; Đỏ: `< 1,7 tỷ/người` (baseline ABC ~100 tỷ / 45 người ≈ 2,2 tỷ) |
-| Alert | ALERT-HR-01 |
-| Drill-down | Số → bảng doanh thu và headcount theo tháng → danh sách nhân sự (tổng hợp) → tài liệu #6 (chỉ ROLE-04 mở file, xem §4.4) |
-
-#### METRIC-HR-02 — Tỷ lệ nghỉ việc
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ nhân sự nghỉ việc (tự nguyện + không tự nguyện) trên headcount bình quân, quy năm |
-| Công thức | `COUNT(Employee end_date ∈ 12 tháng gần nhất) / Headcount bình quân 12 tháng × 100` |
-| Nguồn dữ liệu | Danh sách nhân sự #6 (ngày vào, ngày nghỉ, trạng thái) → ENT-Employee |
-| Tần suất | Khi commit #6; job hằng tháng |
-| Đơn vị / định dạng | %/năm, `13,3%` |
-| Loại biểu đồ | Line theo tháng + bar số người nghỉ theo phòng ban |
-| Ngưỡng vàng / đỏ | Vàng: `> 15%`; Đỏ: `> 25%` |
-| Alert | ALERT-HR-02 |
-| Drill-down | Số → bảng nghỉ việc theo phòng ban → danh sách người nghỉ (họ tên, phòng ban, ngày nghỉ; không lương) → tài liệu #6 |
-
-#### METRIC-HR-03 — Tỷ lệ nhân sự quá tải
-
-| Thuộc tính | Giá trị |
-|---|---|
-| Định nghĩa | Tỷ lệ nhân sự đang ở trạng thái quá tải (nhiều task mở và/hoặc nhiều task trễ) — góc nhìn rủi ro con người, khác METRIC-OPS-04 (góc nhìn năng lực vận hành) |
-| Công thức | `COUNT(Employee có > 8 task mở OR ≥ 3 task trễ) / COUNT(Employee đang làm việc) × 100` |
-| Nguồn dữ liệu | ENT-Task (#5) join ENT-Employee (#6) |
-| Tần suất | Job hằng ngày |
-| Đơn vị / định dạng | %, `8,9%`; kèm `4 / 45 người` |
-| Loại biểu đồ | Gauge + danh sách người quá tải theo phòng ban |
-| Ngưỡng vàng / đỏ | Vàng: `> 10%`; Đỏ: `> 20%` |
-| Alert | ALERT-HR-03 |
-| Drill-down | Số → danh sách người quá tải → task mở/trễ của người → biên bản #5 nguồn |
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-RSK-01 | Rủi ro high/critical đang mở | `COUNT(Risk level ∈ {high, critical}, status ∉ {closed, accepted})` | số rủi ro | ENT-Risk | `EVT-risk.risk_identified` / `risk_level_changed` / `risk_mitigated` | ↓ | ≥ 1 rủi ro `high` | ≥ 1 rủi ro `critical` | `kpi` + `heatmap` 5×5 likelihood × impact |
+| METRIC-RSK-02 | Rủi ro high chưa có chủ | `COUNT(Risk level ∈ {high, critical}, owner_id IS NULL, status mở)` | số rủi ro | ENT-Risk | `EVT-risk.risk_identified`; gán owner | ↓ | ≥ 1 rủi ro `medium` chưa có chủ > 7 ngày | ≥ 1 (A-EMS: "chờ phân công") | `kpi` + danh sách |
+| METRIC-RSK-03 | Rủi ro high > 30 ngày không có mitigation | `COUNT(Risk level ≥ high, mở > 30 ngày, không có Mitigation status=in_progress)` | số rủi ro | ENT-Risk, ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 (A-EMS) | ≥ 1 rủi ro `critical` thỏa điều kiện | `kpi` + danh sách |
+| METRIC-RSK-04 | Điểm rủi ro tổng hợp | `risk_index = SUM(risk_score của rủi ro mở) / COUNT(rủi ro mở)` (thang 1–25); trend theo tuần | điểm (1 số thập phân) | ENT-Risk, ENT-RiskAssessment | Mọi `EVT-risk.*` | ↓ | ≥ 8 | ≥ 12 | `line` + `heatmap` |
+| METRIC-RSK-05 | Biện pháp quá hạn | `COUNT(Mitigation status ∈ {planned, in_progress}, due_date < hôm nay)` | số biện pháp | ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 | ≥ 5, hoặc ≥ 1 thuộc rủi ro `critical` | `kpi` + danh sách |
+| METRIC-RSK-06 | Strategy execution index | `sei_pct = Σ(Objective.weight × on_track) / Σ(Objective.weight) × 100` cho Objective của kỳ; `on_track = 1` khi `progress_pct ≥ expected_progress_pct × 0,9`, với `progress_pct` = trung bình KR (KeyResult.current/target), `expected_progress_pct` nội suy theo thời gian kỳ | % | ENT-Objective, ENT-KeyResult, ENT-CheckIn | Check-in KR; `EVT-execution.kpi_measured`; job hằng tuần | ↑ | < 70 (AI-EOS §4.3) | < 50 | `gauge` + cây Objective → KR |
 
 ---
 
-## 3. Đặc tả 18 cảnh báo
+## 3. Đặc tả 31 alert
 
 ### 3.1. Quy tắc chung
 
-| Quy tắc | Mô tả |
+| # | Quy tắc |
 |---|---|
-| Sinh alert | Mỗi lần `ENT-MetricValue` mới được tính, hệ thống đánh giá ngưỡng của metric → tạo/cập nhật `ENT-Alert` |
-| Mức độ | **Warning** (vàng) khi chạm ngưỡng vàng; **Critical** (đỏ) khi chạm ngưỡng đỏ. Một alert chỉ có 1 bản ghi đang mở/metric/kỳ; nâng cấp Warning → Critical cập nhật cùng bản ghi |
-| Tự đóng | Metric về vùng xanh ở lần tính kế tiếp → alert chuyển `RESOLVED` (ghi audit log, actor = hệ thống) |
-| Acknowledge / dismiss | Theo quyền 02 §3.3: CEO mọi alert; CFO `ALERT-FIN-*`; Sales Director `ALERT-CUS-*`; HR Manager `ALERT-HR-*`. Mọi thao tác ghi audit log |
-| Role nhận | Tuân thủ quyền xem alert 02 §3.3: ROLE-01 xem tất cả; ROLE-02 xem `ALERT-FIN-*`, `ALERT-OPS-*`; ROLE-03 xem `ALERT-CUS-*`; ROLE-04 xem `ALERT-HR-*`; ROLE-05 không nhận alert dashboard |
-| Hiển thị | Alert hiện ở vùng "Cần anh/chị quyết" (§5), sắp xếp Critical trước, rồi theo thời điểm sinh mới nhất |
-| AI state (P02) | Hành động đề xuất là **AI gợi ý (L1)**; không tự thực hiện hành động nghiệp vụ |
-| Trạng thái | `OPEN` → `ACKNOWLEDGED` → `RESOLVED` / `DISMISSED` |
+| 1 | Alert sinh khi metric cùng số chuyển sang `warning` hoặc `critical` (ngưỡng §2); tạo `ENT-Alert` và phát `EVT-platform.alert_raised` |
+| 2 | **Khử trùng lặp**: tối đa 1 alert **mở** cho mỗi cặp (metric, phạm vi — vd. phòng ban/sản phẩm/rủi ro); metric xấu đi `warning → critical` thì nâng mức alert hiện có, không tạo mới |
+| 3 | **Tần suất tối đa**: alert sinh bởi job hằng ngày tối đa 1 lần/ngày/phạm vi (vd. ALERT-FIN-07 — FR-FIN-08) |
+| 4 | **Tự đóng**: metric về `ok` trong `ALERT_AUTO_RESOLVE_PERIODS` (mặc định 1) lần tính liên tiếp → alert `resolved` (ghi `resolved_reason = auto`) |
+| 5 | Vòng đời: `open → acknowledged → resolved`, hoặc `open → dismissed` (bắt buộc lý do). Acknowledge/dismiss cần `dashboard:write` trong trụ (02 §5.3) |
+| 6 | Người nhận = role có quyền xem trụ (02 §5.4) + cột "Nhận thêm"; kênh in-app (FR-NTF-01), email cho `critical` khi bật FR-NTF-02 |
+| 7 | Mỗi alert có link tới SCR-07 (chi tiết metric + lineage) và nút "Hỏi AI vì sao" (Panel AI với ngữ cảnh alert) |
+| 8 | Alert `critical` luôn xuất hiện trong Briefing (§7) cho tới khi acknowledged |
 
-### 3.2. Bảng 18 alert
+### 3.2. Bảng alert
 
-| Alert ID | Metric | Tên alert | Điều kiện kích hoạt | Mức độ | Role nhận | Hành động đề xuất (AI gợi ý L1) |
+| Alert | Metric | Trụ | Điều kiện warning | Điều kiện critical | Nhận thêm (ngoài role xem trụ) | Hành động gợi ý |
 |---|---|---|---|---|---|---|
-| ALERT-FIN-01 | METRIC-FIN-01 | Doanh thu dưới kế hoạch | `% KH < 90%` → Warning; `< 80%` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem doanh thu theo khách, so với pipeline |
-| ALERT-FIN-02 | METRIC-FIN-02 | Biên LN gộp giảm | `< 15%` → Warning; `< 10%` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem cơ cấu giá vốn theo nhóm hàng |
-| ALERT-FIN-03 | METRIC-FIN-03 | Cash runway thấp | `< 9 tháng` → Warning; `< 6 tháng` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Đề xuất họp CFO rà soát dòng tiền |
-| ALERT-FIN-04 | METRIC-FIN-04 | DSO kéo dài | `> 45 ngày` → Warning; `> 60 ngày` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem khách có kỳ thu tiền dài nhất |
-| ALERT-FIN-05 | METRIC-FIN-05 | Công nợ quá hạn cao | Tỷ lệ `> 10%` → Warning; `> 20%` hoặc có khoản `> 90 ngày` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem danh sách hóa đơn quá hạn cần đòi |
-| ALERT-FIN-06 | METRIC-FIN-06 | Vượt ngân sách | Vượt `> 5%` → Warning; `> 10%` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem khoản mục vượt ngân sách lớn nhất |
-| ALERT-CUS-01 | METRIC-CUS-01 | Pipeline không đủ phủ chỉ tiêu | `< 3,0x` → Warning; `< 2,0x` → Critical | Warning / Critical | ROLE-01, ROLE-03 | Xem giai đoạn pipeline thiếu hụt |
-| ALERT-CUS-02 | METRIC-CUS-02 | Tỷ lệ chuyển đổi thấp | `< 25%` → Warning; `< 15%` → Critical | Warning / Critical | ROLE-01, ROLE-03 | Xem lý do thua các cơ hội gần nhất |
-| ALERT-CUS-03 | METRIC-CUS-03 | NRR dưới 100% | `< 100%` → Warning; `< 90%` → Critical | Warning / Critical | ROLE-01, ROLE-03 | Xem khách hiện hữu giảm mua |
-| ALERT-CUS-04 | METRIC-CUS-04 | Doanh thu tập trung | Top 5 `> 40%` hoặc 1 khách `> 15%` → Warning; Top 5 `> 50%` hoặc 1 khách `> 25%` → Critical | Warning / Critical | ROLE-01, ROLE-03 | Xem khách chiếm tỷ trọng lớn, rủi ro phụ thuộc |
-| ALERT-CUS-05 | METRIC-CUS-05 | NPS thấp | `< 30` → Warning; `< 0` → Critical | Warning / Critical | ROLE-01, ROLE-03 | Xem phản hồi Detractor |
-| ALERT-OPS-01 | METRIC-OPS-01 | Task trễ hạn nhiều | `< 85%` → Warning; `< 70%` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem task trễ theo người phụ trách |
-| ALERT-OPS-02 | METRIC-OPS-02 | Dự án trễ | `≥ 1` dự án → Warning; `≥ 3` dự án hoặc trễ `> 30 ngày` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem mốc dự án bị trễ |
-| ALERT-OPS-03 | METRIC-OPS-03 | Quyết định chưa được thực thi | `< 80%` → Warning; `< 60%` → Critical | Warning / Critical | ROLE-01, ROLE-02 | Xem quyết định quá hạn và người phụ trách |
-| ALERT-OPS-04 | METRIC-OPS-04 | Workload mất cân bằng | Bình quân `> 6` hoặc `≥ 1` người `> 8` task → Warning; bình quân `> 8` hoặc `≥ 3` người → Critical | Warning / Critical | ROLE-01, ROLE-02 | Gợi ý phân bổ lại task |
-| ALERT-HR-01 | METRIC-HR-01 | Năng suất doanh thu/nhân sự giảm | `< 2,0 tỷ/người` → Warning; `< 1,7 tỷ/người` → Critical | Warning / Critical | ROLE-01, ROLE-04 | Xem xu hướng headcount vs doanh thu |
-| ALERT-HR-02 | METRIC-HR-02 | Tỷ lệ nghỉ việc cao | `> 15%` → Warning; `> 25%` → Critical | Warning / Critical | ROLE-01, ROLE-04 | Xem phòng ban có nghỉ việc cao |
-| ALERT-HR-03 | METRIC-HR-03 | Nhân sự quá tải | `> 10%` → Warning; `> 20%` → Critical | Warning / Critical | ROLE-01, ROLE-04 | Xem danh sách người quá tải |
-
-> Ví dụ hiển thị trên card (P04): "⚠ Doanh thu T9/2026 đạt **7,6 tỷ** — **84,4%** kế hoạch (9,0 tỷ). Cập nhật 05/10/2026 08:30."
+| ALERT-FIN-01 | METRIC-FIN-01 | F | Đạt < 90% kế hoạch | < 80% | VP_SALES | Xem deal sắp đóng, hỏi AI nguyên nhân |
+| ALERT-FIN-02 | METRIC-FIN-02 | F | Biên LN gộp giảm > 3 điểm % so Δ3k | > 5 điểm % | — | Xem chi phí giá vốn theo hạng mục |
+| ALERT-FIN-03 | METRIC-FIN-03 | F | Runway < 12 tháng | < 6 tháng | — | What-if runway (BR-FIN-06), rà chi phí |
+| ALERT-FIN-04 | METRIC-FIN-04 | F | DSO tăng > 15% so Δ3k | > 30% | VP_SALES | Danh sách khách chậm trả |
+| ALERT-FIN-05 | METRIC-FIN-05 | F | Công nợ quá hạn > 15% | > 25% | VP_SALES | Aging, giao task thu hồi nợ |
+| ALERT-FIN-06 | METRIC-FIN-06 | F | Phòng ban vượt ngân sách (> 100%) | Vượt > 10% | MANAGER của phòng ban | Xem chi phí phòng ban; phát `EVT-finance.budget_exceeded` |
+| ALERT-FIN-07 | METRIC-FIN-07 | F | Net burn dự kiến vượt dự báo > 10% | > 25% | — | Xem chi phí bất thường tháng; phát `EVT-finance.burn_over_forecast` |
+| ALERT-OPS-01 | METRIC-OPS-01 | O | Task đúng hạn < 80% | < 65% | MANAGER (phòng ban dưới ngưỡng) | Workload heatmap, phân lại task |
+| ALERT-OPS-02 | METRIC-OPS-02 | O | Dự án trễ > 20% | > 35% | MANAGER chủ dự án | Danh sách dự án trễ |
+| ALERT-OPS-03 | METRIC-OPS-03 | O | Thực thi quyết định < 70% | < 50% | — | Danh sách quyết định chưa xong |
+| ALERT-HR-01 | METRIC-HR-01 | O | DT/nhân sự thấp hơn KH > 15% | > 25% | CFO | Xem headcount vs doanh thu |
+| ALERT-HR-02 | METRIC-HR-02 | O | Turnover ≥ 15%/năm | ≥ 20% | — | Phòng ban có nghỉ việc cao |
+| ALERT-HR-03 | METRIC-HR-03 | O | Quá tải > 10% nhân sự | > 20% | MANAGER của người quá tải | F5: gợi ý chuyển task (L1) |
+| ALERT-HR-04 | METRIC-HR-04 | O | Kế hoạch trễ 1–30 ngày | Trễ > 30 ngày | CFO, RISK_MANAGER | Xem kế hoạch; rủi ro tự sinh (BR-RSK-03) |
+| ALERT-CUS-01 | METRIC-CUS-01 | C | Coverage < 3,5x | < 3,0x | CEO | Deal cần thúc đẩy |
+| ALERT-CUS-02 | METRIC-CUS-02 | C | Win rate giảm > 10 điểm % so Δ3k (≥ 10 deal đã đóng) | > 20 điểm % | — | Phân tích deal thua |
+| ALERT-CUS-03 | METRIC-CUS-03 | C | NRR < 100% | < 90% | CFO | Khách giảm chi tiêu |
+| ALERT-CUS-04 | METRIC-CUS-04 | C | Top 5 > 50% doanh thu | > 65% | CFO, RISK_MANAGER | Rủi ro tập trung khách hàng |
+| ALERT-CUS-05 | METRIC-CUS-05 | C | NPS < 30 | < 0 | CPO | Phản hồi khách theo sản phẩm |
+| ALERT-CUS-06 | METRIC-CUS-06 | C | Chu kỳ bán tăng > 20% so Δ3k | > 40% | — | Giai đoạn bị tắc |
+| ALERT-PRD-01 | METRIC-PRD-01 | U | MAU giảm > 10% so Δ3k | > 20% | — | Sản phẩm giảm sử dụng |
+| ALERT-PRD-02 | METRIC-PRD-02 | U | Churn tăng > 25% tương đối và ≥ 2% | BR-PRD-01 (> 50% và ≥ 2%) | RISK_MANAGER, VP_SALES | Điều tra; phát `EVT-product.metric_anomaly` (chỉ mức critical) |
+| ALERT-PRD-03 | METRIC-PRD-03 | U | Retention 30 ngày < 40% | < 25% | — | Phân tích cohort |
+| ALERT-PRD-04 | METRIC-PRD-04 | U | Roadmap đúng tiến độ < 70% | < 50% | — | Hạng mục trễ |
+| ALERT-PRD-05 | METRIC-PRD-05 | U | Release đạt < 70% kế hoạch | < 40% | — | Tính năng bị lùi |
+| ALERT-RSK-01 | METRIC-RSK-01 | S | Có rủi ro `high` mở | Có rủi ro `critical` mở | CFO; owner rủi ro | Mở sổ rủi ro, what-if |
+| ALERT-RSK-02 | METRIC-RSK-02 | S | Rủi ro `medium` chưa có chủ > 7 ngày | Rủi ro ≥ `high` chưa có chủ | — | Gán chủ sở hữu |
+| ALERT-RSK-03 | METRIC-RSK-03 | S | Rủi ro ≥ `high` mở > 30 ngày không có mitigation `in_progress` | Như trên với `critical` | Owner rủi ro | Tạo biện pháp |
+| ALERT-RSK-04 | METRIC-RSK-04 | S | Điểm rủi ro TB ≥ 8 | ≥ 12 | — | Heatmap |
+| ALERT-RSK-05 | METRIC-RSK-05 | S | ≥ 1 biện pháp quá hạn | ≥ 5 hoặc thuộc rủi ro `critical` | Owner biện pháp | Cập nhật tiến độ |
+| ALERT-RSK-06 | METRIC-RSK-06 | S | Strategy execution < 70% | < 50% | — | Objective lệch tiến độ |
 
 ---
 
-## 4. Drill-down & truy vết (P01)
+## 4. Trạng thái trụ (FR-DSH-02)
 
-### 4.1. Chuỗi drill-down tối đa 3 click
+| Trạng thái | Điều kiện (đánh giá theo thứ tự) |
+|---|---|
+| `critical` | Có **ít nhất một** metric của trụ ở `critical` |
+| `warning` | Không có `critical`, có ít nhất một metric `warning` |
+| `ok` | Mọi metric có dữ liệu đều `ok` (A-EMS: trạng thái trụ = mức cao nhất trong các ngưỡng đang vi phạm) |
+| `no_data` | ≥ 50% metric của trụ ở `no_data` (`PILLAR_NO_DATA_RATIO`); hiển thị "Chưa đủ dữ liệu" + CTA nạp dữ liệu (UC-07) |
+| `unavailable` | Module nguồn lỗi/timeout — chỉ thẻ trụ đó báo "Dịch vụ tạm thời không khả dụng" (FR-DSH-07) |
 
-KPI demo (01 §4): **từ số → tài liệu gốc ≤ 3 click**.
+Quy tắc phụ:
+- Metric `no_data` không làm trụ xấu đi, nhưng được đếm và hiển thị "x/y chỉ số có dữ liệu".
+- Thẻ trụ hiển thị: trạng thái (biểu tượng ● ◐ ○ kèm màu — không dùng màu đơn thuần), KPI chính (metric đầu tiên của trụ, vd. METRIC-FIN-01), 2 metric xấu nhất, số alert mở, thời điểm cập nhật.
+- Trạng thái trụ được ghi lịch sử theo ngày để vẽ dải trạng thái 30 ngày.
 
-| Click | Từ | Đến | Nội dung hiển thị | Màn hình |
+---
+
+## 5. Business rules (BR)
+
+### 5.1. Finance
+
+| Mã | Quy tắc | Ví dụ |
+|---|---|---|
+| BR-FIN-01 | `burn_thang` = trung bình `(tổng chi − tổng thu)` của **3 kỳ tháng gần nhất**, **chỉ tính kỳ dương**; kỳ có lãi (chi − thu ≤ 0) không vào tử số lẫn mẫu số. Không có kỳ dương nào → `burn_thang = 0` | (chi − thu) 3 kỳ: 400 tr, 500 tr, 600 tr → burn 500 tr |
+| BR-FIN-02 | `runway_months = closing_balance (ENT-CashPosition kỳ gần nhất) ÷ burn_thang`, làm tròn 1 chữ số | Số dư 3.000.000.000 ÷ 500 tr → **6,0 tháng** |
+| BR-FIN-03 | `burn_thang ≤ 0` → `runway_months = null`, hiển thị "Không áp dụng (đang có lãi)" — **không** hiển thị vô hạn. Chưa có CashPosition → `runway_months = null`, `runway_status = no_data` | |
+| BR-FIN-04 | `burn_rate_monthly` hiển thị trên dashboard = **gross burn** = tổng chi phí của kỳ (phân biệt với net burn BR-FIN-01) | |
+| BR-FIN-05 | `budget_utilization_pct = Thực chi ÷ Ngân sách phân bổ × 100`, theo phòng ban × kỳ (quý) × hạng mục; > 100 → `EVT-finance.budget_exceeded` (1 lần/phòng ban/kỳ) | Chi 1,1 tỷ / ngân sách 1,0 tỷ → 110% |
+| BR-FIN-06 | Runway kịch bản "không có doanh thu mới" = `closing_balance ÷ AVG(tổng chi 3 kỳ tháng gần nhất)` (bỏ phần thu) — dùng cho US-CEO-04, tool AI what-if runway | Số dư 3 tỷ, chi TB 1,5 tỷ → 2,0 tháng |
+
+Ràng buộc dữ liệu Finance: `Revenue.amount > 0`; hạng mục doanh thu `product_sales, service, consulting, other`; hạng mục chi `cogs, salary, infrastructure, marketing, office, travel, other`; `CashPosition` duy nhất theo kỳ `YYYY-MM`, `closing_balance ≥ 0`, nguồn `bank_statement, manual, imported`; Invoice ≥ 1 dòng, VAT mặc định 10%, `due_date` > ngày lập.
+
+### 5.2. Sales
+
+| Mã | Quy tắc | Ví dụ |
+|---|---|---|
+| BR-SAL-01 | `probability_pct` do người dùng nhập (0–100); tự đặt **100** khi `closed_won`, **0** khi `closed_lost` | |
+| BR-SAL-02 | `weighted_value = deal_value × probability_pct / 100` | 800 tr × 20% = 160 tr |
+| BR-SAL-03 | `win_rate_pct = deal thắng ÷ (deal thắng + deal thua) × 100` trong kỳ (theo `closed_at`) | 6 thắng, 14 thua → 30,0% |
+| BR-SAL-04 | Pipeline coverage = tổng `deal_value` của deal đang mở có `expected_close_date` trong quý ÷ mục tiêu doanh thu quý (team) | 30 tỷ / 10 tỷ → 3,0x |
+
+Giai đoạn deal: `prospecting → qualification → proposal → negotiation → closed_won | closed_lost`; mỗi lần chuyển lưu `ENT-DealStageHistory`; `closed_won` phát `EVT-sales.deal_closed_won`, `closed_lost` phát `EVT-sales.deal_closed_lost` (bắt buộc `lost_reason`).
+
+### 5.3. HR
+
+| Mã | Quy tắc | Ví dụ |
+|---|---|---|
+| BR-HR-01 | `turnover_rate_pct` (năm hóa) = `(số nghỉ việc trong kỳ ÷ headcount trung bình trong kỳ) × (12 ÷ số tháng của kỳ) × 100`; headcount trung bình = (đầu kỳ + cuối kỳ) / 2 | 3 người nghỉ trong 1 tháng, headcount TB 150 → **24,0%** |
+
+Ràng buộc HR: trạng thái nhân viên `probation, active, on_leave, terminated`; hợp đồng `full_time, part_time, contract, intern`; chuyển `active` phát `EVT-hr.employee_onboarded`, nghỉ việc phát `EVT-hr.employee_terminated`; HiringPlan `headcount ≥ 1`, `salary_max ≥ salary_min > 0`, `target_date > start_date`. Mọi module dùng `department_id` do HR cấp.
+
+### 5.4. Product
+
+| Mã | Quy tắc | Ví dụ |
+|---|---|---|
+| BR-PRD-01 | **Churn bất thường**: `churn_rate_pct` kỳ hiện tại > `AVG(3 kỳ gần nhất) × (1 + CHURN_ANOMALY_REL_PCT/100)` (mặc định 50) **và** `churn_rate_pct ≥ CHURN_ANOMALY_FLOOR_PCT` (mặc định 2) → phát `EVT-product.metric_anomaly` (ALERT-PRD-02 critical) | TB 3 kỳ 1,2%, kỳ này 2,0% → +66,7% và ≥ 2% → bất thường. TB 1,0%, kỳ này 1,8% → +80% nhưng < 2% → **không** |
+
+Ràng buộc Product: `Product.code` duy nhất; trạng thái `ideation, in_development, beta, launched, sunset`; vòng đời `introduction, growth, maturity, decline`; không xóa sản phẩm còn Feature `in_progress` hoặc Release `planned/in_progress`; xóa sản phẩm đã `launched` = xóa mềm → `sunset`; `ProductMetric` chỉ thêm, không sửa đè; doanh thu theo sản phẩm tổng hợp từ `EVT-finance.invoice_paid` (không đọc bảng Finance — DEC-125).
+
+### 5.5. Risk
+
+| Mã | Quy tắc |
+|---|---|
+| BR-RSK-01 | **Chấm điểm**: `risk_score = likelihood × impact`, `likelihood`, `impact` ∈ 1..5 → `risk_score` ∈ 1..25. Hệ thống tự sinh `risk_score`, `level`, mã `RSK-YYYY-NNN`; người dùng không nhập trực tiếp điểm |
+| BR-RSK-02 | **Mức độ & hệ quả** (bảng dưới). Vòng đời: `identified → assessing → mitigating → monitoring → closed`; chỉ CEO (`risk:approve`) đặt `accepted` (bắt buộc người chấp nhận + lý do, ghi `ENT-Decision`). Rủi ro nhập tay có `risk_score ≥ 5` bắt buộc có owner. Không đóng rủi ro còn Mitigation `in_progress`. Mỗi lần đổi level tạo `ENT-RiskAssessment` và phát `EVT-risk.risk_level_changed`; sang `monitoring`/`closed` phát `EVT-risk.risk_mitigated`. Nhóm: `financial, operational, market, people, compliance, technology, strategic` |
+| BR-RSK-03 | **Rủi ro tự sinh từ event**: consumer của module `risk` tạo `ENT-Risk` với `source = event` khi nhận `EVT-hr.hiring_plan_delayed`, `EVT-finance.budget_exceeded`, `EVT-finance.burn_over_forecast`, `EVT-sales.deal_closed_lost` (deal ≥ `RISK_LOST_DEAL_MIN_VALUE`, mặc định 1 tỷ), `EVT-product.metric_anomaly`, `EVT-finance.forecast_updated` (khi kịch bản `base` giảm lợi nhuận > 20%). Idempotent theo `event_id` (`ENT-ProcessedEvent`) — event trùng không tạo rủi ro trùng; cùng thực thể liên quan đang có rủi ro mở cùng nhóm → cập nhật đánh giá thay vì tạo mới. Rủi ro `source = event` được phép **chưa có owner** lúc tạo (trạng thái "chờ phân công"), nhưng bắt buộc có trước khi sang `mitigating`/`closed`. `likelihood`/`impact` mặc định theo bảng ánh xạ event → điểm (cấu hình `RISK_EVENT_SCORING`) |
+
+| `risk_score` | Level | Hệ quả |
+|---|---|---|
+| 1–4 | `low` | Chỉ lưu sổ |
+| 5–9 | `medium` | Hiển thị trên dashboard, bắt buộc có owner (trừ `source = event` lúc tạo) |
+| 10–15 | `high` | Phát `EVT-risk.risk_identified`; bắt buộc ≥ 1 Mitigation trong 7 ngày |
+| 16–25 | `critical` | Phát `EVT-risk.risk_identified` và tạo alert critical cho CEO (ALERT-RSK-01) |
+
+---
+
+## 6. Yêu cầu chức năng theo domain (FR)
+
+Actor ghi theo permission ở `02-PERSONAS-PERMISSIONS.md` §5.3. Mọi thao tác ghi phát audit; ghi từ IDP đi qua Action Registry (`04-IDP-FEATURE-SPEC.md`).
+
+### 6.1. Finance — module `finance` (PIL-F)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
 |---|---|---|---|---|
-| 0 | — | MetricCard trên dashboard | Giá trị, % so kế hoạch/ngưỡng, sparkline, màu ngưỡng, nhãn độ tươi | Dashboard theo role |
-| 1 | MetricCard / AlertCard | **Metric Detail** | Panel P01 (§4.2) + biểu đồ xu hướng + BreakdownTable (phân rã theo khách/kỳ/người/khoản mục) | Metric Detail (drill-down) |
-| 2 | Một dòng BreakdownTable | **Bản ghi gốc** | Bản ghi entity (hóa đơn, cơ hội, task, nhân sự…) với các field, lineage tới extraction và tài liệu | Metric Detail (panel bản ghi) / Document Detail |
-| 3 | Link "Tài liệu gốc" | **Source Viewer** | File gốc, mở đúng trang, **tô vùng** chứa giá trị (`source_location`), confidence, người duyệt, thời điểm duyệt | Source Viewer |
+| FR-FIN-01 | Doanh thu | CRUD `ENT-Revenue` theo hạng mục, gắn `client_id`, `product_id` (tùy chọn); `amount > 0` | `finance:write` | Must |
+| FR-FIN-02 | Chi phí | CRUD `ENT-Expense` theo phòng ban × hạng mục; hỗ trợ chi phí định kỳ (tháng); MANAGER tạo cho phòng ban mình | `finance:write` | Must |
+| FR-FIN-03 | Ngân sách | `ENT-Budget` theo phòng ban × năm tài chính × quý × hạng mục; vượt → `EVT-finance.budget_exceeded` (BR-FIN-05) | `finance:write` | Must |
+| FR-FIN-04 | Số dư tiền mặt | `ENT-CashPosition` theo kỳ `YYYY-MM` (duy nhất, ≥ 0); nguồn `bank_statement / manual / imported` | `finance:write` | Must |
+| FR-FIN-05 | Dự báo | `ENT-Forecast` + `ENT-ForecastLine`: doanh thu, chi phí, lợi nhuận theo tháng; horizon `1m / 3m / 6m / 1y`; kịch bản `optimistic / base / pessimistic`; `confidence_pct` và nhận định AI (L0, có nguồn); tạo/cập nhật → `EVT-finance.forecast_updated`. Kế hoạch tuyển dụng `approved` cộng chi phí lương dự kiến vào dòng chi (02 §8) | `finance:write` | Must |
+| FR-FIN-06 | Hóa đơn | `ENT-Invoice` + `ENT-InvoiceLine` (≥ 1 dòng, VAT mặc định 10%); trạng thái `draft → issued → partially_paid → paid`, `overdue` tự đặt theo job; `void`; thanh toán → `EVT-finance.invoice_paid` | `finance:write` | Should |
+| FR-FIN-07 | Finance dashboard | `summary`: tổng doanh thu, tổng chi, lợi nhuận ròng, biên LN, gross burn (BR-FIN-04), net burn, runway, tăng trưởng, `budget_utilization_pct`; trend 12 tháng; METRIC-FIN-01..07 | `finance:query` | Must |
+| FR-FIN-08 | Cảnh báo burn vượt dự báo | Job hằng ngày so net burn dự kiến tháng với dự báo đầu tháng (METRIC-FIN-07); vượt `THR_FIN_07_WARN` → ALERT-FIN-07 cho CFO + CEO, tối đa 1 lần/ngày; phát `EVT-finance.burn_over_forecast` | hệ thống | Should |
+
+### 6.2. Sales — module `sales` (PIL-C)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-SAL-01 | Quản lý deal | CRUD `ENT-Deal`; bắt buộc tên, `client_id`, `deal_value > 0`, `expected_close_date` > hôm nay (khi tạo), `owner_id`; xóa (mềm) chỉ VP_SALES | `sales:write` | Must |
+| FR-SAL-02 | Chuyển giai đoạn | Theo §5.2; lưu `ENT-DealStageHistory`; won/lost phát event; BR-SAL-01 | `sales:write` | Must |
+| FR-SAL-03 | Khách hàng | CRUD `ENT-Client` (tên duy nhất, MST, ngành, quy mô, người liên hệ — PII mức 3); khớp mờ tên khi nhập/IDP | `sales:write` | Must |
+| FR-SAL-04 | Pipeline | Số lượng, giá trị, giá trị có trọng số, số ngày TB ở mỗi giai đoạn | `sales:query` | Must |
+| FR-SAL-05 | Hiệu suất | Doanh thu đóng, quota, % hoàn thành theo đội và cá nhân | `sales:query` | Must |
+| FR-SAL-06 | Mục tiêu doanh thu | `ENT-SalesTarget` theo `month / quarter / year`, phạm vi `team / individual` (`owner_id` bắt buộc khi individual); CEO đặt mục tiêu team (US-CEO-08) | `sales:write` | Must |
+| FR-SAL-07 | Sales dashboard | Giá trị pipeline, số deal (thắng/thua/đang chạy), win rate, giá trị deal TB, doanh thu đóng, % quota, chu kỳ bán TB; METRIC-CUS-01..06 | `sales:query` | Must |
+
+Hợp đồng `ENT-Contract` (giá trị, kỳ hạn, ngày hết hạn, gắn Client/Deal) được ghi qua IDP (`CONTRACT`) hoặc nhập tay trong Sales workspace (SCR-23); chi tiết ở 04 và 05.
+
+### 6.3. HR — module `hr` (PIL-O)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-HR-01 | Hồ sơ nhân viên | CRUD `ENT-Employee` (§5.3); event onboard/terminate | `hr:write` | Must |
+| FR-HR-02 | Lịch sử lương | `ENT-SalaryHistory` chỉ thêm; mỗi lần đổi lương phát `EVT-hr.salary_updated` (payload **không** chứa số lương cá nhân — chỉ `employee_id`, `department_id`, delta quỹ lương) | `hr:write`; đọc: CEO, HR_MANAGER (dữ liệu mức 4) | Must |
+| FR-HR-03 | Kế hoạch tuyển dụng | `ENT-HiringPlan` theo phòng ban × vị trí: headcount, khung lương, ngày bắt đầu, ngày mục tiêu, ưu tiên, ngân sách; theo dõi `filled` và còn thiếu | `hr:write` | Must |
+| FR-HR-04 | Phát hiện tuyển dụng trễ | Job hằng ngày: kế hoạch trễ > 30 ngày so `target_date` → `EVT-hr.hiring_plan_delayed` (consumer: `risk`, `finance`); 1 lần/kế hoạch/mốc trễ | hệ thống | Must |
+| FR-HR-05 | Phòng ban | CRUD `ENT-Department` (cây cha–con, `manager_id`); nguồn `department_id` cho mọi module | `hr:write` | Must |
+| FR-HR-06 | HR dashboard | Tổng nhân sự, đang làm, nghỉ phép, đã nghỉ, tuyển mới tháng, turnover năm hóa, thâm niên TB, quỹ lương tháng (tổng hợp), tăng trưởng headcount, vị trí trống theo phòng ban, pipeline tuyển dụng; METRIC-HR-01..04 | `hr:query` | Must |
+| FR-HR-07 | Phê duyệt kế hoạch tuyển dụng | Workflow `draft → submitted → approved/rejected` (02 §8); duyệt → chi phí lương dự kiến vào Forecast; hủy kế hoạch đã duyệt → hoàn tác phần dự báo | `hr:write` (gửi), `hr:approve` (CFO) | Could |
+
+### 6.4. Product — module `product` (PIL-U)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-PRD-01 | Danh mục sản phẩm | CRUD `ENT-Product` (§5.4) | `product:write` | Must |
+| FR-PRD-02 | Tính năng | CRUD `ENT-Feature`; chuyển `released` phát `EVT-product.feature_released` | `product:write` | Must |
+| FR-PRD-03 | Roadmap | `ENT-RoadmapItem` theo quý, `target_date`, trạng thái `planned / in_progress / done / dropped` | `product:write` | Must |
+| FR-PRD-04 | Release | `ENT-Release` (`version` duy nhất theo sản phẩm; `planned / in_progress / released / rolled_back`); release đầu tiên của sản phẩm phát `EVT-product.product_launched` | `product:write` | Must |
+| FR-PRD-05 | Chỉ số sản phẩm | `ENT-ProductMetric` snapshot theo kỳ, chỉ thêm: MAU, `adoption_pct`, `churn_rate_pct`, `retention_30d_pct`, NPS, ARPU; nhập tay, import (C5) hoặc IDP `PRODUCT_REPORT` | `product:write` | Must |
+| FR-PRD-06 | Phát hiện churn bất thường | BR-PRD-01 khi có snapshot mới | hệ thống | Must |
+| FR-PRD-07 | Product dashboard | Số sản phẩm, đang hoạt động, đang phát triển, MAU, adoption, churn, retention 30 ngày, NPS, ARPU, tính năng release trong kỳ, % roadmap đúng tiến độ; METRIC-PRD-01..05 | `product:query` | Must |
+
+### 6.5. Risk — module `risk` (PIL-S)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-RSK-01 | Sổ đăng ký rủi ro | Ghi rủi ro thủ công: tiêu đề, nhóm, `likelihood`, `impact`, owner, `linked_entities` (department, hiring_plan, budget, deal, product…); hệ thống sinh điểm, level, mã (BR-RSK-01) | `risk:write` | Must |
+| FR-RSK-02 | Rủi ro tự sinh | BR-RSK-03 | hệ thống | Must |
+| FR-RSK-03 | Đánh giá | Mỗi lần level đổi tạo `ENT-RiskAssessment`, phát `EVT-risk.risk_level_changed` | `risk:write` | Must |
+| FR-RSK-04 | Biện pháp giảm thiểu | CRUD `ENT-Mitigation` (owner, `due_date`, `progress_pct`, trạng thái `planned / in_progress / done / cancelled`) | `risk:write` | Must |
+| FR-RSK-05 | Cảnh báo rủi ro | Danh sách alert trụ S đang mở; CEO và RISK_MANAGER acknowledge | `dashboard:write` (trụ S) | Must |
+| FR-RSK-06 | What-if | `ENT-Scenario`: 1–10 rủi ro × horizon 1–24 tháng → tác động ước lượng lên `finance` (doanh thu, chi, runway), `sales` (pipeline), `hr` (headcount), `product` (roadmap); mỗi miền gọi qua service interface với timeout 5 s; miền lỗi trả `unavailable`, không làm hỏng cả kết quả | `risk:query` | Should |
+| FR-RSK-07 | Risk dashboard | Tổng rủi ro mở, số critical/high, điểm tổng hợp, xu hướng, mở/đóng trong kỳ, biện pháp đang chạy/quá hạn, alert chưa xác nhận, heatmap 5×5; METRIC-RSK-01..06 | `risk:query` | Must |
+
+METRIC-RSK-06 (Strategy execution index) lấy dữ liệu Objective/KR từ module `execution` qua service interface; đặc tả OKR/KPI/check-in ở 04 (US-DC-005) và 05.
+
+### 6.6. Executive Dashboard — module `dashboard`
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-DSH-01 | Tổng quan 5 trụ | SCR-01 / trang Dashboard: 5 thẻ trụ (§4), **chỉ hiển thị trụ người dùng có quyền** (02 §5.4); trụ "chỉ tổng hợp" hiển thị số nhưng tắt drill-down | `dashboard:read` | Must |
+| FR-DSH-02 | Trạng thái trụ | `ok / warning / critical / no_data / unavailable` theo §4; ngưỡng là biến cấu hình | hệ thống | Must |
+| FR-DSH-03 | Drill-down | Mỗi trụ có trang chi tiết (SCR-02..06): bảng phân trang, biểu đồ, lọc theo kỳ, phòng ban, sản phẩm; chuỗi ≤ 3 click tới tài liệu gốc (§8) | `dashboard:read` + `<domain>:read` | Must |
+| FR-DSH-04 | Insight panel | Insight AI ở đầu trang và theo từng trụ (§7.1) | `ai:query` | Must |
+| FR-DSH-05 | Bộ lọc kỳ | `current_month / current_quarter / ytd`; Finance thêm `custom` | `dashboard:read` | Must |
+| FR-DSH-06 | Tự làm mới | Tự làm mới mỗi 60 giây (`DASHBOARD_REFRESH_SEC`); dữ liệu trễ tối đa 60 giây so với nguồn (§9) | hệ thống | Should |
+| FR-DSH-07 | Cô lập lỗi | Module hoặc AI lỗi → chỉ widget liên quan báo "Dịch vụ tạm thời không khả dụng" + nút thử lại; trụ khác vẫn hiển thị (P08, US-ALL-04) | hệ thống | Must |
+| FR-DSH-08 | Giao diện chat | Trang Hỏi AI (SCR-16) với streaming, trạng thái tra cứu thật, khối "Nguồn dữ liệu"; mở từ thẻ metric/alert với ngữ cảnh đã điền sẵn | `ai:query` | Must |
+
+### 6.7. Thông báo — module `platform`
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-NTF-01 | Thông báo trong ứng dụng | `ENT-Notification` cho alert, insight critical, action card chờ xác nhận, task được giao, kế hoạch tuyển dụng chờ duyệt; chuông + đếm chưa đọc; người nhận theo §3.1 #6 | mọi user | Must |
+| FR-NTF-02 | Email | Gửi alert `critical` qua email cho người nhận theo trụ; gom tối đa 1 email/giờ/người; tắt mặc định ở demo (`NOTIFY_EMAIL_ENABLED=false`) | hệ thống | Could |
+
+---
+
+### 6.8. Trợ lý AI — module `ai_core` (DEC-132)
+
+| ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
+|---|---|---|---|---|
+| FR-AI-01 | Hỏi đáp ngôn ngữ tự nhiên | Câu hỏi VI/EN → câu trả lời theo ngôn ngữ câu hỏi; ngữ cảnh màn hình (SCR, metric, kỳ) từ Panel/⌘K | `ai:query` | Must |
+| FR-AI-02 | Tool calling theo quyền | Chỉ gửi model các TOOL-* mà role có permission (P06); tool chạy bằng JWT người hỏi; ≤ 8 call, 5 s/call, 30 s/lượt; tool bị từ chối → AI nói rõ không có quyền | `ai:query` + quyền domain | Must |
+| FR-AI-03 | Streaming SSE | Trạng thái `thinking`/`tool_call` theo bước thật; token đầu ≤ 5 s | `ai:query` | Must |
+| FR-AI-04 | Nguồn cho mọi con số | `sources[]` trỏ tới metric/bản ghi/tài liệu; không có số ngoài `sources` (P05); thiếu dữ liệu → nói thiếu | `ai:query` | Must |
+| FR-AI-05 | Lịch sử hội thoại | Lưu `ENT-Conversation`/`ENT-Message` của chính người dùng; xóa được | `ai:query` | Should |
+| FR-AI-06 | Feedback | 👍/👎 + lý do cho câu trả lời và insight (`ENT-Feedback`) | `ai:query` | Should |
+| FR-AI-07 | Insight chủ động & Briefing | Event domain → làm mới `ENT-Insight` (cấu trúc §7); Briefing theo role | hệ thống; đọc `ai:query` | Must |
+| FR-AI-08 | Hành động AI (L1–L3) | Gợi ý / Action card L2 chờ xác nhận / L3 làm và báo, ghi qua Action Registry (`ENT-AIAction`); hoàn tác L3 trong 24 h; kill switch (DEC-134) | `ai:write` + quyền domain | Must |
+| FR-AI-09 | What-if | Runway khi doanh thu = 0 / kịch bản rủi ro, gọi tool Finance/Risk, không tự tính ngoài tool | `ai:query` + `finance:read` / `risk:read` | Should |
+| FR-AI-10 | An toàn dữ liệu | Lọc PII/lương (mức 3–4, 02 §6) trước khi gửi LLM; chống prompt injection (dữ liệu ≠ lệnh); rate limit 20 req/phút/người; ngân sách chi phí cảnh báo 80% | hệ thống | Must |
+
+---
+
+## 7. Insight & Briefing CEO
+
+### 7.1. Cấu trúc insight
+
+Mỗi `ENT-Insight` theo cấu trúc **Observation → Evidence → Impact → Recommendation → Confidence** (BRD gốc mục 46, AI-EOS §2.1):
+
+| Phần | Nội dung | Bắt buộc | Ví dụ |
+|---|---|---|---|
+| Observation | Một câu: điều gì lệch | ✅ | "Doanh thu T9 đạt 82% kế hoạch." |
+| Evidence | Danh sách số liệu kèm **source chip** (metric value / bản ghi / trang tài liệu) | ✅ ≥ 1 nguồn | METRIC-FIN-01 = 82%; 3 deal lớn trượt sang T10 |
+| Impact | Tác động ước lượng lên trụ khác (nếu có), có nguồn | Tùy | "Runway giảm từ 9,1 xuống 8,4 tháng nếu kéo dài 2 tháng." |
+| Recommendation | 1–3 hành động; mỗi hành động có thể là suggestion chip (L1) hoặc action card (L2) | ✅ | "Giao VP Sales rà 3 deal; xem xét lùi chi marketing Q4." |
+| Confidence | `high / medium / low` + lý do (độ tươi, chất lượng dữ liệu) | ✅ | "Trung bình — mới có 62% hóa đơn T9." |
 
 Quy tắc:
-- Click thẳng từ AlertCard vào Metric Detail đã lọc theo điều kiện alert (ví dụ ALERT-FIN-05 → bảng hóa đơn quá hạn) — vẫn ≤ 3 click.
-- Từ Metric Detail có thể bỏ qua bước 2 bằng link "Xem tài liệu gốc" khi metric chỉ có 1 tài liệu nguồn (ví dụ METRIC-FIN-02 → trang P&L của #1) → 2 click.
-- Breadcrumb luôn hiển thị: `Dashboard › METRIC-xx › Bản ghi › Tài liệu`; nút quay lại giữ bộ lọc.
-- Mã màn hình (SCR-xx) chính thức do `06-UI-UX-SPEC.md` gán (xem OQ-05).
+- Insight sinh bởi `ai_core` khi nhận event hoặc alert mới (debounce 5 phút/trụ), và theo lịch 06:00 hằng ngày cho Briefing. **Mọi con số phải đến từ `ENT-MetricValue` hoặc tool call** (P05); insight không có nguồn bị loại.
+- Insight gắn trụ, mức `info / warning / critical`, `expires_at`; lọc theo quyền người xem (02 §6) — Evidence ngoài scope bị ẩn và insight đó không hiển thị nếu Observation phụ thuộc dữ liệu ngoài scope.
+- Insight là L0 (Inform); hành động trong Recommendation tuân theo `ENT-AutonomyPolicy` (02 §7).
+- Feedback 👍/👎 trên từng insight (US-ALL-03).
+- AI lỗi → panel insight báo "Trợ lý AI tạm thời không khả dụng"; dashboard vẫn chạy (P08).
 
-### 4.2. Panel P01 — nội dung bắt buộc
+### 7.2. Briefing CEO (F1)
 
-Mọi con số trên dashboard (card, trục biểu đồ, ô bảng, số trong alert) đều click được và mở panel chứa:
+Briefing là trang chủ SCR-01 của ROLE-01 (biến thể theo role ở §10). Thứ tự khối (P07 — ngoại lệ trước):
 
-| # | Thành phần P01 | Nội dung | Nguồn dữ liệu |
+| # | Khối | Nội dung | Giới hạn |
 |---|---|---|---|
-| 1 | **Công thức tính** | Công thức dạng đọc được (tiếng Việt) + biểu thức kỹ thuật (như cột "Công thức" §2) | `ENT-Metric.formula` |
-| 2 | **Nguồn dữ liệu** | Entity nguồn + loại tài liệu (ví dụ "ENT-Invoice — Danh sách hóa đơn T9") | `ENT-Metric.source_entity` + lineage |
-| 3 | **Thời điểm cập nhật** | `computed_at` dạng `05/10/2026 08:30` + kỳ dữ liệu (`T9/2026`) + nhãn độ tươi | `ENT-MetricValue` |
-| 4 | **Bản ghi gốc** | Danh sách bản ghi tham gia phép tính (có phân trang, tổng khớp con số) | Lineage `ENT-MetricValue` → entity |
-| 5 | **Tài liệu gốc (nếu có)** | Link tới `ENT-SourceDocument` + trang + vùng tô; nếu nhập tay (C1) ghi "Nhập tay bởi … lúc …" | `ENT-ExtractedField.source_location` |
+| 1 | Dòng tóm tắt | Một câu: "2 việc cần anh, 1 rủi ro mới, 3/5 trụ ổn" | 1 dòng |
+| 2 | 5 thẻ trụ | §4; trụ xấu nhất đứng đầu | 5 |
+| 3 | Cần anh quyết | Action card L2 chờ xác nhận, rủi ro chờ chấp nhận, kế hoạch/ngân sách chờ duyệt | ≤ 5, "xem thêm" |
+| 4 | Thay đổi đáng chú ý | Insight `warning/critical` mới từ Briefing trước | ≤ 5 |
+| 5 | Rủi ro | Rủi ro mới/đổi level trong 24 giờ | ≤ 3 |
+| 6 | AI đã làm | Hành động L3 trong 24 giờ, nút hoàn tác (SCR-17) | ≤ 3 |
+| 7 | 4 chỉ số ghim | Người dùng tự chọn 4 metric (`dashboard:write`) | 4 |
+| 8 | Độ tươi | Dòng "Dữ liệu cũ: …" liệt kê metric quá `FRESHNESS_STALE_DAYS` | 1 dòng |
 
-Kiểm tra: **không có con số "mồ côi"** — số không có lineage không được render (hiển thị `—` + "Chưa có nguồn").
+- Mục "bình thường" gộp 1 dòng ("Các chỉ số khác trong ngưỡng"); không liệt kê.
+- Mục tiêu: trả lời "có gì cần tôi?" ≤ 10 giây; F1 Briefing → giao việc ≤ 2 phút, ≤ 5 chạm (01 §4).
+- Briefing được tính sẵn lúc 06:00 và cập nhật gia tăng khi có alert critical; mở trang không gọi LLM đồng bộ.
 
-### 4.3. Lineage
+---
 
-```
-ENT-MetricValue ──(n)──► bản ghi entity (ENT-Invoice / ENT-Task / ENT-Employee / …)
-                             └──► ENT-ExtractedField ──► ENT-ExtractionJob ──► ENT-SourceDocument (+ page, bbox)
-                             └──► ENT-ExtractionReview (người duyệt, thời điểm)
-```
+## 8. Drill-down & lineage (P01)
 
-- Lineage được ghi tại thời điểm commit qua Action Registry (không tính lại khi xem).
-- Tổng các bản ghi gốc phải khớp giá trị metric (sai lệch do làm tròn chỉ ở hiển thị).
+### 8.1. Chuỗi drill-down ≤ 3 click
 
-### 4.4. Drill-down theo quyền
+| Click | Từ | Đến | Nội dung |
+|---|---|---|---|
+| 0 | SCR-01 / thẻ trụ | — | Giá trị metric + trạng thái |
+| 1 | Thẻ metric | SCR-07 Chi tiết metric | Công thức, giá trị, trend, ngưỡng, độ tươi, chất lượng dữ liệu, alert liên quan, bảng **thành phần** (phòng ban/sản phẩm/khách hàng) |
+| 2 | Dòng thành phần | Bản ghi domain (Invoice, Deal, Employee…) trong panel bên | Trường dữ liệu, người nhập, thời điểm, kênh nhập (C1–C5), lịch sử sửa |
+| 3 | Nút "Tài liệu gốc" | Trình xem tài liệu tại **trang và vùng** (bounding box) của field | `ENT-DocumentPage` + highlight vùng nguồn |
 
-Tuân thủ 02 §3.5 và §4:
+### 8.2. Panel P01 (bắt buộc cho mọi con số)
 
-| Tình huống | Hành vi |
+Bấm vào **bất kỳ** con số (thẻ trụ, bảng, biểu đồ, câu trả lời AI) mở popover gồm: tên metric/field, công thức (dạng chữ), giá trị và đơn vị, `computed_at`, nguồn (module + entity), số bản ghi cấu thành, nhãn độ tươi, nhãn chất lượng, link "Xem chi tiết" (SCR-07).
+
+### 8.3. Lineage
+
+- `ENT-DataLineage` nối `ENT-MetricValue → bản ghi domain → ENT-ExtractedField → ENT-DocumentPage` (thay `source_record_ids` của v1). Bản ghi nhập tay dừng ở bản ghi domain + người nhập.
+- Hoàn tác commit IDP (`EVT-idp.document_rolled_back`) → metric phụ thuộc được tính lại và lineage cập nhật.
+- Lineage tôn trọng scope (02 §6.1 #4): nút ngoài quyền hiển thị "Nguồn thuộc phạm vi khác — không có quyền xem"; tài liệu mức 4 chỉ mở cho role được phép (02 §6.3).
+
+---
+
+## 9. Hợp đồng dữ liệu dashboard, cache & NFR
+
+| Hạng mục | Yêu cầu |
 |---|---|
-| Bản ghi gốc thuộc trụ ngoài scope role | Hiển thị "Nguồn thuộc phạm vi khác — không có quyền xem" (không ẩn im lặng) |
-| Role có mức view-agg cho trụ | Chỉ thấy panel P01 mục 1–3 + tổng hợp; không có bản ghi chi tiết, không link tài liệu |
-| CEO/CFO drill-down metric dùng tài liệu #6 (lương cá nhân) | Dừng ở bản ghi tổng hợp; link file hiển thị "Tài liệu chứa dữ liệu lương cá nhân — chỉ HR Manager được mở" |
-| Danh sách nhân sự trong drill-down HR | Hiển thị họ tên, phòng ban, chức danh, ngày vào/nghỉ; **không** hiển thị lương với role không có quyền |
-| Mở tài liệu gốc chứa dữ liệu cá nhân | Ghi audit log; bị từ chối cũng ghi audit log |
+| Endpoint | 5 endpoint `/{domain}/dashboard` (`finance`, `hr` + `execution` cho PIL-O, `sales`, `product`, `risk`) — **không có endpoint tổng hợp chung** để đảm bảo cô lập lỗi; Briefing và metric/lineage có endpoint riêng (10) |
+| Tham số | `period` = `current_month / current_quarter / ytd` (Finance thêm `custom` với `start_date`, `end_date`) |
+| Cấu trúc | `summary` (KPI số phẳng + `status` từng metric) + ≥ 1 chuỗi `*_trend` (mảng phẳng, key ổn định, tăng dần theo thời gian) để vẽ trực tiếp; mỗi metric kèm `metric_id`, `computed_at`, `freshness`, `data_quality_pct` |
+| Cache | `Cache-Control: private, max-age=60` + **bắt buộc `Vary: Authorization`**; cache server theo (user scope, period) TTL 60 s, xóa khi metric liên quan tính lại |
+| Frontend | Gọi song song 5 endpoint (TanStack Query, mỗi widget một query); không tự tính KPI; đổi role → xóa cache (02 §9.2 R3) |
+| NFR-dashboard-1 | Endpoint dashboard **p95 < 800 ms** |
+| NFR-dashboard-2 | Cả 5 trụ tải xong **< 3 giây** (desktop, mạng văn phòng) |
+| NFR-dashboard-3 | Độ trễ dữ liệu tối đa **60 giây** so với nguồn |
+| NFR-dashboard-4 | Một module hoặc AI lỗi không làm hỏng dashboard (FR-DSH-07) |
+| NFR-dashboard-5 | Mọi ngưỡng là biến cấu hình, không hard-code |
+| NFR-dashboard-6 | Đọc được trên màn ≥ 1280 px không cuộn ngang; mobile hiển thị Briefing + thẻ trụ dạng danh sách (SCR-28) |
+| NFR-dashboard-7 | Hai tài khoản trên cùng trình duyệt không đọc chung cache |
+
+Mã NFR chính thức (`NFR-xx`) do `07-TECH-ARCHITECTURE.md` cấp; các dòng trên là nhãn nội bộ của file này.
 
 ---
 
-## 5. Hiển thị dashboard theo role
+## 10. Hiển thị theo role
 
-### 5.1. Bảng role × trụ × metric
-
-Mức quyền theo 02 §3.2/§3.7: **V** = view đầy đủ (gồm drill-down trong scope); **Agg** = view-agg (chỉ số tổng hợp); **—** = không hiển thị.
-
-| Role | Dashboard chính | FIN (01–06) | CUS (01–05) | OPS (01–04) | HR (01–03) | Alert nhận | Mặc định khi đăng nhập |
-|---|---|---|---|---|---|---|---|
-| ROLE-01 CEO | Toàn bộ 4 trụ | V (6) | V (5) | V (4) | V (3; lương cá nhân chỉ tổng hợp) | 18 alert | Dashboard CEO 4 trụ |
-| ROLE-02 CFO | Tài chính + Vận hành | V (6) | Agg (5) | V (4) | Agg (3; chi phí nhân sự tổng) | ALERT-FIN-*, ALERT-OPS-* | Trụ Tài chính mở rộng |
-| ROLE-03 Sales Director | Khách hàng + doanh thu | Chỉ METRIC-FIN-01 (V) | V (5) | Agg (4) | — | ALERT-CUS-* | Trụ Khách hàng mở rộng |
-| ROLE-04 HR Manager | Con người | Chỉ doanh thu tổng (Agg, phục vụ METRIC-HR-01) | — | V (4) | V (3) | ALERT-HR-* | Trụ Con người mở rộng |
-| ROLE-05 Reviewer | Hàng chờ IDP | — | — | — | — | Không | Hàng chờ IDP (không có dashboard 4 trụ) |
-
-- Chuyển vai trò demo phải render dashboard mới **≤ 2 giây** (01 §4).
-- Metric ngoài scope **không render** (không hiển thị card khóa) để tránh gây nhiễu; API không trả giá trị (enforce ở backend).
-
-### 5.2. Layout dashboard (desktop)
-
-```
-┌───────────────────────────────────────────────────────────┬──────────────┐
-│ Vùng 1: Lời chào "Chào anh/chị …" + tóm tắt 1 câu AI (L1)│              │
-├───────────────────────────────────────────────────────────┤  Panel AI    │
-│ Vùng 2: 4 ô tổng quan trụ (FIN | CUS | OPS | HR)          │  (hỏi đáp,   │
-│   mỗi ô: metric chủ lực + số alert đang mở + màu sức khỏe │   gợi ý L1,  │
-├───────────────────────────────────────────────────────────┤   trạng thái │
-│ Vùng 3: "Cần anh/chị quyết" — AlertCard (Critical trước)  │   AI P02)    │
-├───────────────────────────────────────────────────────────┤              │
-│ Vùng 4: Lưới MetricCard + biểu đồ chi tiết theo trụ       │              │
-└───────────────────────────────────────────────────────────┴──────────────┘
-```
-
-- Ô tổng quan trụ có màu theo alert nặng nhất trong trụ (đỏ > vàng > xanh).
-- Role chỉ thấy các ô trụ trong scope (§5.1); Reviewer được điều hướng thẳng tới hàng chờ IDP.
-- Responsive: mobile xếp 1 cột, Panel AI chuyển thành nút nổi (chi tiết ở `06-UI-UX-SPEC.md`).
-
-### 5.3. Component cần build
-
-| Component | Mô tả | Yêu cầu |
-|---|---|---|
-| MetricCard | Số + sparkline + màu ngưỡng + nhãn độ tươi | Click → Metric Detail (P01); định dạng P04 |
-| AlertCard | Mức độ + mô tả + hành động đề xuất (AI gợi ý L1) | Acknowledge/dismiss theo quyền; click → Metric Detail đã lọc |
-| PillarSummary | Ô tổng quan 1 trụ | Màu theo alert nặng nhất |
-| TrendChart | Bar / line / bar + line kế hoạch | Mọi điểm dữ liệu click được |
-| GaugeChart | Gauge có vùng xanh/vàng/đỏ | Dùng cho FIN-03, CUS-05, OPS-03, HR-03 |
-| BreakdownTable | Bảng phân rã drill-down | Phân trang; tổng khớp metric |
-| LineagePanel | Panel P01 5 thành phần (§4.2) | Hiển thị thông báo chặn quyền (§4.4) |
-| SourceViewer | Tài liệu gốc + vùng tô `source_location` | Mở đúng trang; ghi audit log |
-
----
-
-## 6. Yêu cầu phi chức năng dashboard
-
-| Yêu cầu | Ngưỡng | Nguồn |
-|---|---|---|
-| Drill-down số → tài liệu gốc | ≤ 3 click | 01 §4 |
-| Chuyển vai trò dashboard | ≤ 2 giây | 01 §4 |
-| Thời gian đến insight đầu tiên (CEO) | ≤ 10 giây | 01 §4 |
-| Cập nhật dashboard sau khi Reviewer duyệt tài liệu | Metric phụ thuộc tính lại và hiển thị ở lần tải kế tiếp (không cache dữ liệu cũ) | 01 §2.2, §11 |
-| Định dạng số/ngày | Theo P04 cho mọi nhãn, trục, tooltip | 01 §6 |
-| Chuỗi hiển thị | Qua i18n, không hard-code | CLAUDE.md |
-
----
-
-## 7. Open questions
-
-| ID | Câu hỏi | Ảnh hưởng | Đề xuất tạm |
+| Role | Trang chủ (SCR-01) | Trụ trên Dashboard | Ghi chú |
 |---|---|---|---|
-| OQ-01 | Các entity logic ENT-Opportunity, ENT-Decision, ENT-Project, ENT-Budget, ENT-CashBalance, ENT-Survey, ENT-Customer không nằm trong danh sách 12 entity hiện tại của `05-DATA-MODEL.md`. Mô hình hóa thành entity riêng hay lưu dạng giá trị KPI/MetricValue nhập từ #3, #5, #7? | Data model, IDP output mapping | Captain raise DEC; tạm thời coi là tên logic, `05` quyết định |
-| OQ-02 | Ngưỡng vàng/đỏ của 18 metric là giá trị mặc định do writer đề xuất cho công ty ABC; cần xác nhận từ business owner | Alert, seed data | Dùng làm seed demo; chỉnh trong `08-DEMO-DATA-SPEC.md` |
-| OQ-03 | METRIC-CUS-03 (NRR) cần dữ liệu doanh thu kỳ gốc (cùng quý năm trước), không có trong 7 tài liệu mẫu | Seed data | Seed dữ liệu lịch sử tổng hợp theo khách trong `08` |
-| OQ-04 | METRIC-CUS-05 (NPS) chưa có tài liệu nguồn rõ ràng trong 7 tài liệu mẫu | Seed data, IDP | Đưa kết quả khảo sát NPS vào #7 KPI/OKR hoặc nhập tay C1 |
-| OQ-05 | Mã SCR-xx cho Metric Detail / Source Viewer / Document Detail và EP-xx cho API metric/alert/lineage chưa được chốt | 06, 10 | `06-UI-UX-SPEC.md` và `10-API-SPECIFICATION.md` gán ID và tham chiếu ngược về spec này |
-| OQ-06 | METRIC-OPS-04 và METRIC-HR-03 dùng chung ngưỡng "> 8 task mở"; cần xác nhận có tách định nghĩa quá tải theo vai trò công việc không | Công thức | Giữ chung một ngưỡng trong MVP |
-| OQ-07 | Phạm vi alert OPS: theo 02 §3.3 ROLE-04 (HR) có view trụ OPS nhưng chỉ nhận `ALERT-HR-*`; ROLE-03 view-agg OPS không nhận `ALERT-OPS-*`. Giữ nguyên hay mở rộng? | Phân phối alert | Giữ đúng 02 §3.3 |
+| ROLE-01 CEO | Briefing công ty (§7.2) | F, O, C, U, S | Đầy đủ drill-down; lương cá nhân chỉ ở HR workspace |
+| ROLE-02 CFO | Briefing tài chính: F + S, ngân sách, dự báo, kế hoạch tuyển dụng chờ duyệt | F, S đầy đủ; O, C, U chỉ tổng hợp | |
+| ROLE-03 VP_SALES | Briefing kinh doanh: C, pipeline, deal sắp đóng | C đầy đủ; U tổng hợp; F chỉ METRIC-FIN-01 | |
+| ROLE-04 HR_MANAGER | Briefing nhân sự: O, tuyển dụng trễ, quá tải | O đầy đủ | METRIC-HR-01 dùng doanh thu tổng |
+| ROLE-05 REVIEWER | Hàng chờ review + SLA (SCR-08) | — | Không có dashboard |
+| ROLE-06 CPO | Briefing sản phẩm: U, roadmap quý | U đầy đủ; C tổng hợp | |
+| ROLE-07 RISK_MANAGER | Briefing rủi ro: S, alert chưa xác nhận | S đầy đủ; F, O, C, U tổng hợp | |
+| ROLE-08 MANAGER | Briefing đơn vị: hàng chờ duyệt, workload, task trễ, chi tiêu vs ngân sách phòng ban | — | Số liệu đơn vị ở workspace |
+| ROLE-09 EMPLOYEE | Việc hôm nay, mục tiêu của tôi | — | |
+| ROLE-10 ADMIN | Tình trạng hệ thống, sự cố AI, ngân sách AI | — | Không xem số nghiệp vụ |
+
+Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàng 2 năm thẻ trụ; hàng 3 insight panel (trái) + alert mở (phải); Panel AI trượt bên phải. Chi tiết component ở `06-UI-UX-SPEC.md`.
 
 ---
 
-## 8. Liên kết
+## 11. Open questions
+
+| # | Câu hỏi | Đề xuất mặc định | Ảnh hưởng |
+|---|---|---|---|
+| OQ-01 | METRIC-FIN-02 cần hạng mục chi `cogs` (A-EMS không có) — chấp nhận thêm hạng mục này? | Có; giá vốn = Expense `cogs`; dữ liệu demo ABC phân bổ giá vốn hàng bán | 05 `ENT-Expense.category`, 08 |
+| OQ-02 | Giá trị kế hoạch `HR_REVENUE_PER_HEAD_PLAN` (METRIC-HR-01) lấy từ đâu? | Biến cấu hình do CEO/HR nhập; demo = 2,0 tỷ/người/năm | 08, SCR-15/27 |
+| OQ-03 | METRIC-HR-03 cần `Task.estimate_hours` — nếu thiếu thì tính workload thế nào? | Thiếu estimate → mỗi task mở = 4 giờ (`DEFAULT_TASK_HOURS`) | 05 `ENT-Task` |
+| OQ-04 | METRIC-CUS-05 NPS lấy từ ProductMetric (sản phẩm) hay khảo sát khách hàng riêng? | Từ `ENT-ProductMetric.nps` (v2 không có entity Survey) | 05, 08 |
+| OQ-05 | Ngưỡng warning của các metric A-EMS chỉ có 1 mức (vd. METRIC-CUS-01 < 3x là critical) — mức warning bổ sung (3,5x, Δ…) có cần human duyệt? | Dùng giá trị trong §2 làm mặc định, cấu hình được | §2, §3 |
+| OQ-06 | Rủi ro tự sinh từ `EVT-finance.forecast_updated`: điều kiện "lợi nhuận base giảm > 20%" có đúng ý không? | Giữ mặc định, cấu hình `RISK_FORECAST_DROP_PCT` | BR-RSK-03 |
+| OQ-07 | Briefing có gửi qua kênh ngoài (Zalo/Slack/email) không? | Không ở v2; chỉ in-app (+ email critical nếu bật FR-NTF-02) | FR-NTF |
+| OQ-08 | METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Trọng số bằng nhau (1) | 05 `ENT-Objective` |
+
+Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
+
+---
+
+## 12. Liên kết
 
 | Chủ đề | File |
 |---|---|
-| Phạm vi, KPI, nguyên tắc P01–P04 | `01-PROJECT-OVERVIEW.md` |
-| Quyền theo role, data scoping | `02-PERSONAS-PERMISSIONS.md` |
-| Pipeline IDP ghi vào metric/entity | `04-IDP-FEATURE-SPEC.md` |
-| ENT-Metric, ENT-MetricValue, ENT-Alert | `05-DATA-MODEL.md` |
-| Màn hình, component, design system | `06-UI-UX-SPEC.md` |
-| Dữ liệu demo, giá trị ngưỡng seed | `08-DEMO-DATA-SPEC.md` |
-| API metric / alert / lineage | `10-API-SPECIFICATION.md` |
+| Tầm nhìn, nguyên tắc P01–P09 | `01-PROJECT-OVERVIEW.md` |
+| Role, permission, scope, tool filter | `02-PERSONAS-PERMISSIONS.md` |
+| IDP, Action Registry, OKR/KPI capture, US-DC | `04-IDP-FEATURE-SPEC.md` |
+| ENT-Metric, ENT-MetricValue, ENT-Alert, ENT-DataLineage, entity domain | `05-DATA-MODEL.md` |
+| SCR-01..07, thẻ trụ, Panel P01, mẫu L1/L2/L3 | `06-UI-UX-SPEC.md` |
+| Metric store, outbox, Celery beat, NFR-xx | `07-TECH-ARCHITECTURE.md` |
+| Dữ liệu demo ABC cho 31 metric | `08-DEMO-DATA-SPEC.md` |
+| Endpoint dashboard, metric, alert, briefing, event | `10-API-SPECIFICATION.md` |
+| Quyết định | `13-DECISION-LOG.md` (DEC-125, DEC-126, DEC-127, DEC-132) |
 
 ---
 
-## 9. Version
+## 13. Version
 
-- **Version:** 1.0.0
-- **Last updated:** 2026-10-17
-- **Applies to:** Aureon Demo v1.0
+- **Version:** 2.0.0
+- **Last updated:** 2026-10-19
+- **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
+- **Change:** Viết lại toàn bộ theo DEC-124, DEC-127 (5 trụ F.O.C.U.S, 31 metric/alert, BR và FR domain từ A-EMS, bộ chỉ số sức khỏe AI-EOS). Bản 1.0.0 (4 trụ, 18 metric) lưu ở nhánh `v1`.

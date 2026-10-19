@@ -1,491 +1,682 @@
-# 06 — UI/UX Spec
+# 06 — UI/UX Spec (v2)
 
-> Đặc tả giao diện Aureon Demo: nguyên tắc UX, kiến trúc thông tin, danh sách màn hình `SCR-xx`, component, design system (§6 — màu AI, trạng thái AI L1/L2/L3), định dạng Việt Nam, i18n, responsive/PWA, a11y và mapping luồng demo 15 phút.
-> Nguồn: `01-PROJECT-OVERVIEW.md` §2–§6, §11; `02-PERSONAS-PERMISSIONS.md` (quyền, §5 role switcher); `03-DASHBOARD-SPEC.md` (metric, alert, drill-down P01); `04-IDP-FEATURE-SPEC.md` (pipeline, state machine, autonomy, UC-07).
-> File này là **nơi gán chính thức mã SCR-xx** (giải quyết 03 OQ-05 phần SCR).
+> Đặc tả trải nghiệm, kiến trúc thông tin, 28 màn hình `SCR-01..28`, bộ component AI, luồng F1–F5 và design system v2 của **Aureon v2**.
+> Nguồn: `01-PROJECT-OVERVIEW.md` §2, §5, §6, §11; `02-PERSONAS-PERMISSIONS.md`; `03-DASHBOARD-SPEC.md`; `04-IDP-FEATURE-SPEC.md`; đề xuất UI/UX AI-EOS (hợp nhất theo DEC-124); DEC-127, DEC-128, DEC-132, DEC-133, DEC-134, DEC-135.
+> ID màn hình, role, metric theo registry `00-INDEX.md` §4. Stack UI: Next.js App Router + Tailwind + shadcn/ui (Radix) + Recharts + next-intl (07).
 
 ---
 
 ## 1. Nguyên tắc UX
 
-| Mã | Nguyên tắc | Hệ quả thiết kế | Liên kết |
+### 1.1. Tám nguyên tắc giao diện (U1–U8)
+
+Mọi màn hình được duyệt theo 8 nguyên tắc; vi phạm phải nêu lý do trong PR.
+
+| # | Nguyên tắc | Ý nghĩa trên giao diện | Kiểm tra nhanh |
 |---|---|---|---|
-| U2 | Hỏi ở bất kỳ đâu | Panel AI có mặt ở mọi màn hình chính (dashboard, metric detail, review); câu hỏi mang ngữ cảnh màn hình hiện tại | §5 |
-| U3 | Mọi con số có nguồn | Mọi số đều click được → LineagePanel (công thức, nguồn, thời điểm cập nhật, bản ghi gốc, tài liệu gốc). Không có số "mồ côi" | P01, 03 §4 |
-| U4 | AI hiển thị trạng thái thật | Mọi đầu ra AI gắn AIStateBadge L1/L2/L3 bằng màu AI riêng | P02, §6.3 |
-| U5 | Nhập một lần, nhập ở đâu cũng được | Nút "Nạp dữ liệu" ở trạng thái empty của mọi trụ đưa về cùng SCR-08; không có form nhập lại dữ liệu đã có | P03 |
-| U6 | Hành động ngay tại chỗ | Alert có hành động (xem chi tiết, acknowledge) ngay trên card; Review sửa field inline | 03 §3 |
-| U7 | Hai mật độ (Thoáng/Gọn) | Toggle mật độ: Thoáng (mặc định) / Gọn (bảng dày, phù hợp Reviewer/CFO); lưu theo user | §6.5 |
-| U8 | Tiếng Việt mặc định | Locale mặc định `vi-VN`, định dạng P04, xưng hô "anh/chị"; chuỗi qua i18n | P04, §7 |
+| U1 | **Ngoại lệ trước, chi tiết sau** | Màn hình đầu chỉ hiện điều lệch kế hoạch, việc cần quyết, rủi ro mới; mọi thứ "bình thường" gộp thành một dòng | CEO trả lời "có gì cần tôi?" trong 10 giây |
+| U2 | **Hỏi ở bất kỳ đâu** | Thanh AI ⌘K luôn sẵn, hiểu ngữ cảnh màn hình hiện tại | Không cần chuyển trang để hỏi |
+| U3 | **Mọi con số có nguồn** | Con số bấm được → popover công thức, nguồn, thời điểm cập nhật, bản ghi, tài liệu gốc | Không có con số "mồ côi" |
+| U4 | **AI hiển thị trạng thái thật** | Phân biệt rõ AI gợi ý / AI soạn chờ xác nhận / AI đã làm | Người dùng trả lời được "AI vừa làm gì?" |
+| U5 | **Nhập một lần, nhập ở đâu cũng được** | Thả file vào bất kỳ màn hình; AI đoán đích theo ngữ cảnh | Cập nhật task ≤ 10 giây; gửi chứng từ ≤ 3 chạm trên mobile |
+| U6 | **Hành động ngay tại chỗ** | Mỗi insight/cảnh báo có nút giao việc, hỏi thêm, bỏ qua trên thẻ | Không có cảnh báo "chỉ để xem" |
+| U7 | **Hai mật độ cho hai kiểu người** | Thoáng cho lãnh đạo; Gọn cho Reviewer, Finance, Admin; cùng component | Reviewer xử lý hoàn toàn bằng bàn phím |
+| U8 | **Tiếng Việt là mặc định** | Nhãn, số, ngày chuẩn VN; thuật ngữ quản trị quen thuộc giữ EN (KPI, OKR, pipeline) | Không nhãn dịch máy gượng gạo |
 
-> U1 của tài liệu nguồn không áp dụng cho bản demo (đã lược bỏ).
+### 1.2. Ánh xạ nguyên tắc sản phẩm P01–P09 (01 §6) → UI
 
-KPI UX bắt buộc (01 §4):
-
-| KPI | Ngưỡng | Màn hình chịu trách nhiệm |
+| P | Nguyên tắc | Hiện thực UI |
 |---|---|---|
-| Drill-down số → tài liệu gốc | ≤ 3 click | SCR-01..04 → SCR-09 → SCR-10 |
-| Review 1 tài liệu (6 trường) | ≤ 60 giây | SCR-06 |
-| Chuyển vai trò dashboard | ≤ 2 giây | SCR-12 → SCR-01..05 |
-| Thời gian đến insight đầu tiên (CEO) | ≤ 10 giây | SCR-01 |
-| Onboarding từ tập tài liệu | ≤ 15 phút | SCR-08 (UC-07) → SCR-05/06 |
-| SUS score | ≥ 75 | Toàn bộ |
+| P01 | Every number traceable | `MetricValue` luôn là nút mở `LineagePopover`; biểu đồ bấm vào điểm dữ liệu (§6.5) |
+| P02 | AI shows state | Mẫu cố định theo Autonomy (§5.2); token `ai` chỉ dùng cho nội dung AI |
+| P03 | Capture once, use everywhere | `GlobalDropZone` ở mọi màn hình; không form nhập lại dữ liệu đã có |
+| P04 | Vietnamese-first | §7 định dạng VN + i18n |
+| P05 | AI never fabricates numbers | Số trong câu trả lời AI luôn kèm `SourceChip`; số không có nguồn không được render đậm/định dạng metric |
+| P06 | AI within user's permission | Panel AI hiển thị "AI đang xem: …" và phạm vi dữ liệu của role; không gợi ý câu hỏi ngoài quyền |
+| P07 | Exceptions first | = U1; SCR-01 theo role (§4.1) |
+| P08 | Graceful degradation | Mỗi widget có `error` riêng; khi AI lỗi, mọi luồng còn đường làm tay (§5.4) |
+| P09 | Event-driven, vendor-agnostic | Cập nhật realtime nhẹ (refetch 60 s, badge "Có dữ liệu mới"); không hiển thị tên nhà cung cấp LLM cho user thường |
+
+### 1.3. Sáu quyết định UX chính
+
+1. **Trang chủ theo vai trò, lấy ngoại lệ làm trung tâm** — CEO thấy Briefing và "Cần anh quyết", Manager thấy team và hàng chờ duyệt, Employee thấy việc hôm nay. Không có một dashboard chung cho mọi người (SCR-01).
+2. **Một thanh AI dùng ở mọi màn hình (⌘K / Ctrl+K)** — hỏi, ra lệnh, nhập liệu bằng lời, thả file; AI biết người dùng đang ở đâu, xem gì (SCR-16).
+3. **Mọi con số bấm được** để xem nguồn, thời điểm cập nhật, tài liệu gốc — cơ chế chính tạo niềm tin (SCR-07).
+4. **Nhập liệu không có "màn hình nhập liệu"** — thả file ở bất kỳ đâu, chụp trên mobile, hoặc nói; mọi thứ về Hộp thư dữ liệu và màn Review song song (SCR-08, SCR-10).
+5. **Mỗi Autonomy Level có một mẫu giao diện cố định** — gợi ý, bản nháp chờ xác nhận, đã làm + hoàn tác (§5).
+6. **Mobile chỉ làm 4 việc thật tốt** — đọc Briefing, hỏi AI, chụp/gửi tài liệu, duyệt; cấu hình và phân tích sâu ở desktop (SCR-28).
+
+### 1.4. Phát hiện thiết kế then chốt
+
+- CEO dùng theo nhịp ngắn (< 5 phút/lượt) → màn đầu trả lời "có gì cần tôi?" không cần cuộn.
+- Niềm tin quyết định mức sử dụng → nguồn, độ tươi, độ tin cậy luôn hiển thị nhưng không chiếm chỗ.
+- Employee quyết định chất lượng dữ liệu → mọi cập nhật ≤ 10 giây.
+- Reviewer là người dùng chuyên nghiệp → mật độ cao, phím tắt, xử lý hàng loạt.
+- AI làm việc cả khi không ai hỏi → có chỗ riêng cho "AI đã làm" và "AI đề xuất", tách khỏi thông báo thường.
 
 ---
 
-## 2. Kiến trúc thông tin (IA)
+## 2. Kiến trúc thông tin (IA) và điều hướng
 
-### 2.1. Điều hướng chính (sidebar)
+Điều hướng tổ chức theo **việc người dùng muốn làm**, không theo module kỹ thuật. Thanh trên cùng là nơi bắt đầu phần lớn tác vụ; sidebar dùng khi cần vào sâu một module.
 
-| # | Mục | Màn hình | Role thấy mục (theo 02 §3) |
+### 2.1. Sidebar (mục cấp 1)
+
+| # | Mục | Màn hình | Ghi chú |
 |---|---|---|---|
-| 1 | Dashboard | SCR-01..04 (theo role active) | ROLE-01..04 |
-| 2 | Hàng chờ (Inbox) | SCR-05 | ROLE-01 (chỉ xem), ROLE-02 (trụ FIN), ROLE-04 (trụ HR), ROLE-05 (tất cả) |
-| 3 | Tài liệu | SCR-07 | ROLE-01..05 (lọc theo scope 02 §3.4) |
-| 4 | Nạp dữ liệu | SCR-08 (Upload thường / Nạp doanh nghiệp UC-07) | Upload: ROLE-01..05; chế độ UC-07: chỉ ROLE-01, ROLE-05 |
-| 5 | Schema tài liệu | SCR-11 (chỉ đọc, P1) | ROLE-05 |
-| 6 | Nhật ký (Audit) | SCR-14 | ROLE-01 |
-
-- Review (SCR-06), Metric Detail (SCR-09), Source Viewer (SCR-10) **không** nằm trên sidebar; chỉ vào qua ngữ cảnh (Inbox, MetricCard, link tài liệu).
-- Role Switcher (SCR-12) nằm ở top bar, chỉ hiển thị khi cờ demo mode bật (02 §5.1).
-- Mục "Analytics (chất lượng AI)" và "Settings (user/role)" của bản phác thảo cũ **không** có trong MVP: 02 §3.6 không có role Admin và không có UI quản trị; KPI IDP đo qua log (OQ-03).
-- Mục không có quyền → **ẩn** khỏi sidebar; backend vẫn enforce (02 §4.1).
+| 1 | Trang chủ | SCR-01 | Nội dung theo role (§4.1) |
+| 2 | Hỏi AI | SCR-16, SCR-17 | Chat + feed "AI đã làm" |
+| 3 | Hộp thư dữ liệu | SCR-08, SCR-09, SCR-10, SCR-11, SCR-12 | Badge số tài liệu chờ |
+| 4 | Mục tiêu | SCR-20 | OKR / KPI, check-in |
+| 5 | Công việc | SCR-19 | Task, dự án, workload |
+| 6 | Họp | SCR-18 | Biên bản → quyết định → việc |
+| 7 | F.O.C.U.S | SCR-02..06, SCR-07 | Nhóm 5 trụ; chỉ hiện trụ role được xem |
+| 8 | Nghiệp vụ | SCR-22, SCR-23, SCR-24, SCR-25 | Finance / Sales / HR / Product workspace |
+| 9 | Rủi ro | SCR-21 | Sổ rủi ro & What-if |
+| — | Quản trị (tách riêng, cuối sidebar) | SCR-14, SCR-15, SCR-26, SCR-27 | Audit, AI Control Center, user & role, loại tài liệu |
 
 ### 2.2. Top bar
 
-`[Logo Aureon] [Breadcrumb] ……… [Ô hỏi AI (U2)] [Thông báo AI] [Toggle mật độ] [Role Switcher SCR-12] [Avatar]`
+Logo · breadcrumb nghiệp vụ · **thanh AI ⌘K** (ở giữa, rộng nhất) · nút "+ Gửi dữ liệu" (SCR-09) · thông báo · chọn ngôn ngữ VI/EN · role switcher (chỉ khi `DEMO_MODE=true`) · avatar/menu (mật độ, sáng/tối, đăng xuất).
 
-### 2.3. Route gợi ý (Next.js App Router)
+### 2.3. Hiển thị theo vai trò
 
-| Route | SCR |
-|---|---|
-| `/login` | SCR-13 |
-| `/dashboard` | SCR-01..04 (render theo role active) |
-| `/dashboard/metrics/[metricId]` | SCR-09 |
-| `/documents`, `/documents/[id]` | SCR-07 |
-| `/documents/[id]/source` | SCR-10 |
-| `/inbox` | SCR-05 |
-| `/review/[documentId]` | SCR-06 |
-| `/upload`, `/upload/onboarding` | SCR-08 (thường / UC-07) |
-| `/schemas` | SCR-11 |
-| `/audit` | SCR-14 |
+| Mục | ROLE-01 CEO | ROLE-02 CFO | ROLE-03 VP_SALES | ROLE-04 HR_MANAGER | ROLE-05 REVIEWER | ROLE-06 CPO | ROLE-07 RISK_MANAGER | ROLE-08 MANAGER | ROLE-09 EMPLOYEE | ROLE-10 ADMIN |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Trang chủ | Briefing công ty | Briefing F + S | Briefing C | Briefing O | Hàng chờ + SLA | Briefing U | Briefing S | Briefing đơn vị | Việc hôm nay | Tình trạng hệ thống |
+| Hỏi AI | Toàn công ty | F, S | C | O | Tài liệu được phân | U | S | Trong đơn vị | Dữ liệu của tôi | Cấu hình, audit |
+| Hộp thư dữ liệu | Xem nguồn, UC-07 | Duyệt trụ F | Gửi | Duyệt nhân sự | Toàn bộ hàng chờ | Gửi | Gửi | Duyệt của đơn vị | Gửi, theo dõi | Schema, ngưỡng |
+| Mục tiêu | Toàn bộ | Toàn bộ (xem) | Khối KD | Toàn bộ (xem) | — | Khối SP | Toàn bộ (xem) | Đơn vị và cấp dưới | Của tôi + mục tiêu cha | — |
+| Công việc | Tổng quan thực thi | Của khối | Của khối | Của khối | — | Của khối | Của khối | Team, workload | Task của tôi | — |
+| Họp | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — |
+| F.O.C.U.S | F O C U S | F, S | C | O | — | U | S | — | — | — |
+| Nghiệp vụ | Tất cả (xem) | Finance | Sales | HR | — | Product | — | Theo quyền đơn vị | — | — |
+| Rủi ro | ✅ (chấp nhận rủi ro) | ✅ | Xem liên quan C | Xem liên quan O | — | Xem liên quan U | ✅ (quản lý) | Ghi nhận, mitigation | Xem danh mục | — |
+| Quản trị | Audit, AI Control Center, user | — | — | — | — | — | — | — | — | Tất cả |
 
-Route chính thức chốt ở `07-TECH-ARCHITECTURE.md`; endpoint gọi từ mỗi màn ở `10-API-SPECIFICATION.md`.
+Quyền thực tế do backend enforce (02 §ma trận quyền); bảng này chỉ là hiển thị.
+
+### 2.4. Quy tắc điều hướng
+
+- Mục không có quyền thì **ẩn hẳn**, không hiện rồi báo lỗi; truy cập URL trực tiếp → `ForbiddenState`.
+- Người có nhiều ngữ cảnh (vd. Manager kiêm Reviewer, hoặc demo) đổi ở top bar; Trang chủ đổi theo.
+- Breadcrumb theo chuỗi nghiệp vụ: Chiến lược › Objective › KR › Dự án › Task; hoặc Trụ › Metric › Bản ghi › Tài liệu.
+- Mọi entity có trang chi tiết cùng bố cục: tiêu đề + trạng thái, chỉ số chính, tab (Tổng quan · Liên kết · Lịch sử · Tài liệu gốc · Hoạt động AI), Panel AI bên phải.
+
+### 2.5. Route gợi ý (Next.js App Router)
+
+| Route | SCR | Route | SCR |
+|---|---|---|---|
+| `/login` | SCR-13 | `/ai` · `/ai/activity` | SCR-16 · SCR-17 |
+| `/` | SCR-01 | `/meetings` · `/meetings/[id]` | SCR-18 |
+| `/pillars/[f\|o\|c\|u\|s]` | SCR-02..06 | `/work` | SCR-19 |
+| `/metrics/[metricCode]` | SCR-07 | `/goals` | SCR-20 |
+| `/inbox` | SCR-08 | `/risks` · `/risks/[id]` | SCR-21 |
+| `/inbox/new` | SCR-09 | `/finance` · `/sales` · `/hr` · `/product` | SCR-22..25 |
+| `/inbox/[documentId]/review` | SCR-10 | `/admin/audit` | SCR-14 |
+| `/inbox/imports/[batchId]` | SCR-11 | `/admin/ai` | SCR-15 |
+| `/onboarding` | SCR-12 | `/admin/users` · `/admin/document-types` | SCR-26 · SCR-27 |
+
+SCR-28 (mobile shell) không có route riêng: là layout `< 768 px` của `/`, `/ai`, `/inbox/new`, `/inbox`.
 
 ---
 
-## 3. Danh sách màn hình (SCR)
+## 3. Danh sách màn hình (SCR-01..28)
 
 ### 3.1. Bảng tổng hợp
 
-| ID | Màn hình | Mục đích | Role | Ưu tiên | Nguồn spec |
-|---|---|---|---|---|---|
-| SCR-01 | Dashboard CEO | Bức tranh 4 trụ, "Cần anh/chị quyết" | ROLE-01 | P0 | 03 §5 |
-| SCR-02 | Dashboard CFO | Tài chính + Vận hành (CUS, HR tổng hợp) | ROLE-02 | P0 | 03 §5.1 |
-| SCR-03 | Dashboard Sales Director | Khách hàng + doanh thu (OPS tổng hợp) | ROLE-03 | P0 | 03 §5.1 |
-| SCR-04 | Dashboard HR Manager | Con người + Vận hành | ROLE-04 | P0 | 03 §5.1 |
-| SCR-05 | Hàng chờ IDP (Inbox) | Danh sách tài liệu `NEEDS_REVIEW`/`IN_REVIEW`/`FAILED`, lọc theo batch/trụ | ROLE-05 (tất cả), ROLE-02 (FIN), ROLE-04 (HR), ROLE-01 (xem, lương che) | P0 | 04 §8, 02 §3.4 |
-| SCR-06 | Review (chi tiết duyệt) | So tài liệu gốc ↔ field trích xuất, sửa, Approve/Reject ≤ 60s | ROLE-05, ROLE-02 (FIN), ROLE-04 (HR) | P0 | 04 §7, §8 |
-| SCR-07 | Tài liệu (danh sách + chi tiết) | Thư viện tài liệu, trạng thái, lịch sử, field, lineage tới metric, Undo | ROLE-01..05 (theo scope) | P0 | 04 §8 |
-| SCR-08 | Upload / Nạp doanh nghiệp | Upload kênh C1–C5; chế độ UC-07 7 bước (checklist, progress, tổng hợp, đối chiếu XD) | Upload: ROLE-01..05; UC-07: ROLE-01, ROLE-05 | P0 | 04 §2, §11 |
-| SCR-09 | Metric Detail (drill-down) | Panel P01 + xu hướng + BreakdownTable + bản ghi gốc | ROLE-01..04 (theo scope) | P0 | 03 §4 |
-| SCR-10 | Source Viewer | Tài liệu gốc, mở đúng trang, tô vùng `source_location` | ROLE-01..04 (scope), ROLE-05 (ngữ cảnh review) | P0 | 03 §4.1, 02 §3.5 |
-| SCR-11 | Extraction Schema (chỉ đọc) | Xem schema field của 7 doc type | ROLE-05 | P1 | 04 §5 |
-| SCR-12 | Role Switcher | Chuyển vai trò demo ≤ 2 giây | ROLE-01..05 (demo mode) | P0 | 02 §5 |
-| SCR-13 | Đăng nhập | Đăng nhập NextAuth + chọn user demo | Tất cả | P0 | 02 §5.2 R5 |
-| SCR-14 | Nhật ký audit | Tra cứu audit log (chuyển role, duyệt, commit, mở tài liệu cá nhân) | ROLE-01 | P1 | 02 §3.6, §4.4 |
-| SCR-15 | Cấu hình AI (chỉ đọc) | Hiển thị Autonomy theo doc type, trạng thái kill switch, ngưỡng confidence — **giá trị seed, không sửa qua UI** | ROLE-01, ROLE-05 (xem) | P1 | 04 §9, 02 §3.6 |
+Ký hiệu role: số = ROLE-xx (00 §4.1). "Tất cả" = ROLE-01..10.
 
-Ghi chú:
-- SCR-15 là màn "Settings/cấu hình autonomy" mà 04 nhắc tới nhưng chưa gán ID. Vì 02 §3.6 quy định không role nào sửa cấu hình hệ thống, SCR-15 **chỉ đọc** trong MVP; quyền sửa qua UI chờ quyết định (04 OQ-04, OQ-01 ở file này).
-- Bỏ "Schema Editor" (sửa) của bản phác thảo cũ — 02 §3.4 không role nào được sửa Extraction Schema → SCR-11 chỉ đọc.
+| SCR | Màn hình | Mục đích | Role | Thành phần chính | Ưu tiên |
+|---|---|---|---|---|---|
+| SCR-01 | Trang chủ theo vai trò (Briefing) | Trả lời "có gì cần tôi?" | Tất cả (nội dung theo role) | `BriefingSummary`, `PillarCard`×n, khối "Cần anh quyết", "Rủi ro", "AI đã làm", Panel AI | Must |
+| SCR-02 | Trụ F — Finance | Sức khỏe tài chính | 01, 02 | 7 `MetricCard` FIN, trend, alert list, insight trụ | Must |
+| SCR-03 | Trụ O — Operations & People | Vận hành & con người | 01, 04 | 3 OPS + 4 HR metric, workload mini-heatmap | Must |
+| SCR-04 | Trụ C — Customer & Growth | Pipeline, khách hàng | 01, 03 | 6 CUS metric, funnel pipeline, top khách | Must |
+| SCR-05 | Trụ U — Product & Innovation | Sản phẩm được dùng thật | 01, 06 | 5 PRD metric, roadmap progress, release timeline | Must |
+| SCR-06 | Trụ S — Strategy & Risk | Rủi ro & thực thi chiến lược | 01, 02, 07 | 6 RSK metric, risk heatmap 5×5, top rủi ro | Must |
+| SCR-07 | Chi tiết metric + lineage | Công thức → bản ghi → tài liệu | Role xem được trụ | Header metric, trend 6 kỳ, bảng bản ghi, `LineagePopover`, `SourceViewer` | Must |
+| SCR-08 | Hộp thư dữ liệu | Theo dõi mọi dữ liệu gửi lên | Tất cả trừ 10 (10 xem cấu hình) | Tab Của tôi / Chờ duyệt / Đã ghi / Lỗi, bộ lọc doc type, SLA badge | Must |
+| SCR-09 | Gửi dữ liệu | C1 form, C2 nói/gõ, C3 thả file, C4 chụp | Tất cả trừ 10 | `GlobalDropZone`, `CameraCapture`, `NaturalInput`, form C1 | Must |
+| SCR-10 | Review song song | Duyệt trích xuất ≤ 60 giây | 02, 04, 05, 08 (theo đơn vị) | `DocumentViewer` + vùng tô, `ExtractedFieldForm`, `ConfidenceBadge`, phím tắt | Must |
+| SCR-11 | Import grid (C5) | Map cột Excel/CSV, xem trước, ghi lô | 02, 03, 04, 05, 06, 07 | Bảng map cột, preview lỗi theo dòng, nút Ghi | Must |
+| SCR-12 | Nạp doanh nghiệp (UC-07) | Từ tập tài liệu đến dashboard đầu tiên | 01, 05, 10 | Drop nhiều file, tiến độ theo doc type, tổng hợp XD | Must |
+| SCR-13 | Đăng nhập | Xác thực | Public | Form email/mật khẩu, quick-login demo (khi `DEMO_MODE`) | Must |
+| SCR-14 | Audit log | Ai làm gì, AI làm gì | 01, 10 | Bảng lọc theo actor (người/AI), entity, thời gian | Must |
+| SCR-15 | AI Control Center | Autonomy, kill switch, ngân sách, provider | 01 (xem + kill switch), 10 | Ma trận autonomy, `KillSwitch`, budget meter, trạng thái provider, feedback tổng hợp | Must |
+| SCR-16 | Hỏi AI (Chat) + thanh ⌘K + Panel AI | Hỏi đáp có nguồn | Tất cả | `CommandBar`, `AIPanel`, `ChatThread`, `ThinkingState`, `SourceChip` | Must |
+| SCR-17 | Feed "AI đã làm" | Dòng thời gian hành động L3 + hoàn tác | Tất cả (phạm vi của mình); 01, 10 toàn bộ | `AIActivityItem`, bộ lọc module/người/mức | Must |
+| SCR-18 | Họp & biên bản → việc (UC-06) | Biên bản → quyết định → task | 01, 02, 03, 04, 06, 07, 08, 09 | Tóm tắt 3 khối, bảng action item sửa trực tiếp, "Giao việc" | Must |
+| SCR-19 | Công việc & Workload heatmap | Task, dự án, quá tải | 01, 08, 09 (task của tôi) | Bảng task, Kanban, heatmap người × tuần | Must |
+| SCR-20 | Mục tiêu OKR/KPI & check-in | Theo dõi mục tiêu, check-in ≤ 30 giây | Tất cả trừ 05, 10 | Cây mục tiêu, `CheckInCard`, thanh độ tự tin | Must |
+| SCR-21 | Sổ rủi ro & What-if | Quản lý rủi ro, mô phỏng tác động | 01, 02, 07; xem: 03, 04, 06, 08, 09 | Bảng rủi ro, heatmap L×I, form mitigation, `WhatIfPanel` | Must |
+| SCR-22 | Finance workspace | Doanh thu, chi phí, ngân sách, dự báo, hóa đơn, tiền mặt | 01 (xem), 02, 08 (chi phí, hóa đơn) | Tab theo entity, bảng sửa trực tiếp, form | Must |
+| SCR-23 | Sales workspace | Khách hàng, deal, pipeline, mục tiêu, hợp đồng | 01 (xem), 03, 08 | Kanban deal theo stage, bảng khách | Must |
+| SCR-24 | HR workspace | Phòng ban, nhân viên, lương, tuyển dụng | 01, 04; 02 duyệt tuyển dụng | Bảng nhân viên (lương che theo quyền), kế hoạch tuyển dụng | Must |
+| SCR-25 | Product workspace | Sản phẩm, tính năng, roadmap, release, chỉ số | 01 (xem), 06, 08 | Roadmap timeline, bảng tính năng | Must |
+| SCR-26 | Quản trị người dùng & vai trò | Tạo user, gán role (không self-register) | 01, 10 | Bảng user, gán role, khóa tài khoản | Must |
+| SCR-27 | Cấu hình loại tài liệu / schema / ngưỡng | Doc type, field, ngưỡng confidence, validation | 10 (sửa); 05 (xem) | Danh sách doc type, editor field, slider ngưỡng | Should |
+| SCR-28 | Mobile shell | 4 việc: Briefing, hỏi AI, chụp/gửi, duyệt | Tất cả | Tab bar dưới 4 mục + nút "+" giữa, `ApprovalCard` | Must |
 
 ### 3.2. Trạng thái chuẩn cho mọi màn hình
 
-| Trạng thái | Quy ước hiển thị |
-|---|---|
-| Loading | Skeleton đúng hình dạng nội dung (card, bảng, viewer); không spinner toàn trang. Quá 10 giây → thông báo "Đang tải lâu hơn bình thường" + nút Thử lại |
-| Empty | Minh họa nhẹ + 1 câu giải thích + hành động chính (VD: "Chưa có dữ liệu trụ Tài chính — Nạp dữ liệu" → SCR-08) |
-| Error | Thông điệp tiếng Việt dễ hiểu theo `error.code` (10 §1) + nút Thử lại; giữ nguyên dữ liệu cũ nếu có, đánh dấu "Dữ liệu có thể đã cũ" |
-| Forbidden (403) | "Nội dung thuộc phạm vi khác — anh/chị không có quyền xem" (không ẩn im lặng, 02 §4.1 mục 4) |
-| Partial | Một phần dữ liệu lỗi → phần lỗi hiển thị Error cục bộ, phần còn lại vẫn render |
+| Trạng thái | Hiển thị | Ghi chú |
+|---|---|---|
+| Loading | Skeleton đúng hình khối (không spinner toàn trang); mỗi widget tải độc lập | 5 thẻ trụ tải song song (FR-DSH-07) |
+| Empty | Minh họa nhẹ + một câu + một hành động ("Chưa có dữ liệu doanh thu T9 · Gửi báo cáo tài chính") | Luôn chỉ đường nhập dữ liệu (U5) |
+| Error (widget) | `WidgetError`: "Dịch vụ tạm thời không khả dụng" + Thử lại; không ảnh hưởng widget khác | P08 |
+| Error (trang) | `PageError` với mã lỗi (10 §1) và `request_id` để báo hỗ trợ | |
+| Forbidden | `ForbiddenState`: "Vai trò của bạn không có quyền xem mục này" | Không lộ dữ liệu |
+| Stale | `FreshnessBadge` chuyển `stale` khi quá ngưỡng của metric | §5.1 |
+| Offline (PWA) | Banner "Đang ngoại tuyến · dữ liệu lúc {thời điểm}"; thao tác ghi xếp hàng nhãn "chưa đồng bộ" | §8 |
+| AI unavailable | Panel AI: "Trợ lý AI tạm thời không khả dụng — thao tác thủ công vẫn dùng được" | Không chặn thao tác |
 
 ---
 
-## 4. Đặc tả từng màn hình
+## 4. Đặc tả màn hình trọng yếu
 
-### 4.1. SCR-01..04 — Dashboard theo role
+### 4.1. SCR-01 — Trang chủ theo vai trò (Briefing)
 
-| Thuộc tính | Nội dung |
+**Bố cục desktop 1440 px (CEO):**
+
+```
+┌ Top bar: breadcrumb · [⌘K Hỏi AI…] · + Gửi dữ liệu · 🔔 · VI/EN · avatar ┐
+│ Chào anh Minh · Thứ Hai 20/10/2026                                       │
+│ "2 việc cần anh quyết, 1 rủi ro mới ở trụ S; các trụ còn lại bình thường" │ ← BriefingSummary (1 câu, U1)
+│ [F ◐] [O ●] [C ◐] [U ●] [S ○]   ← 5 PillarCard (status + 1 metric chính)   │  ┌ Panel AI ─┐
+│ ┌ Cần anh quyết ──────────────┐ ┌ Rủi ro ───────────────────┐             │  │ AI đang   │
+│ │ Insight + Suggestion chip   │ │ top 3 rủi ro high/critical │             │  │ xem: …    │
+│ └─────────────────────────────┘ └───────────────────────────┘             │  │           │
+│ ┌ AI đã làm (nền token ai-subtle) · Hoàn tác ┐                             │  └───────────┘
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Quy tắc chung:**
+- Thứ tự khối cố định: Dòng tóm tắt → Thẻ trụ/chỉ số → **Cần … quyết** → Rủi ro/cảnh báo → AI đã làm. "Cần quyết" đứng trên rủi ro vì đó là việc chỉ người đó làm được.
+- Mỗi thẻ trụ có `StatusIcon` (● ok · ◐ warning · ○ critical, kèm chữ), một metric chính, `FreshnessBadge`; bấm → SCR-02..06; bấm số → `LineagePopover`.
+- Bấm một insight/thẻ → Panel AI mở theo ngữ cảnh entity đó (U2).
+- Briefing do AI Core tạo (03 §insight); khi AI lỗi, hiển thị danh sách alert thuần (P08).
+
+**Nội dung theo role:**
+
+| Role | Dòng tóm tắt | Khối chỉ số | "Cần … quyết" / hàng chờ | Khối phụ |
+|---|---|---|---|---|
+| ROLE-01 CEO | Công ty | 5 thẻ trụ F O C U S | Decision chờ CEO, rủi ro chờ chấp nhận, Action card L2 | Rủi ro top 3, AI đã làm |
+| ROLE-02 CFO | Trụ F + S | Thẻ F, S + METRIC-FIN-03 runway, FIN-06 ngân sách | Kế hoạch tuyển dụng chờ duyệt, hóa đơn chờ review trụ F | Hàng chờ IDP trụ F |
+| ROLE-03 VP_SALES | Trụ C | Thẻ C + METRIC-CUS-01 coverage, CUS-02 win rate | Deal lớn có rủi ro, mục tiêu kỳ | Pipeline theo stage |
+| ROLE-04 HR_MANAGER | Trụ O (con người) | METRIC-HR-01..04 | Tài liệu nhân sự chờ review, tuyển dụng trễ | Quá tải theo phòng ban |
+| ROLE-05 REVIEWER | Hàng chờ | Số chờ / quá SLA / đã duyệt hôm nay / accuracy cá nhân | Hàng chờ ưu tiên theo SLA (mở SCR-10) | Phím tắt, chế độ Gọn mặc định |
+| ROLE-06 CPO | Trụ U | METRIC-PRD-01..05 | Release sắp tới, churn bất thường | Roadmap trễ |
+| ROLE-07 RISK_MANAGER | Trụ S | METRIC-RSK-01..06 | Rủi ro tự sinh chờ phân công, mitigation quá hạn | Heatmap L×I mini |
+| ROLE-08 MANAGER | Đơn vị | Task đúng hạn, workload, KPI đơn vị | Hàng chờ duyệt của đơn vị, cảnh báo quá tải (F5) | Team hôm nay |
+| ROLE-09 EMPLOYEE | Cá nhân | Task hôm nay, KR của tôi | Check-in đến hạn (F4), tài liệu đã gửi cần bổ sung | Nút lớn "Gửi chứng từ" |
+| ROLE-10 ADMIN | Hệ thống | Health API/worker/queue, chi phí AI tháng, tỷ lệ lỗi pipeline | Sự cố AI, DLQ event, provider lỗi | Lối tắt SCR-15, SCR-26, SCR-27 |
+
+CEO chọn được 4–5 chỉ số trên thẻ trụ trong cài đặt cá nhân; mặc định là metric chính của mỗi trụ (03).
+
+### 4.2. SCR-02..06 — Trang trụ F.O.C.U.S
+
+Bố cục chung cho 5 trụ (cùng component `PillarPage`):
+
+| Vùng | Nội dung |
 |---|---|
-| Mục đích | CEO đạt insight đầu tiên ≤ 10 giây; mỗi role thấy đúng trụ trong scope (03 §5.1) |
-| Layout | Vùng 1: lời chào "Chào anh/chị {tên}" + tóm tắt 1 câu (AI gợi ý L1). Vùng 2: PillarSummary × số trụ trong scope. Vùng 3: "Cần anh/chị quyết" — AlertCard, Critical trước. Vùng 4: lưới MetricCard + TrendChart/GaugeChart theo trụ. Phải: AIPanel |
-| Khác biệt theo role | SCR-01: 4 trụ, 18 metric, mọi alert. SCR-02: FIN + OPS đầy đủ, CUS/HR card tổng hợp (không click được tới bản ghi). SCR-03: CUS + METRIC-FIN-01; OPS tổng hợp. SCR-04: HR + OPS; doanh thu tổng (tổng hợp) |
-| Thành phần | PillarSummary, MetricCard, AlertCard, TrendChart, GaugeChart, AIPanel, FreshnessLabel, DensityToggle |
-| Tương tác | Click số → SCR-09 (click 1). Click AlertCard → SCR-09 đã lọc theo điều kiện alert. Acknowledge/dismiss theo quyền 02 §3.3 |
-| Loading | Skeleton 4 PillarSummary + lưới card; số liệu chính (above the fold) render trước biểu đồ |
-| Empty | Trụ chưa có dữ liệu: card `—` + "Chưa có dữ liệu nguồn" + nút "Nạp dữ liệu" (SCR-08); không sinh alert |
-| Error | Card lỗi cục bộ "Không tải được chỉ số" + Thử lại; các card khác vẫn hiển thị |
+| Header | Tên trụ, câu hỏi lãnh đạo (00 §4.2), `StatusIcon` trụ, bộ lọc kỳ (Tháng/Quý/Năm, so với kỳ trước / cùng kỳ năm trước) |
+| Insight trụ | 1–3 `InsightCard` của trụ (L0) kèm `SuggestionChip` (L1) |
+| Lưới metric | `MetricCard` cho mọi metric của trụ: giá trị, so kế hoạch, sparkline 6 kỳ, `StatusIcon`, `FreshnessBadge` |
+| Biểu đồ chính | Tiêu đề là kết luận; luôn có đường kế hoạch/ngưỡng |
+| Alert | Danh sách `ALERT-*` của trụ: xác nhận / bỏ qua (kèm lý do) / giao việc |
+| Lối vào workspace | Liên kết SCR-22..25 / SCR-21 tương ứng |
 
-**Trạng thái hiển thị của MetricCard (bắt buộc):**
+| SCR | Trụ | Metric | Biểu đồ chính | Widget riêng |
+|---|---|---|---|---|
+| SCR-02 | F | METRIC-FIN-01..07 | Doanh thu vs kế hoạch (cột + đường) | Runway gauge, ngân sách theo phòng ban, dự báo 3 kịch bản |
+| SCR-03 | O | METRIC-OPS-01..03, METRIC-HR-01..04 | Task đúng hạn theo tuần | Mini-heatmap workload, kế hoạch tuyển dụng trễ |
+| SCR-04 | C | METRIC-CUS-01..06 | Pipeline theo stage vs mục tiêu | Top 5 khách (tập trung doanh thu), NPS trend |
+| SCR-05 | U | METRIC-PRD-01..05 | MAU/adoption theo sản phẩm | Roadmap progress, release timeline, churn anomaly marker |
+| SCR-06 | S | METRIC-RSK-01..06 | Điểm rủi ro tổng hợp theo tháng | Heatmap 5×5 (Likelihood × Impact), top rủi ro, strategy execution index |
 
-| Trạng thái | Điều kiện | Hiển thị |
+Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ → không có trong sidebar, URL trực tiếp → `ForbiddenState`.
+
+---
+
+### 4.3. SCR-07 — Chi tiết metric + lineage (P01, ≤ 3 click)
+
+| Click | Từ → đến | Nội dung |
 |---|---|---|
-| Bình thường | Có giá trị, vùng xanh | Số + sparkline + FreshnessLabel |
-| Cảnh báo | Chạm ngưỡng vàng | Viền/nhãn vàng + icon ⚠ (không chỉ dựa vào màu) |
-| Nguy cấp | Chạm ngưỡng đỏ | Viền/nhãn đỏ + icon ⛔ |
-| Chưa có dữ liệu | Không có bản ghi nguồn | `—` + "Chưa có dữ liệu nguồn" + nút Nạp dữ liệu |
-| **Không tính được** | Mẫu số công thức = 0 hoặc âm, hoặc phép tính không xác định (VD: METRIC-CUS-01 khi chỉ tiêu còn lại ≤ 0; METRIC-FIN-04 khi doanh thu kỳ = 0; METRIC-HR-01/HR-02 khi headcount = 0; METRIC-OPS-01/OPS-03 khi không có task/quyết định đến hạn) | `N/A` + nhãn "Không tính được" + tooltip lý do ("Mẫu số bằng 0: chưa có task đến hạn trong kỳ"). Không tô màu ngưỡng, không sinh alert. Click vẫn mở SCR-09 với công thức và giá trị mẫu số (P01) |
-| Ngoài giới hạn hiển thị | Giá trị có quy tắc riêng ở 03 (VD: METRIC-FIN-03 dòng tiền ròng ≥ 0) | Hiển thị theo 03 (VD: `> 24 tháng`) |
-| Cũ | `computed_at` quá tần suất cập nhật dự kiến | FreshnessLabel màu trung tính + "Dữ liệu cập nhật lúc …" |
+| 1 | Con số trên SCR-01/02..06 → `LineagePopover` hoặc SCR-07 | Công thức (03), giá trị thành phần, kỳ, nguồn, thời điểm cập nhật, ngưỡng |
+| 2 | SCR-07 → bảng bản ghi đóng góp | Bản ghi domain (hóa đơn, deal, nhân viên…) có cột "nguồn": nhập tay / IDP / import, người ghi |
+| 3 | Bản ghi → `SourceViewer` | Mở trang tài liệu gốc, tô vùng chứa giá trị (`source_location`), kèm field confidence |
 
-### 4.2. SCR-05 — Hàng chờ IDP (Inbox)
+- Trend 6 kỳ có đường kế hoạch; bấm vào điểm dữ liệu → lọc bảng bản ghi theo kỳ + nút "Hỏi AI về điểm này".
+- Khi nguồn mâu thuẫn (2 giá trị cho cùng dữ liệu): hiển thị cả hai cạnh nhau, người có quyền chọn → ghi lineage.
+- Bản ghi chứa lương cá nhân: role không có quyền thấy `MaskedValue` (§7.4); API không trả giá trị.
 
-| Thuộc tính | Nội dung |
+### 4.4. SCR-08 — Hộp thư dữ liệu (Data Inbox)
+
+| Thành phần | Mô tả |
 |---|---|
-| Mục đích | Reviewer thấy việc cần duyệt, ưu tiên rõ; vào Review 1 click |
-| Thành phần | Bộ lọc (trụ, doc type, trạng thái, batch UC-07, mức confidence), bảng QueueTable (tên file, doc type, trụ, trạng thái + AIStateBadge, confidence trung bình, số field cần kiểm tra, người upload, thời điểm `05/10/2026 08:30`, khóa "đang được … review") |
-| Tương tác | Click dòng → SCR-06; FAILED → "Thử lại" / "Nhập tay (C1)" theo quyền 04 §8.2; DUPLICATE → "Vẫn xử lý" |
-| Theo role | ROLE-05 tất cả; ROLE-02 chỉ trụ FIN; ROLE-04 chỉ trụ HR; ROLE-01 chỉ xem — với tài liệu chứa lương cá nhân chỉ thấy metadata, không nút mở/duyệt (02 §3.4) |
-| Loading | Skeleton 8 dòng |
-| Empty | "Không còn tài liệu cần duyệt 🎉" + link SCR-07 |
-| Error | Banner lỗi + Thử lại; giữ danh sách cũ, đánh dấu "có thể đã cũ" |
+| Tab | Của tôi · Chờ duyệt (theo quyền) · Đã ghi · Lỗi / Trùng |
+| Dòng tài liệu | Tên, doc type (AI đoán + confidence), kênh (C1–C5), trạng thái (04 state machine), người gửi, `SLABadge`, trụ đích |
+| Thẻ tiến trình | Góc màn hình mọi trang: "Đang đọc 3 file" → "2 biên bản, 1 KPI · 1 cần xem lại" |
+| Hành động | Mở review (SCR-10), thử lại, đánh dấu trùng / vẫn xử lý, hoàn tác (≤ 7 ngày, DEC-134) |
+| Bộ lọc | Doc type, trạng thái, kênh, người gửi, khoảng ngày; tìm theo tên/MST/số hóa đơn |
+| Hàng loạt (Reviewer) | Chọn nhiều → duyệt hàng loạt chỉ với tài liệu đủ điều kiện STP-ready và không có trường trọng yếu chưa xem |
 
-### 4.3. SCR-06 — Review (chi tiết duyệt)
+### 4.5. SCR-10 — Review song song
 
-| Thuộc tính | Nội dung |
+**Bố cục chế độ Gọn:** trái 60% `DocumentViewer` (zoom, xoay, chuyển trang, vùng tô) · phải 40% `ExtractedFieldForm` (nhóm theo section schema) · footer phím tắt.
+
+| Quy tắc | Chi tiết |
 |---|---|
-| Mục đích | Duyệt 1 tài liệu 6 trường ≤ 60 giây, không sai |
-| Layout | Trái (≈ 55%): SourceViewer (trang, zoom, vùng tô field đang focus). Phải (≈ 45%): ExtractionForm — mỗi field: nhãn, giá trị, ConfidenceIndicator, nút "Xem trong tài liệu". Trên: tên tài liệu, doc type (có thể đổi), AIStateBadge, cờ conflict XD-*. Dưới: Approve / Sửa & Approve / Reject (bắt buộc lý do) |
-| Confidence (04 §7.2) | Cao ≥ 0,90: xanh, điền sẵn. Trung bình 0,70–< 0,90: vàng, "nên kiểm tra", tự focus. Thấp < 0,70 hoặc `null` bắt buộc: đỏ, phải xác nhận trước khi Approve. Kèm icon + chữ, không chỉ màu |
-| Bàn phím | `Tab`/`Shift+Tab` chuyển field, `Enter` xác nhận field, `Ctrl+Enter` Approve, `Ctrl+Backspace` Reject, `J/K` tài liệu kế/trước |
-| Lương cá nhân | ROLE-05: thấy field lương trong ngữ cảnh review, không có nút tải xuống. ROLE-01 không vào được SCR-06 (chỉ xem Inbox); nếu field lương xuất hiện ở bất kỳ màn nào cho role chỉ có view-agg → hiển thị `••••` (§7.4) |
-| Khóa | Mở → `IN_REVIEW`, khóa mềm 15 phút; người khác thấy "Đang được {tên} review" |
-| Sau Approve | Toast "Đã duyệt · đang ghi vào hệ thống" → "Đã ghi · METRIC-xx cập nhật" + link SCR-09; tự chuyển tài liệu kế tiếp |
-| Loading | Viewer skeleton + form skeleton; field hiển thị ngay khi có, trang tài liệu tải lũy tiến |
-| Empty | Tài liệu không có field nào (doc type `OTHER`) → "Không có trường cần trích xuất" + chỉ cho Reject/đổi doc type |
-| Error | Lỗi commit → giữ form, hiển thị lý do từ Action Registry, tài liệu về `NEEDS_REVIEW` (04 §10.2) |
+| Liên kết 2 chiều | Trường đang focus tô cùng màu với vùng AI đã đọc; bấm vùng trên tài liệu nhảy tới trường |
+| Confidence 3 mức (DEC-133) | `ConfidenceBadge` ● Cao ≥ 0,90 · ◐ Trung bình 0,60–< 0,90 · ○ Thấp < 0,60; ở màn này hiện thêm phần trăm; Admin chỉnh ngưỡng theo doc type (SCR-27) |
+| Thứ tự con trỏ | Tự nhảy vào trường cần xem trước (Thấp → Trung bình → trọng yếu), không theo thứ tự trên-dưới |
+| Trường trọng yếu | Tiền, MST, số tài khoản, lương, giá trị hợp đồng: **bắt buộc đi qua** (focus + Enter) dù confidence cao |
+| Lý do không chắc | AI nêu lý do bằng chữ ("ký tự thứ 4 mờ", "hai giá trị tổng khác nhau") |
+| Validation | Lỗi nghiệp vụ (tổng ≠ cộng dòng, MST sai checksum, trùng hóa đơn) hiện ngay dưới trường, chặn Duyệt nếu `severity = error` |
+| Ghi nhận sửa | Mỗi lần sửa ghi `ExtractionReview` (giá trị cũ/mới, thời gian) để đo accuracy theo trường |
+| Khóa | Mở review là khóa tài liệu; rời trang / hết hạn khóa → nhả |
+| Sau Duyệt | Ghi qua Action Registry → toast "Đã ghi 1 hóa đơn · Xem bản ghi · Hoàn tác"; mở tài liệu kế tiếp ngay |
 
-### 4.4. SCR-07 — Tài liệu (danh sách + chi tiết)
+**Phím tắt:** `Tab`/`Shift+Tab` trường kế/trước · `Enter` xác nhận trường · `Ctrl+Enter` Duyệt tài liệu · `Ctrl+R` Từ chối (kèm lý do) · `Ctrl+→` tài liệu kế · `[` `]` trang trước/sau · `+`/`-` zoom · `?` bảng phím tắt.
 
-| Thuộc tính | Nội dung |
+**Chỉ tiêu:** hóa đơn 6 trường ≤ 60 giây (01 §4).
+
+### 4.6. SCR-11 — Import grid (C5)
+
+1. Tải Excel/CSV → AI gợi ý doc type đích và map cột (cột nguồn → field đích, kèm confidence).
+2. Người dùng sửa map bằng dropdown; lưu map làm mẫu cho lần sau theo tên cột.
+3. Xem trước 50 dòng đầu: dòng lỗi tô `danger` + lý do; dòng trùng tô `warning`.
+4. Ghi lô: chỉ dòng hợp lệ; dòng lỗi xuất lại file để sửa. Kết quả: "Đã ghi 128 / 130 dòng · 2 lỗi · Hoàn tác lô".
+
+---
+
+### 4.7. SCR-15 — AI Control Center
+
+| Khu vực | Nội dung | Quyền |
+|---|---|---|
+| Kill switch | Một công tắc lớn + xác nhận 2 bước + lý do; khi bật: mọi L3 → L2, chặn WRITE của AI, băng `KillSwitchBanner` trên toàn app | ROLE-01, ROLE-10 |
+| Ma trận autonomy | Hàng = tool/action (TOOL-*, ACT-*), cột = role; ô = L0–L3 + ngưỡng giá trị (vd. "L3 nếu ≤ 20 tr, ngược lại L2") | ROLE-10 sửa; ROLE-01 xem |
+| Ngân sách AI | Chi phí tháng / ngân sách, cảnh báo 80%, phân theo tác vụ (chat, classify, extract, insight) | ROLE-10; ROLE-01 xem |
+| Provider | Trạng thái từng provider (primary/fallback), độ trễ p95, tỷ lệ lỗi; **không** hiển thị API key | ROLE-10 |
+| Chất lượng AI | Accuracy trích xuất theo doc type/field, tỷ lệ L2 xác nhận không sửa, tỷ lệ hoàn tác L3, feedback 👎 gần nhất | ROLE-10; ROLE-01 xem |
+
+Đổi autonomy/ngưỡng ghi audit log; nới ngưỡng tự ghi chỉ khi đạt ≥ 98% accuracy trên ≥ 200 tài liệu (04).
+
+### 4.8. SCR-16 — Hỏi AI: thanh ⌘K, Panel AI, trang Chat
+
+| Bề mặt | Khi dùng | Hành vi |
+|---|---|---|
+| `CommandBar` (⌘K / Ctrl+K) | Mọi màn hình | Một ô cho: tìm kiếm entity, hỏi, ra lệnh ("giao cho Lan báo cáo tuần"), thả file; gợi ý 3 câu theo màn hình đang mở |
+| `AIPanel` | Bấm insight/metric/entity, hoặc mở từ ⌘K | Bên phải; tiêu đề "AI đang xem: {entity}"; thu gọn được; < 1280 px thành ngăn kéo |
+| Trang Chat `/ai` | Phân tích dài, xem lại hội thoại | Danh sách hội thoại (xem/xóa — US-ALL), thread, gợi ý câu hỏi theo role |
+
+**Luồng một câu trả lời:** gửi → `ThinkingState` hiển thị bước thật từ SSE (`tool_call`: "Đọc dashboard tài chính · So sánh T8 · Kiểm tra pipeline") → token streaming → `SourceChip` cuối mỗi khẳng định có số → `FeedbackBar`. Có nút **Dừng**. Nếu câu trả lời bị cắt (`truncated`) → ghi chú "Trả lời một phần do giới hạn tra cứu".
+
+**Khi AI không biết / sai:** "Tôi chưa có dữ liệu về X" + gợi ý bổ sung (gửi tài liệu, nhập tay); nguồn mâu thuẫn → hiển thị cả hai; lỗi hệ thống → `AI unavailable` (§3.2). Câu hỏi vượt quyền → "Câu này cần quyền {domain}; vai trò của bạn không xem được."
+
+### 4.9. SCR-17 — Feed "AI đã làm"
+
+- Dòng thời gian mọi hành động L3 (và L2 đã xác nhận) của AI; nền token `ai-subtle`.
+- Mỗi dòng: thời điểm, hành động, đối tượng, lý do (1 câu + `SourceChip`), người bị ảnh hưởng, nút **Hoàn tác** (còn hạn 24 giờ, DEC-134; hết hạn → nút ẩn, ghi "Hết hạn hoàn tác").
+- Lọc theo module, người, mức, trạng thái (đã làm / đã hoàn tác / lỗi).
+- Phạm vi: người dùng thấy hành động trong phạm vi quyền của mình; ROLE-01, ROLE-10 thấy toàn bộ.
+
+### 4.10. SCR-21 — Sổ rủi ro & What-if
+
+| Vùng | Nội dung |
 |---|---|
-| Mục đích | Tra cứu mọi tài liệu đã nạp, trạng thái và dữ liệu đã ghi |
-| Danh sách | Bảng: tên, doc type, trụ, kênh (C1–C5), trạng thái + AIStateBadge, người upload, thời điểm; lọc + tìm kiếm |
-| Chi tiết | Tab Tổng quan (metadata, trạng thái, timeline chuyển trạng thái), Field trích xuất, Dữ liệu đã ghi (entity/metric bị ảnh hưởng + link SCR-09), Lịch sử (audit) |
-| Hành động | Mở SCR-10; Undo (≤ 7 ngày) cho COMMITTED theo quyền 04 §8.2 — CEO không có; Mở lại REJECTED theo quyền |
-| Lương cá nhân | Role không có quyền: field lương `••••`, không có nút mở/tải file, thông báo "Tài liệu chứa dữ liệu lương cá nhân — chỉ HR Manager được mở" |
-| Loading / Empty / Error | Skeleton bảng / "Chưa có tài liệu — Nạp dữ liệu" / banner lỗi + Thử lại |
+| Bảng rủi ro | Mã, tiêu đề, nguồn (`manual` / `event` — rủi ro tự sinh có nhãn "AI phát hiện từ {event}"), L, I, score = L × I, level, chủ sở hữu, mitigation, hạn |
+| Heatmap 5×5 | Likelihood × Impact; bấm ô → lọc bảng |
+| Chi tiết rủi ro | Lịch sử đánh giá, mitigation (tiến độ, quá hạn), entity liên quan (phòng ban, kế hoạch tuyển dụng, ngân sách, deal, sản phẩm) |
+| Chấp nhận rủi ro | Chỉ ROLE-01; bắt buộc lý do; ghi Decision |
+| `WhatIfPanel` | Chọn rủi ro hoặc nhập giả định → kết quả tác động tài chính (doanh thu, burn, runway), nhân sự, sản phẩm theo 3 kịch bản; mọi số có `SourceChip`; nút "Lưu kịch bản" |
 
-### 4.5. SCR-08 — Upload / Nạp doanh nghiệp (UC-07)
+### 4.11. SCR-28 — Mobile shell (< 768 px)
 
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Nạp dữ liệu qua C1–C5; chế độ UC-07 đưa CEO từ tập tài liệu rời → dashboard ≤ 15 phút |
-| Chế độ thường | Tabs: C1 Form nhập tay, C2 Ngôn ngữ tự nhiên (text/voice), C3 Tải file (PDF/Word/ảnh/Excel/CSV), C4 Chụp ảnh (camera trên mobile), C5 Import Excel/CSV hàng loạt. Dropzone đa file, hiển thị kích thước/định dạng hợp lệ |
-| Chế độ UC-07 (ROLE-01, ROLE-05) | Stepper 7 bước theo 04 §11.1: (1) Checklist 7 loại tài liệu; (2) Kéo thả tập tài liệu → tạo batch; (3) Progress từng file theo trạng thái 04 §8 + nhãn AI ("AI đang phân loại"…); (4) Bảng tổng hợp batch (doc type, số field, % confidence cao, STP vs cần review, checklist đủ/thiếu); (5) Đối chiếu chéo XD-01→05 (MATCH ✓ / MISMATCH ✗ / NOT_COMPARABLE "Không đối chiếu được – cần review"); (6) Nút "Đi tới Review" → SCR-05 lọc batch; (7) "Xem dashboard" → SCR-01 highlight metric mới |
-| Thành phần | Stepper, Dropzone, ChannelTabs, FileProgressList, BatchSummaryTable, CrossCheckList, AIStateBadge |
-| Loading | Progress từng file, không chặn UI; file lỗi không chặn batch |
-| Empty | Checklist 7 loại với mô tả + file mẫu |
-| Error | File sai định dạng/quá cỡ → báo ngay tại dòng; `FAILED` → lý do + "Thử lại"/"Nhập tay (C1)"; `DUPLICATE` → "Đã nạp trước đó" |
-
-### 4.6. SCR-09 — Metric Detail (drill-down)
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Click 1–2 của chuỗi drill-down ≤ 3 click (03 §4.1) |
-| Thành phần | Header (tên + ID METRIC-xx, giá trị, trạng thái ngưỡng), LineagePanel (5 thành phần P01: công thức, nguồn dữ liệu, thời điểm cập nhật, bản ghi gốc, tài liệu gốc), TrendChart, BreakdownTable (phân rã theo khách/kỳ/người/khoản mục; tổng khớp metric), RecordPanel (click 2: bản ghi gốc + link tài liệu), AIPanel |
-| Breadcrumb | `Dashboard › METRIC-xx › Bản ghi › Tài liệu` |
-| Theo quyền | view-agg: chỉ mục 1–3 của LineagePanel + tổng hợp, không bản ghi/link. Nguồn ngoài scope: "Nguồn thuộc phạm vi khác — không có quyền xem". Nguồn là tài liệu chứa lương cá nhân với CEO/CFO: dừng ở bản ghi tổng hợp (02 §3.5) |
-| Không tính được | Hiển thị công thức + giá trị tử số/mẫu số + lý do |
-| Loading / Empty / Error | Skeleton / "Chưa có bản ghi nguồn cho kỳ này" / lỗi cục bộ từng khối |
-
-### 4.7. SCR-10 — Source Viewer
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Click 3: mở tài liệu gốc đúng trang, tô vùng chứa giá trị |
-| Thành phần | Viewer PDF/ảnh/Word (render)/Excel (lưới, tô ô), HighlightOverlay theo `source_location`, panel thông tin (confidence, người duyệt, thời điểm duyệt, kênh) , nút Tải xuống (theo quyền 02 §3.5) |
-| Quyền | Tài liệu chứa lương cá nhân: chỉ ROLE-04 mở/tải; ROLE-05 chỉ mở trong ngữ cảnh review; role khác → màn Forbidden "Tài liệu chứa dữ liệu lương cá nhân — chỉ HR Manager được mở". Mọi lượt mở/từ chối ghi audit log |
-| Loading | Tải trang lũy tiến, trang có highlight tải trước |
-| Empty | Dữ liệu nhập tay (C1): "Nhập tay bởi {tên} lúc {05/10/2026 08:30}" thay cho file |
-| Error | "Không mở được tài liệu" + Thử lại; vẫn hiển thị metadata |
-
-### 4.8. SCR-11 — Extraction Schema (chỉ đọc, P1)
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Reviewer tra cứu field bắt buộc/kiểu dữ liệu của 7 doc type (04 §5) |
-| Thành phần | Danh sách doc type, bảng field (tên, kiểu, bắt buộc, quy tắc chuẩn hóa P04) |
-| Loading / Empty / Error | Skeleton / "Chưa cấu hình schema" / banner lỗi |
-
-### 4.9. SCR-12 — Role Switcher
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Chuyển vai trò demo ≤ 2 giây (02 §5) |
-| Thành phần | Dropdown top bar: 5 role cố định "CEO · ROLE-01" … "Reviewer · ROLE-05"; nhãn "Chế độ demo" |
-| Hành vi | Chọn → backend xác lập role → xóa cache TanStack Query → điều hướng dashboard chính của role (ROLE-05 → SCR-05); prefetch dữ liệu role đích (02 §5.2 R2, R3, R8) |
-| Xác nhận | Có thao tác dở (form review chưa lưu) → dialog xác nhận (R7) |
-| Loading | Overlay mờ + "Đang chuyển sang {role}…" tối đa 2 giây |
-| Error | Giữ role cũ, toast "Không chuyển được vai trò" (R6) |
-| Ẩn | Cờ demo mode tắt → không render |
-
-### 4.10. SCR-13 — Đăng nhập
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Đăng nhập NextAuth; trong demo cho chọn nhanh 5 user seed |
-| Thành phần | Form email/mật khẩu (react-hook-form + zod), danh sách user demo (khi demo mode bật) |
-| Loading / Error | Nút loading / "Email hoặc mật khẩu không đúng" (không tiết lộ email có tồn tại) |
-
-### 4.11. SCR-14 — Nhật ký audit (P1)
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | CEO tra cứu ai làm gì, AI làm gì (actor `ai:idp`) |
-| Thành phần | Bảng (thời điểm, actor, hành động, đối tượng, trước/sau), bộ lọc thời gian/actor/loại hành động |
-| Loading / Empty / Error | Skeleton / "Chưa có hoạt động" / banner lỗi |
-
-### 4.12. SCR-15 — Cấu hình AI (chỉ đọc, P1)
-
-| Thuộc tính | Nội dung |
-|---|---|
-| Mục đích | Minh bạch AI đang chạy ở mức nào (P02): autonomy theo doc type, kill switch, ngưỡng confidence/STP |
-| Thành phần | Bảng doc type × autonomy mặc định/tối đa (04 §9), trạng thái kill switch, ngưỡng 0,70/0,90/0,95; ghi chú "Cấu hình bằng seed — không chỉnh sửa trong bản demo" |
-| Loading / Empty / Error | Skeleton / — / banner lỗi |
+- **Tab bar dưới 4 mục + nút "+" ở giữa:** Trang chủ (Briefing) · Hỏi AI · [+] · Hộp thư · Duyệt. Nút "+" mở: Chụp chứng từ (C4), Ghi âm / nói (C2), Cập nhật task, Check-in.
+- **Briefing** là trang cuộn ngắn, đọc hết trong 30 giây; hỏi bằng giọng nói ngay từ Trang chủ.
+- **Chụp chứng từ chạy nền:** tự nhận cạnh, chụp nhiều trang liền; đóng app được; thông báo khi AI đọc xong hoặc cần xem lại.
+- **`ApprovalCard`:** đủ thông tin để quyết không cần mở thêm (AI đã soạn gì, nguồn); hai nút lớn ≥ 44 px; vuốt để duyệt hàng loạt mục rủi ro thấp (luôn có nút thay thế cho vuốt); mục tài chính vượt ngưỡng cần xác thực lại (WebAuthn nếu thiết bị hỗ trợ, nếu không thì mật khẩu).
+- **Ngoại tuyến:** ảnh chụp và cập nhật task xếp hàng, nhãn "chưa đồng bộ", tự gửi khi có mạng.
+- Các màn khác trên mobile ở chế độ chỉ đọc; cấu hình, Review song song đầy đủ, quản trị chỉ trên desktop.
 
 ---
 
 ## 5. Mẫu tương tác AI
 
-| Mẫu | Mô tả | Nơi dùng | Trạng thái AI |
-|---|---|---|---|
-| AI Summary | 1 câu tóm tắt đầu dashboard, mỗi số trong câu click được (P01) | SCR-01..04 | L1 |
-| AI Suggestion chip | Gợi ý giá trị/hành động; người bấm "Chấp nhận" mới áp dụng | SCR-06 (doc type L1), AlertCard | L1 |
-| AI Draft form | Form điền sẵn, chờ Approve/Sửa/Reject | SCR-06 | L2 |
-| AI Done toast | "AI đã ghi 47 hóa đơn · Hoàn tác" (nút Hoàn tác theo quyền) | SCR-05, SCR-07, SCR-08 | L3 |
-| AI Progress | Nhãn tiến trình theo 04 §8.1 ("AI đang phân loại"…) | SCR-05, SCR-08 | — (đang xử lý) |
-| AI Panel (U2) | Hỏi đáp theo ngữ cảnh màn hình; trả lời luôn kèm nguồn (link SCR-09/SCR-10); không tự thực hiện hành động nghiệp vụ | Mọi màn chính | L1 |
-| AI Failure | "AI không xử lý được — cần nhập tay" + nút C1 | SCR-05, SCR-07, SCR-08 | — |
+Người dùng chỉ tin AI khi luôn biết AI đang ở trạng thái nào, dựa vào đâu và có rút lại được không. Mỗi Autonomy Level gắn **một mẫu giao diện cố định**, dùng nhất quán ở mọi module (P02, U4).
 
-Quy tắc:
-- Mọi nội dung do AI sinh ra phải có AIStateBadge (§6.3) và dùng màu AI — người dùng luôn trả lời được "AI vừa làm gì?" (P02).
-- Câu trả lời AI không chứa số không có nguồn; số trong câu trả lời là link tới SCR-09.
-- AI xưng hô "anh/chị" theo hồ sơ user (P04).
-- Kill switch bật (L0) → AIPanel và chip ẩn, hiển thị banner "AI đang tắt — nhập liệu thủ công".
+### 5.1. Bộ component AI
 
----
+| Component | Props chính | Hành vi |
+|---|---|---|
+| `CommandBar` | `contextEntity?`, `suggestions[]` | ⌘K/Ctrl+K mở; Esc đóng; phân loại input thành tìm kiếm / câu hỏi / lệnh; nhận file thả vào |
+| `AIPanel` | `contextEntity`, `conversationId?`, `open` | Tiêu đề "AI đang xem: …"; giữ hội thoại theo entity; thu gọn; ngăn kéo khi < 1280 px |
+| `InsightCard` (L0) | `title`, `observation`, `evidence[]`, `impact`, `recommendation?`, `confidence`, `sources[]` | Tiêu đề 1 câu là kết luận; mở rộng xem Observation → Evidence → Impact → Recommendation → Confidence |
+| `SuggestionChip` (L1) | `options[1..3]` (`label`, `actionPreview`) | Bấm → mở `ActionCard` (L2) hoặc thực hiện điều hướng; có "Bỏ qua" |
+| `ActionCard` (L2) | `actions[]` (loại, đối tượng, giá trị), `editable`, `sources[]` | Viền token `ai`, nhãn **"AI soạn · chờ xác nhận"**; xem trước kết quả; sửa từng dòng; nút Xác nhận / Sửa / Hủy |
+| `UndoToast` (L3) | `message`, `undoUntil`, `link?` | Hiện 10 giây, **tạm dừng khi hover/focus**; "Hoàn tác" gọi undo; sau đó vào feed SCR-17 |
+| `AIActivityItem` | `action`, `reason`, `sources[]`, `undoUntil` (24 h) | Dòng feed; nút Hoàn tác khi còn hạn |
+| `SourceChip` | `sourceType` (record/document/metric/tool), `ref`, `updatedAt` | Chip nhỏ cuối câu; bấm → popover bản ghi gốc, tài liệu (nhảy đúng trang/vùng), thời điểm cập nhật |
+| `ConfidenceBadge` | `value` (0–1), `showPercent` | ● Cao ≥ 0,90 · ◐ Trung bình 0,60–< 0,90 · ○ Thấp < 0,60 (DEC-133); chữ + biểu tượng; % chỉ hiện ở SCR-10 |
+| `FreshnessBadge` | `updatedAt`, `staleAfter` | "cập nhật 06:45"; quá ngưỡng → token `stale` + "dữ liệu cũ" |
+| `ThinkingState` | `steps[]` (từ SSE `thinking`/`tool_call`) | Hiện bước thật, không spinner vô nghĩa; nút Dừng; trình đọc màn hình chỉ thông báo khi xong |
+| `FeedbackBar` | `targetType` (message/extraction), `targetId` | 👍 / 👎 + "Sai ở đâu?" (chọn nhanh + 1 câu); gửi vào AI Control Center |
+| `KillSwitchBanner` | `activatedAt`, `by` | Băng cố định đầu app: "Đã tạm dừng hành động tự động của AI — mọi đề xuất cần xác nhận" |
 
-## 6. Design system
+Quy tắc: nhãn trạng thái dùng đúng một từ vựng ở mọi nơi — **"AI gợi ý"**, **"AI soạn"**, **"AI đã làm"**; token `ai` chỉ dùng cho nội dung do AI tạo, không dùng cho nút thường.
 
-### 6.1. Nền tảng
+### 5.2. Autonomy Level → mẫu giao diện
 
-| Hạng mục | Lựa chọn |
-|---|---|
-| Component library | **shadcn/ui** (copy-in components) trên **Radix UI** primitives |
-| Styling | **Tailwind CSS**, token qua CSS variables (`--primary`, `--ai`, …) trong `tailwind.config` |
-| Biểu đồ | Thư viện chart tương thích React/shadcn — lựa chọn cụ thể chốt ở 07 (OQ-02) |
-| Icon | Bộ icon mặc định của shadcn/ui |
-| Font | **Be Vietnam Pro** (UI, hỗ trợ đầy đủ dấu tiếng Việt); **JetBrains Mono** (số liệu bảng, mã ID, `METRIC-xx`) — dùng `font-variant-numeric: tabular-nums` cho cột số |
-| Theme | Light mặc định; dark mode P1 |
-
-### 6.2. Token màu
-
-| Token | Vai trò | Gợi ý giá trị (light) | Ghi chú |
-|---|---|---|---|
-| `--primary` | Hành động chính, nút, link, focus | Xanh dương đậm (VD `#1D4ED8`) | Thương hiệu Aureon |
-| `--ai` | **Mọi nội dung/thao tác do AI** | Tím (VD `#7C3AED`) | **Phải khác `--primary`** (CLAUDE.md) |
-| `--ai-muted` | Nền nhẹ cho khối AI | Tím rất nhạt (VD `#F5F3FF`) | |
-| `--status-ok` | Metric vùng xanh, confidence cao | Xanh lá (VD `#15803D`) | |
-| `--status-warn` | Ngưỡng vàng, confidence trung bình | Hổ phách (VD `#B45309`) | |
-| `--status-critical` | Ngưỡng đỏ, confidence thấp, lỗi | Đỏ (VD `#B91C1C`) | |
-| `--neutral-*` | Nền, viền, chữ phụ, trạng thái "Không tính được" | Thang xám | |
-
-- Giá trị hex là gợi ý; mọi cặp chữ/nền phải đạt tương phản WCAG AA (§9).
-- Màu trạng thái metric **không** được dùng cho nội dung AI và ngược lại.
-
-### 6.3. Màu AI và 3 trạng thái AI (P02)
-
-**Quy tắc cứng:** mọi thành phần thể hiện hành vi AI dùng token `--ai`, **không bao giờ** dùng `--primary`. Nút hành động của người dùng (Approve, Lưu) dùng `--primary`; gợi ý/nháp của AI dùng `--ai`. Như vậy người dùng phân biệt bằng mắt "việc của tôi" và "việc của AI".
-
-| Level | Nhãn UI (i18n key) | AIStateBadge | Hành vi UI | Hành động người dùng |
+| Mức | AI làm gì | Mẫu UI | Người dùng phải làm | Ví dụ |
 |---|---|---|---|---|
-| L0 | "AI tắt" (`ai.state.off`) | Viền xám, icon AI gạch chéo | Không có gợi ý | Nhập tay |
-| **L1** | **"AI gợi ý"** (`ai.state.suggest`) | Viền `--ai`, nền trắng, icon ✦ | Chip gợi ý viền tím đứt nét; form trống | Bấm "Chấp nhận" từng gợi ý |
-| **L2** | **"AI soạn · chờ xác nhận"** (`ai.state.draft`) | Nền `--ai-muted`, chữ `--ai`, icon ✎ | Field điền sẵn có gạch chân tím; nút Approve (primary) | Approve / Sửa / Reject |
-| **L3** | **"AI đã làm"** (`ai.state.done`) | Nền `--ai` đặc, chữ trắng, icon ✓ | Toast + mục trong thông báo AI, nút **Hoàn tác** (nếu có quyền và ≤ 7 ngày) | Hoàn tác (tùy chọn) |
+| L0 Thông tin | Hiển thị, tóm tắt | `InsightCard` | Không | "Doanh thu T9 đạt 82% KH" |
+| L1 Gợi ý | Đưa 1–3 phương án | `SuggestionChip` dưới insight | Chọn hoặc bỏ qua | "Chuyển 2 task sang C" |
+| L2 Soạn & chờ xác nhận | Soạn hành động đầy đủ | `ActionCard` | Xác nhận, có thể sửa | Tạo 3 task từ biên bản họp |
+| L3 Làm rồi báo | Tự làm trong ngưỡng policy | `UndoToast` 10 giây → feed SCR-17, hoàn tác 24 giờ | Không, trừ khi hoàn tác | Nhắc deadline; ghi hóa đơn STP |
+| L4 Tự chủ | — | **Ngoài phạm vi v2** (01 §3) | — | — |
 
-Yêu cầu:
-- AIStateBadge luôn có **chữ + icon**, không chỉ màu (a11y).
-- Badge xuất hiện tại: dòng Inbox (SCR-05), header Review (SCR-06), chi tiết tài liệu (SCR-07), progress UC-07 (SCR-08), toast/thông báo, AI Summary (SCR-01..04).
-- Field do người sửa sau gợi ý AI chuyển sang style thường (không còn tím) + ghi chú "Đã sửa bởi {tên}".
+Kill switch bật → mọi thẻ L3 hiển thị như L2 (`ActionCard`) cho tới khi tắt.
 
-### 6.4. Typography & spacing
+### 5.3. Ngân sách & giới hạn hiển thị
 
-| Token | Giá trị gợi ý | Dùng cho |
-|---|---|---|
-| `text-display` | 32/40, semibold | Số chính MetricCard |
-| `text-h1` / `h2` / `h3` | 24 / 20 / 16, semibold | Tiêu đề màn / khối / card |
-| `text-body` | 14/20 | Nội dung |
-| `text-caption` | 12/16 | FreshnessLabel, chú thích |
-| Spacing | Thang 4 px (Tailwind mặc định) | |
-| Radius | `rounded-lg` card, `rounded-md` input | |
+- Một lượt AI tối đa 8 tool call / 30 giây (DEC-131): `ThinkingState` hiển thị tiến độ; quá giới hạn → câu trả lời một phần + ghi chú.
+- Vượt rate limit (20 yêu cầu/phút/người) → thông báo thân thiện kèm thời gian chờ.
 
-### 6.5. Mật độ (U7)
+### 5.4. Khi AI lỗi (P08)
 
-| Mật độ | Hàng bảng | Padding card | Mặc định cho |
-|---|---|---|---|
-| Thoáng | 48 px | 24 px | ROLE-01, ROLE-03, ROLE-04 |
-| Gọn | 36 px | 16 px | ROLE-02, ROLE-05 |
-
-### 6.6. Danh mục component
-
-| Component | Nền shadcn/Radix | Dùng ở | Yêu cầu chính |
-|---|---|---|---|
-| MetricCard | Card | SCR-01..04 | Số + sparkline + ngưỡng + FreshnessLabel; các trạng thái §4.1 (gồm "Không tính được"); click → SCR-09 |
-| PillarSummary | Card | SCR-01..04 | Màu theo alert nặng nhất của trụ |
-| AlertCard | Alert, Button | SCR-01..04 | Mức độ (icon + chữ), hành động đề xuất (AI L1), acknowledge/dismiss theo quyền |
-| TrendChart / GaugeChart | (chart lib) | SCR-01..04, SCR-09 | Mọi điểm dữ liệu click được; định dạng P04 trên trục/tooltip |
-| LineagePanel | Sheet / Popover | Mọi số | 5 thành phần P01; thông báo chặn quyền |
-| BreakdownTable / QueueTable | Table, DataTable | SCR-05, SCR-07, SCR-09 | Phân trang, sort, lọc; cột số căn phải, tabular-nums |
-| SourceViewer + HighlightOverlay | ScrollArea | SCR-06, SCR-10 | Mở đúng trang, tô `source_location` |
-| ExtractionForm + ConfidenceIndicator | Form (react-hook-form + zod), Input, Tooltip | SCR-06 | Màu + icon + % confidence; tự focus field cần kiểm tra |
-| AIStateBadge | Badge | Nhiều màn | §6.3 |
-| AIPanel | Sheet | Mọi màn chính | U2, kèm nguồn |
-| Stepper, Dropzone, FileProgressList, BatchSummaryTable, CrossCheckList | Tabs, Progress, Table | SCR-08 | UC-07 |
-| RoleSwitcher | DropdownMenu, Dialog | Top bar | SCR-12 |
-| MaskedValue | — | SCR-05, SCR-07, SCR-09 | Hiển thị `••••` cho field lương (§7.4) |
-| FreshnessLabel | — | MetricCard, SCR-09 | "Cập nhật 05/10/2026 08:30" |
-| EmptyState / ErrorState / ForbiddenState / Skeleton | Skeleton | Mọi màn | §3.2 |
+Lỗi AI (timeout, provider không phản hồi, kill switch) **không chặn thao tác thủ công**: mọi luồng có đường làm tay (form C1, sửa trực tiếp, tạo task thủ công). IDP lỗi trích xuất → tài liệu sang trạng thái cần nhập tay trong SCR-10 với trường rỗng.
 
 ---
 
-## 7. Định dạng Việt Nam (P04) & i18n
+## 6. Năm luồng người dùng chính (F1–F5)
 
-### 7.1. Quy ước định dạng
+Mỗi luồng có chỉ tiêu số chạm và thời gian để kiểm thử khả dụng (E2E T-520, usability test). Tổng hợp:
 
-| Loại | Định dạng | Ví dụ | Ghi chú |
+| Luồng | Role | Chỉ tiêu | SCR |
 |---|---|---|---|
-| Ngày | `dd/MM/yyyy` | `05/10/2026` | Ngày giờ: `05/10/2026 08:30` (24 giờ) |
-| Kỳ | `T{m}/yyyy`, `Q{q}/yyyy` | `T9/2026`, `Q3/2026` | |
-| Tiền đầy đủ | dấu chấm nghìn + ` đ` | `1.250.000 đ` | Bảng, form, Review |
-| Tiền rút gọn | dấu phẩy thập phân + `tr`/`tỷ` | `850 tr`, `1,2 tỷ` | MetricCard, trục biểu đồ; tooltip hiển thị số đầy đủ |
-| Phần trăm | 1 chữ số thập phân, dấu phẩy | `12,5%` | Chênh lệch có dấu: `+8,2%` |
-| Số thường | dấu chấm nghìn, dấu phẩy thập phân | `5,4 task/người` | |
-| Bội số | `2,8x` | | |
-| MST | 10 hoặc 13 số | `0312345678`, `0312345678-001` | Validate ở form C1 |
-| Địa chỉ | Theo đơn vị hành chính mới | | |
-| Xưng hô | "anh/chị" theo hồ sơ | "Chào anh Minh" | |
+| F1 | ROLE-01 CEO | ≤ 2 phút, ≤ 5 chạm | SCR-01, SCR-16 (Panel), SCR-07, SCR-17 |
+| F2 | ROLE-09 / mọi role gửi; ROLE-05 duyệt | Gửi ≤ 3 chạm; review ≤ 60 giây | SCR-09, SCR-08, SCR-10, SCR-28 |
+| F3 | Người chủ trì họp (ROLE-01..04, 06..08) | ≤ 10 phút kể cả duyệt | SCR-18, SCR-19 |
+| F4 | ROLE-09 EMPLOYEE | ≤ 30 giây | SCR-20, SCR-28 |
+| F5 | ROLE-08 MANAGER | ≤ 1 phút | SCR-01, SCR-19 |
 
-### 7.2. i18n
+### F1 — CEO buổi sáng: từ Briefing đến giao việc
 
-- **Không hard-code tiếng Việt trong code** (CLAUDE.md): mọi chuỗi UI qua file message `vi` (mặc định), cấu trúc key sẵn cho `en`.
-- Key theo namespace: `dashboard.*`, `metric.<METRIC-ID>.name`, `alert.<ALERT-ID>.title`, `idp.status.<STATUS>`, `ai.state.*`, `error.<code>`.
-- Định dạng số/ngày/tiền qua một helper dùng chung (`Intl.NumberFormat('vi-VN')`, `Intl.DateTimeFormat('vi-VN')` + rút gọn tr/tỷ) — không tự format trong component.
-- Tên metric/alert lấy từ i18n theo ID, không lấy chuỗi tiếng Việt từ API (API trả ID + giá trị).
-- Thư viện i18n cụ thể chốt ở 07 (OQ-02).
+1. 07:00 nhận thông báo "Briefing sẵn sàng: 2 việc cần anh, 1 rủi ro mới".
+2. Mở SCR-01: dòng tóm tắt, 5 thẻ trụ, khối "Cần anh quyết", "Rủi ro".
+3. Chạm thẻ "Doanh thu T9 đạt 82% KH" → Panel AI mở: nguyên nhân, bằng chứng, `SourceChip` (có thể đi tiếp SCR-07 → tài liệu gốc).
+4. Chọn `SuggestionChip` "Phương án 1: CEO tham gia 2 deal lớn" → `ActionCard` có sẵn task, owner, hạn.
+5. Bấm Xác nhận → toast "Đã tạo 3 task · Hoàn tác"; quyết định ghi vào Decision (execution).
 
-### 7.3. Văn phong
+### F2 — Gửi tài liệu và AI trích xuất
 
-- Câu ngắn, chủ động, không dịch máy gượng gạo; thuật ngữ giữ nguyên EN khi phổ biến (DSO, NPS, NRR, pipeline) kèm tooltip giải thích.
-- Thông báo lỗi nói nguyên nhân + cách xử lý ("Không tải được tài liệu. Anh/chị thử lại sau ít phút.").
+1. Thả file vào bất kỳ màn hình (hoặc "+" → Chụp trên mobile).
+2. Ngay lập tức: thẻ tiến trình "Đang đọc 3 file" ở góc; người dùng làm việc khác bình thường.
+3. AI phân loại xong: "2 biên bản họp, 1 báo cáo KPI · 1 cần xem lại".
+4. Reviewer mở SCR-10: tài liệu trái, trường phải; trường ◐/○ và trường trọng yếu được đưa lên trước; Tab qua từng trường.
+5. `Ctrl+Enter` duyệt → dữ liệu ghi vào module đích qua Action Registry; toast "Xem bản ghi · Hoàn tác" (7 ngày).
 
-### 7.4. Che dữ liệu lương cá nhân
+### F3 — Biên bản họp thành việc (UC-06)
 
-Theo 02 §3.4, §3.5, §4.3:
+1. Người chủ trì tải biên bản/transcript vào cuộc họp (SCR-18).
+2. AI trả về tóm tắt 3 khối: Quyết định · Việc cần làm · Vấn đề mở.
+3. Bảng action item: tên người đã khớp danh bạ nhân sự (avatar), hạn quy ra ngày; mục chưa chắc gắn "?".
+4. Sửa trực tiếp trong bảng → "Giao việc" (`ActionCard` L2).
+5. Mỗi người nhận task kèm trích đoạn biên bản gốc (`SourceChip`).
 
-| Role | Field lương cá nhân | File gốc tài liệu chứa lương |
-|---|---|---|
-| ROLE-01 CEO | `••••` (MaskedValue) + tooltip "Chỉ HR Manager xem được lương cá nhân" | Không mở/tải; hiển thị ForbiddenState |
-| ROLE-02 CFO | `••••` (chỉ thấy tổng chi phí nhân sự) | Không mở/tải |
-| ROLE-03 Sales Director | Không hiển thị | Không mở/tải |
-| ROLE-04 HR Manager | Giá trị đầy đủ | Mở + tải |
-| ROLE-05 Reviewer | Giá trị đầy đủ **chỉ trong SCR-06** của tài liệu đó | Mở trong ngữ cảnh review, không nút tải |
+### F4 — Check-in KPI/OKR của nhân viên
 
-- `••••` chỉ là hiển thị: API **không trả** giá trị cho role không có quyền (02 §4.1 mục 6) — frontend không nhận giá trị thật để che.
-- Độ dài `••••` cố định, không phản ánh số chữ số thật.
-- Tổng hợp (quỹ lương, chi phí nhân sự) vẫn hiển thị số bình thường cho role có view-agg.
+1. Thứ Sáu, thông báo "Check-in tuần: 2 KR của bạn".
+2. Mở `CheckInCard`: giá trị AI điền sẵn từ dữ liệu đã có hoặc task đã xong (nhãn "AI gợi ý").
+3. Kéo thanh độ tự tin; ghi blocker bằng giọng nói hoặc gõ một câu.
+4. Gửi → Manager thấy trong tổng hợp team.
+
+### F5 — Manager xử lý cảnh báo quá tải
+
+1. SCR-01 Manager: "B quá tải 130% trong 2 tuần" (METRIC-HR-03 / ALERT-HR-03).
+2. Mở SCR-19 Workload: heatmap người × tuần.
+3. AI gợi ý (L1): "Chuyển 2 task sang C (50%), C đã làm việc tương tự".
+4. Kéo thả hoặc bấm Áp dụng → B và C nhận thông báo kèm lý do.
 
 ---
 
-## 8. Responsive & PWA
+## 7. Design system v2
 
-| Breakpoint | Bố cục |
+Xây theo token ngay từ đầu để hỗ trợ hai mật độ, sáng/tối và đổi thương hiệu. Nền tảng: shadcn/ui trên Radix (có sẵn a11y) + Tailwind (token qua CSS variables); chỉ tự xây nhóm AI và Nhập liệu.
+
+### 7.1. Token nền tảng
+
+| Nhóm | Giá trị | Ghi chú |
+|---|---|---|
+| Font | **Be Vietnam Pro** (UI); **JetBrains Mono** (mã, số liệu bảng — tùy chọn); dự phòng Inter | Không chồng dấu tiếng Việt ở cỡ nhỏ |
+| Cỡ chữ | `12 · 14 · 16 · 20 · 24 · 32` px | 14 thân chữ chế độ Gọn; 16 chế độ Thoáng; line-height 1,5 |
+| Số | `font-variant-numeric: tabular-nums` trong bảng, `MetricCard`, trục biểu đồ | Cột số thẳng hàng |
+| Khoảng cách | Lưới 4 px: `4 · 8 · 12 · 16 · 24 · 32 · 48` | Gọn giảm một bậc |
+| Bo góc | `4` ô nhập · `8` thẻ · `16` panel · `full` nút, chip | |
+| Độ sâu | 3 mức bóng: thẻ · menu nổi · hộp thoại | Chế độ tối dùng viền thay bóng |
+| Chuyển động | 150 ms hover · 250 ms panel | Tôn trọng `prefers-reduced-motion` |
+
+### 7.2. Màu theo ngữ nghĩa
+
+| Token | Ý nghĩa | Dùng cho |
+|---|---|---|
+| `primary` | Màu thương hiệu | Nút chính, liên kết, mục đang chọn, focus ring |
+| `ai` (+ `ai-subtle` nền) | Nội dung do AI tạo | Viền `ActionCard`, nhãn "AI soạn", Panel AI, feed "AI đã làm". **Khác hẳn `primary`** (khác hue, không chỉ khác độ đậm) |
+| `success` | Đúng kế hoạch / ok / confidence Cao | `StatusIcon` ●, badge |
+| `warning` | Có nguy cơ / confidence Trung bình | ◐ |
+| `danger` | Lệch / critical / confidence Thấp / lỗi | ○, lỗi validation |
+| `info` | Thông tin trung tính | Thông báo hệ thống |
+| `neutral-0…900` | Thang xám 10 bậc | Nền, viền, chữ phụ |
+| `stale` | Dữ liệu cũ | `FreshnessBadge` quá ngưỡng |
+
+- Mỗi token có biến thể sáng và tối (`--color-<token>` / `.dark`); tương phản kiểm theo §10.
+- Màu thương hiệu cụ thể (giá trị hex) chờ bộ nhận diện — OQ-01; token đặt tên trước, giá trị thay sau không đổi code.
+- **Màu trạng thái không bao giờ đứng một mình:** luôn kèm chữ hoặc biểu tượng.
+
+### 7.3. Biểu tượng trạng thái
+
+| Biểu tượng | Nghĩa | Dùng cho |
+|---|---|---|
+| ● | ok / Cao | Trụ, metric, confidence |
+| ◐ | warning / Trung bình | |
+| ○ | critical / Thấp | |
+| ↑ ↓ | Xu hướng so kỳ trước | Kèm dấu và %: `↑ +8,2%`; màu theo hướng tốt/xấu của metric, không theo chiều lên/xuống |
+
+### 7.4. Hai mật độ (U7)
+
+| Thuộc tính | Thoáng (mặc định ROLE-01..04, 06..09) | Gọn (mặc định ROLE-05, ROLE-10; tùy chọn mọi role) |
+|---|---|---|
+| Thân chữ | 16 px | 14 px |
+| Hàng bảng | 44 px | 32 px |
+| Padding thẻ | 24 px | 16 px |
+| Mục tiêu | Đọc nhanh, ít thông tin | Mật độ cao, bàn phím |
+
+Người dùng đổi trong menu avatar; lưu theo tài khoản.
+
+### 7.5. Trực quan hóa dữ liệu (Recharts)
+
+- Tiêu đề biểu đồ là **kết luận** ("Doanh thu online giảm 18% từ tháng 7"), không phải tên chỉ số.
+- Luôn có đường kế hoạch/mục tiêu/ngưỡng để so sánh; màu trạng thái chỉ dùng cho phần lệch.
+- Ưu tiên cột và đường; tránh biểu đồ tròn > 4 phần; không 3D.
+- Đơn vị rút gọn kiểu Việt trên trục: `1,2 tỷ`, `450 tr`, `12,5%`; tooltip hiện số đầy đủ.
+- Mọi điểm dữ liệu bấm được → bản ghi gốc (SCR-07) và "Hỏi AI về điểm này" (P01).
+- Dữ liệu lấy trực tiếp từ chuỗi `*_trend` của API; **frontend không tự tính KPI**.
+- Mỗi biểu đồ có bảng dữ liệu thay thế + mô tả một câu (a11y).
+
+### 7.6. Danh mục component
+
+| Nhóm | Component |
 |---|---|
-| ≥ 1280 px (desktop) | Sidebar + nội dung + AIPanel cố định bên phải |
-| 768–1279 px (tablet) | Sidebar thu gọn icon; AIPanel dạng Sheet |
-| < 768 px (mobile) | 1 cột; sidebar → menu dưới (bottom nav 4 mục); AIPanel → nút nổi; SCR-06 chuyển tab "Tài liệu / Trường" thay cho chia đôi |
-
-- **PWA**: manifest + service worker; cài lên màn hình chính; cache shell + metric đã xem gần nhất để chạy offline mức demo (01 §7) — hiển thị banner "Đang ngoại tuyến · dữ liệu lúc {thời điểm}"; thao tác ghi bị vô hiệu khi offline.
-- **C4 (chụp ảnh)**: trên mobile, SCR-08 mở camera qua `<input type="file" accept="image/*" capture>`; không có app native (01 §3).
-- Ưu tiên mobile: SCR-01..04 (xem), SCR-08 (C4), thông báo; SCR-06 dùng được nhưng tối ưu cho desktop.
+| Cơ bản | Button, Input, Select, DatePicker, `CurrencyInput` (VNĐ), Tabs, Menu, Dialog, Toast, Avatar, Badge, `MaskedValue` |
+| Dữ liệu | `DataTable` (sắp xếp, lọc, sửa trực tiếp, chọn nhiều), `MetricCard`, `PillarCard`, Sparkline, `WorkloadHeatmap`, `RiskHeatmap`, Timeline/Gantt, `GoalTree`, `LineagePopover` |
+| AI | §5.1 |
+| Nhập liệu | `GlobalDropZone`, `UploadProgressCard`, `DocumentViewer` (vùng tô), `ExtractedFieldForm`, `CameraCapture`, `VoiceInput`, `NaturalInput`, `ImportMappingGrid` |
+| Trạng thái | `Skeleton`, `EmptyState`, `WidgetError`, `PageError`, `ForbiddenState`, `OfflineBanner` |
+| Điều hướng | Sidebar thu gọn, Breadcrumb nghiệp vụ, `MobileTabBar`, `RoleSwitcher` (demo), `LocaleSwitcher` |
 
 ---
 
-## 9. Accessibility (a11y)
+## 8. Định dạng Việt Nam (P04) & i18n (DEC-135)
+
+### 8.1. Quy ước định dạng
+
+| Loại | Tiếng Việt (mặc định) | Tiếng Anh | Ghi chú |
+|---|---|---|---|
+| Ngày | `05/10/2026` · `Thứ Hai` | `Oct 5, 2026` · `Mon` | Ngày giờ VI: `05/10/2026 08:30` (24 giờ) |
+| Kỳ | `T9/2026`, `Q3/2026` | `Sep 2026`, `Q3 2026` | |
+| Tiền đầy đủ | `1.250.000 đ` | `VND 1,250,000` | Bảng, form, Review |
+| Tiền rút gọn | `850 tr`, `1,2 tỷ` | `VND 850M`, `VND 1.2B` | `MetricCard`, trục biểu đồ; tooltip số đầy đủ |
+| Phần trăm | `12,5%`; chênh lệch `+8,2%` | `12.5%`; `+8.2%` | 1 chữ số thập phân |
+| Số thường | `5,4 task/người` | `5.4 tasks/person` | |
+| Bội số | `2,8x` | `2.8x` | |
+| MST | 10 hoặc 13 số: `0312345678`, `0312345678-001` | như VI | Validate ở form C1 |
+| Địa chỉ | Theo đơn vị hành chính mới | như VI | |
+| Xưng hô của AI | "anh/chị" theo hồ sơ, mặc định "bạn" (Admin cấu hình) | you | OQ-03 |
+
+### 8.2. i18n với next-intl
+
+- **Không hard-code chuỗi** trong code (CLAUDE.md): mọi chuỗi qua message `vi` (mặc định) và `en`.
+- Key theo namespace: `nav.*`, `pillar.<F|O|C|U|S>.*`, `metric.<METRIC-ID>.name`, `alert.<ALERT-ID>.title`, `idp.status.<STATUS>`, `ai.state.*`, `ai.autonomy.<L0..L3>`, `error.<code>`.
+- Định dạng số/ngày/tiền qua một helper dùng chung (`Intl.NumberFormat`, `Intl.DateTimeFormat` theo locale + rút gọn tr/tỷ) — không tự format trong component.
+- Tên metric/alert lấy từ i18n theo ID; API trả ID + giá trị, không trả nhãn hiển thị.
+- Ngôn ngữ giao diện theo cài đặt tài khoản (`LocaleSwitcher`); **AI trả lời theo ngôn ngữ của câu hỏi**.
+- Nhãn tiếng Việt dài hơn tiếng Anh 20–30%: nút và cột bảng thiết kế theo bản tiếng Việt.
+- `<html lang>` đổi theo locale.
+
+### 8.3. Văn phong
+
+- Câu ngắn, chủ động; thuật ngữ phổ biến giữ EN (KPI, OKR, DSO, NPS, NRR, pipeline, runway, churn) kèm tooltip giải thích.
+- Thông báo lỗi nói nguyên nhân + cách xử lý ("Không tải được tài liệu. Anh/chị thử lại sau ít phút.").
+- Không dùng "AI" để chỉ hành động của người; không dùng "đã làm" cho việc AI chỉ mới soạn.
+
+### 8.4. Che dữ liệu nhạy cảm
+
+Theo mức nhạy cảm và ma trận quyền ở 02:
+
+| Dữ liệu | Hiển thị đầy đủ cho | Role khác |
+|---|---|---|
+| Lương cá nhân, lịch sử lương | ROLE-01 CEO, ROLE-04 HR_MANAGER; ROLE-05 REVIEWER chỉ trong SCR-10 của tài liệu được phân (không nút tải) | `MaskedValue` `••••` + tooltip lý do, hoặc ẩn cột |
+| Ngày sinh, địa chỉ, CCCD | ROLE-01, ROLE-04 | Ẩn |
+| SĐT, email cá nhân | Theo phạm vi quyền (02) | Ẩn hoặc che một phần |
+| Tổng hợp (quỹ lương, chi phí nhân sự) | Mọi role có quyền xem trụ liên quan | — |
+
+- `••••` chỉ là hiển thị: **API không trả** giá trị cho role không có quyền — frontend không nhận giá trị thật để che. Độ dài `••••` cố định.
+- Panel AI không bao giờ hiển thị dữ liệu "rất nhạy cảm" (lương cá nhân, ngày sinh, địa chỉ) — dữ liệu này không được gửi tới LLM (P06, 07).
+
+---
+
+## 9. Responsive & PWA
+
+### 9.1. Điểm ngắt
+
+| Điểm ngắt | Thiết bị | Bố cục |
+|---|---|---|
+| ≥ 1440 px | Màn hình lớn | Sidebar mở · nội dung · Panel AI cố định bên phải |
+| 1280–1439 px | Laptop | Sidebar mở · Panel AI trượt ra khi cần |
+| 768–1279 px | Tablet, laptop nhỏ | Sidebar thu thành biểu tượng · Panel AI phủ lên nội dung (Sheet); SCR-10 vẫn chia đôi nếu ≥ 1024 px |
+| < 768 px | Điện thoại | SCR-28: tab bar dưới, 4 việc cốt lõi; màn khác chỉ đọc; SCR-10 chuyển tab "Tài liệu / Trường" |
+
+Màn ≥ 1280 px không cuộn ngang (NFR usability).
+
+### 9.2. PWA
+
+- Manifest + service worker; cài lên màn hình chính; push notification (Briefing, cần duyệt, AI đọc xong).
+- Camera cho C4 qua `<input type="file" accept="image/*" capture>` và `getUserMedia` khi có; không có app native (01 §3).
+- Cache shell + Briefing/metric đã xem gần nhất; ngoại tuyến: banner + hàng đợi ghi (ảnh chụp, cập nhật task, check-in) nhãn "chưa đồng bộ"; thao tác khác bị vô hiệu.
+
+---
+
+## 10. Accessibility (WCAG 2.1 AA)
 
 | Yêu cầu | Chi tiết |
 |---|---|
-| Chuẩn | WCAG 2.1 AA |
-| Tương phản | Chữ thường ≥ 4,5:1; chữ lớn/icon ≥ 3:1 — kiểm cho mọi token §6.2 |
-| Không chỉ dựa vào màu | Ngưỡng metric, confidence, trạng thái AI luôn có icon + chữ |
-| Bàn phím | Mọi thao tác dùng được bằng bàn phím; focus ring `--primary` rõ ràng; phím tắt SCR-06 (§4.3) có trang trợ giúp `?` |
-| Screen reader | Radix primitives giữ ARIA; MetricCard có `aria-label` đọc đủ "Doanh thu tháng 9, 7,6 tỷ, 84,4% kế hoạch, cảnh báo"; biểu đồ có bảng dữ liệu thay thế |
-| Live region | Toast, progress UC-07, chuyển role dùng `aria-live="polite"` |
+| Tương phản | Chữ ≥ 4,5:1; chữ lớn và thành phần UI ≥ 3:1 — kiểm mọi token §7.2 ở cả sáng và tối |
+| Không chỉ dựa vào màu | Trạng thái trụ/metric, confidence, trạng thái AI luôn có biểu tượng + chữ; kiểm với các dạng mù màu phổ biến |
+| Bàn phím | Mọi thao tác dùng được bằng bàn phím; focus ring rõ (`primary`); phím tắt có trang tra cứu (`?`); ⌘K/Ctrl+K toàn cục |
+| Screen reader | Radix giữ ARIA; `MetricCard` có `aria-label` đầy đủ ("Doanh thu tháng 9, 7,6 tỷ, 84,4% kế hoạch, cảnh báo"); biểu đồ có bảng thay thế |
+| Streaming AI | Câu trả lời đang truyền dần được thông báo **khi hoàn tất**, không đọc từng token (`aria-live="polite"` trên vùng kết quả cuối) |
+| Live region | Toast, tiến trình upload/UC-07, chuyển role dùng `aria-live="polite"` |
+| Thời gian | `UndoToast` 10 giây, tạm dừng khi hover/focus |
+| Chạm | Vùng chạm ≥ 44 × 44 px trên mobile; không dùng vuốt làm cách duy nhất |
 | Chuyển động | Tôn trọng `prefers-reduced-motion` |
-| Ngôn ngữ | `<html lang="vi">` |
+| Ngôn ngữ | `<html lang="vi">` / `"en"` theo locale |
 
 ---
 
-## 10. Luồng demo 15 phút → SCR
+## 11. Chỉ số UX
 
-Nguồn: `01-PROJECT-OVERVIEW.md` §11; role active theo `02-PERSONAS-PERMISSIONS.md` §5.3.
+| Chỉ số | Mục tiêu | Cách đo |
+|---|---|---|
+| Thời gian đến insight đầu tiên (CEO mở app → biết việc cần làm) | ≤ 10 giây | Usability test, phân tích phiên |
+| Review một hóa đơn 6 trường | ≤ 60 giây | Log SCR-10 |
+| Hoàn thành F1–F5 không cần hỗ trợ | ≥ 90% | Usability test |
+| SUS | ≥ 75 | Khảo sát sau 30 ngày |
+| Quản lý dùng hằng tuần | ≥ 80% | Analytics |
+| `ActionCard` L2 được xác nhận không sửa | ≥ 60% và tăng dần | Log AI |
+| Tỷ lệ hoàn tác hành động L3 | ≤ 5% | Feed SCR-17 |
+| Tỷ lệ câu trả lời AI được mở nguồn | Theo dõi, không đặt ngưỡng | Log `SourceChip` |
+| Drill-down số → tài liệu gốc | ≤ 3 click | Log UI |
 
-| Bước | Thời lượng | Hành động demo | Role active | Màn hình (chuỗi SCR) | Điểm UI cần thể hiện |
+Chỉ số L2/L3 là căn cứ để nâng hoặc hạ autonomy từng loại hành động (SCR-15).
+
+---
+
+## 12. Câu chuyện demo 20 phút → SCR
+
+Nguồn: `01-PROJECT-OVERVIEW.md` §11; chuyển role bằng `RoleSwitcher` (`DEMO_MODE=true`, 02).
+
+| # | Thời lượng | Bước | Role | SCR | Component chính |
 |---|---|---|---|---|---|
-| 1 | 2' | CEO mở app buổi sáng → thấy 2 việc cần quyết, 1 rủi ro mới | ROLE-01 CEO | SCR-13 → SCR-01 | AI Summary (L1); vùng "Cần anh quyết" với AlertCard; insight ≤ 10 giây |
-| 2 | 2' | Click cảnh báo doanh thu → xem nguyên nhân + nguồn | ROLE-01 CEO | SCR-01 (ALERT-FIN-01) → SCR-09 → SCR-10 | ≤ 3 click; LineagePanel đủ 5 thành phần P01; tô vùng doanh thu trong tài liệu #1/#2 |
-| 3 | 2' | Chuyển vai CFO → dashboard đổi → xem chi tiết ngân sách | ROLE-02 CFO | SCR-12 → SCR-02 → SCR-09 (METRIC-FIN-06) | Chuyển ≤ 2 giây; layout đổi theo scope FIN + OPS |
-| 4 | 5' | Vào "Nạp doanh nghiệp" → upload 7 tài liệu mẫu → AI xử lý | ROLE-01 CEO (phụ: ROLE-05) | SCR-12 → SCR-08 (chế độ UC-07, bước 1–5) | Progress + nhãn AI; L3 "AI đã làm" cho tài liệu STP; đối chiếu XD |
-| 5 | 2' | Vào Review → duyệt 1 tài liệu → thấy dữ liệu vào hệ thống | ROLE-05 Reviewer (phụ: ROLE-02 với tài liệu FIN) | SCR-12 → SCR-05 (lọc batch) → SCR-06 | L2 "AI soạn · chờ xác nhận"; duyệt ≤ 60 giây; toast "Đã ghi · METRIC-xx cập nhật". **Không** chọn tài liệu #6 |
-| 6 | 2' | Quay lại CEO dashboard → dữ liệu mới + drill-down đến tài liệu gốc | ROLE-01 CEO | SCR-12 → SCR-01 → SCR-09 → SCR-10 | Highlight metric mới; drill-down tới tài liệu FIN/CUS vừa duyệt |
+| 1 | 2' | CEO mở app buổi sáng (F1): tóm tắt, 5 thẻ trụ, trụ S đỏ | ROLE-01 | SCR-01 | `BriefingSummary`, `PillarCard`, `StatusIcon` |
+| 2 | 3' | Bấm "Doanh thu T9 đạt 82% KH" → Panel AI giải thích → drill-down tới hóa đơn và trang PDF | ROLE-01 | SCR-16 (Panel), SCR-07 | `AIPanel`, `SourceChip`, `LineagePopover`, `SourceViewer` |
+| 3 | 2' | Hỏi AI câu liên miền (tuyển dụng chậm → dự báo); hỏi runway khi không có doanh thu mới | ROLE-01 | SCR-16 | `CommandBar`, `ThinkingState`, `SourceChip` |
+| 4 | 2' | Chọn phương án → Action card L2 → xác nhận → 3 task, toast hoàn tác, Decision cập nhật | ROLE-01 | SCR-01, SCR-17 | `SuggestionChip`, `ActionCard`, `UndoToast` |
+| 5 | 2' | Chuyển CFO / Risk Manager → dashboard đổi; chạy what-if | ROLE-02, ROLE-07 | SCR-01, SCR-02, SCR-21 | `RoleSwitcher`, `WhatIfPanel` |
+| 6 | 5' | Nạp doanh nghiệp: thả 9 tài liệu mẫu → AI phân loại, trích xuất | ROLE-01 | SCR-12, SCR-08 | `GlobalDropZone`, `UploadProgressCard` |
+| 7 | 2' | Review song song (F2) — duyệt hóa đơn ≤ 60 giây | ROLE-05 | SCR-10 | `DocumentViewer`, `ExtractedFieldForm`, `ConfidenceBadge` |
+| 8 | 2' | Quay lại CEO: metric cập nhật, insight mới, lineage tới tài liệu vừa duyệt | ROLE-01 | SCR-01, SCR-07 | `FreshnessBadge`, `InsightCard`, `LineagePopover` |
 
-- 4 lần chuyển vai trò (bước 3, 4, 5, 6), mỗi lần ≤ 2 giây qua SCR-12.
-- Bước 4 với phương án phụ: chuyển sang ROLE-05 ngay ở bước 4 và giữ nguyên cho bước 5 (02 §5.3).
-
----
-
-## 11. Open questions
-
-| ID | Câu hỏi | Ảnh hưởng | Đề xuất tạm |
-|---|---|---|---|
-| OQ-01 | SCR-15 (Cấu hình AI) chỉ đọc vì 02 §3.6 không có Admin; có cần cho một role (VD CFO trụ FIN) chỉnh autonomy/kill switch qua UI không? (liên quan 04 OQ-04) | 02, 04, 10 | Giữ chỉ đọc trong MVP |
-| OQ-02 | Thư viện chart và thư viện i18n cụ thể (chưa có trong tech stack CLAUDE.md) | 07, dependency mới cần DEC | 07 đề xuất, captain raise DEC |
-| OQ-03 | Bỏ mục "Analytics (chất lượng AI)" của phác thảo cũ; KPI IDP (accuracy, STP) chỉ đo qua log. Có cần màn Analytics cho demo không? | Scope | Không có trong MVP |
-| OQ-04 | Giá trị hex của token màu là gợi ý; cần nhận diện thương hiệu Aureon chính thức | Design | Dùng giá trị gợi ý §6.2 |
-| OQ-05 | Mật độ mặc định theo role (§6.5) là đề xuất của writer | UX | Giữ đề xuất; người dùng đổi được |
-| OQ-06 | Route `/…` ở §2.3 là gợi ý; route chính thức và EP-xx gọi từ từng SCR cần 07/10 chốt | 07, 10 | 10 tham chiếu ngược SCR-xx |
-| OQ-07 | Ngưỡng "Dữ liệu cũ" của FreshnessLabel (bao lâu so với tần suất cập nhật) | SCR-01..04 | Gấp 2 lần tần suất cập nhật ở 03 §2 |
+Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY_MODE=fixture` (07) — UI không đổi.
 
 ---
 
-## 12. Liên kết
+## 13. Open questions
+
+| # | Câu hỏi | Đề xuất mặc định |
+|---|---|---|
+| OQ-01 | Bộ nhận diện thương hiệu (logo, giá trị hex `primary`) đã có chưa? Có dùng `logo_CyEyes.webp` ở repo không? | Dùng token tạm (primary xanh dương, ai tím), thay khi có brand — không ảnh hưởng code |
+| OQ-02 | Briefing và duyệt có đẩy qua Zalo/Slack/Teams không? | Không trong v2 (C7 là Phase 2); chỉ in-app + push PWA |
+| OQ-03 | AI xưng hô "anh/chị" hay "bạn" với nhân viên? | Mặc định "bạn"; "anh/chị" theo hồ sơ; Admin cấu hình |
+| OQ-04 | Xác thực lại khi duyệt tài chính vượt ngưỡng trên mobile: WebAuthn có cần DEC dependency không? | Dùng Web API chuẩn (không thêm dependency); fallback nhập lại mật khẩu |
+| OQ-05 | `VoiceInput` (C2 bằng giọng nói) dùng Web Speech API của trình duyệt hay STT phía server qua ModelGateway? | Web Speech API cho demo (VI hỗ trợ trên Chrome); STT server là Phase 2 |
+| OQ-06 | Người dùng thử cho usability test (≥ 2 người mỗi persona) là ai? | Human chỉ định trước S5 |
+| OQ-07 | SCR-27 (cấu hình doc type/schema) là Should — nếu cắt, ADMIN chỉnh ngưỡng ở đâu? | Giữ tối thiểu slider ngưỡng trong SCR-15 nếu SCR-27 bị dời |
+
+---
+
+## 14. Liên kết
 
 | Chủ đề | File |
 |---|---|
-| Phạm vi, KPI, P01–P04, kịch bản demo | `01-PROJECT-OVERVIEW.md` |
-| Quyền, che lương, role switcher | `02-PERSONAS-PERMISSIONS.md` |
-| Metric, alert, drill-down | `03-DASHBOARD-SPEC.md` |
-| Pipeline IDP, trạng thái, autonomy, UC-07 | `04-IDP-FEATURE-SPEC.md` |
-| Stack, route, thư viện | `07-TECH-ARCHITECTURE.md` |
-| Endpoint, error code | `10-API-SPECIFICATION.md` |
+| Tầm nhìn, nguyên tắc P01–P09, câu chuyện demo | `01-PROJECT-OVERVIEW.md` |
+| ID registry (ROLE, SCR, METRIC, ENT) | `00-INDEX.md` §4 |
+| Persona, quyền, data scoping | `02-PERSONAS-PERMISSIONS.md` |
+| 5 trụ, metric, alert, insight, briefing | `03-DASHBOARD-SPEC.md` |
+| IDP, review, Action Registry, autonomy | `04-IDP-FEATURE-SPEC.md` |
+| Stack FE, ModelGateway, fixture mode | `07-TECH-ARCHITECTURE.md` |
+| Tài khoản và tài liệu demo | `08-DEMO-DATA-SPEC.md` |
+| Task FE (T-142, T-143, T-224..227, T-320..323, T-410..413, T-501..506, T-520) | `09-BUILD-PLAN-TASKS.md` |
+| Endpoint, SSE event | `10-API-SPECIFICATION.md` |
+| Test UI/E2E | `14-TEST-TRACEABILITY.md` |
 
 ---
 
-## 13. Version
+## 15. Version
 
-- **Version:** 1.0.0
-- **Last updated:** 2026-10-17
-- **Applies to:** Aureon Demo v1.0
+- **Version:** 2.0.0
+- **Last updated:** 2026-10-19
+- **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
+- **Change:** Viết lại toàn bộ theo DEC-124..137 — 28 màn hình, AI components, F1–F5, design system v2 (v1.0.0 lưu ở nhánh `v1`).
