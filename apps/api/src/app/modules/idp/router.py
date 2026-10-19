@@ -282,6 +282,8 @@ async def upload_document(
         batch_id=batch_id,
     )
 
+    # Serialize before dispatching so the response always reports UPLOADED within
+    # the 2s budget (10 §EP-20: không chờ xử lý).
     doc_out = serialize_document_out(doc, current_user)
     meta: dict[str, Any] | None = None
     if is_duplicate and duplicate_of_id:
@@ -291,6 +293,15 @@ async def upload_document(
                 "duplicate_of_id": str(duplicate_of_id),
             }
         }
+
+    # EP-20: enqueue end-to-end processing for a fresh (non-duplicate) upload
+    # (10 §EP-20) with a deterministic task id ("task id xác định"). The pipeline
+    # owns the ExtractionJob lifecycle, so no placeholder job is created here.
+    if not is_duplicate:
+        process_document_task.apply_async(
+            args=[str(doc.id)],
+            task_id=f"{doc.id}:process:1",
+        )
 
     return Envelope(data=doc_out, meta=meta)
 
