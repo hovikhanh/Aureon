@@ -150,6 +150,13 @@ Các quyết định dưới đây đã nằm trong `CLAUDE.md` v1.1.0 (hợp đ
 | DEC-136 | X12 | Dữ liệu demo | A: giữ ABC 45 NV · B: ABC mở rộng | **B** — giữ Công ty TNHH TM&DV ABC, **mở rộng ~150 nhân sự**, bổ sung dữ liệu trụ **U** (sản phẩm/dịch vụ) và **S** (rủi ro) để demo đủ 5 trụ | Khớp quy mô NFR-20 A-EMS (150–300 NV) | resolved | false | 01, 08, seed |
 | DEC-137 | X13 | Đăng ký tài khoản công khai | A: public chỉ tạo EMPLOYEE (A-EMS) · B: không có đăng ký | **B** — không có self-register; ADMIN (và CEO) tạo user và gán role (FR-AUTH-05) | Demo nội bộ; giảm bề mặt tấn công | resolved | false | 02, 10 §auth |
 
+**Tái phân loại `_reference/` (2026-10-19, chỉ đạo trực tiếp của human @CyEyes).** DEC-138 → DEC-143 được giữ chỗ cho gói "chốt ngưỡng + dependency" (DEC-138..142 do human duyệt cùng ngày, DEC-143 = ngưỡng dashboard demo) — chưa ghi vào file này vì task đó bị tạm dừng khi human giao nhiệm vụ mới.
+
+| ID | Tiêu đề | Bối cảnh | Quyết định | Rationale | Status | Blocking | Ảnh hưởng | Ngày · Người quyết |
+|---|---|---|---|---|---|---|---|---|
+| DEC-144 | Reclassify `_reference/` as Canonical Source for v2 | Trước đây `_reference/` là "tài liệu gốc, cấm đọc" (`CLAUDE.md` § Cấm đọc; 12 §6 ghi `archived`); ngoại lệ DEC-124 đã hết hiệu lực sau commit `5983811`. Human bổ sung tài liệu mới: `SOURCE-BRD-v1.1-Bổ sung.md` (mới) và `SOURCE-BRD-v1.1.md` (sửa 2026-10-19 22:28) | `_reference/` trở thành **nguồn gốc chính thức (Canonical Source)** cho build Aureon v2. Mâu thuẫn giữa `docs/` và `_reference/` → **ưu tiên `_reference/`**, trừ khi có DEC mới (số lớn hơn 144) nói ngược lại. `docs/` vẫn là bản distill dùng cho build hằng ngày; gap được xử lý theo quy trình 3 phase (đọc & gap analysis → human duyệt → cập nhật docs 2.1.0) | Human yêu cầu `_reference/` trở thành nguồn gốc chính thức thay vì tài liệu cũ bị cấm đọc | resolved | false | Gỡ lệnh cấm đọc `_reference/`; agent được đọc toàn bộ `_reference/` cho mọi task v2; 12 §6 không còn coi `_reference/` là `archived`; 00–11 tạm `draft` chờ gap analysis | 2026-10-19 · @CyEyes |
+| DEC-145 | Supersede CLAUDE.md restriction on `_reference/` | `CLAUDE.md` § Cấm đọc (1.1.0) và §6.2 (bản 2.0.0 chưa commit) đều cấm đọc `_reference/`; agent không được tự sửa `CLAUDE.md` (§6.6 #10) | DEC-145 **ghi đè** dòng `_reference/` trong § Cấm đọc của `CLAUDE.md`, theo đúng cơ chế ngoại lệ của `CLAUDE.md` 2.0.0 §6.2 ("task hợp nhất tài liệu + DEC resolved ghi phạm vi + thời hạn"). **Phạm vi:** đọc mọi file trong `_reference/` (trừ `README.md` nếu human không yêu cầu). **Thời hạn:** không giới hạn, cho tới khi có DEC thay thế. **Action Required (Human):** sửa `CLAUDE.md` mục "⛔ Cấm đọc" để gỡ dòng `_reference/` **hoặc** ủy quyền rõ cho agent sửa đúng mục đó (ngoại lệ duy nhất). **Đã thực hiện 2026-10-19:** human ủy quyền agent sửa (ngoại lệ duy nhất); agent gỡ `_reference/` khỏi `CLAUDE.md` §6.2 và §9, ghi Change log ở §12 (version 2.0.0) | Rule cũ trong `CLAUDE.md` xung đột với DEC-144 | resolved | false | `CLAUDE.md` § Cấm đọc / §6.2; 11 (Gate, loading matrix); 12 §6 | 2026-10-19 · @CyEyes |
+
 ---
 
 ## 4. Quyết định mở (open)
@@ -302,6 +309,11 @@ Các quyết định dưới đây **không đổi schema (05) hay API contract 
 ### 5.3. Đợt nâng cấp Aureon v2 (DEC-124, từ 2026-10-19)
 
 DEC-124 (`resolved`, `blocking=false`) mở ngoại lệ đọc `_reference/` và sửa `docs/` cho riêng task nâng cấp v2. Gate B vẫn **ĐẠT** (0 DEC open + blocking). Tuy nhiên 01, 02, 03, 04, 05, 06, 07, 09, 10 đã chuyển `draft` ở 12 §2 → **Gate A không đạt cho mọi task code** chạm các file này cho tới khi human promote về `current`.
+
+
+### 5.4. Đợt tái phân loại `_reference/` (DEC-144, DEC-145, từ 2026-10-19)
+
+Gate B vẫn **ĐẠT** (0 DEC open + blocking). 00–11 chuyển `draft` ở 12 §2 → **Gate A không đạt cho task code** cho tới khi kết thúc Phase 3 của đợt (version 2.1.0). S0 (T-001) tạm hoãn.
 
 ---
 
