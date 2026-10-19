@@ -161,14 +161,20 @@ export function SchemasView() {
   const { role, session } = useAuth();
   const [selectedDocType, setSelectedDocType] = useState("INVOICE");
 
+  // EP-50: ROLE-05 may read every doc type at once (doc_type optional);
+  // ROLE-01..04 MUST pass doc_type, so scope the request to the selected chip
+  // and refetch when the selection changes.
+  const isReviewer = role === "ROLE-05";
+  const docTypeParam = isReviewer ? undefined : selectedDocType;
+
   const {
     data: schemas,
     isLoading,
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["extraction-schemas"],
-    queryFn: () => getSchemasApi(undefined, session?.accessToken),
+    queryKey: ["extraction-schemas", docTypeParam ?? "ALL"],
+    queryFn: () => getSchemasApi(docTypeParam, session?.accessToken),
     // Gate on the hydrated token so the request carries auth on its first fire.
     enabled: !!session?.accessToken,
     retry: 1,
