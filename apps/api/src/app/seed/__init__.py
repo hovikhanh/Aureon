@@ -22,6 +22,7 @@ from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.modules.auth.models import Role, User
 from app.seed.data import ROLES, USERS, RoleSeed, UserSeed
+from app.seed.dashboard import seed_dashboard
 
 # Deterministic namespace so seeded ids are stable across runs (idempotent upsert keeps the row).
 _SEED_NAMESPACE = uuid.UUID("a11e0000-0000-4000-8000-000000000001")
@@ -41,6 +42,9 @@ class SeedResult:
     roles_updated: int
     users_created: int
     users_updated: int
+    metrics_created: int = 0
+    metric_values_created: int = 0
+    alerts_created: int = 0
 
     @property
     def roles_total(self) -> int:
@@ -138,11 +142,18 @@ def seed_all(db: Session, config: ConfigService | None = None) -> SeedResult:
             users_created += 1
     db.flush()
 
+    # Dashboard: 18 metrics + SEED values + 12 open alerts (T-301/T-403).
+    dashboard = seed_dashboard(db)
+    db.flush()
+
     return SeedResult(
         roles_created=roles_created,
         roles_updated=len(ROLES) - roles_created,
         users_created=users_created,
         users_updated=len(USERS) - users_created,
+        metrics_created=dashboard.metrics,
+        metric_values_created=dashboard.values,
+        alerts_created=dashboard.alerts,
     )
 
 
@@ -156,6 +167,9 @@ def run() -> SeedResult:
         f"roles {result.roles_total} ({result.roles_created} created, "
         f"{result.roles_updated} updated), "
         f"users {result.users_total} ({result.users_created} created, "
-        f"{result.users_updated} updated)."
+        f"{result.users_updated} updated), "
+        f"metrics {result.metrics_created} created, "
+        f"metric_values {result.metric_values_created} created, "
+        f"alerts {result.alerts_created} created."
     )
     return result

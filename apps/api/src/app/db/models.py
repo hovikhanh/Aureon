@@ -10,6 +10,7 @@ from sqlalchemy import MetaData
 from app.db.base import Base
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import Role, User
+from app.modules.dashboard.models import Alert, Metric, MetricValue
 from app.modules.idp.models import (
     BusinessRecord,
     DocumentPage,
@@ -23,12 +24,15 @@ from app.modules.idp.models import (
 metadata: MetaData = Base.metadata
 
 __all__ = [
+    "Alert",
     "AuditLog",
     "BusinessRecord",
     "DocumentPage",
     "ExtractedField",
     "ExtractionJob",
     "ExtractionReview",
+    "Metric",
+    "MetricValue",
     "Role",
     "SourceDocument",
     "User",
