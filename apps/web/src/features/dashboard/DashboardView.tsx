@@ -3,17 +3,31 @@
 import { useMemo } from "react";
 import { AlertTriangle, Bot, CheckCircle2, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-context";
 import { MetricCard } from "@/components/metric/MetricCard";
 import { AlertCard } from "@/components/alert/AlertCard";
 import { AIStateBadge } from "@/components/ai/AIStateBadge";
 import { getRoleDashboardData } from "./demo-fixtures";
+import { getDashboardApi } from "./dashboard-api";
+import { toDashboardViewModel, type DashboardViewModel } from "./api-to-view";
 
 export function DashboardView() {
   const t = useTranslations();
-  const { user, role } = useAuth();
+  const { user, role, session } = useAuth();
+  const token = session?.accessToken;
 
-  const data = useMemo(() => getRoleDashboardData(role), [role]);
+  // EP-10 live dashboard (07 §3.5 polling). Demo fixtures are the fallback while loading
+  // or if the API is unreachable, so the screen is never blank during the demo.
+  const fallback = useMemo<DashboardViewModel>(() => getRoleDashboardData(role), [role]);
+  const { data: live } = useQuery({
+    queryKey: ["dashboard", role],
+    queryFn: () => getDashboardApi(token),
+    enabled: Boolean(token),
+    refetchInterval: 60_000,
+    select: toDashboardViewModel,
+  });
+  const data = live ?? fallback;
 
   const salutation = user?.salutation ?? "anh";
   const fullName = user?.full_name ?? "";

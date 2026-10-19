@@ -174,6 +174,82 @@ export interface AlertOut {
   can_acknowledge: boolean;
 }
 
+/** EP-10 greeting block — 10 §3 */
+export interface DashboardGreeting {
+  full_name: string;
+  salutation: string | null;
+}
+
+/** EP-10 AI summary — 10 §3 (`summary`). Numbers in `params` carry `metric_code`. */
+export interface DashboardSummary {
+  i18n_key: string;
+  params: Record<string, unknown>;
+  suggestion_level: "L1";
+}
+
+/** EP-10 pillar block — 10 §3 (`pillars[]`). */
+export interface PillarBlock {
+  pillar: Pillar;
+  access_level: MetricAccessLevel;
+  health_color: MetricStatusColor;
+  open_alert_count: number;
+  headline_metric: MetricValueOut | null;
+  metrics: MetricValueOut[];
+}
+
+/** EP-10 GET /api/v1/dashboard `data` — 10 §3. */
+export interface DashboardOut {
+  role_code: string;
+  greeting: DashboardGreeting;
+  summary: DashboardSummary;
+  pillars: PillarBlock[];
+  alerts_top: AlertOut[];
+}
+
+/** EP-12 lineage panel (P01) — 10 §3. `source_*` present only for FULL access. */
+export interface LineagePanelOut {
+  formula_display: string;
+  formula_expr: string;
+  source_record_types: string[];
+  computed_at: string | null;
+  computation: string | null;
+  source_record_count: number | null;
+  source_documents:
+    | {
+        id: string;
+        original_filename: string | null;
+        doc_type: string | null;
+        restricted: boolean;
+        reason: string | null;
+      }[]
+    | null;
+}
+
+/** EP-12 breakdown row — 10 §3 (`breakdown.rows[]`). */
+export interface MetricBreakdownRow {
+  key: string;
+  label: string;
+  value: number | null;
+  share: number | null;
+  record_filter: string | null;
+}
+
+/** EP-12 breakdown — 10 §3 (`breakdown`); null when AGG (DS2). */
+export interface MetricBreakdown {
+  dimension: string;
+  rows: MetricBreakdownRow[];
+}
+
+/** EP-12 GET /api/v1/metrics/{metric_code} `data` — 10 §3. */
+export interface MetricDetailOut {
+  metric: MetricValueOut;
+  lineage_panel: LineagePanelOut;
+  computation_inputs: { numerator: number | null; denominator: number | null } | null;
+  history: MetricHistoryPoint[];
+  breakdown: MetricBreakdown | null;
+  alert: AlertOut | null;
+}
+
 /** AI autonomy / state level shown by AIStateBadge — 06 §6.3 (P02) */
 export type AIStateLevel = "L0" | "L1" | "L2" | "L3";
 

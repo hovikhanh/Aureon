@@ -25,7 +25,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.115,
     formulaDisplay: "8.500.000.000 / 9.600.000.000 (88,5% KH)",
-    href: "/dashboard/metric/METRIC-FIN-01",
+    href: "/dashboard/metrics/METRIC-FIN-01",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -39,7 +39,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.012,
     formulaDisplay: "4.500.000.000 / 24.500.000.000",
-    href: "/dashboard/metric/METRIC-FIN-02",
+    href: "/dashboard/metrics/METRIC-FIN-02",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -53,7 +53,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.05,
     formulaDisplay: "6.800.000.000 / 850.000.000",
-    href: "/dashboard/metric/METRIC-FIN-03",
+    href: "/dashboard/metrics/METRIC-FIN-03",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -67,7 +67,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.045,
     formulaDisplay: "13.000.000.000 / 24.500.000.000 × 90",
-    href: "/dashboard/metric/METRIC-FIN-04",
+    href: "/dashboard/metrics/METRIC-FIN-04",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -81,7 +81,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.062,
     formulaDisplay: "1.306.000.000 / 5.459.100.000",
-    href: "/dashboard/metric/METRIC-FIN-05",
+    href: "/dashboard/metrics/METRIC-FIN-05",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -95,7 +95,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.021,
     formulaDisplay: "(3.400.000.000 − 3.150.000.000) / 3.150.000.000",
-    href: "/dashboard/metric/METRIC-FIN-06",
+    href: "/dashboard/metrics/METRIC-FIN-06",
     computedAt: "2026-10-20T08:00:00Z",
   },
 
@@ -111,7 +111,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.15,
     formulaDisplay: "16.600.000.000 / (27.000.000.000 − 5.500.000.000)",
-    href: "/dashboard/metric/METRIC-CUS-01",
+    href: "/dashboard/metrics/METRIC-CUS-01",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -125,7 +125,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.03,
     formulaDisplay: "12 / (12 + 38)",
-    href: "/dashboard/metric/METRIC-CUS-02",
+    href: "/dashboard/metrics/METRIC-CUS-02",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -139,7 +139,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.045,
     formulaDisplay: "23.300.000.000 / 22.300.000.000",
-    href: "/dashboard/metric/METRIC-CUS-03",
+    href: "/dashboard/metrics/METRIC-CUS-03",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -153,7 +153,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.03,
     formulaDisplay: "49.980.000.000 / 98.000.000.000",
-    href: "/dashboard/metric/METRIC-CUS-04",
+    href: "/dashboard/metrics/METRIC-CUS-04",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -167,7 +167,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.02,
     formulaDisplay: "DOC-03 nps_score",
-    href: "/dashboard/metric/METRIC-CUS-05",
+    href: "/dashboard/metrics/METRIC-CUS-05",
     computedAt: "2026-10-20T08:00:00Z",
   },
 
@@ -183,7 +183,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.12,
     formulaDisplay: "9 / 15 (DOC-05)",
-    href: "/dashboard/metric/METRIC-OPS-01",
+    href: "/dashboard/metrics/METRIC-OPS-01",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -197,7 +197,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 1,
     formulaDisplay: "2 projects overdue <= 30d",
-    href: "/dashboard/metric/METRIC-OPS-02",
+    href: "/dashboard/metrics/METRIC-OPS-02",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -211,7 +211,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.08,
     formulaDisplay: "2 / 3 decisions due",
-    href: "/dashboard/metric/METRIC-OPS-03",
+    href: "/dashboard/metrics/METRIC-OPS-03",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -225,7 +225,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.05,
     formulaDisplay: "81 task / 15 assignee",
-    href: "/dashboard/metric/METRIC-OPS-04",
+    href: "/dashboard/metrics/METRIC-OPS-04",
     computedAt: "2026-10-20T08:00:00Z",
   },
 
@@ -241,7 +241,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: 0.03,
     formulaDisplay: "98.000.000.000 / 45",
-    href: "/dashboard/metric/METRIC-HR-01",
+    href: "/dashboard/metrics/METRIC-HR-01",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -255,7 +255,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.01,
     formulaDisplay: "6 / 45 headcount",
-    href: "/dashboard/metric/METRIC-HR-02",
+    href: "/dashboard/metrics/METRIC-HR-02",
     computedAt: "2026-10-20T08:00:00Z",
   },
   {
@@ -269,7 +269,7 @@ export const ALL_METRICS: MetricCardProps[] = [
     periodKey: "2026-09",
     deltaRatio: -0.02,
     formulaDisplay: "(2 overloaded + 2 delayed) / 45",
-    href: "/dashboard/metric/METRIC-HR-03",
+    href: "/dashboard/metrics/METRIC-HR-03",
     computedAt: "2026-10-20T08:00:00Z",
   },
 ];
@@ -289,7 +289,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-FIN-05",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:15:00Z",
-    href: "/dashboard/metric/METRIC-FIN-05",
+    href: "/dashboard/metrics/METRIC-FIN-05",
   },
   {
     alertCode: "ALERT-CUS-01",
@@ -300,7 +300,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-CUS-01",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:20:00Z",
-    href: "/dashboard/metric/METRIC-CUS-01",
+    href: "/dashboard/metrics/METRIC-CUS-01",
   },
   {
     alertCode: "ALERT-CUS-04",
@@ -311,7 +311,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-CUS-04",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:22:00Z",
-    href: "/dashboard/metric/METRIC-CUS-04",
+    href: "/dashboard/metrics/METRIC-CUS-04",
   },
   {
     alertCode: "ALERT-OPS-01",
@@ -322,7 +322,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-OPS-01",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:25:00Z",
-    href: "/dashboard/metric/METRIC-OPS-01",
+    href: "/dashboard/metrics/METRIC-OPS-01",
   },
 
   // 8 Warning Alerts
@@ -335,7 +335,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-FIN-01",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:30:00Z",
-    href: "/dashboard/metric/METRIC-FIN-01",
+    href: "/dashboard/metrics/METRIC-FIN-01",
   },
   {
     alertCode: "ALERT-FIN-03",
@@ -346,7 +346,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-FIN-03",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:32:00Z",
-    href: "/dashboard/metric/METRIC-FIN-03",
+    href: "/dashboard/metrics/METRIC-FIN-03",
   },
   {
     alertCode: "ALERT-FIN-04",
@@ -357,7 +357,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-FIN-04",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:35:00Z",
-    href: "/dashboard/metric/METRIC-FIN-04",
+    href: "/dashboard/metrics/METRIC-FIN-04",
   },
   {
     alertCode: "ALERT-FIN-06",
@@ -368,7 +368,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-FIN-06",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:38:00Z",
-    href: "/dashboard/metric/METRIC-FIN-06",
+    href: "/dashboard/metrics/METRIC-FIN-06",
   },
   {
     alertCode: "ALERT-CUS-02",
@@ -379,7 +379,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-CUS-02",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:40:00Z",
-    href: "/dashboard/metric/METRIC-CUS-02",
+    href: "/dashboard/metrics/METRIC-CUS-02",
   },
   {
     alertCode: "ALERT-OPS-02",
@@ -390,7 +390,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-OPS-02",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:42:00Z",
-    href: "/dashboard/metric/METRIC-OPS-02",
+    href: "/dashboard/metrics/METRIC-OPS-02",
   },
   {
     alertCode: "ALERT-OPS-03",
@@ -401,7 +401,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-OPS-03",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:45:00Z",
-    href: "/dashboard/metric/METRIC-OPS-03",
+    href: "/dashboard/metrics/METRIC-OPS-03",
   },
   {
     alertCode: "ALERT-OPS-04",
@@ -412,7 +412,7 @@ export const ALL_ALERTS: AlertCardProps[] = [
     suggestedActionI18nKey: "alertActions.ALERT-OPS-04",
     periodKey: "2026-09",
     triggeredAt: "2026-10-20T07:48:00Z",
-    href: "/dashboard/metric/METRIC-OPS-04",
+    href: "/dashboard/metrics/METRIC-OPS-04",
   },
 ];
 

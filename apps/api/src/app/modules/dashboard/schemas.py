@@ -12,36 +12,53 @@ from app.modules.dashboard.enums import (
     AlertSeverity,
     AlertStatus,
     MetricUnit,
-    MetricValueKind,
     ThresholdStatus,
 )
 
 AccessLevel = Literal["FULL", "AGG"]
+MetricValueState = Literal["OK", "NO_DATA", "NOT_COMPUTABLE"]
+
+
+class SparklinePoint(BaseModel):
+    """MetricValueOut.sparkline point (10 §3)."""
+
+    period_key: str
+    value: float | None
+
+
+class OpenAlertRef(BaseModel):
+    """Compact alert reference in MetricValueOut.open_alert (10 §3)."""
+
+    id: UUID
+    alert_code: str
+    severity: AlertSeverity
 
 
 class MetricValueOut(BaseModel):
-    """A single current metric value for display (10 EP-10/EP-11)."""
+    """A single current metric value for display — fields fixed by 10 §3 (EP-10..EP-12)."""
 
     metric_code: str
     pillar: str
     name_i18n_key: str
     unit: MetricUnit
-    value_kind: MetricValueKind
-    period_key: str
-    period_type: str
-    value: float | None
-    target_value: float | None = None
-    percent_of_target: float | None = None
-    status_color: ThresholdStatus | None
     chart_type: str
-    computed_at: datetime | None
-    computation: str | None = None
     access_level: AccessLevel = "FULL"
-    sort_order: int = 0
+    period_key: str
+    value: float | None
+    value_state: MetricValueState = "OK"
+    not_computable_reason: str | None = None
+    display_hint: str | None = None
+    target_value: float | None = None
+    status_color: ThresholdStatus | None = None
+    warning_threshold: float | None = None
+    critical_threshold: float | None = None
+    sparkline: list[SparklinePoint] = []
+    computed_at: datetime | None
+    open_alert: OpenAlertRef | None = None
 
 
 class AlertOut(BaseModel):
-    """Alert for dashboard cards and alert list (10 EP-15/EP-10 alerts_top)."""
+    """Alert for dashboard cards and alert list — fields fixed by 10 §3."""
 
     id: UUID
     alert_code: str
@@ -49,15 +66,16 @@ class AlertOut(BaseModel):
     pillar: str
     severity: AlertSeverity
     status: AlertStatus
-    message_i18n_key: str
-    message_params: dict[str, Any]
-    suggestion_i18n_key: str
-    suggestion_level: str
     period_key: str
+    title_i18n_key: str
+    message_params: dict[str, Any]
+    suggestion_level: Literal["L1"] = "L1"
+    suggested_action_i18n_key: str
     triggered_at: datetime
     acknowledged_at: datetime | None = None
     resolved_at: datetime | None = None
     dismissed_at: datetime | None = None
+    can_acknowledge: bool = False
 
 
 class PillarOut(BaseModel):
@@ -110,7 +128,7 @@ class HistoryPointOut(BaseModel):
     period_key: str
     value: float | None
     target_value: float | None = None
-    value_state: str | None = None
+    value_state: MetricValueState = "OK"
     status_color: ThresholdStatus | None = None
 
 

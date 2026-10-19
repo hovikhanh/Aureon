@@ -24,11 +24,14 @@ from app.modules.dashboard.schemas import (
     DashboardOut,
     GreetingOut,
     MetricValueOut,
+    OpenAlertRef,
     PillarOut,
+    SparklinePoint,
     SummaryOut,
 )
 from app.modules.dashboard.scoping import (
     AccessLevel,
+    can_act_alert_pillar,
     metric_access,
     receives_alert_pillar,
     visible_metric_codes,
@@ -66,10 +69,45 @@ def _current_target(db: Session, metric_id: UUID, period_key: str) -> MetricValu
     return db.scalars(stmt).first()
 
 
-def _percent_of_target(value: float | None, target: float | None) -> float | None:
-    if value is None or target in (None, 0):
+def _sparkline(db: Session, metric_id: UUID, limit: int = 12) -> list[SparklinePoint]:
+    rows = db.scalars(
+        select(MetricValue)
+        .where(
+            MetricValue.metric_id == metric_id,
+            MetricValue.value_kind == MetricValueKind.ACTUAL,
+            MetricValue.is_current.is_(True),
+            MetricValue.deleted_at.is_(None),
+        )
+        .order_by(MetricValue.period_key.desc())
+        .limit(limit)
+    ).all()
+    return [
+        SparklinePoint(
+            period_key=r.period_key, value=float(r.value) if r.value is not None else None
+        )
+        for r in reversed(rows)
+    ]
+
+
+def _open_alert_ref(db: Session, metric_id: UUID) -> OpenAlertRef | None:
+    alert = db.scalars(
+        select(Alert)
+        .join(Metric, Alert.metric_id == Metric.id)
+        .where(
+            Alert.metric_id == metric_id,
+            Alert.status.in_([AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED]),
+            Alert.deleted_at.is_(None),
+        )
+        .order_by(Alert.triggered_at.desc())
+    ).first()
+    if alert is None:
         return None
-    return round(float(value) / float(target) * 100, 1)
+    metric = db.get(Metric, metric_id)
+    return OpenAlertRef(
+        id=alert.id,
+        alert_code=metric.alert_code if metric else "",
+        severity=alert.severity,
+    )
 
 
 def build_metric_value_out(
@@ -78,34 +116,41 @@ def build_metric_value_out(
     access: AccessLevel,
     period_key: str | None,
 ) -> MetricValueOut | None:
-    """Serialize a metric's current ACTUAL value for a role at an access level."""
+    """Serialize a metric's current ACTUAL value (wire shape fixed by 10 §3)."""
     actual = _current_actual(db, metric.id, period_key)
     if actual is None:
         return None
     target = _current_target(db, metric.id, actual.period_key)
     target_value = float(target.value) if target and target.value is not None else None
     value = float(actual.value) if actual.value is not None else None
+    value_state = "OK" if value is not None else "NO_DATA"
     return MetricValueOut(
         metric_code=metric.code,
         pillar=metric.pillar,
         name_i18n_key=metric.name_i18n_key,
         unit=metric.unit,
-        value_kind=MetricValueKind.ACTUAL,
-        period_key=actual.period_key,
-        period_type=actual.period_type.value,
-        value=value,
-        target_value=target_value,
-        percent_of_target=_percent_of_target(value, target_value),
-        status_color=actual.status_color,
         chart_type=metric.chart_type,
-        computed_at=actual.computed_at,
-        computation=actual.computation.value,
         access_level=access,
-        sort_order=metric.sort_order,
+        period_key=actual.period_key,
+        value=value,
+        value_state=value_state,
+        not_computable_reason=None,
+        display_hint=None,
+        target_value=target_value,
+        status_color=actual.status_color,
+        warning_threshold=(
+            float(metric.warning_threshold) if metric.warning_threshold is not None else None
+        ),
+        critical_threshold=(
+            float(metric.critical_threshold) if metric.critical_threshold is not None else None
+        ),
+        sparkline=_sparkline(db, metric.id),
+        computed_at=actual.computed_at,
+        open_alert=_open_alert_ref(db, metric.id),
     )
 
 
-def build_alert_out(db: Session, alert: Alert) -> AlertOut:
+def build_alert_out(db: Session, alert: Alert, *, can_acknowledge: bool = False) -> AlertOut:
     metric = alert.metric if alert.metric is not None else db.get(Metric, alert.metric_id)
     if metric is None:
         raise ApiError(ErrorCode.NOT_FOUND, f"Metric for alert {alert.id} not found")
@@ -116,15 +161,16 @@ def build_alert_out(db: Session, alert: Alert) -> AlertOut:
         pillar=metric.pillar,
         severity=alert.severity,
         status=alert.status,
-        message_i18n_key=f"alert.{metric.alert_code}.message",
-        message_params=alert.message_params or {},
-        suggestion_i18n_key=metric.alert_suggestion_i18n_key,
-        suggestion_level=alert.suggestion_level,
         period_key=alert.period_key,
+        title_i18n_key=f"alert.{metric.alert_code}.title",
+        message_params=alert.message_params or {},
+        suggestion_level="L1",
+        suggested_action_i18n_key=metric.alert_suggestion_i18n_key,
         triggered_at=alert.triggered_at,
         acknowledged_at=alert.acknowledged_at,
         resolved_at=alert.resolved_at,
         dismissed_at=alert.dismissed_at,
+        can_acknowledge=can_acknowledge,
     )
 
 
@@ -180,7 +226,8 @@ def build_dashboard(db: Session, user: User, period_key: str | None) -> Dashboar
             key=lambda c: _HEALTH_ORDER[c],
             default=ThresholdStatus.GREEN,
         )
-        headline = min(pillar_metrics, key=lambda m: m.sort_order)
+        # pillar_metrics already ordered by sort_order → first is the headline metric.
+        headline = pillar_metrics[0]
         pillars.append(
             PillarOut(
                 pillar=pillar,
@@ -197,7 +244,12 @@ def build_dashboard(db: Session, user: User, period_key: str | None) -> Dashboar
         open_alerts,
         key=lambda a: (_SEVERITY_ORDER.get(a.severity, 9), -a.triggered_at.timestamp()),
     )
-    alerts_top = [build_alert_out(db, a) for a in sorted_alerts[:5]]
+    alerts_top = [
+        build_alert_out(
+            db, a, can_acknowledge=can_act_alert_pillar(role_code, a.metric.pillar)
+        )
+        for a in sorted_alerts[:5]
+    ]
 
     # AI summary (template from top alert, no LLM — 10 OQ-09)
     summary = _build_summary(role_code, sorted_alerts, metrics)

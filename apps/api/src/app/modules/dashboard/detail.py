@@ -23,7 +23,7 @@ from app.modules.dashboard.schemas import (
     RecordLineageOut,
     RecordOut,
 )
-from app.modules.dashboard.scoping import metric_access
+from app.modules.dashboard.scoping import can_act_alert_pillar, metric_access
 from app.modules.dashboard.service import build_alert_out, build_metric_value_out
 from app.modules.idp.enums import SensitivityLabel
 from app.modules.idp.models import BusinessRecord, ExtractedField, SourceDocument
@@ -93,7 +93,13 @@ def get_metric_detail(
         computation_inputs=computation_inputs,
         history=history_points,
         breakdown=breakdown,
-        alert=build_alert_out(db, alert) if alert else None,
+        alert=(
+            build_alert_out(
+                db, alert, can_acknowledge=can_act_alert_pillar(role_code, metric.pillar)
+            )
+            if alert
+            else None
+        ),
     )
 
 
@@ -166,7 +172,7 @@ def _build_history(db: Session, metric: Metric, history: int) -> list[HistoryPoi
                 period_key=r.period_key,
                 value=float(r.value) if r.value is not None else None,
                 target_value=float(tv) if tv is not None else None,
-                value_state="ACTUAL",
+                value_state="OK" if r.value is not None else "NO_DATA",
                 status_color=r.status_color,
             )
         )

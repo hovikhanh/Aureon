@@ -40,7 +40,10 @@ def list_alerts(
     alerts = [a for a in db.scalars(stmt) if receives_alert_pillar(role_code, a.metric.pillar)]
     total = len(alerts)
     page = alerts[offset : offset + limit]
-    return [build_alert_out(db, a) for a in page], total
+    return [
+        build_alert_out(db, a, can_acknowledge=can_act_alert_pillar(role_code, a.metric.pillar))
+        for a in page
+    ], total
 
 
 def _get_alert_for_action(db: Session, user: User, alert_id: UUID) -> Alert:
@@ -77,7 +80,9 @@ def acknowledge_alert(db: Session, user: User, alert_id: UUID, note: str | None)
         metadata={"note": note} if note else None,
     )
     db.flush()
-    return build_alert_out(db, alert)
+    return build_alert_out(
+        db, alert, can_acknowledge=can_act_alert_pillar(user.role.code, alert.metric.pillar)
+    )
 
 
 def dismiss_alert(db: Session, user: User, alert_id: UUID, reason: str) -> AlertOut:
@@ -99,4 +104,6 @@ def dismiss_alert(db: Session, user: User, alert_id: UUID, reason: str) -> Alert
         metadata={"reason": reason},
     )
     db.flush()
-    return build_alert_out(db, alert)
+    return build_alert_out(
+        db, alert, can_acknowledge=can_act_alert_pillar(user.role.code, alert.metric.pillar)
+    )
