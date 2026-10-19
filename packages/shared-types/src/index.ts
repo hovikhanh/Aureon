@@ -339,6 +339,33 @@ export interface ReviewOpenOut {
   extraction: ExtractionResultOut;
 }
 
+// EP-25 GET /documents/{id} — detail with jobs, status timeline, reviews, affected.
+export interface StatusTimelineItem {
+  status: DocumentStatus | string;
+  at: string;
+  actor_type: string;
+}
+
+export interface DocumentAffectedOut {
+  business_record_ids: string[];
+  metric_codes: string[];
+}
+
+export interface DocumentReviewOut {
+  reviewer_full_name: string;
+  decision: string | null;
+  reject_reason_code: string | null;
+  decided_at: string | null;
+}
+
+export interface DocumentDetailOut {
+  document: DocumentOut;
+  jobs: JobOut[];
+  status_timeline: StatusTimelineItem[];
+  affected: DocumentAffectedOut;
+  reviews: DocumentReviewOut[];
+}
+
 export interface FieldCorrectionItem {
   id: string;
   corrected_value: unknown;

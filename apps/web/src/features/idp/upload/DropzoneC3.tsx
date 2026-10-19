@@ -21,6 +21,8 @@ export interface FileItem {
   file: File;
   status: FileUploadStatus;
   error?: string;
+  /** Server document id once the upload (EP-20) returns; links to detail. */
+  documentId?: string;
 }
 
 export interface DropzoneC3Props {

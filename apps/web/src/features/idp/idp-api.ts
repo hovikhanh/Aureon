@@ -264,6 +264,24 @@ export async function getDocumentsApi(
 }
 
 /**
+ * EP-25 GET /api/v1/documents/{id} — document detail + jobs + status timeline
+ * + reviews + affected (10 §EP-25). Returns 403 FORBIDDEN_SCOPE if out of scope.
+ */
+export async function getDocumentApi(
+  documentId: string,
+  token?: string,
+): Promise<import("@aureon/shared-types").DocumentDetailOut> {
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const envelope = await apiFetch<import("@aureon/shared-types").DocumentDetailOut>(
+    `documents/${documentId}`,
+    { method: "GET", headers },
+  );
+  return envelope.data;
+}
+
+/**
  * EP-20 POST /api/v1/documents  (C3 file upload)
  */
 export async function uploadFileApi(

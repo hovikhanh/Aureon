@@ -30,7 +30,13 @@ type UploadAction =
   | { type: "SET_TAB"; tab: Tab }
   | { type: "ADD_FILES"; files: File[] }
   | { type: "REMOVE_FILE"; id: string }
-  | { type: "SET_FILE_STATUS"; id: string; status: FileItem["status"]; error?: string }
+  | {
+      type: "SET_FILE_STATUS";
+      id: string;
+      status: FileItem["status"];
+      error?: string;
+      documentId?: string;
+    }
   | { type: "SET_DOC_TYPE_HINT"; value: string }
   | { type: "SET_SUBMITTING"; value: boolean }
   | { type: "SET_SUCCESS" }
@@ -59,7 +65,14 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
       return {
         ...state,
         files: state.files.map((f) =>
-          f.id === action.id ? { ...f, status: action.status, error: action.error } : f,
+          f.id === action.id
+            ? {
+                ...f,
+                status: action.status,
+                error: action.error,
+                documentId: action.documentId ?? f.documentId,
+              }
+            : f,
         ),
       };
     case "SET_DOC_TYPE_HINT":
@@ -98,10 +111,11 @@ export function UploadView() {
 
     dispatch({ type: "SET_SUBMITTING", value: true });
 
+    let anySucceeded = false;
     for (const item of pending) {
       dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "uploading" });
       try {
-        await uploadFileApi(
+        const doc = await uploadFileApi(
           item.file,
           {
             docTypeHint: state.docTypeHint || undefined,
@@ -109,11 +123,14 @@ export function UploadView() {
           },
           session?.accessToken,
         );
-        dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "processing" });
-        // Simulate brief processing state then done
-        setTimeout(() => {
-          dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "done" });
-        }, 800);
+        // EP-20 returns status=UPLOADED (enqueued) or DUPLICATE (not enqueued).
+        // Reflect the real server status instead of a fake timer.
+        if (doc.status === "DUPLICATE") {
+          dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "duplicate", documentId: doc.id });
+        } else {
+          anySucceeded = true;
+          dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "done", documentId: doc.id });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         dispatch({ type: "SET_FILE_STATUS", id: item.id, status: "error", error: msg });
@@ -121,10 +138,9 @@ export function UploadView() {
     }
 
     dispatch({ type: "SET_SUBMITTING", value: false });
-    // Check if any succeeded
-    setTimeout(() => {
+    if (anySucceeded) {
       dispatch({ type: "SET_SUCCESS" });
-    }, 1200);
+    }
   }, [state.files, state.docTypeHint, session]);
 
   /* ── C1 Manual ─────────────────────────────────────────────── */
@@ -182,6 +198,12 @@ export function UploadView() {
           >
             {t("success.viewInbox")}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/documents"
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {t("success.viewDocuments")}
           </Link>
           <button
             type="button"

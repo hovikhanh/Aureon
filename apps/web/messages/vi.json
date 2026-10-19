@@ -583,7 +583,8 @@
       "title": "Tài liệu đã được gửi xử lý",
       "description": "Xem tiến độ tại Hàng chờ.",
       "viewInbox": "Xem Hàng chờ",
-      "uploadMore": "Tải thêm"
+      "uploadMore": "Tải thêm",
+      "viewDocuments": "Xem danh sách tài liệu"
     }
   },
   "schemas": {
@@ -627,6 +628,48 @@
     "error": {
       "title": "Không thể tải schema",
       "retry": "Thử lại"
+    }
+  },
+  "documentDetail": {
+    "title": "Chi tiết tài liệu",
+    "backToList": "Quay lại danh sách",
+    "notFound": "Không tìm thấy tài liệu",
+    "forbidden": "Bạn không có quyền xem tài liệu này",
+    "metadata": "Thông tin tài liệu",
+    "fields": {
+      "filename": "Tên tài liệu",
+      "docType": "Loại tài liệu",
+      "channel": "Kênh nhập",
+      "status": "Trạng thái",
+      "aiState": "Mức tự chủ AI",
+      "pillars": "Trụ nghiệp vụ",
+      "uploader": "Người tải lên",
+      "uploadedAt": "Thời gian tải lên",
+      "committedAt": "Thời gian ghi nhận",
+      "size": "Kích thước",
+      "pages": "Số trang",
+      "mimeType": "Định dạng"
+    },
+    "timeline": "Dòng thời gian trạng thái",
+    "jobs": "Lịch sử xử lý",
+    "jobAttempt": "Lần thử",
+    "jobConfidence": "Độ tin cậy",
+    "jobRouting": "Định tuyến",
+    "reviews": "Lịch sử duyệt",
+    "reviewer": "Người duyệt",
+    "decision": "Quyết định",
+    "decidedAt": "Thời gian",
+    "affected": "Dữ liệu bị ảnh hưởng",
+    "affectedRecords": "Bản ghi nghiệp vụ",
+    "affectedMetrics": "Chỉ số bị ảnh hưởng",
+    "noAffected": "Chưa có dữ liệu bị ảnh hưởng (tài liệu chưa ghi nhận)",
+    "openReview": "Mở trang duyệt",
+    "viewSource": "Xem tài liệu gốc",
+    "processing": "Đang xử lý…",
+    "actorType": {
+      "USER": "Người dùng",
+      "SYSTEM": "Hệ thống",
+      "AI": "AI"
     }
   }
 }

@@ -583,7 +583,8 @@
       "title": "Document submitted for processing",
       "description": "Track progress in the Inbox.",
       "viewInbox": "View Inbox",
-      "uploadMore": "Upload more"
+      "uploadMore": "Upload more",
+      "viewDocuments": "View documents"
     }
   },
   "schemas": {
@@ -627,6 +628,48 @@
     "error": {
       "title": "Unable to load schema",
       "retry": "Retry"
+    }
+  },
+  "documentDetail": {
+    "title": "Document detail",
+    "backToList": "Back to list",
+    "notFound": "Document not found",
+    "forbidden": "You do not have permission to view this document",
+    "metadata": "Document info",
+    "fields": {
+      "filename": "Filename",
+      "docType": "Document type",
+      "channel": "Input channel",
+      "status": "Status",
+      "aiState": "AI autonomy level",
+      "pillars": "Business pillars",
+      "uploader": "Uploaded by",
+      "uploadedAt": "Uploaded at",
+      "committedAt": "Committed at",
+      "size": "Size",
+      "pages": "Pages",
+      "mimeType": "MIME type"
+    },
+    "timeline": "Status timeline",
+    "jobs": "Processing history",
+    "jobAttempt": "Attempt",
+    "jobConfidence": "Confidence",
+    "jobRouting": "Routing",
+    "reviews": "Review history",
+    "reviewer": "Reviewer",
+    "decision": "Decision",
+    "decidedAt": "Time",
+    "affected": "Affected data",
+    "affectedRecords": "Business records",
+    "affectedMetrics": "Affected metrics",
+    "noAffected": "No affected data yet (document not committed)",
+    "openReview": "Open review",
+    "viewSource": "View source document",
+    "processing": "Processing…",
+    "actorType": {
+      "USER": "User",
+      "SYSTEM": "System",
+      "AI": "AI"
     }
   }
 }
