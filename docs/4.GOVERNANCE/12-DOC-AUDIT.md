@@ -150,6 +150,14 @@ Rà soát nội dung các tài liệu không-spec (báo cáo/README/traceability
 
 Thứ tự ưu tiên khi mâu thuẫn: DEC mới hơn DEC-144 > `_reference/` > `docs/`. Thư mục `_reference/` vẫn nằm trong `.gitignore` (không commit nội dung nguồn).
 
+### X.1. Tài liệu `reference` trong `docs/` (ngoài chuỗi 00–14)
+
+| File | Version | Status | Ngày | Ghi chú |
+|---|---|---|---|---|
+| `docs/4.GOVERNANCE/GAP-ANALYSIS-v2.1.md` | 1.0.0 | **reference** | 2026-10-19 | Gap analysis Phase 2 (`_reference/` ↔ `docs/` v2.0.0) + quyết định G1–G7 (DEC-146..153). Không phải spec build, không xét ở Gate A; tra cứu khi làm Phase 3a–3d |
+
+Cập nhật bảng trên: `SOURCE-BRD-v1.1.md` và `SOURCE-BRD-v1.1-Bổ sung.md` **đã đọc** trong Phase 2 (2026-10-19) — kết quả ở file trên.
+
 ~~Quy tắc archive cũ (`SOURCE-BRD.md`, `SOURCE-UIUX.md` = `archived`) — **superseded bởi DEC-144**.~~
 
 **Quy tắc:** 
