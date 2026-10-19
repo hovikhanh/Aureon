@@ -130,7 +130,7 @@ Enum `input_channel` (05) chứa `C1`..`C10` để không phải migrate khi m�
 | Bước | Tên | Thực thi | Input | Output | Trạng thái (§8) |
 |---|---|---|---|---|---|
 | 0 | Intake | API upload (FastAPI `UploadFile` + chunked read, stream thẳng lên MinIO) | File / payload | Object MinIO private bucket, `ENT-SourceDocument`, `sha256` | `UPLOADED` |
-| 1 | Malware scan | Celery task `scan_document` (ClamAV — dependency xem OQ-01) | Object | `scan_status` (`CLEAN` / `INFECTED` / `SKIPPED`) | `PREPROCESSING` |
+| 1 | Malware scan | Celery task `scan_document` (ClamAV — DEC-138) | Object | `scan_status` (`CLEAN` / `INFECTED` / `SKIPPED`) | `PREPROCESSING` |
 | 2 | Hash dedupe | Trong task `scan_document` | `sha256` | Trùng → `duplicate_of_id` | `DUPLICATE` nếu trùng |
 | 3 | Text-layer check + OCR | Celery task `preprocess_document` | File gốc | `ENT-DocumentPage[]` (`text_layer_exists`, `text_layer_quality`, `ocr_used`, `ocr_confidence`, ảnh trang, kích thước); deskew/xoay/tăng tương phản ảnh | `PREPROCESSING` |
 | 4 | Phân loại | Celery task `classify_document` qua `ModelGateway` (task `MODEL_CLASSIFY`) | Text trang 1–3 + metadata + doc type người chọn trước (nếu có) | `doc_type`, `classification_confidence`, ranh giới tài liệu con | `CLASSIFYING` |
@@ -986,7 +986,7 @@ Mọi FR-DC-01..23 có ≥ 1 US; test case `TC-IDP-xxx` map ở `14-TEST-TRACEAB
 
 | # | Câu hỏi | Đề xuất mặc định | Ảnh hưởng |
 |---|---|---|---|
-| OQ-01 | Malware scan (FR-DC-02) cần ClamAV — dependency/container mới | Thêm container `clamav` vào Docker Compose; demo cho phép `SKIPPED` khi `DEMO_MODE` — cần DEC (CLAUDE.md: dependency mới) | 07, 09 |
+| OQ-01 | ✅ DEC-138. Malware scan (FR-DC-02) cần ClamAV — dependency/container mới | Thêm container `clamav` vào Docker Compose; demo cho phép `SKIPPED` khi `DEMO_MODE` — cần DEC (CLAUDE.md: dependency mới) | 07, 09 |
 | OQ-02 | ID `ACT-*` (23 action §10.2) mới chỉ có prefix trong 00 §3, chưa có danh sách registry — có cần đưa vào 00 §4 không? | Coi 04 §10.2 là registry nguồn cho `ACT-*` (00 §3 trỏ về 04); không liệt kê lại trong 00 | 00, 10 |
 | OQ-03 | Field mức 4 trên PDF/ảnh khi không có model on-prem được đánh dấu `allow_level_4` | Để `null`, người nhập trong Review; demo dùng fixture | 07, 08 |
 | OQ-04 | Nhà cung cấp chưa có entity master (00 §4.3 không có `ENT-Supplier`); UC-08 bỏ khớp PO | Lưu `counterparty_name/counterparty_tax_code` trên `finance.invoices`/`finance.expenses`; Procurement Phase 2 | 05, 10 |

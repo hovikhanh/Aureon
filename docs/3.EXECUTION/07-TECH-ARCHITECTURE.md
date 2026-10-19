@@ -43,7 +43,7 @@
 | JWT | PyJWT (RS256) | DEC-129 |
 | OCR | PaddleOCR in-process (mặc định) hoặc Google Vision | `OCR_PROVIDER` |
 | LLM gateway | `ModelGateway` nội bộ → OmniRoute / OpenRouter / 9router / DeepSeek / OpenAI / Anthropic | DEC-131 |
-| RAG | LlamaIndex + pgvector (SOP/chính sách — `TOOL-search_documents`) | Model embedding: DEC-069 open |
+| RAG | LlamaIndex + pgvector (SOP/chính sách — `TOOL-search_documents`) | Model embedding `bge-m3` (1024 chiều, local) — DEC-142 |
 | Container | Docker Compose 24+ | |
 
 ### 2.2. Dependency mới của v2
@@ -53,9 +53,9 @@
 | `cryptography` | Backend RS256 cho PyJWT (`pyjwt[crypto]`), sinh cặp khóa | **DEC-129** ✅ |
 | `asyncpg` | Driver async cho SQLAlchemy (hiện code dùng `psycopg[binary]` 3) | ❗ Chưa có DEC — OQ-01 |
 | `httpx` | Adapter ModelGateway (HTTP tới provider), test client | Đã có trong `pyproject.toml`; chưa có DEC riêng — OQ-02 |
-| `respx` | Mock HTTP provider trong test ModelGateway (test dev-only) | ❗ Chưa có DEC — OQ-02 |
-| ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-02 | ❗ Chưa có DEC — OQ-03 (04 OQ-01) |
-| `argon2-cffi` | Hash mật khẩu | Đã có trong code v1; không có DEC — OQ-02 |
+| `respx` | Mock HTTP provider trong test ModelGateway (test dev-only) | ✅ DEC-139 (dev-only) |
+| ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-02 | ✅ DEC-138 |
+| `argon2-cffi` | Hash mật khẩu | ✅ DEC-141 |
 | `sse-starlette` | SSE | **Không dùng** — dùng `StreamingResponse` thuần (10 OQ-13) |
 
 Mọi dependency ❗ phải có DEC resolved trước khi merge (`CLAUDE.md` § Cấm tự quyết #4; task T-002).
@@ -324,7 +324,7 @@ class ModelGateway(Protocol):
 | `anthropic` | Anthropic Messages API (`/v1/messages`, tool_use) | `ANTHROPIC_BASE_URL` | `ANTHROPIC_API_KEY` | Map tool schema ↔ `tool_use`/`tool_result` |
 | `fixture` | Đọc response ghi sẵn (`core/model_gateway/fixtures/`) theo hash prompt + task | — | — | Test/CI/demo offline |
 
-Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không dùng SDK vendor (A10). Test mock bằng `respx` (OQ-02).
+Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không dùng SDK vendor (A10). Test mock bằng `respx` (DEC-139); `httpx` hợp thức ở DEC-140.
 
 ### 6.2. Routing theo task & fallback
 
@@ -334,7 +334,7 @@ Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không 
 | `classify` | `MODEL_CLASSIFY` | idp phân loại | Model nhỏ/rẻ, JSON |
 | `extract` | `MODEL_EXTRACT` | idp trích xuất, C2, mapping C5 | JSON schema, context dài |
 | `insight` | `MODEL_INSIGHT` | ai_core insight, briefing | Batch, chạy nền |
-| `embed` | `MODEL_EMBED` | RAG | DEC-069 open — mặc định tắt RAG nếu chưa cấu hình |
+| `embed` | `MODEL_EMBED` | RAG | DEC-142: `bge-m3` (Ollama / `sentence-transformers` local); fallback OpenAI `text-embedding-3-small`; trống → tắt RAG |
 | `stt` | `MODEL_STT` | C2 voice (P1) | 04 OQ-10 |
 
 - Chuỗi provider: `MODEL_PROVIDER_PRIMARY` rồi lần lượt `MODEL_PROVIDER_FALLBACKS` (CSV). Model mỗi provider: `MODEL_<TASK>` mặc định, ghi đè `MODEL_<TASK>__<PROVIDER>` (VD `MODEL_CHAT__ANTHROPIC`) khi alias khác nhau.
@@ -424,7 +424,7 @@ Sinh khóa RS256 (dev): `uv run python -m app.scripts.gen_jwt_keys --out ./secre
 | `postgres` | `pgvector/pgvector:pg16` | 5432 | `pgdata` | `pg_isready` |
 | `redis` | `redis:7-alpine` (`appendonly yes`) | 6379 | `redisdata` | `redis-cli ping` |
 | `minio` | MinIO (S3-compatible) | 9000 / 9001 | `miniodata` | `/minio/health/live` |
-| `clamav` | `clamav/clamav` (OQ-03) | 3310 | `clamdb` (signature) | `clamdscan --ping` |
+| `clamav` | `clamav/clamav` (DEC-138) | 3310 | `clamdb` (signature) | `clamdscan --ping` |
 | `api` | `uv run uvicorn app.main:app --host 0.0.0.0 --port 4000` | 4000 | `./secrets:ro` | `GET /api/v1/health` |
 | `worker` | `uv run celery -A app.worker worker --loglevel=info -Q default,idp,events` | — | `./secrets:ro` | `celery inspect ping` |
 | `beat` | `uv run celery -A app.worker beat --loglevel=info` (**replicas: 1**) | — | — | — |
@@ -576,16 +576,16 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 
 | # | Câu hỏi | Đề xuất mặc định | Ảnh hưởng |
 |---|---|---|---|
-| OQ-01 | `asyncpg` (driver async) chưa có DEC; code hiện dùng `psycopg[binary]` 3 (hỗ trợ async) | Dùng `psycopg` async (`postgresql+psycopg://`) → **không** cần `asyncpg`; nếu chọn `asyncpg` → raise DEC (T-002) | `pyproject.toml`, `DATABASE_URL` |
-| OQ-02 | `httpx`, `respx`, `argon2-cffi` chưa có DEC riêng (httpx, argon2 đã có trong code v1) | Gộp vào một DEC dependency v2 (T-002) | 13 |
-| OQ-03 | ClamAV (container + client `clamd`) chưa có DEC; 04 OQ-01 | Thêm vào Compose, `CLAMAV_REQUIRED=false` ở demo (scan lỗi → `SKIPPED` + chặn STP) | 04 FR-DC-02, Compose |
+| OQ-01 | ✅ DEC-143: không dùng `asyncpg`. `asyncpg` (driver async) chưa có DEC; code hiện dùng `psycopg[binary]` 3 (hỗ trợ async) | Dùng `psycopg` async (`postgresql+psycopg://`) → **không** cần `asyncpg`; nếu chọn `asyncpg` → raise DEC (T-002) | `pyproject.toml`, `DATABASE_URL` |
+| OQ-02 | ✅ DEC-139/140/141. `httpx`, `respx`, `argon2-cffi` chưa có DEC riêng (httpx, argon2 đã có trong code v1) | Gộp vào một DEC dependency v2 (T-002) | 13 |
+| OQ-03 | ✅ DEC-138. ClamAV (container + client `clamd`) chưa có DEC; 04 OQ-01 | Thêm vào Compose, `CLAMAV_REQUIRED=false` ở demo (scan lỗi → `SKIPPED` + chặn STP) | 04 FR-DC-02, Compose |
 | OQ-04 | `CLAUDE.md` mô tả: 4 trụ, 5 role, HS256 ngầm định ("NextAuth + JWT"), `require_role`, `apps/api/src/modules/` (thiếu `app/`), phạm vi MVP v1, cấm đọc `_reference/`, ma trận load thiếu "Scaffold", "Code domain module", "Code AI Core", "Code UI" | Human cập nhật `CLAUDE.md` theo v2 (DEC-124); agent không tự sửa | CLAUDE.md, 11 |
 | OQ-05 | Provider cho dữ liệu nhạy cảm / data residency VN (`MODEL_SENSITIVE_PROVIDER`) | Demo: trùng primary + PII filter; production: provider on-prem/VN | NFR-11, NFR-28 |
 | OQ-06 | Giới hạn upload v1 (`MAX_FILE_SIZE_MB=20`, `MAX_PAGES=50`) khác v2 (50 MB / 300 trang / 100 file) | Theo 04 §15.1 | `.env.example` |
 | OQ-07 | `.env.example` hiện có `NEXT_PUBLIC_DEMO_PASSWORD_*` (mật khẩu demo lộ ra bundle client) | Bỏ; dùng EP-04/EP-05 role switch | `.env.example`, 06 |
 | OQ-08 | Pre-commit secret scan (gitleaks) là dependency dev mới | Raise DEC hoặc dùng script grep đơn giản | CI |
-| OQ-09 | Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
-| OQ-10 | Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
+| OQ-09 | ✅ DEC-142 (`bge-m3`). Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
+| OQ-10 | ✅ DEC-143: stdlib + formatter JSON. Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
 | OQ-11 | Alias `auto/coding`, `auto/cheap` (OmniRoute) cho `MODEL_*` runtime trùng tên với alias build-agent (11) | Chấp nhận — hai cấu hình tách biệt (runtime env vs agent config) | 11 |
 
 ---

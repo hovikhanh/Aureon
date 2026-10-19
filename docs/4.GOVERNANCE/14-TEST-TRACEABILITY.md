@@ -152,7 +152,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
 |---|---|---|---|---|
 | TC-PRD-001 | integration | Products/features/roadmap/releases; launch/release → event | FR-PRD-01..05 | T-201 |
-| TC-PRD-002 | unit | ProductMetric append-only (update → lỗi); BR-PRD-01 churn 2,41% vs 1,5% → anomaly | FR-PRD-06..07, BR-PRD-01 | T-202 |
+| TC-PRD-002 | unit | ProductMetric append-only (update → lỗi); BR-PRD-01 fixture churn 2,41% vs 1,5% → anomaly; seed demo 1,79% → không anomaly (08, DEC-143) | FR-PRD-06..07, BR-PRD-01 | T-202 |
 | TC-RSK-001 | unit | score = L × I; bảng level BR-RSK-02 (1–4 / 5–9 / 10–15 / 16–25) | BR-RSK-01..02 | T-211 |
 | TC-RSK-002 | integration | Accept rủi ro chỉ CEO, bắt buộc lý do, ghi Decision | FR-RSK-03 | T-211 |
 | TC-RSK-003 | event | hiring_plan_delayed → tự sinh R (source=event, owner null); event trùng không tạo trùng | BR-RSK-03 | T-212 |
@@ -160,7 +160,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | TC-RSK-005 | architecture | What-if gọi service interface Finance/HR/Product, không query schema khác | FR-RSK-07, DEC-125 | T-214 |
 | TC-DASH-001 | unit | 31 metric tính đúng giá trị seed 08 §6 (bảng tham số hóa) | METRIC-* | T-220 |
 | TC-DASH-002 | unit | Ngưỡng đọc từ `THR_<ID>_WARN/CRIT`; đổi setting đổi trạng thái | 03 §1.3 | T-220 |
-| TC-DASH-003 | unit | 31 alert 1-1; trạng thái khớp 08 §6.1 (11 OK · 12 W · 8 C) | ALERT-* | T-221 |
+| TC-DASH-003 | unit | 31 alert 1-1; trạng thái khớp 08 §6.1 (16 OK · 12 W · 3 C; trụ 2 ok · 2 warning · 1 critical — DEC-143) | ALERT-* | T-221 |
 | TC-DASH-004 | contract | 5 dashboard trụ: `summary` + `*_trend`, status trụ theo 03 §4 | FR-DSH-01..07, EP-10..19 | T-222 |
 | TC-DASH-005 | integration | Cache `private, max-age=60` + `Vary: Authorization`; role khác không thấy cache role trước | 03 §9 | T-222 |
 | TC-DASH-006 | integration | Lineage metric value → bản ghi domain → (field, trang) | ENT-DataLineage, P01 | T-223 |

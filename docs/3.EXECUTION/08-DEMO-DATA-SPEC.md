@@ -121,7 +121,7 @@ PDF scan 12 trang; **trang 7 mờ** (`ocr_confidence < 0,60` → Thấp, buộc 
 | `cogs` | `60.000.000.000` | |
 | `gross_profit` | `13.500.000.000` | Biên gộp **18,4%** |
 | `operating_expenses` | `10.200.000.000` | Gồm quỹ lương Q3 `8.775.000.000` (khớp DOC-06) + chi phí khác `1.425.000.000` |
-| `budget_opex` | `9.450.000.000` | Trang 9, chi tiết theo phòng ban ở bảng dưới |
+| `budget_opex` | `9.600.000.000` | Trang 9, chi tiết theo phòng ban ở bảng dưới |
 | `profit_before_tax` | `3.300.000.000` | = 13.500.000.000 − 10.200.000.000 |
 | `income_tax` | `660.000.000` | 20% |
 | `net_profit` | `2.640.000.000` | |
@@ -136,12 +136,12 @@ PDF scan 12 trang; **trang 7 mờ** (`ocr_confidence < 0,60` → Thấp, buộc 
 |---|---|---|---|
 | BOD | 900 | 930 | +3,3% |
 | FIN | 1.100 | 1.120 | +1,8% |
-| SAL | 3.200 | 3.650 | **+14,1%** → `EVT-finance.budget_exceeded` |
+| SAL | 3.350 | 3.650 | **+9,0%** → `EVT-finance.budget_exceeded` |
 | LOG | 1.850 | 1.980 | +7,0% |
 | SVC | 1.200 | 1.270 | +5,8% |
 | PRD | 800 | 850 | +6,2% |
 | HRA | 400 | 400 | 0,0% |
-| **Tổng** | **9.450** | **10.200** | **+7,9%** |
+| **Tổng** | **9.600** | **10.200** | **+6,3%** |
 
 Ngân sách / thực chi theo phòng ban ở đây là **chi phí vận hành phân bổ** (gồm lương phân bổ). `budget_exceeded` phát khi chênh của một phòng ban > 10% (giả định, OQ-01).
 
@@ -239,11 +239,11 @@ HL-001 tổng `726.000.000`, quá hạn **96 ngày** → hiện trong aging "> 9
 
 | Stage | Deal | Giá trị (VND) | Xác suất | Weighted |
 |---|---|---|---|---|
-| `PROSPECTING` | 15 | `36.000.000.000` | 0,10 | `3.600.000.000` |
-| `QUALIFICATION` | 10 | `30.000.000.000` | 0,25 | `7.500.000.000` |
-| `PROPOSAL` | 8 | `36.000.000.000` | 0,40 | `14.400.000.000` |
-| `NEGOTIATION` | 6 | `40.500.000.000` | 0,60 | `24.300.000.000` |
-| **Cộng mở** | **39** | **`142.500.000.000`** | — | **`49.800.000.000`** |
+| `PROSPECTING` | 15 | `54.000.000.000` | 0,10 | `5.400.000.000` |
+| `QUALIFICATION` | 10 | `52.500.000.000` | 0,25 | `13.125.000.000` |
+| `PROPOSAL` | 8 | `60.000.000.000` | 0,40 | `24.000.000.000` |
+| `NEGOTIATION` | 6 | `69.000.000.000` | 0,60 | `41.400.000.000` |
+| **Cộng mở** | **39** | **`235.500.000.000`** | — | **`83.925.000.000`** |
 
 Deal `NEGOTIATION` lớn nhất: **Tập đoàn Giáo dục Hoàng Gia** (khách mới, MST `0316543210`) `12.000.000.000` — cơ hội trong câu chuyện demo.
 
@@ -268,7 +268,7 @@ Deal `NEGOTIATION` lớn nhất: **Tập đoàn Giáo dục Hoàng Gia** (khách
 | 14 | Công ty Cổ phần Thương mại Quốc tế | 0305556677 | `600.000.000` | 1 | 2,4% |
 | — | **Tổng** | — | **`25.500.000.000`** | **47** | 100% |
 
-Top 5 T9 = `13.410.000.000` / `25.500.000.000` = 52,6% (tham khảo). METRIC-CUS-04 dùng rolling 12 tháng: tổng `294.000.000.000` (9 tháng 10/2025–06/2026 seed `220.500.000.000` + Q3 `73.500.000.000`), Top 5 `149.940.000.000` → **51,0%**; khách lớn nhất (Văn phòng Phẩm) `41.160.000.000` = 14,0%.
+Top 5 T9 = `13.410.000.000` / `25.500.000.000` = 52,6% (tham khảo). METRIC-CUS-04 dùng rolling 12 tháng: tổng `294.000.000.000` (9 tháng 10/2025–06/2026 seed `220.500.000.000` + Q3 `73.500.000.000`), Top 5 `146.700.000.000` → **49,9%**; khách lớn nhất (Văn phòng Phẩm) `41.160.000.000` = 14,0%.
 
 ---
 
@@ -370,11 +370,11 @@ Quỹ lương Q3 = 2.925.000.000 × 3 = `8.775.000.000` ⊂ `operating_expenses`
 |---|---|---|
 | `product_code` | `PRD-ORDER` (ABC Order) | Kèm phần tóm tắt ABC Care |
 | `period` | `2026-09` | |
-| `accounts_start` / `new` / `churned` / `end` | 1.950 / 63 / 47 / 1.966 | 1.950 + 63 − 47 = 1.966 |
-| `monthly_active_accounts` | 1.392 | MAU = 70,8% |
-| `churn_pct` | 2,41% | T6–T8: 1,5 · 1,4 · 1,6 (BQ 1,5) → tăng **60,7%** > 50% và ≥ 2% → `EVT-product.metric_anomaly` (BR churn anomaly) |
+| `accounts_start` / `new` / `churned` / `end` | 1.950 / 63 / 35 / 1.978 | 1.950 + 63 − 35 = 1.978 |
+| `monthly_active_accounts` | 1.430 | MAU = 72,3% |
+| `churn_pct` | 1,79% | T6–T8: 1,5 · 1,4 · 1,6 (BQ 1,5) → tăng 19,7% (< 25%) và < sàn 2% → **không** bất thường (BR-PRD-01), không phát `EVT-product.metric_anomaly` |
 | `cohort_new_aug` / `retained_30d` | 60 / 41 | Retention 30 ngày 68,3% |
-| `roadmap_due` / `roadmap_on_time` | 12 / 8 | 66,7%; 4 trễ do thiếu 2 backend dev (HP-2026-05) |
+| `roadmap_due` / `roadmap_on_time` | 12 / 9 | 75,0%; 3 trễ do thiếu 2 backend dev (HP-2026-05) |
 | `releases[]` | v3.4 "Báo giá nhanh" (04/09), v3.4.1 sửa lỗi thanh toán (12/09), v3.5 "Duyệt đơn nhiều cấp" (26/09) | 3 `ENT-Release`, `EVT-product.feature_released` |
 | `top_churn_reason` | "Lỗi đồng bộ tồn kho", "Giá thuê bao" | Văn bản tự do — AI tóm tắt, không suy số |
 | `abc_care_contracts_active` | 412 | ABC Care, tham khảo |
@@ -448,7 +448,7 @@ Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9
 | METRIC-FIN-03 | Cash runway | số dư cuối kỳ / burn tháng (BR-FIN-01/02) | tháng | W < 12 · C < 6 | 11,8 · 11 · 10,4 · 9,6 · 8,7 · 8 | **8,0** | 20,4 tỷ / 2,55 tỷ (DOC-01) | Warning | ALERT-FIN-03 Warning |
 | METRIC-FIN-04 | DSO | phải thu cuối kỳ / DT kỳ × số ngày | ngày | W tăng > 15% so Δ3k · C tăng > 30% | 41 · 42,5 · 43 · 44,2 · 46,1 · 47,8 | **47,8** | 39,0 / 73,5 tỷ × 90; +7,6% so Δ3k | OK | — |
 | METRIC-FIN-05 | Công nợ quá hạn | phải thu quá hạn / tổng phải thu × 100 | % | W > 15 · C > 25 | 8,5 · 9,8 · 11,2 · 14 · 19,5 · 23,9 | **23,9** | 3,918 / 16,377 tỷ; HL-001 quá hạn 96 ngày (aging > 90) | Warning | ALERT-FIN-05 Warning |
-| METRIC-FIN-06 | Chênh lệch ngân sách | MAX theo phòng ban [(thực chi − ngân sách) / ngân sách × 100], quý | % | W > 0 · C > 10 | 2,1 · 3 · 4,2 · 6,5 · 9,8 · 14,1 | **14,1** | Phòng SAL 3.650 / 3.200 triệu (§3 DOC-01) | **Critical** | ALERT-FIN-06 Critical |
+| METRIC-FIN-06 | Chênh lệch ngân sách | MAX theo phòng ban [(thực chi − ngân sách) / ngân sách × 100], quý | % | W > 0 · C > 10 | 2,1 · 3 · 4,2 · 6,5 · 7,8 · 9,0 | **9,0** | Phòng SAL 3.650 / 3.350 triệu (§3 DOC-01) | Warning | ALERT-FIN-06 Warning |
 | METRIC-FIN-07 | Net burn vs dự báo | (net burn dự kiến − dự báo) / \|dự báo\| × 100 | % | W > 10 · C > 25 | -4 · 0 · 2,5 · 6 · 12 · 20 | **20** | 3,0 vs 2,5 tỷ T9 | Warning | ALERT-FIN-07 Warning |
 | METRIC-OPS-01 | Task đúng hạn | task xong đúng hạn / task đến hạn × 100 | % | W < 80 · C < 65 | 84 · 82,5 · 80 · 76 · 71 · 65 | **65** | 78 / 120 (15 DOC-05 + 105 seed) | Warning | ALERT-OPS-01 Warning |
 | METRIC-OPS-02 | Dự án trễ | dự án lệch tiến độ > 10 đ% / dự án đang chạy × 100 | % | W > 20 · C > 35 | 0 · 0 · 16,7 · 16,7 · 33,3 · 33,3 | **33,3** | 2 / 6 dự án (seed) | Warning | ALERT-OPS-02 Warning |
@@ -456,22 +456,22 @@ Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9
 | METRIC-HR-01 | Doanh thu / nhân sự | DT 12 tháng / headcount BQ; so `HR_REVENUE_PER_HEAD_PLAN` = 2,0 tỷ | tỷ/người/năm | W thấp hơn KH > 15% · C > 25% | 2,06 · 2,04 · 2,02 · 2 · 1,98 · 1,96 | **1,96** | 294 tỷ / 150; thấp hơn KH 2% | OK | — |
 | METRIC-HR-02 | Turnover năm hóa | BR-HR-01 | % | W ≥ 15 · C ≥ 20 | 11,5 · 12 · 12,4 · 12,7 · 13 · 13,3 | **13,3** | 20 / 150 | OK | — |
 | METRIC-HR-03 | Nhân sự quá tải | NV workload > 110% 2 tuần liên tiếp / NV active × 100 | % | W > 10 · C > 20 | 4,7 · 5,3 · 6 · 6,7 · 7,3 · 8,7 | **8,7** | 13 / 150 | OK | — |
-| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | đếm HiringPlan quá `target_date` chưa đủ người | kế hoạch | W ≥ 1 trễ 1–30 ngày · C ≥ 1 trễ > 30 ngày | 0 · 0 · 0 · 0 · 0 · 1 | **1** | HP-2026-07 trễ 35 ngày | **Critical** | ALERT-HR-04 Critical |
-| METRIC-CUS-01 | Pipeline coverage | Σ deal_value mở đóng trong quý / mục tiêu quý (BR-SAL-04); kèm coverage có trọng số | x | W < 3,5 · C < 3,0 | 3,4 · 3,1 · 2,9 · 2,6 · 2,2 · 1,8 | **1,8** | 142,5 / 81,0 tỷ = 1,76x; trọng số 49,8 / 81,0 = 0,61x | **Critical** | ALERT-CUS-01 Critical |
+| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | đếm HiringPlan quá `target_date` chưa đủ người | kế hoạch | W ≥ 1 trễ 1–45 ngày · C ≥ 1 trễ > 45 ngày (DEC-143) | 0 · 0 · 0 · 0 · 0 · 1 | **1** | HP-2026-07 trễ 35 ngày (> 30 → vẫn phát event E6) | Warning | ALERT-HR-04 Warning |
+| METRIC-CUS-01 | Pipeline coverage | Σ deal_value mở đóng trong quý / mục tiêu quý (BR-SAL-04); kèm coverage có trọng số | x | W < 2,8 · C < 2,5 (DEC-143) | 3,4 · 3,3 · 3,1 · 3,0 · 2,9 · 2,9 | **2,9** | 235,5 / 81,0 tỷ = 2,91x; trọng số 83,9 / 81,0 = 1,04x | OK | — |
 | METRIC-CUS-02 | Win rate | won / (won + lost) × 100 | % | W giảm > 10 đ% so Δ3k · C > 20 đ% | 29 · 28 · 27,5 · 26 · 25,5 · 24 | **24** | 12 / 50 (DOC-03); giảm 2,3 đ% | OK | — |
 | METRIC-CUS-03 | NRR | DT kỳ của nhóm khách kỳ gốc / DT kỳ gốc × 100 | % | W < 100 · C < 90 | 101 · 102,2 · 103 · 103,5 · 104 · 104,5 | **104,5** | 69,9 / 66,9 tỷ (Q3/2026 vs Q3/2025) | OK | — |
-| METRIC-CUS-04 | Tập trung doanh thu top 5 | DT top 5 khách 12 tháng / tổng × 100 | % | W > 50 · C > 65 | 46 · 47,2 · 48,5 · 49,4 · 50,3 · 51 | **51** | 149,94 / 294 tỷ | Warning | ALERT-CUS-04 Warning |
+| METRIC-CUS-04 | Tập trung doanh thu top 5 | DT top 5 khách 12 tháng / tổng × 100 | % | W > 50 · C > 65 | 46 · 47,2 · 48,5 · 49,4 · 49,8 · 49,9 | **49,9** | 146,70 / 294 tỷ | OK | — |
 | METRIC-CUS-05 | NPS | % promoter − % detractor | điểm | W < 30 · C < 0 | 28 · 30 · 31 · 33 · 32 · 32 | **32** | DOC-03, 214 phản hồi | OK | — |
 | METRIC-CUS-06 | Chu kỳ bán TB | AVG(closed_at − created_at) deal won | ngày | W tăng > 20% so Δ3k · C > 40% | 52 · 53 · 54 · 58 · 63 · 68 | **68** | DOC-03; +16,6% so Δ3k | OK | — |
-| METRIC-PRD-01 | Adoption (MAU) | MAU sản phẩm launched (+ adoption %) | người dùng | W MAU giảm > 10% so Δ3k · C > 20% | 1.540 · 1.560 · 1.575 · 1.560 · 1.548 · 1.392 | **1.392** | DOC-08 (adoption 70,8%); giảm 10,8% so Δ3k | Warning | ALERT-PRD-01 Warning |
-| METRIC-PRD-02 | Churn | `churn_rate_pct` (sản phẩm xấu nhất) | %/tháng | W tăng > 25% tương đối & ≥ 2% · C > 50% & ≥ 2% (BR-PRD-01) | 1,4 · 1,5 · 1,5 · 1,4 · 1,6 · 2,41 | **2,41** | 47 / 1.950 (DOC-08); +60,7% so Δ3k | **Critical** | ALERT-PRD-02 Critical |
+| METRIC-PRD-01 | Adoption (MAU) | MAU sản phẩm launched (+ adoption %) | người dùng | W MAU giảm > 10% so Δ3k · C > 20% | 1.540 · 1.560 · 1.575 · 1.560 · 1.548 · 1.430 | **1.430** | DOC-08 (adoption 72,3%); giảm 8,4% so Δ3k | OK | — |
+| METRIC-PRD-02 | Churn | `churn_rate_pct` (sản phẩm xấu nhất) | %/tháng | W tăng > 25% tương đối & ≥ 2% · C > 50% & ≥ 2% (BR-PRD-01) | 1,4 · 1,5 · 1,5 · 1,4 · 1,6 · 1,79 | **1,79** | 35 / 1.950 (DOC-08); +19,7% so Δ3k, < sàn 2% | OK | — |
 | METRIC-PRD-03 | Retention 30 ngày | `retention_30d_pct` | % | W < 40 · C < 25 | 72 · 71 · 70,5 · 70 · 69 · 68,3 | **68,3** | 41 / 60 (DOC-08) | OK | — |
-| METRIC-PRD-04 | Roadmap đúng tiến độ | RoadmapItem không trễ / RoadmapItem của quý × 100 | % | W < 70 · C < 50 | 90 · 88 · 85 · 80 · 75 · 66,7 | **66,7** | 8 / 12 (DOC-08) | Warning | ALERT-PRD-04 Warning |
+| METRIC-PRD-04 | Roadmap đúng tiến độ | RoadmapItem không trễ / RoadmapItem của quý × 100 | % | W < 70 · C < 50 | 90 · 88 · 85 · 80 · 78 · 75 | **75,0** | 9 / 12 (DOC-08) | OK | — |
 | METRIC-PRD-05 | Tính năng release trong kỳ | số feature released; attainment = released / planned × 100 | tính năng (+ %) | W attainment < 70 · C < 40 | 2 · 3 · 2 · 4 · 2 · 3 | **3 (75%)** | 3 release / 4 kế hoạch T9 (DOC-08) | OK | — |
 | METRIC-RSK-01 | Rủi ro high/critical đang mở | đếm level ∈ {high, critical}, chưa closed/accepted | rủi ro | W ≥ 1 high · C ≥ 1 critical | 3 · 4 · 5 · 6 · 7 · 8 | **8** | R-01..07, R-12 (3 critical: R-01, R-04, R-05) | **Critical** | ALERT-RSK-01 Critical |
 | METRIC-RSK-02 | Rủi ro high chưa có chủ | đếm level ≥ high, owner null | rủi ro | W ≥ 1 medium chưa chủ > 7 ngày · C ≥ 1 | 0 · 0 · 0 · 1 · 1 · 2 | **2** | R-06, R-12 | **Critical** | ALERT-RSK-02 Critical |
 | METRIC-RSK-03 | Rủi ro high > 30 ngày không mitigation | level ≥ high, mở > 30 ngày, không có mitigation in_progress | rủi ro | W ≥ 1 · C ≥ 1 rủi ro critical | 0 · 0 · 0 · 0 · 1 · 1 | **1** | R-03 (high) | Warning | ALERT-RSK-03 Warning |
-| METRIC-RSK-04 | Điểm rủi ro tổng hợp | Σ score rủi ro mở / số rủi ro mở (thang 1–25) | điểm | W ≥ 8 · C ≥ 12 | 9,5 · 10,1 · 10,6 · 11,2 · 11,8 · 12,3 | **12,3** | 148 / 12 | **Critical** | ALERT-RSK-04 Critical |
+| METRIC-RSK-04 | Điểm rủi ro tổng hợp | Σ score rủi ro mở / số rủi ro mở (thang 1–25) | điểm | W ≥ 10 · C ≥ 15 (DEC-143) | 9,5 · 10,1 · 10,6 · 11,2 · 11,8 · 12,3 | **12,3** | 148 / 12 | Warning | ALERT-RSK-04 Warning |
 | METRIC-RSK-05 | Biện pháp quá hạn | đếm mitigation planned/in_progress quá hạn | biện pháp | W ≥ 1 · C ≥ 5 hoặc ≥ 1 thuộc rủi ro critical | 1 · 1 · 1 · 2 · 2 · 3 | **3** | 3 / 14 (R-01, R-07, R-10); 1 thuộc R-01 critical | **Critical** | ALERT-RSK-05 Critical |
 | METRIC-RSK-06 | Strategy execution index | Σ weight × on_track / Σ weight × 100 (Objective Q3) | % | W < 70 · C < 50 | — · — · — · — · — · 66,7 | **66,7** | 4 / 6 Objective Q3 on track (weight bằng nhau) | Warning | ALERT-RSK-06 Warning |
 
@@ -479,14 +479,14 @@ Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9
 
 | Trụ | OK | Warning | Critical | Trạng thái trụ (03 §4: critical nếu có ≥ 1 metric critical) |
 |---|---|---|---|---|
-| PIL-F | 2 | 4 | 1 | **critical** (FIN-06) |
-| PIL-O | 3 | 3 | 1 | **critical** (HR-04) |
-| PIL-C | 4 | 1 | 1 | **critical** (CUS-01) |
-| PIL-U | 2 | 2 | 1 | **critical** (PRD-02) |
-| PIL-S | 0 | 2 | 4 | **critical** (RSK-01/02/04/05) |
-| **Tổng 31** | **11** | **12** | **8** | |
+| PIL-F | 2 | 5 | 0 | **warning** |
+| PIL-O | 3 | 4 | 0 | **warning** (HR-04 trễ 35 ngày < 45) |
+| PIL-C | 6 | 0 | 0 | **ok** |
+| PIL-U | 5 | 0 | 0 | **ok** |
+| PIL-S | 0 | 3 | 3 | **critical** (RSK-01/02/05) |
+| **Tổng 31** | **16** | **12** | **3** | **2 ok · 2 warning · 1 critical** (DEC-143) |
 
-Mỗi trụ có ≥ 1 Warning; trụ S có Critical. 20 alert đang mở (12 Warning + 8 Critical). Briefing CEO lấy tối đa 3 ngoại lệ ưu tiên: ALERT-RSK-02 (R-12 chờ phân công), ALERT-HR-04 (HP-2026-07), ALERT-CUS-01.
+Ngoại lệ dồn vào trụ S (đúng câu chuyện "rủi ro mới chưa có chủ"). 15 alert đang mở (12 Warning + 3 Critical). Briefing CEO lấy tối đa 3 ngoại lệ ưu tiên: ALERT-RSK-02 (R-12 chờ phân công), ALERT-RSK-01 (R-01 thiếu hụt dòng tiền, critical), ALERT-HR-04 (HP-2026-07 — nguyên nhân R-12).
 
 ---
 
@@ -496,9 +496,9 @@ Seed phát qua outbox như luồng thật (không ghi thẳng vào bảng consum
 
 | # | Thời điểm | Event | Payload chính | Consumer → kết quả |
 |---|---|---|---|---|
-| E1 | 30/09/2026 | `EVT-finance.budget_exceeded` | dept `SAL`, quý 2026-Q3, utilization 114,1% (6 phòng ban > 100% đều phát event; chỉ SAL > 10% được map sang rủi ro theo `RISK_EVENT_SCORING`, OQ-01) | risk: cập nhật R-02 · ai_core: insight "Chi phí kinh doanh vượt 14%" |
+| E1 | 30/09/2026 | `EVT-finance.budget_exceeded` | dept `SAL`, quý 2026-Q3, utilization 109,0% (6 phòng ban > 100% đều phát event; không phòng nào > 10% nên không map sang rủi ro theo `RISK_EVENT_SCORING`, OQ-01) | risk: chỉ log · ai_core: insight "Chi phí kinh doanh vượt 9%" |
 | E2 | 01/10/2026 | `EVT-finance.burn_over_forecast` | T9 burn 3,0 tỷ vs dự báo 2,5 tỷ (+20%) | risk: tăng L của R-01 (3→4) → `EVT-risk.risk_level_changed` (high → critical) |
-| E3 | 05/10/2026 | `EVT-product.metric_anomaly` | PRD-ORDER churn 2,41% vs BQ 1,5% (+60,7%) | risk: tạo R-05 · ai_core: insight trụ U |
+| E3 | — | (không phát) | PRD-ORDER churn 1,79% < sàn 2% (BR-PRD-01) | R-05 lấy từ DOC-09; demo BR-PRD-01 bằng fixture TC-PRD-002 |
 | E4 | 06/10/2026 | `EVT-risk.risk_level_changed` | R-01 high → critical | platform: ALERT-RSK-01 cập nhật · ai_core: đưa vào Briefing |
 | E5 | 15/10/2026 | `EVT-sales.deal_closed_lost` | deal "Trang bị VP Tân Phú" 0,8 tỷ, lý do giá | risk: < `RISK_LOST_DEAL_MIN_VALUE` (1 tỷ), chỉ log |
 | E6 | 20/10/2026 07:00 | `EVT-hr.hiring_plan_delayed` | HP-2026-07, trễ 35 ngày, 6 vị trí SAL | risk: **tự sinh R-12** (`source='EVENT'`, owner null, high) → `EVT-risk.risk_identified` |
@@ -513,7 +513,7 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 
 | Phút | Vai | Bước | Dữ liệu dùng | Kết quả mong đợi |
 |---|---|---|---|---|
-| 0–2 | CEO | F1: mở SCR-01 | §6.1 | "3 việc cần anh, 1 rủi ro mới"; 5 trụ đỏ (xem §6.1, OQ-07) |
+| 0–2 | CEO | F1: mở SCR-01 | §6.1 | "3 việc cần anh, 1 rủi ro mới"; 2 trụ xanh (C, U) · 2 vàng (F, O) · 1 đỏ (S) — §6.1 |
 | 2–5 | CEO | Bấm thẻ METRIC-FIN-01 (88,5%) → Panel AI → drill-down | DOC-01, DOC-02 | Nguyên nhân có source chip; ≤ 3 click tới trang 4 PDF DOC-01 và dòng HV-xxx |
 | 5–7 | CEO | Hỏi AI "Rủi ro tuyển dụng chậm ảnh hưởng thế nào đến dự báo tài chính?" rồi "Runway nếu tháng sau không có doanh thu mới?" | R-12, HP-2026-07, forecast | Trả lời có `sources`; runway với doanh thu = 0 tính từ tool Finance, không bịa số |
 | 7–9 | CEO | Chọn phương án → Action card L2 → xác nhận | QD-01 | 3 task tạo, toast hoàn tác 10 giây, quyết định mới ghi log |
@@ -539,18 +539,18 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 | K7 | LN | 73,5 − 60 = 13,5; 13,5 − 10,2 = 3,3; × 0,8 = 2,64 tỷ | ✓ |
 | K8 | Headcount | 6 + 14 + 42 + 38 + 24 + 18 + 8 | 150 ✓ |
 | K9 | Quỹ lương | Σ 7 phòng ban | 2.925.000.000; × 3 = 8.775.000.000 ✓ |
-| K10 | Ngân sách | Σ 7 phòng ban | 9.450 / 10.200 triệu, +7,9% ✓ |
+| K10 | Ngân sách | Σ 7 phòng ban | 9.600 / 10.200 triệu, +6,3%; SAL 3.650 / 3.350 = +9,0% ✓ |
 | K11 | Phải thu 30/09 | 27.936 + 726 + 10.338 (triệu) | 39.000 triệu; DSO 47,8 ✓ |
 | K12 | Phải thu 20/10 | còn nợ 25 HĐ T9 15.651.300.000 + HL-001 726.000.000 | 16.377.300.000 ✓ |
 | K13 | Quá hạn 20/10 | 5 HĐ 3.192.000.000 + HL-001 726.000.000 | 3.918.000.000 → 23,9% ✓ |
 | K14 | Runway | 20,4 / ((2,1 + 2,55 + 3,0) / 3) | 8,0 tháng ✓ |
-| K15 | Pipeline | 142,5 / 81 (trọng số: 3,6 + 7,5 + 14,4 + 24,3 = 49,8 / 81) | 1,76x → 1,8x; trọng số 0,61x ✓ |
+| K15 | Pipeline | 235,5 / 81 (trọng số: 5,4 + 13,125 + 24,0 + 41,4 = 83,925 / 81) | 2,91x → 2,9x; trọng số 1,04x ✓ |
 | K16 | NRR | 69,9 / 66,9; 69,9 + 3,6 (khách mới) = 73,5 | 104,5% ✓ |
 | K17 | Doanh thu theo sản phẩm | 19,125 + 4,08 + 2,295 | 25,5 tỷ ✓ |
-| K18 | Tài khoản ABC Order | 1.950 + 63 − 47 | 1.966; MAU 70,8%; churn 2,41% ✓ |
-| K19 | Rủi ro | 12 rủi ro, score = L × I, Σ 148 / 12 | index 12,3; 8 high+; 3 critical ✓ |
+| K18 | Tài khoản ABC Order | 1.950 + 63 − 35 | 1.978; MAU 1.430 / 1.978 = 72,3%; churn 35 / 1.950 = 1,79% ✓ |
+| K19 | Rủi ro | 12 rủi ro, score = L × I, Σ 148 / 12 | index 12,3 (Warning, DEC-143); 8 high+; 3 critical ✓ |
 | K20 | Mitigation | 14 mở, 3 quá hạn (1 thuộc R-01 critical) | METRIC-RSK-05 = 3 → Critical ✓ |
-| K21 | Trạng thái 31 metric | đánh giá theo ngưỡng 03 §2 | 11 OK · 12 W · 8 C, khớp cột "Trạng thái" ✓ |
+| K21 | Trạng thái 31 metric | đánh giá theo ngưỡng 03 §2 | 16 OK · 12 W · 3 C, khớp cột "Trạng thái"; trụ 2 ok · 2 warning · 1 critical ✓ |
 
 ---
 
@@ -564,7 +564,7 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 | OQ-04 | METRIC-RSK-06 dùng tiến độ KR Q3 (đã đóng) trong khi DOC-07 là Q4 | Seed Q3 riêng; từ T11 tính theo Q4 | 03 |
 | OQ-05 | Chưa liệt kê đủ 150 nhân viên, 28 feature, 140 deal lịch sử | Sinh bằng script seed có seed ngẫu nhiên cố định, giữ các tổng ở §9 | T-510 |
 | OQ-06 | R-12 sinh từ event; nếu demo chạy lại trong ngày, thời điểm E6–E8 có cố định 20/10 07:00 không | Cố định theo `DEMO_REFERENCE_DATE` | T-510 |
-| OQ-07 | Với ngưỡng mặc định của 03 (vd CUS-01 C < 3,0x, RSK-04 C ≥ 12) cả 5 trụ đều critical — CEO thấy "toàn đỏ", giảm hiệu quả P07 | Human xem lại ngưỡng CUS-01/RSK-04 ở 03, hoặc chấp nhận cho demo | 03, 08 §6 |
+| OQ-07 | ✅ **Resolved — DEC-143** (ngưỡng mới + hiệu chỉnh seed → 2 ok · 2 warning · 1 critical). Câu hỏi gốc: Với ngưỡng mặc định của 03 (vd CUS-01 C < 3,0x, RSK-04 C ≥ 12) cả 5 trụ đều critical — CEO thấy "toàn đỏ", giảm hiệu quả P07 | Human xem lại ngưỡng CUS-01/RSK-04 ở 03, hoặc chấp nhận cho demo | 03, 08 §6 |
 
 ---
 
@@ -575,4 +575,5 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 - **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo DEC-136 (ABC ~150 NV, 9 tài liệu, 31 metric, 10 tài khoản, seed sự kiện); v1.0.0 lưu ở nhánh `v1`.
+- **Change (2026-10-19, DEC-143):** ngưỡng CUS-01/RSK-04/HR-04 mới; hiệu chỉnh seed (ngân sách SAL 3.350, pipeline 235,5 tỷ, top 5 146,7 tỷ, churn 35 → 1,79%, MAU 1.430, roadmap 9/12); §6.1 = 16 OK · 12 W · 3 C, trụ 2 ok · 2 warning · 1 critical; đóng OQ-07.
 

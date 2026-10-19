@@ -1526,7 +1526,7 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 | OQ-01 | 64 bảng đúng 64 entity registry; view `hr.v_payroll_by_department` không phải entity — chấp nhận view không có ID `ENT-*`? | Chấp nhận (view chỉ đọc, không lưu dữ liệu) | 00, 03 |
 | OQ-02 | Soft reference xuyên schema (C7) không có FK constraint — chấp nhận rủi ro toàn vẹn? | Chấp nhận; test toàn vẹn định kỳ + xóa mềm (không xóa cứng) | 07, 14 |
 | OQ-03 | Nhà cung cấp không có entity (`counterparty_*` trên invoices/expenses) — 04 OQ-04 | Giữ đến Phase 2 (Procurement) | 04, 10 |
-| OQ-04 | Chiều vector 1024 và embedding model nào (dependency/provider)? | 1024, model qua ModelGateway; cần DEC khi chọn | 07 |
+| OQ-04 | ✅ DEC-142 (`bge-m3`, 1024 chiều). Chiều vector 1024 và embedding model nào (dependency/provider)? | 1024, model qua ModelGateway; cần DEC khi chọn | 07 |
 | OQ-05 | Lineage metric → bản ghi với metric tổng hợp rất nhiều bản ghi (VD METRIC-FIN-01 cả năm) — lưu từng dòng hay theo nhóm? | Từng dòng khi ≤ 1.000 bản ghi; lớn hơn lưu nhóm + truy vấn tái tạo | 03, 10 |
 | OQ-06 | Data quality score (04 OQ-07) lưu ở `metric_values.data_quality_score` + `import_batches.quality_score` — đủ hay cần bảng riêng? | Đủ cho v2 | 03, 04 |
 | OQ-07 | `processed_events` một bảng chung ở `platform` (khác A-EMS per service) — module consumer ghi vào schema `platform` | Chấp nhận (ngoại lệ hạ tầng, giống outbox) | 07 |

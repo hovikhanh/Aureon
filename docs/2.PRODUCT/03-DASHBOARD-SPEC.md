@@ -85,13 +85,13 @@ Ghi chú chung:
 | METRIC-HR-01 | Doanh thu / nhân sự | `revenue_per_head = SUM(Revenue.amount, 12 tháng rolling) / headcount active bình quân 12 tháng`; so với kế hoạch `HR_REVENUE_PER_HEAD_PLAN` | VND/người/năm | ENT-Revenue, ENT-Employee | Ghi Revenue; `EVT-hr.employee_onboarded` / `employee_terminated` | ↑ | Thấp hơn kế hoạch > 15% | Thấp hơn kế hoạch > 25% | `kpi` + `line` |
 | METRIC-HR-02 | Turnover năm hóa | BR-HR-01 | % | ENT-Employee | `EVT-hr.employee_terminated`; job hằng tháng | ↓ | ≥ 15 | ≥ 20 | `kpi` + `line` 12 tháng + `bar` theo phòng ban |
 | METRIC-HR-03 | Quá tải | `overload_pct = COUNT(Employee active có workload_pct > 110 trong 2 tuần liên tiếp) / COUNT(Employee active) × 100`; `workload_pct (tuần) = SUM(Task.estimate_hours của task mở được giao trong tuần) / capacity_hours_per_week (mặc định 40) × 100` | % (+ số người) | ENT-Task, ENT-Employee | Giao/cập nhật Task; job hằng tuần | ↓ | > 10 | > 20 | `heatmap` người × tuần (SCR-19) |
-| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | `delayed_hiring_plans = COUNT(HiringPlan status ∈ {approved, in_progress}, target_date < hôm nay, filled < headcount)`; chia theo số ngày trễ | số kế hoạch | ENT-HiringPlan | Cập nhật HiringPlan; job hằng ngày; `EVT-hr.hiring_plan_delayed` | ↓ | ≥ 1 kế hoạch trễ 1–30 ngày | ≥ 1 kế hoạch trễ > 30 ngày (FR-HR-04) | `kpi` + danh sách theo phòng ban |
+| METRIC-HR-04 | Kế hoạch tuyển dụng trễ | `delayed_hiring_plans = COUNT(HiringPlan status ∈ {approved, in_progress}, target_date < hôm nay, filled < headcount)`; chia theo số ngày trễ | số kế hoạch | ENT-HiringPlan | Cập nhật HiringPlan; job hằng ngày; `EVT-hr.hiring_plan_delayed` | ↓ | ≥ 1 kế hoạch trễ 1–45 ngày | ≥ 1 kế hoạch trễ > 45 ngày (DEC-143; event FR-HR-04 vẫn phát khi > 30 ngày) | `kpi` + danh sách theo phòng ban |
 
 ### 2.3. PIL-C — Customer & Growth (6)
 
 | ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
 |---|---|---|---|---|---|---|---|---|---|
-| METRIC-CUS-01 | Pipeline coverage | BR-SAL-04: `coverage_x = SUM(Deal.deal_value, stage mở, expected_close_date trong quý) / SalesTarget.target_amount(quarter, team)`; hiển thị kèm coverage có trọng số `SUM(weighted_value) / target` (BR-SAL-02) | lần (x, 1 số thập phân) | ENT-Deal, ENT-SalesTarget | Tạo/sửa Deal; chuyển giai đoạn; đổi SalesTarget | ↑ | < 3,5 | < 3,0 | `kpi` + `funnel` theo giai đoạn |
+| METRIC-CUS-01 | Pipeline coverage | BR-SAL-04: `coverage_x = SUM(Deal.deal_value, stage mở, expected_close_date trong quý) / SalesTarget.target_amount(quarter, team)`; hiển thị kèm coverage có trọng số `SUM(weighted_value) / target` (BR-SAL-02) | lần (x, 1 số thập phân) | ENT-Deal, ENT-SalesTarget | Tạo/sửa Deal; chuyển giai đoạn; đổi SalesTarget | ↑ | < 2,8 (2,5–< 2,8; OK ≥ 2,8 — DEC-143) | < 2,5 | `kpi` + `funnel` theo giai đoạn |
 | METRIC-CUS-02 | Win rate | BR-SAL-03: `win_rate_pct = won / (won + lost) × 100` trong kỳ | % | ENT-Deal, ENT-DealStageHistory | `EVT-sales.deal_closed_won` / `deal_closed_lost` | ↑ | Giảm > 10 điểm % so Δ3k | Giảm > 20 điểm % so Δ3k | `kpi` + `line` |
 | METRIC-CUS-03 | NRR | `nrr_pct = DT kỳ này từ khách đã có doanh thu ở kỳ trước / DT kỳ trước của chính các khách đó × 100` (theo `Revenue.client_id`) | % | ENT-Revenue, ENT-Client | Ghi Revenue; `EVT-finance.invoice_paid` | ↑ | < 100 | < 90 | `kpi` + `line` |
 | METRIC-CUS-04 | Tập trung doanh thu top 5 | `top5_concentration_pct = SUM(DT 5 khách lớn nhất, 12 tháng rolling) / SUM(DT, 12 tháng rolling) × 100` | % | ENT-Revenue, ENT-Client | Ghi Revenue | ↓ | > 50 | > 65 | `donut` top 5 vs còn lại |
@@ -117,7 +117,7 @@ Ghi chú chung:
 | METRIC-RSK-01 | Rủi ro high/critical đang mở | `COUNT(Risk level ∈ {high, critical}, status ∉ {closed, accepted})` | số rủi ro | ENT-Risk | `EVT-risk.risk_identified` / `risk_level_changed` / `risk_mitigated` | ↓ | ≥ 1 rủi ro `high` | ≥ 1 rủi ro `critical` | `kpi` + `heatmap` 5×5 likelihood × impact |
 | METRIC-RSK-02 | Rủi ro high chưa có chủ | `COUNT(Risk level ∈ {high, critical}, owner_id IS NULL, status mở)` | số rủi ro | ENT-Risk | `EVT-risk.risk_identified`; gán owner | ↓ | ≥ 1 rủi ro `medium` chưa có chủ > 7 ngày | ≥ 1 (A-EMS: "chờ phân công") | `kpi` + danh sách |
 | METRIC-RSK-03 | Rủi ro high > 30 ngày không có mitigation | `COUNT(Risk level ≥ high, mở > 30 ngày, không có Mitigation status=in_progress)` | số rủi ro | ENT-Risk, ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 (A-EMS) | ≥ 1 rủi ro `critical` thỏa điều kiện | `kpi` + danh sách |
-| METRIC-RSK-04 | Điểm rủi ro tổng hợp | `risk_index = SUM(risk_score của rủi ro mở) / COUNT(rủi ro mở)` (thang 1–25); trend theo tuần | điểm (1 số thập phân) | ENT-Risk, ENT-RiskAssessment | Mọi `EVT-risk.*` | ↓ | ≥ 8 | ≥ 12 | `line` + `heatmap` |
+| METRIC-RSK-04 | Điểm rủi ro tổng hợp | `risk_index = SUM(risk_score của rủi ro mở) / COUNT(rủi ro mở)` (thang 1–25); trend theo tuần | điểm (1 số thập phân) | ENT-Risk, ENT-RiskAssessment | Mọi `EVT-risk.*` | ↓ | ≥ 10 (10–< 15; OK < 10 — DEC-143) | ≥ 15 | `line` + `heatmap` |
 | METRIC-RSK-05 | Biện pháp quá hạn | `COUNT(Mitigation status ∈ {planned, in_progress}, due_date < hôm nay)` | số biện pháp | ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 | ≥ 5, hoặc ≥ 1 thuộc rủi ro `critical` | `kpi` + danh sách |
 | METRIC-RSK-06 | Strategy execution index | `sei_pct = Σ(Objective.weight × on_track) / Σ(Objective.weight) × 100` cho Objective của kỳ; `on_track = 1` khi `progress_pct ≥ expected_progress_pct × 0,9`, với `progress_pct` = trung bình KR (KeyResult.current/target), `expected_progress_pct` nội suy theo thời gian kỳ | % | ENT-Objective, ENT-KeyResult, ENT-CheckIn | Check-in KR; `EVT-execution.kpi_measured`; job hằng tuần | ↑ | < 70 (AI-EOS §4.3) | < 50 | `gauge` + cây Objective → KR |
 
@@ -155,8 +155,8 @@ Ghi chú chung:
 | ALERT-HR-01 | METRIC-HR-01 | O | DT/nhân sự thấp hơn KH > 15% | > 25% | CFO | Xem headcount vs doanh thu |
 | ALERT-HR-02 | METRIC-HR-02 | O | Turnover ≥ 15%/năm | ≥ 20% | — | Phòng ban có nghỉ việc cao |
 | ALERT-HR-03 | METRIC-HR-03 | O | Quá tải > 10% nhân sự | > 20% | MANAGER của người quá tải | F5: gợi ý chuyển task (L1) |
-| ALERT-HR-04 | METRIC-HR-04 | O | Kế hoạch trễ 1–30 ngày | Trễ > 30 ngày | CFO, RISK_MANAGER | Xem kế hoạch; rủi ro tự sinh (BR-RSK-03) |
-| ALERT-CUS-01 | METRIC-CUS-01 | C | Coverage < 3,5x | < 3,0x | CEO | Deal cần thúc đẩy |
+| ALERT-HR-04 | METRIC-HR-04 | O | Kế hoạch trễ 1–45 ngày | Trễ > 45 ngày (DEC-143) | CFO, RISK_MANAGER | Xem kế hoạch; rủi ro tự sinh (BR-RSK-03) |
+| ALERT-CUS-01 | METRIC-CUS-01 | C | Coverage < 2,8x | < 2,5x (DEC-143) | CEO | Deal cần thúc đẩy |
 | ALERT-CUS-02 | METRIC-CUS-02 | C | Win rate giảm > 10 điểm % so Δ3k (≥ 10 deal đã đóng) | > 20 điểm % | — | Phân tích deal thua |
 | ALERT-CUS-03 | METRIC-CUS-03 | C | NRR < 100% | < 90% | CFO | Khách giảm chi tiêu |
 | ALERT-CUS-04 | METRIC-CUS-04 | C | Top 5 > 50% doanh thu | > 65% | CFO, RISK_MANAGER | Rủi ro tập trung khách hàng |
@@ -170,7 +170,7 @@ Ghi chú chung:
 | ALERT-RSK-01 | METRIC-RSK-01 | S | Có rủi ro `high` mở | Có rủi ro `critical` mở | CFO; owner rủi ro | Mở sổ rủi ro, what-if |
 | ALERT-RSK-02 | METRIC-RSK-02 | S | Rủi ro `medium` chưa có chủ > 7 ngày | Rủi ro ≥ `high` chưa có chủ | — | Gán chủ sở hữu |
 | ALERT-RSK-03 | METRIC-RSK-03 | S | Rủi ro ≥ `high` mở > 30 ngày không có mitigation `in_progress` | Như trên với `critical` | Owner rủi ro | Tạo biện pháp |
-| ALERT-RSK-04 | METRIC-RSK-04 | S | Điểm rủi ro TB ≥ 8 | ≥ 12 | — | Heatmap |
+| ALERT-RSK-04 | METRIC-RSK-04 | S | Điểm rủi ro TB ≥ 10 | ≥ 15 (DEC-143) | — | Heatmap |
 | ALERT-RSK-05 | METRIC-RSK-05 | S | ≥ 1 biện pháp quá hạn | ≥ 5 hoặc thuộc rủi ro `critical` | Owner biện pháp | Cập nhật tiến độ |
 | ALERT-RSK-06 | METRIC-RSK-06 | S | Strategy execution < 70% | < 50% | — | Objective lệch tiến độ |
 
@@ -473,7 +473,7 @@ Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàn
 | OQ-02 | Giá trị kế hoạch `HR_REVENUE_PER_HEAD_PLAN` (METRIC-HR-01) lấy từ đâu? | Biến cấu hình do CEO/HR nhập; demo = 2,0 tỷ/người/năm | 08, SCR-15/27 |
 | OQ-03 | METRIC-HR-03 cần `Task.estimate_hours` — nếu thiếu thì tính workload thế nào? | Thiếu estimate → mỗi task mở = 4 giờ (`DEFAULT_TASK_HOURS`) | 05 `ENT-Task` |
 | OQ-04 | METRIC-CUS-05 NPS lấy từ ProductMetric (sản phẩm) hay khảo sát khách hàng riêng? | Từ `ENT-ProductMetric.nps` (v2 không có entity Survey) | 05, 08 |
-| OQ-05 | Ngưỡng warning của các metric A-EMS chỉ có 1 mức (vd. METRIC-CUS-01 < 3x là critical) — mức warning bổ sung (3,5x, Δ…) có cần human duyệt? | Dùng giá trị trong §2 làm mặc định, cấu hình được | §2, §3 |
+| OQ-05 | ✅ **Resolved — DEC-143** (CUS-01 W < 2,8 · C < 2,5; RSK-04 W ≥ 10 · C ≥ 15; HR-04 C > 45 ngày). Câu hỏi gốc: Ngưỡng warning của các metric A-EMS chỉ có 1 mức (vd. METRIC-CUS-01 < 3x là critical) — mức warning bổ sung (3,5x, Δ…) có cần human duyệt? | Dùng giá trị trong §2 làm mặc định, cấu hình được | §2, §3 |
 | OQ-06 | Rủi ro tự sinh từ `EVT-finance.forecast_updated`: điều kiện "lợi nhuận base giảm > 20%" có đúng ý không? | Giữ mặc định, cấu hình `RISK_FORECAST_DROP_PCT` | BR-RSK-03 |
 | OQ-07 | Briefing có gửi qua kênh ngoài (Zalo/Slack/email) không? | Không ở v2; chỉ in-app (+ email critical nếu bật FR-NTF-02) | FR-NTF |
 | OQ-08 | METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Trọng số bằng nhau (1) | 05 `ENT-Objective` |
@@ -505,3 +505,4 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 - **Applies to:** Aureon v2
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại toàn bộ theo DEC-124, DEC-127 (5 trụ F.O.C.U.S, 31 metric/alert, BR và FR domain từ A-EMS, bộ chỉ số sức khỏe AI-EOS). Bản 1.0.0 (4 trụ, 18 metric) lưu ở nhánh `v1`.
+- **Change (2026-10-19, DEC-143):** chốt ngưỡng METRIC-CUS-01 (W < 2,8x · C < 2,5x), METRIC-RSK-04 (W ≥ 10 · C ≥ 15), METRIC-HR-04 (C > 45 ngày) và ALERT tương ứng; đóng OQ-05.

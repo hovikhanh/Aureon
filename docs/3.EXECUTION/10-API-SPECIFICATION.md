@@ -817,7 +817,7 @@ Test case `TC-<AREA>-xxx` cho từng EP do `14-TEST-TRACEABILITY.md` sở hữu 
 | OQ-10 | Upload limit `MAX_FILE_SIZE_MB` v1 = 20, v2 = 50 MB / 300 trang / 100 file (04 §15.1) | Theo 04; cập nhật `.env.example` (T-014) | 07, `.env.example` |
 | OQ-11 | Thêm mã lỗi `REFRESH_TOKEN_INVALID`, `MALWARE_DETECTED`, `BAD_REQUEST`, `INVALID_CREDENTIALS` ngoài danh sách nhiệm vụ | Giữ (cần cho FR-AUTH-02, FR-DC-02) | 14 |
 | OQ-12 | 04 §15.2 dùng `CONFLICT` cho xung đột commit; file này dùng `CONFLICT_STATE` | Dùng `CONFLICT_STATE`; human sửa 04 | 04 |
-| OQ-13 | Thư viện SSE (`sse-starlette` hay `StreamingResponse` thuần) | `StreamingResponse` thuần — không thêm dependency; nếu cần `sse-starlette` → DEC (T-002) | 07 |
+| OQ-13 | ✅ DEC-143: `StreamingResponse` thuần. Thư viện SSE (`sse-starlette` hay `StreamingResponse` thuần) | `StreamingResponse` thuần — không thêm dependency; nếu cần `sse-starlette` → DEC (T-002) | 07 |
 | OQ-14 | Email notification (FR-NTF-02) cần SMTP provider | Tắt mặc định (`NOTIFY_EMAIL_ENABLED=false`); log thay gửi | 07 |
 | OQ-15 | ~~`FR-AI-01..10` được 09/14 trích dẫn nhưng **chưa có bảng định nghĩa** ở 02/03 (00 §4 có area `AI`). File này dùng nghĩa suy từ 09: 01..04 chat/SSE/tool executor/nguồn, 05..06 hội thoại + feedback, 07 insight, 08 hành động AI (giả định), 09 what-if runway, 10 PII filter~~ **Đã xử lý 2026-10-19:** FR-AI-01..10 được định nghĩa ở 03 §6.8, khớp nghĩa dùng trong file này (FR-AI-08 = hành động AI L1–L3) | Human/owner 02 bổ sung bảng FR-AI; xác nhận FR-AI-08 | 02, 09, 14 |
 

@@ -178,7 +178,7 @@ Quy ước: ưu tiên **Must / Should / Could** (A-EMS). Cột "Nguồn": `A` = 
 | US-SAL-01 | Là VP Sales, tôi muốn quản lý deal và chuyển giai đoạn trong pipeline | Lưu `ENT-DealStageHistory`; won/lost phát event | Must | A |
 | US-SAL-02 | Là VP Sales, tôi muốn quản lý danh sách khách hàng, để gắn deal đúng khách | Tên khách duy nhất; khớp mờ khi nhập (IDP, 04) | Must | A |
 | US-SAL-03 | Là VP Sales, tôi muốn xem pipeline theo giai đoạn, win rate và hiệu suất từng người | FR-SAL-04/05/07 | Must | A |
-| US-SAL-04 | Là VP Sales, tôi muốn được cảnh báo khi pipeline < 3 lần mục tiêu quý hoặc win rate giảm bất thường | ALERT-CUS-01, ALERT-CUS-02 | Should | A |
+| US-SAL-04 | Là VP Sales, tôi muốn được cảnh báo khi pipeline < 2,8 lần mục tiêu quý (DEC-143) hoặc win rate giảm bất thường | ALERT-CUS-01, ALERT-CUS-02 | Should | A |
 
 ### 3.4. HR_MANAGER (ROLE-04)
 
