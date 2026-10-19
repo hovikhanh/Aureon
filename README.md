@@ -28,9 +28,21 @@ Aureon là một nền tảng quản trị doanh nghiệp lấy AI làm trung t�
 | Tech stack | **Next.js 15 + FastAPI (Python 3.12)** |
 | Thời gian build | 8 tuần (5 mốc sprint S0–S4) |
 
-**Đã có:** Dashboard 4 trụ (18 metric · 12 cảnh báo · drill-down P01), IDP upload C1–C4 + Review + Source Viewer, 5 vai trò phân quyền, 35 endpoint theo `10-API-SPECIFICATION`. Chi tiết ở [`DEMO-READY-REPORT.md`](DEMO-READY-REPORT.md).
+**Đã có:** Dashboard 4 trụ (18 metric · 12 cảnh báo · drill-down P01) với **dynamic metric/alert engine**, IDP upload C1–C4 + **C4 gộp ảnh → PDF nhiều trang + chấm độ mờ** + Review + Source Viewer, **UC-07 batch onboarding**, **màn hình Audit SCR-14 (EP-52)**, 5 vai trò phân quyền, các endpoint theo `10-API-SPECIFICATION`. Chi tiết ở [`DEMO-READY-REPORT.md`](DEMO-READY-REPORT.md).
 
-**Gate:** `pnpm test:web` 204 pass · `uv run pytest` 353 pass (coverage 87%) · typecheck/lint/mypy/ruff sạch · Gate A/B/C ĐẠT (0 DEC open+blocking).
+**Gate:**
+- `pnpm test:web` **218 pass / 29 files** · `pnpm test:e2e` 12 pass (cần env — xem Known Issues) · typecheck/lint sạch.
+- `uv run pytest` **366 pass / 1 fail** (coverage **88%**) · mypy/ruff sạch. 1 fail là test live OmniRoute (403) — xem Known Issues.
+- **Gate A** (Doc Audit) ĐẠT · **Gate B** (Decision Log) ĐẠT — 0 DEC open+blocking · **Gate C** (Test Traceability) ĐẠT về mapping/coverage, còn **1 test backend fail chờ fix** (live OmniRoute, non-blocking cho demo).
+
+### Known Issues
+
+| # | Vấn đề | Mức | Ghi chú |
+|---|---|---|---|
+| KI-1 | 1 test backend fail — **HTTP 403 (live OmniRoute)** | Low | `apps/api/tests/model_gateway/test_live_omniroute.py` gọi OmniRoute thật; không ảnh hưởng tính năng demo. Sẽ tách khỏi suite mặc định (marker `live` + `RUN_LIVE_TESTS=true`) để `uv run pytest` mặc định = 366 pass. |
+| KI-2 | **E2E chưa reproducible** do thiếu env vars | Low | `pnpm test:e2e` cần `DEMO_*_PASSWORD` + `E2E_BASE_URL`/`API_URL` nạp từ `.env`; hiện phải `set -a; source .env; set +a` thủ công. Sẽ cho Playwright tự nạp `.env` + chuẩn hoá script. |
+
+> Cả hai thuộc Bước 1 (sửa lỗi test/E2E) đã chủ động hoãn; không mục nào chặn demo.
 
 ---
 
@@ -56,8 +68,7 @@ Aureon/
 ├── packages/                   # Shared packages
 │   └── shared-types/           # DTO, types chung
 │
-├── data/
-│   └── demo-docs/              # 7 loại tài liệu mẫu
+├── data/                       # 7 tài liệu mẫu (DOC-01..07) nằm trực tiếp tại đây
 │
 └── docker-compose.yml          # PostgreSQL, Redis, MinIO
 ```

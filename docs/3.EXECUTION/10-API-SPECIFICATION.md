@@ -133,6 +133,8 @@ Khi `NOT_COMPUTABLE`, response kèm `not_computable_reason` (`DENOMINATOR_ZERO` 
 
 ### 1.10. Danh mục endpoint
 
+> **Đối chiếu code ↔ spec (2026-10-19).** Đã rà các module **Audit (EP-52), Dynamic metric/alert engine (EP-11/EP-31 + recompute nội bộ), UC-07 (EP-40/EP-41)** so với route thực tế trong `apps/api`. Kết quả: **mọi endpoint đã code đều có mặt trong danh mục này — không thiếu endpoint nào cần bổ sung.** Bộ test contract (`uv run pytest -m contract`, **39 pass**) xác nhận `check_documented` không phát hiện route "undocumented" và `missing_endpoints` không liệt kê EP-40/EP-41/EP-52 (đều đã mount). `recompute_metrics` là tác vụ nội bộ sau commit Action Registry (không phải endpoint HTTP công khai — xem §8.3). Spec tiếp tục là **contract nguồn duy nhất**; không có thay đổi contract trong đợt đồng bộ này.
+
 | EP | Method | Path | Nhóm | Role |
 |---|---|---|---|---|
 | EP-01 | GET | `/health` | Hệ thống | Public |

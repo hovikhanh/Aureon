@@ -104,6 +104,21 @@ Quy tắc:
 - Agent làm task code **không** sửa file này. Agent chỉ đọc để check Gate A; thấy sai lệch thì raise `DEC-xxx` trong 13.
 - Thay đổi phiên bản theo SemVer: sửa chữ hoặc làm rõ → patch; thêm yêu cầu → minor; thay đổi phá vỡ contract (đặc biệt 05, 10) → major.
 
+### 4.1. Đợt audit đồng bộ tài liệu — 2026-10-19
+
+Rà soát nội dung các tài liệu không-spec (báo cáo/README/traceability/build-plan) để **đồng bộ với code hiện tại** sau khi hoàn thành engine động, UC-07, Audit, E2E, C4 merge/blur và phần auth. **Chỉ cập nhật nội dung; cột `status`/`version`/`last_reviewed` ở §2 do con người (@CyEyes) sở hữu — không đổi trong đợt này.**
+
+| File | Loại rà | Kết quả |
+|---|---|---|
+| `README.md` | Số liệu test, đường dẫn demo data, Gate A/B/C, Known Issues | Cập nhật: FE 218 / BE 366 pass + 1 fail / coverage 88%; `data/` (bỏ `data/demo-docs/`); thêm mục Known Issues (KI-1 403 live OmniRoute, KI-2 E2E env) |
+| `DEMO-READY-REPORT.md` | Trạng thái tính năng + số liệu + Known Issues | Đánh dấu Dynamic engine / UC-07 / Audit SCR-14 / C4 merge+blur đã xong; số liệu mới; thêm §7 Known Issues |
+| `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` | Trạng thái task | T-302..305, T-311/312, T-404, T-405 → Done (T-405 ghi chú "Implemented, E2E env pending") |
+| `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` | Bảng tổng hợp + Status entity + GAP + TC-KPI | 366/218/88%; ENT-Metric/MetricValue/Alert → Implemented, ENT-AuditLog → Passed; đóng GAP-08 (DEC-030), thêm GAP-10/GAP-11; TC-KPI-004/005/006 "manual pending" |
+| `docs/1.CONTEXT/00-INDEX.md` | §7 Trạng thái | Sprint S0 → **S3/S4 Demo-ready**; thêm dòng Test + Known issues |
+| `docs/3.EXECUTION/10-API-SPECIFICATION.md` | Đối chiếu code (Audit/Dynamic/UC-07) | Xem kết quả đối chiếu ở change-log 14 §6 và phần spec tương ứng |
+
+**Kết luận Gate A đợt này:** nội dung các tài liệu trên đã khớp code; không phát hiện mâu thuẫn mới cần raise DEC. Các spec 02–11 giữ nguyên `current` theo §2.
+
 ---
 
 ## 5. Open questions

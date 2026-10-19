@@ -52,6 +52,21 @@
 
 > **✅ Cập nhật 2026-10-19 — Gate B ĐẠT, không còn task nào bị chặn.** Toàn bộ DEC `open` + `blocking=true` trong bảng dưới đã được human (@CyEyes) resolve ngày 2026-10-18 (xem `13-DECISION-LOG.md` §5.1: **0 DEC open + blocking**). Cột "Blocked-by" ở §3 nay mang nhãn `(resolved) DEC-xxx` chỉ còn giá trị truy vết lịch sử — **không còn giữ task ở trạng thái `BLOCKED`**. Mọi task S0–S4 được phép thực thi. Bảng DEC bên dưới giữ lại để tra cứu quyết định đã chốt.
 
+### 2.1. Trạng thái hoàn thành task (cập nhật 2026-10-19)
+
+Các task S3/S4 dưới đây đã **Done** (có code + test chạy, commit theo Conventional Commits; chi tiết ở `14-TEST-TRACEABILITY.md` §6 change-log):
+
+| Task | Mô tả | Trạng thái | Ghi chú |
+|---|---|---|---|
+| T-302 | Metric engine FIN + CUS | ✅ Done | `dashboard/engine.py` recompute từ `business_records` |
+| T-303 | Metric engine OPS + HR | ✅ Done | — |
+| T-304 | `recompute_metrics` idempotent + lineage | ✅ Done | trigger sau commit Action Registry |
+| T-305 | Alert engine (WARNING/CRITICAL/RESOLVED) | ✅ Done | — |
+| T-311 | EP-40/EP-41 batch UC-07 (tổng hợp/XD) | ✅ Done | — |
+| T-312 | FE UC-07 "Nạp doanh nghiệp" SCR-08 | ✅ Done | — |
+| T-404 | EP-52 audit-logs + FE SCR-14 | ✅ Done | ROLE-01 only, mask lương |
+| T-405 | E2E + perf KPI demo (Playwright) | ✅ **Implemented, E2E env pending** | 12/12 pass khi env đúng; chưa reproducible do thiếu env vars (14 §5 GAP-11) — thuộc Bước 1 sửa test, hoãn lại |
+
 Nguồn lịch sử (đã resolve): `13-DECISION-LOG.md` §5. "Trực tiếp" = DEC tác động lên nội dung task; "(qua T-xxx)" = phụ thuộc task liên quan. Tất cả đã đóng.
 
 | DEC | Tiêu đề | Đề xuất mặc định (13) | Task bị chặn trực tiếp | Ghi chú |

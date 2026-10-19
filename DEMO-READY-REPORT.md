@@ -13,7 +13,7 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 2. **IDP Feature** — upload PDF/Word/Excel/ảnh/camera → AI phân loại → trích xuất (value + confidence + source_location) → Reviewer duyệt → ghi vào metric/entity qua Action Registry.
 3. **Role-based access** — 5 vai trò (CEO, CFO, Sales Director, HR Manager, Reviewer) với dashboard và quyền khác nhau.
 
-**Trạng thái tổng:** S1 (nền tảng), S2 (IDP), S3 (Dashboard core) hoàn tất và verify live. Toàn bộ gate FE + BE xanh.
+**Trạng thái tổng:** S1 (nền tảng), S2 (IDP), S3 (Dashboard core) và các hạng mục S3/S4 bổ sung đã hoàn tất và verify live — gồm **Dynamic metric/alert engine (T-302..305)**, **UC-07 batch onboarding (T-311/312)**, **màn hình Audit SCR-14 + EP-52 (T-404)**, và **C4 gộp ảnh → PDF nhiều trang + chấm độ mờ phía client (T-222, DEC-123)**. FE toàn bộ xanh; BE xanh trừ **1 test live OmniRoute (403)** đã khoanh vùng — xem **§7 Known Issues**.
 
 ---
 
@@ -24,6 +24,7 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 |---|---|
 | 18 metric thật, 4 trụ (FIN/CUS/OPS/HR) | ✅ EP-10/EP-11 |
 | 12 cảnh báo (4 Critical + 8 Warning, 08 §5.1) | ✅ `alerts_top` ≤5 Critical-first |
+| **Dynamic metric/alert engine** (tính từ business_records, T-302..305) | ✅ EP-41 recompute |
 | Tóm tắt điều hành AI (read-only, màu AI riêng) | ✅ DEC-072 |
 | Chi tiết metric + lineage panel P01 (SCR-09) | ✅ EP-12 |
 | Drill-down ≤3 click: metric → record → source | ✅ EP-12 → EP-13 → EP-14/EP-27 |
@@ -34,9 +35,12 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 | Hạng mục | Trạng thái |
 |---|---|
 | Upload C1 (nhập tay) / C2 (ngôn ngữ tự nhiên) / C3 (file) / **C4 (camera PWA)** | ✅ EP-20/21/22 |
+| **C4 gộp nhiều ảnh → 1 PDF nhiều trang + chấm độ mờ phía client** (T-222, DEC-123) | ✅ jsPDF + variance-of-Laplacian |
+| **UC-07 "Nạp doanh nghiệp" batch onboarding** (T-311/312) | ✅ luồng batch SCR-08 |
 | Phân loại tài liệu + trích xuất field (value/confidence/source_location) | ✅ pipeline Celery |
 | Hàng đợi review, khóa tài liệu, duyệt/sửa/từ chối | ✅ EP-24..26 |
 | **Source Viewer (SCR-10)** — ảnh trang + highlight bounding box | ✅ EP-27 |
+| **Màn hình Audit SCR-14** (nhật ký hoạt động, CEO-only) | ✅ EP-52 (T-404) |
 | Kiểm tra chéo tài liệu, normalizer, table extraction | ✅ |
 | Action Registry (ghi entity + lineage, idempotent) | ✅ |
 | Kill switch tự chủ (L0–L2), cấu hình AI | ✅ |
@@ -51,7 +55,7 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 | i18n next-intl (vi/en), không hard-code tiếng Việt | ✅ (test enforce) |
 | Design system shadcn/Tailwind, màu AI ≠ primary | ✅ (06 §6.3) |
 
-**Backend:** 35 endpoint theo 10-API-SPECIFICATION. **Frontend:** 10 route App Router.
+**Backend:** các endpoint theo 10-API-SPECIFICATION (gồm EP-41 recompute, EP-52 audit-log). **Frontend:** App Router (gồm `/audit` SCR-14, `/upload` C4). **Dữ liệu demo:** 7 tài liệu mẫu nằm trực tiếp trong `data/` (`DOC-01..07`).
 
 ---
 
@@ -61,11 +65,12 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 |---|---|
 | `pnpm typecheck` | ✅ sạch |
 | `pnpm lint` (ESLint + tsc) | ✅ sạch |
-| `pnpm test:web` (Vitest + axe) | ✅ **204 pass / 26 files** (ổn định sau fix pool) |
+| `pnpm test:web` (Vitest + axe) | ✅ **218 pass / 29 files** |
+| `pnpm test:e2e` (Playwright, 6 luồng + smoke) | ✅ **12 pass** (cần env đúng — xem §7 Known Issues) |
 | `pnpm build:web` | ✅ sạch |
 | `uv run ruff check` | ✅ sạch |
-| `uv run mypy` | ✅ **74 files**, strict |
-| `uv run pytest --cov=app` | ✅ **353 pass**, **coverage TOTAL 87%** |
+| `uv run mypy` | ✅ strict |
+| `uv run pytest --cov=app` | ⚠️ **366 pass / 1 fail**, **coverage TOTAL 88%** — 1 fail do test live OmniRoute (403), xem §7 |
 
 **Coverage module cốt lõi (≥70%):** auth, dashboard (detail.py nâng 45%→81% ở Phase 4), idp extraction/cross_doc/models, core gateway/idempotency/storage… đều ≥70%.
 **Dưới 70% (ghi nhận):** `core/health.py` 43% (probe hạ tầng, ngoài phạm vi Gate C), `idp/action_registry.py` 68% (có sẵn, không đổi).
@@ -78,12 +83,21 @@ Aureon Demo MVP đã sẵn sàng trình diễn. Sản phẩm gồm **3 khối** 
 
 | Hạng mục | Lý do hoãn |
 |---|---|
-| **C4 gộp ảnh → 1 tài liệu nhiều trang + auto crop/deskew/blur** | Cần thư viện xử lý ảnh FE+BE → **chờ DEC mới** (user đã quyết tạm hoãn). Hiện mỗi ảnh C4 upload thành 1 tài liệu đúng contract. |
-| Metric/Alert engine tính từ `business_records` (T-302..305) | Dashboard hiện dùng dữ liệu seed thật (đủ cho demo). |
-| UC-07 "Nạp doanh nghiệp" batch (T-311/312) | Ngoài stop condition. |
-| Màn hình Audit (T-404) | Placeholder. |
+| C4 **auto crop/deskew** nâng cao (căn/khử nghiêng ảnh bằng thư viện xử lý ảnh) | Phần gộp PDF + chấm độ mờ đã làm (DEC-123 hướng A, FE-only); crop/deskew nâng cao cần thư viện ảnh → để bản sau. |
+| Đo KPI usability thủ công (TC-KPI-004/005/006) | Test tự động đã pass; phần bấm giờ với người dùng thật là hoạt động demo trực tiếp, không chặn code. |
 
 Không có DEC `blocking` nào đang mở chặn demo.
+
+---
+
+## 7. Known Issues (vấn đề kỹ thuật còn tồn đọng)
+
+| # | Vấn đề | Mức | Chi tiết & cách xử lý tạm |
+|---|---|---|---|
+| KI-1 | **1 test backend fail — HTTP 403 (live OmniRoute)** | Low | `apps/api/tests/model_gateway/test_live_omniroute.py` gọi OmniRoute thật (`localhost:20128`); khi gateway không sẵn sàng/không được phép → trả **403**, test fail. Đây là smoke test phụ thuộc dịch vụ ngoài, **không ảnh hưởng tính năng demo**. Hướng xử lý (Bước 1 — làm sau): tách khỏi suite mặc định bằng marker `live` + `RUN_LIVE_TESTS=true`, để `uv run pytest` mặc định = 366 pass. |
+| KI-2 | **E2E chưa reproducible do thiếu env vars** | Low | `pnpm test:e2e` cần `DEMO_*_PASSWORD` (và `E2E_BASE_URL`/`API_URL`) nạp từ `.env`; hiện phải `set -a; source .env; set +a` thủ công trước khi chạy, nếu không `passwordFor` sẽ ném lỗi thiếu env. Hướng xử lý (Bước 1 — làm sau): cho Playwright tự nạp `.env` và chuẩn hoá script trong `package.json`. |
+
+> Hai mục trên thuộc **Bước 1 (sửa lỗi test/E2E)** đã được chủ động hoãn lại; không mục nào chặn việc trình diễn MVP.
 
 ---
 

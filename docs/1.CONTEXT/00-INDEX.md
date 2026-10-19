@@ -127,9 +127,11 @@ Nếu cần thông tin không có trong `docs/` → raise vào `13-DECISION-LOG.
 
 | Mục | Trạng thái |
 |---|---|
-| Documentation | 🟡 Đang viết |
-| Sprint hiện tại | S0 — Setup |
-| Blocking decisions | Xem `13-DECISION-LOG.md` |
+| Documentation | 🟢 Đồng bộ với code (2026-10-19) |
+| Sprint hiện tại | **S3/S4 — Demo-ready** (Dashboard động + IDP hoàn chỉnh + Audit + E2E, đang polish) |
+| Test | FE 218 pass · BE 366 pass / 1 fail (live OmniRoute 403, non-blocking) · E2E 12 pass · coverage 88% |
+| Blocking decisions | 0 open+blocking — Xem `13-DECISION-LOG.md` |
+| Known issues | GAP-10 (BE 403 live OmniRoute), GAP-11 (E2E env) — xem `14-TEST-TRACEABILITY.md` §5 |
 | Doc audit status | Xem `12-DOC-AUDIT.md` |
 
 ---
