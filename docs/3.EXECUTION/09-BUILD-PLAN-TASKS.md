@@ -31,7 +31,7 @@
 | Atomic | 4–8 giờ/task (một PR, một người, test chạy được). Task lớn hơn đã được tách |
 | Role | `FE` (Next.js), `BE` (FastAPI/Celery), `FS` (cả hai), `QA` (test/seed/kịch bản) |
 | Loại task (11 §3) | `AUTH` = Code auth · `DASH` = Code dashboard · `IDP` = Code IDP · `SEED` = Seed data · `TEST` = Test · `INFRA*` = hạ tầng (xem OQ-02) |
-| Blocked-by | `BLOCKED-BY DEC-xxx` = DEC open + blocking (13 §5). Task giữ trạng thái `BLOCKED` tới khi human resolve DEC; không code vượt qua (Gate B) |
+| Blocked-by | `(resolved) DEC-xxx` = DEC từng open + blocking (13 §5), **nay đã resolve 2026-10-18** nên chỉ còn giá trị truy vết; không còn chặn task (Gate B ĐẠT, xem §2) |
 | Test case | Chỉ dùng ID có trong `14` §2. Cột "Task" của `14` §3 (đang `TBD-09`) cập nhật theo §4 của file này sau khi 09 được Approved |
 
 ### 1.3. Definition of Done chung (mọi task)
@@ -50,7 +50,9 @@
 
 ## 2. DEC open + blocking → task bị chặn (Gate B)
 
-Nguồn: `13-DECISION-LOG.md` §5 (11 DEC `open` + `blocking=true`). Task có DEC trong cột "Blocked-by" ở §3 giữ trạng thái `BLOCKED` tới khi human resolve DEC; agent không tự diễn giải. "Trực tiếp" = DEC tác động lên nội dung task; "(qua T-xxx)" = bị chặn gián tiếp vì phụ thuộc task bị chặn (không lặp lại ở đây).
+> **✅ Cập nhật 2026-10-19 — Gate B ĐẠT, không còn task nào bị chặn.** Toàn bộ DEC `open` + `blocking=true` trong bảng dưới đã được human (@CyEyes) resolve ngày 2026-10-18 (xem `13-DECISION-LOG.md` §5.1: **0 DEC open + blocking**). Cột "Blocked-by" ở §3 nay mang nhãn `(resolved) DEC-xxx` chỉ còn giá trị truy vết lịch sử — **không còn giữ task ở trạng thái `BLOCKED`**. Mọi task S0–S4 được phép thực thi. Bảng DEC bên dưới giữ lại để tra cứu quyết định đã chốt.
+
+Nguồn lịch sử (đã resolve): `13-DECISION-LOG.md` §5. "Trực tiếp" = DEC tác động lên nội dung task; "(qua T-xxx)" = phụ thuộc task liên quan. Tất cả đã đóng.
 
 | DEC | Tiêu đề | Đề xuất mặc định (13) | Task bị chặn trực tiếp | Ghi chú |
 |---|---|---|---|---|
@@ -82,14 +84,14 @@ Mỗi sprint có hai bảng: **bảng A** (phụ thuộc, map spec, test case, e
 | T-xxx | Tên | Sprint | Module | Phụ thuộc | Map (FR-DC/US-DC/EP/SCR/ENT/METRIC/ALERT) | TC (từ 14) | Effort (h) | Role | Blocked-by DEC |
 |---|---|---|---|---|---|---|---|---|---|
 | T-001 | Init monorepo (pnpm workspace, apps/web, packages/shared-types) | S0 | Hạ tầng | — | CLAUDE.md § Cấu trúc thư mục | TC-UI-005 | 5 | FE | — |
-| T-002 | Scaffold FastAPI (apps/api, uv, ruff, mypy, pytest) + EP-01 health | S0 | Hạ tầng | T-001 | EP-01 | TC-SYS-001 | 5 | BE | BLOCKED-BY DEC-071 |
+| T-002 | Scaffold FastAPI (apps/api, uv, ruff, mypy, pytest) + EP-01 health | S0 | Hạ tầng | T-001 | EP-01 | TC-SYS-001 | 5 | BE | (resolved) DEC-071 |
 | T-003 | Docker Compose postgres(pgvector) + redis + minio + `.env.example` | S0 | Hạ tầng | T-001 | — | TC-SYS-001 | 4 | BE | — |
-| T-004 | SQLAlchemy base + Alembic + mixin cột chung + session dependency | S0 | Data | T-002, T-003 | ENT-User → ENT-AuditLog (cột chung) | TC-DATA-001, TC-DATA-002 | 5 | BE | BLOCKED-BY DEC-071 (qua T-002) |
+| T-004 | SQLAlchemy base + Alembic + mixin cột chung + session dependency | S0 | Data | T-002, T-003 | ENT-User → ENT-AuditLog (cột chung) | TC-DATA-001, TC-DATA-002 | 5 | BE | (resolved) DEC-071 (qua T-002) |
 | T-005 | API infra: envelope, error code, `X-Request-Id`, pagination, `Idempotency-Key` | S0 | Core API | T-002 | 10 §1 (EP-all) | TC-SYS-002, TC-SYS-004, TC-SYS-006 | 7 | BE | — |
 | T-006 | ModelGateway (OmniRoute client, retry/backoff, fallback, mock mode) | S0 | Core AI | T-002 | FR-DC-10 (nền), FR-DC-07 | TC-IDP-036, TC-IDP-030 | 6 | BE | — |
 | T-007 | Celery worker + Redis (time_limit, result_expires, task idempotent base) | S0 | Worker | T-002, T-003 | FR-DC-07 (nền xử lý nền) | TC-IDP-035 | 4 | BE | — |
-| T-008 | FE nền: Tailwind/shadcn token (`--ai` ≠ `--primary`), i18n, TanStack Query, helper P04 | S0 | FE | T-001 | SCR-01..15 (nền); P04 | TC-UI-001, TC-UI-005 | 7 | FE | BLOCKED-BY DEC-064 |
-| T-009 | CI + lệnh `pnpm contract:validate` (OpenAPI FastAPI vs 10) | S0 | CI | T-005 | EP-all (10) | TC-SYS-003 | 5 | BE | BLOCKED-BY DEC-101 |
+| T-008 | FE nền: Tailwind/shadcn token (`--ai` ≠ `--primary`), i18n, TanStack Query, helper P04 | S0 | FE | T-001 | SCR-01..15 (nền); P04 | TC-UI-001, TC-UI-005 | 7 | FE | (resolved) DEC-064 |
+| T-009 | CI + lệnh `pnpm contract:validate` (OpenAPI FastAPI vs 10) | S0 | CI | T-005 | EP-all (10) | TC-SYS-003 | 5 | BE | (resolved) DEC-101 |
 
 Tổng sprint S0: **9 task**, **48 h**.
 
@@ -115,15 +117,15 @@ Tổng sprint S0: **9 task**, **48 h**.
 |---|---|---|---|---|---|---|---|---|---|
 | T-101 | Migration ENT-User, ENT-Role + seed 5 role / 5 user demo | S1 | Auth | T-004 | ENT-User, ENT-Role; ROLE-01..05 | TC-DATA-003, TC-DATA-004 | 5 | BE | — |
 | T-102 | Migration ENT-AuditLog + audit service append-only | S1 | Governance | T-004 | ENT-AuditLog; FR-DC-22 (audit) | TC-DATA-014, TC-SYS-005 | 5 | BE | — |
-| T-103 | EP-02 login + JWT HS256 + rate limit + audit `auth.login` | S1 | Auth | T-101, T-102, T-005 | EP-02; SCR-13; US-DC-001 | TC-AUTH-001, TC-AUTH-002, TC-AUTH-003, TC-AUTH-004 | 7 | BE | BLOCKED-BY DEC-073, DEC-080 |
-| T-104 | EP-03 `/auth/me` + `require_role` + ma trận quyền 02 §3 | S1 | Auth | T-103 | EP-03; ROLE-01..05; 02 §3 | TC-AUTH-005, TC-AUTH-006, TC-AUTH-009, TC-AUTH-011 | 7 | BE | BLOCKED-BY DEC-073 (qua T-103) |
-| T-105 | EP-04 switch-role + EP-05 demo-users (chỉ `DEMO_MODE=true`) | S1 | Auth | T-104 | EP-04, EP-05; SCR-12 | TC-AUTH-007, TC-AUTH-008, TC-AUTH-010 | 4 | BE | BLOCKED-BY DEC-073 (qua T-103) |
-| T-106 | FE đăng nhập SCR-13 (NextAuth + chọn user demo) | S1 | FE Auth | T-008, T-103 | SCR-13; US-DC-001 | TC-AUTH-001, TC-UI-009 | 6 | FE | BLOCKED-BY DEC-073 (qua T-103) |
-| T-107 | FE Role Switcher SCR-12 + route guard | S1 | FE Auth | T-105, T-106 | SCR-12; ROLE-01..05 | TC-AUTH-016, TC-AUTH-017, TC-KPI-002 | 5 | FE | BLOCKED-BY DEC-073 (qua T-105) |
-| T-108 | FE shell: sidebar, topbar, state loading/empty/error/forbidden | S1 | FE | T-008 | SCR-01..04 (layout), SCR-05 | TC-UI-006, TC-UI-009 | 6 | FE | BLOCKED-BY DEC-064 (qua T-008) |
-| T-109 | Component MetricCard, AlertCard, MaskedValue | S1 | FE | T-008 | SCR-01..04; METRIC-FIN-01..HR-03; ALERT | TC-UI-002, TC-UI-004 | 6 | FE | BLOCKED-BY DEC-064 (qua T-008) |
-| T-110 | Component TrendChart + AIStateBadge | S1 | FE | T-008 | SCR-09; US-DC-017; P02 | TC-UI-003 | 6 | FE | BLOCKED-BY DEC-064 |
-| T-111 | SCR-01..04 dashboard tĩnh (mock fixture) cho 4 vai trò | S1 | FE | T-107, T-108, T-109, T-110 | SCR-01, SCR-02, SCR-03, SCR-04; METRIC-*; ALERT-* | TC-UI-008, TC-KPI-003 | 8 | FE | BLOCKED-BY DEC-064, DEC-072 |
+| T-103 | EP-02 login + JWT HS256 + rate limit + audit `auth.login` | S1 | Auth | T-101, T-102, T-005 | EP-02; SCR-13; US-DC-001 | TC-AUTH-001, TC-AUTH-002, TC-AUTH-003, TC-AUTH-004 | 7 | BE | (resolved) DEC-073, DEC-080 |
+| T-104 | EP-03 `/auth/me` + `require_role` + ma trận quyền 02 §3 | S1 | Auth | T-103 | EP-03; ROLE-01..05; 02 §3 | TC-AUTH-005, TC-AUTH-006, TC-AUTH-009, TC-AUTH-011 | 7 | BE | (resolved) DEC-073 (qua T-103) |
+| T-105 | EP-04 switch-role + EP-05 demo-users (chỉ `DEMO_MODE=true`) | S1 | Auth | T-104 | EP-04, EP-05; SCR-12 | TC-AUTH-007, TC-AUTH-008, TC-AUTH-010 | 4 | BE | (resolved) DEC-073 (qua T-103) |
+| T-106 | FE đăng nhập SCR-13 (NextAuth + chọn user demo) | S1 | FE Auth | T-008, T-103 | SCR-13; US-DC-001 | TC-AUTH-001, TC-UI-009 | 6 | FE | (resolved) DEC-073 (qua T-103) |
+| T-107 | FE Role Switcher SCR-12 + route guard | S1 | FE Auth | T-105, T-106 | SCR-12; ROLE-01..05 | TC-AUTH-016, TC-AUTH-017, TC-KPI-002 | 5 | FE | (resolved) DEC-073 (qua T-105) |
+| T-108 | FE shell: sidebar, topbar, state loading/empty/error/forbidden | S1 | FE | T-008 | SCR-01..04 (layout), SCR-05 | TC-UI-006, TC-UI-009 | 6 | FE | (resolved) DEC-064 (qua T-008) |
+| T-109 | Component MetricCard, AlertCard, MaskedValue | S1 | FE | T-008 | SCR-01..04; METRIC-FIN-01..HR-03; ALERT | TC-UI-002, TC-UI-004 | 6 | FE | (resolved) DEC-064 (qua T-008) |
+| T-110 | Component TrendChart + AIStateBadge | S1 | FE | T-008 | SCR-09; US-DC-017; P02 | TC-UI-003 | 6 | FE | (resolved) DEC-064 |
+| T-111 | SCR-01..04 dashboard tĩnh (mock fixture) cho 4 vai trò | S1 | FE | T-107, T-108, T-109, T-110 | SCR-01, SCR-02, SCR-03, SCR-04; METRIC-*; ALERT-* | TC-UI-008, TC-KPI-003 | 8 | FE | (resolved) DEC-064, DEC-072 |
 
 Tổng sprint S1: **11 task**, **65 h**.
 
@@ -151,27 +153,27 @@ Tổng sprint S1: **11 task**, **65 h**.
 |---|---|---|---|---|---|---|---|---|---|
 | T-201 | Migration ENT-SourceDocument, DocumentPage, ExtractionJob, ExtractedField, ExtractionReview, BusinessRecord | S2 | Data | T-004, T-102 | ENT-SourceDocument, ENT-DocumentPage, ENT-ExtractionJob, ENT-ExtractedField, ENT-ExtractionReview, ENT-BusinessRecord | TC-DATA-005, TC-DATA-006, TC-DATA-007, TC-DATA-008, TC-DATA-009, TC-DATA-010 | 8 | BE | — |
 | T-202 | State machine tài liệu (04 §8.2) + MinIO storage service | S2 | IDP core | T-201, T-003 | FR-DC-01 (lưu trữ), FR-DC-22 (trạng thái); ENT-SourceDocument | TC-IDP-034 | 5 | BE | — |
-| T-203 | EP-20 upload (stream, ≤ 20 MB/50 trang) + chống trùng SHA-256 | S2 | IDP upload | T-202, T-104 | FR-DC-01, FR-DC-06; US-DC-001; EP-20 | TC-IDP-001, TC-IDP-002, TC-IDP-003 | 7 | BE | BLOCKED-BY DEC-051 |
+| T-203 | EP-20 upload (stream, ≤ 20 MB/50 trang) + chống trùng SHA-256 | S2 | IDP upload | T-202, T-104 | FR-DC-01, FR-DC-06; US-DC-001; EP-20 | TC-IDP-001, TC-IDP-002, TC-IDP-003 | 7 | BE | (resolved) DEC-051 |
 | T-204 | EP-21 nhập tay (C1) + EP-22 ngôn ngữ tự nhiên (C2) | S2 | IDP upload | T-203, T-006 | FR-DC-02, FR-DC-03; US-DC-002, US-DC-003; EP-21, EP-22 | TC-IDP-004, TC-IDP-005 | 7 | BE | — |
 | T-205 | EP-23 import Excel/CSV + EP-36 xác nhận mapping (C5) | S2 | IDP upload | T-203, T-006 | FR-DC-05, FR-DC-11; US-DC-005; EP-23, EP-36 | TC-IDP-007 | 7 | BE | — |
 | T-206 | Pipeline: tiền xử lý + OCR (`text_layer_exists`) + tách tài liệu ghép | S2 | IDP pipeline | T-202, T-006, T-007 | FR-DC-07, FR-DC-09; US-DC-004, US-DC-019; ENT-DocumentPage | TC-IDP-008, TC-IDP-010, TC-IDP-040 | 8 | BE | — |
 | T-207 | Pipeline: phân loại 7 doc type + trích xuất theo schema + EP-50 | S2 | IDP pipeline | T-206 | FR-DC-08, FR-DC-10; US-DC-006, US-DC-007; EP-50 | TC-IDP-009, TC-IDP-011, TC-IDP-020, TC-IDP-037 | 8 | BE | — |
 | T-208 | Pipeline: trích xuất bảng + chuẩn hóa Việt Nam | S2 | IDP pipeline | T-207 | FR-DC-11, FR-DC-12; US-DC-008, US-DC-009 | TC-IDP-012, TC-IDP-013 | 6 | BE | — |
 | T-209 | Validation nội tài liệu + phòng chống prompt injection | S2 | IDP pipeline | T-207 | FR-DC-13, FR-DC-10; US-DC-018 (PI-01→05) | TC-IDP-014, TC-IDP-029 | 6 | BE | — |
-| T-210 | Cross-doc consistency XD-01 → XD-05 | S2 | IDP pipeline | T-208, T-209 | FR-DC-14; US-DC-009, US-DC-010, US-DC-016 | TC-IDP-015, TC-IDP-016, TC-DATA-007 | 7 | BE | BLOCKED-BY DEC-030 |
-| T-211 | Định tuyến confidence + Celery `process_document` điều phối pipeline | S2 | IDP pipeline | T-206, T-207, T-209, T-210 | FR-DC-15, FR-DC-07; ENT-ExtractionJob | TC-IDP-017, TC-IDP-035, TC-IDP-030 | 8 | BE | BLOCKED-BY DEC-030 (qua T-210) |
-| T-212 | Action Registry (`invoice.create`, `contract.create`, `task.create`…) | S2 | IDP core | T-201, T-102 | FR-DC-17; US-DC-014; ENT-BusinessRecord | TC-IDP-023, TC-IDP-024 | 8 | BE | BLOCKED-BY DEC-037 |
+| T-210 | Cross-doc consistency XD-01 → XD-05 | S2 | IDP pipeline | T-208, T-209 | FR-DC-14; US-DC-009, US-DC-010, US-DC-016 | TC-IDP-015, TC-IDP-016, TC-DATA-007 | 7 | BE | (resolved) DEC-030 |
+| T-211 | Định tuyến confidence + Celery `process_document` điều phối pipeline | S2 | IDP pipeline | T-206, T-207, T-209, T-210 | FR-DC-15, FR-DC-07; ENT-ExtractionJob | TC-IDP-017, TC-IDP-035, TC-IDP-030 | 8 | BE | (resolved) DEC-030 (qua T-210) |
+| T-212 | Action Registry (`invoice.create`, `contract.create`, `task.create`…) | S2 | IDP core | T-201, T-102 | FR-DC-17; US-DC-014; ENT-BusinessRecord | TC-IDP-023, TC-IDP-024 | 8 | BE | (resolved) DEC-037 |
 | T-213 | EP-24/25/26/27 + EP-34 retry (scope, lương mask, presigned URL) | S2 | IDP API | T-203, T-211, T-104 | EP-24, EP-25, EP-26, EP-27, EP-34; US-DC-019 | TC-IDP-031, TC-IDP-032, TC-AUTH-014, TC-AUTH-015 | 8 | BE | — |
 | T-214 | EP-28 review queue + EP-29 mở review (khóa 15') + EP-35 release | S2 | IDP review | T-213 | FR-DC-16, FR-DC-18; US-DC-011; EP-28, EP-29, EP-35 | TC-IDP-018, TC-IDP-019 | 6 | BE | — |
-| T-215 | EP-30 sửa field + EP-31 approve (commit) + EP-32 reject | S2 | IDP review | T-212, T-214 | FR-DC-19, FR-DC-20; US-DC-012, US-DC-013, US-DC-014; EP-30, EP-31, EP-32; ENT-ExtractedField, ENT-ExtractionReview | TC-IDP-021, TC-IDP-022, TC-IDP-025, TC-DATA-008, TC-DATA-009 | 8 | BE | BLOCKED-BY DEC-037 (qua T-212) |
+| T-215 | EP-30 sửa field + EP-31 approve (commit) + EP-32 reject | S2 | IDP review | T-212, T-214 | FR-DC-19, FR-DC-20; US-DC-012, US-DC-013, US-DC-014; EP-30, EP-31, EP-32; ENT-ExtractedField, ENT-ExtractionReview | TC-IDP-021, TC-IDP-022, TC-IDP-025, TC-DATA-008, TC-DATA-009 | 8 | BE | (resolved) DEC-037 (qua T-212) |
 | T-216 | EP-33 rollback (7 ngày) + undo audit | S2 | IDP review | T-215 | FR-DC-22; US-DC-013, US-DC-015; EP-33 | TC-IDP-026, TC-IDP-030 | 5 | BE | — |
 | T-217 | Autonomy L0–L3 + kill switch + EP-51 `/ai-config` | S2 | IDP core | T-211, T-104 | FR-DC-21; US-DC-015, US-DC-017; EP-51 | TC-IDP-027, TC-IDP-028, TC-IDP-038 | 6 | BE | — |
 | T-218 | FE SCR-05 Inbox (hàng chờ IDP) | S2 | FE IDP | T-108, T-214 | SCR-05; FR-DC-16; US-DC-011 | TC-UI-009, TC-UI-006 | 6 | FE | — |
 | T-219 | FE SCR-06 Review: form field + màu confidence + phím tắt | S2 | FE IDP | T-218, T-215, T-110 | SCR-06; FR-DC-18, FR-DC-19; US-DC-012 | TC-IDP-033, TC-KPI-004 | 8 | FE | — |
 | T-220 | FE SCR-10 SourceViewer (PDF/ảnh + highlight `source_location`) | S2 | FE IDP | T-213, T-108 | SCR-10; FR-DC-18; US-DC-014 | TC-IDP-033, TC-DASH-011 | 8 | FE | — |
-| T-221 | FE SCR-08 Upload đa kênh (C1–C5, drop zone, progress) | S2 | FE IDP | T-203, T-204, T-205, T-108 | SCR-08; FR-DC-01, FR-DC-02, FR-DC-03, FR-DC-05; US-DC-001, US-DC-002, US-DC-003, US-DC-005 | TC-UI-007, TC-UI-009 | 8 | FE | BLOCKED-BY DEC-051 (qua T-203) |
+| T-221 | FE SCR-08 Upload đa kênh (C1–C5, drop zone, progress) | S2 | FE IDP | T-203, T-204, T-205, T-108 | SCR-08; FR-DC-01, FR-DC-02, FR-DC-03, FR-DC-05; US-DC-001, US-DC-002, US-DC-003, US-DC-005 | TC-UI-007, TC-UI-009 | 8 | FE | (resolved) DEC-051 (qua T-203) |
 | T-222 | FE PWA chụp ảnh mobile (C4) + auto crop/deskew | S2 | FE IDP | T-221 | FR-DC-04; US-DC-004; SCR-08 | TC-IDP-006, TC-UI-007 | 6 | FE | — |
-| T-223 | FE SCR-07 Tài liệu + SCR-11 Schema (chỉ đọc) + SCR-15 Cấu hình AI (chỉ đọc) | S2 | FE IDP | T-213, T-217, T-219 | SCR-07, SCR-11, SCR-15; FR-DC-21; EP-24, EP-50, EP-51 | TC-IDP-037, TC-IDP-038, TC-UI-009 | 7 | FE | BLOCKED-BY DEC-072 |
+| T-223 | FE SCR-07 Tài liệu + SCR-11 Schema (chỉ đọc) + SCR-15 Cấu hình AI (chỉ đọc) | S2 | FE IDP | T-213, T-217, T-219 | SCR-07, SCR-11, SCR-15; FR-DC-21; EP-24, EP-50, EP-51 | TC-IDP-037, TC-IDP-038, TC-UI-009 | 7 | FE | (resolved) DEC-072 |
 
 Tổng sprint S2: **23 task**, **161 h**.
 
@@ -214,13 +216,13 @@ Tổng sprint S2: **23 task**, **161 h**.
 | T-303 | Metric engine: nhóm OPS + HR (METRIC-OPS-01→04, HR-01→03) | S3 | Dashboard BE | T-301, T-212 | METRIC-OPS-01..04, METRIC-HR-01..03; ENT-MetricValue | TC-DASH-112, TC-DASH-113, TC-DASH-114, TC-DASH-115, TC-DASH-116, TC-DASH-117, TC-DASH-118 | 6 | BE | — |
 | T-304 | Task `recompute_metrics` sau commit (idempotent) + lineage | S3 | Dashboard BE | T-302, T-303, T-215 | FR-DC-20; US-DC-014; ENT-MetricValue, ENT-BusinessRecord | TC-DASH-015, TC-DATA-016, TC-DATA-012, TC-KPI-007 | 6 | BE | — |
 | T-305 | Alert engine (WARNING/CRITICAL/RESOLVED, tối đa 1 alert mở/metric) | S3 | Dashboard BE | T-301, T-302, T-303 | ALERT-FIN-01..06, ALERT-CUS-01..05, ALERT-OPS-01..04, ALERT-HR-01..03 | TC-DASH-016, TC-DASH-201, TC-DASH-202, TC-DASH-203, TC-DASH-204, TC-DASH-205, TC-DASH-206, TC-DASH-207, TC-DASH-208, TC-DASH-209, TC-DASH-210, TC-DASH-211, TC-DASH-212, TC-DASH-213, TC-DASH-214, TC-DASH-215, TC-DASH-216, TC-DASH-217, TC-DASH-218, TC-DASH-219 | 8 | BE | — |
-| T-306 | EP-10 `/dashboard` + EP-11 `/metrics` + scope theo role + tóm tắt AI read-only | S3 | Dashboard API | T-305, T-104 | EP-10, EP-11; SCR-01..04; ROLE-01..04 | TC-DASH-001, TC-DASH-002, TC-DASH-003, TC-DASH-004 | 7 | BE | BLOCKED-BY DEC-072 |
+| T-306 | EP-10 `/dashboard` + EP-11 `/metrics` + scope theo role + tóm tắt AI read-only | S3 | Dashboard API | T-305, T-104 | EP-10, EP-11; SCR-01..04; ROLE-01..04 | TC-DASH-001, TC-DASH-002, TC-DASH-003, TC-DASH-004 | 7 | BE | (resolved) DEC-072 |
 | T-307 | EP-12 metric detail (P01 5 thành phần) + EP-13 records + EP-14 lineage | S3 | Dashboard API | T-304, T-306 | EP-12, EP-13, EP-14; SCR-09, SCR-10; US-DC-014 | TC-DASH-006, TC-DASH-008, TC-DASH-009, TC-DASH-010, TC-AUTH-012, TC-AUTH-013 | 8 | BE | — |
 | T-308 | EP-15 alerts + EP-16 acknowledge + EP-17 dismiss | S3 | Dashboard API | T-305, T-104 | EP-15, EP-16, EP-17; ENT-Alert | TC-DASH-012, TC-DASH-013, TC-DASH-014 | 5 | BE | — |
-| T-309 | FE nối SCR-01..04 với API thật (thay mock) + MetricCard click-through | S3 | FE Dashboard | T-111, T-306, T-308 | SCR-01, SCR-02, SCR-03, SCR-04; EP-10, EP-15, EP-16, EP-17 | TC-UI-008, TC-DASH-011, TC-KPI-003 | 8 | FE | BLOCKED-BY DEC-064, DEC-072 |
-| T-310 | FE SCR-09 Metric Detail (drill-down click 1–3) + source chip/citation | S3 | FE Dashboard | T-307, T-220, T-309 | SCR-09, SCR-10; US-DC-014; P01 | TC-DASH-011, TC-KPI-001, TC-UI-008 | 8 | FE | BLOCKED-BY DEC-064 |
-| T-311 | EP-40 tạo batch UC-07 + EP-41 tiến độ/tổng hợp/XD | S3 | UC-07 BE | T-211, T-210, T-203 | FR-DC-23; US-DC-016; EP-40, EP-41 | TC-UC07-001, TC-UC07-002, TC-UC07-003, TC-UC07-004, TC-UC07-005 | 8 | BE | BLOCKED-BY DEC-051, DEC-030 |
-| T-312 | FE UC-07 "Nạp doanh nghiệp" 7 bước trên SCR-08 | S3 | UC-07 FE | T-311, T-221, T-309 | SCR-08, SCR-05, SCR-01; FR-DC-23; US-DC-016 | TC-UC07-006, TC-KPI-005 | 8 | FE | BLOCKED-BY DEC-051 (qua T-311) |
+| T-309 | FE nối SCR-01..04 với API thật (thay mock) + MetricCard click-through | S3 | FE Dashboard | T-111, T-306, T-308 | SCR-01, SCR-02, SCR-03, SCR-04; EP-10, EP-15, EP-16, EP-17 | TC-UI-008, TC-DASH-011, TC-KPI-003 | 8 | FE | (resolved) DEC-064, DEC-072 |
+| T-310 | FE SCR-09 Metric Detail (drill-down click 1–3) + source chip/citation | S3 | FE Dashboard | T-307, T-220, T-309 | SCR-09, SCR-10; US-DC-014; P01 | TC-DASH-011, TC-KPI-001, TC-UI-008 | 8 | FE | (resolved) DEC-064 |
+| T-311 | EP-40 tạo batch UC-07 + EP-41 tiến độ/tổng hợp/XD | S3 | UC-07 BE | T-211, T-210, T-203 | FR-DC-23; US-DC-016; EP-40, EP-41 | TC-UC07-001, TC-UC07-002, TC-UC07-003, TC-UC07-004, TC-UC07-005 | 8 | BE | (resolved) DEC-051, DEC-030 |
+| T-312 | FE UC-07 "Nạp doanh nghiệp" 7 bước trên SCR-08 | S3 | UC-07 FE | T-311, T-221, T-309 | SCR-08, SCR-05, SCR-01; FR-DC-23; US-DC-016 | TC-UC07-006, TC-KPI-005 | 8 | FE | (resolved) DEC-051 (qua T-311) |
 
 Tổng sprint S3: **12 task**, **86 h**.
 
@@ -247,9 +249,9 @@ Tổng sprint S3: **12 task**, **86 h**.
 
 | T-xxx | Tên | Sprint | Module | Phụ thuộc | Map (FR-DC/US-DC/EP/SCR/ENT/METRIC/ALERT) | TC (từ 14) | Effort (h) | Role | Blocked-by DEC |
 |---|---|---|---|---|---|---|---|---|---|
-| T-401 | Tạo file mẫu DOC-01 → DOC-07 (7 loại, ground truth 08 §3) | S4 | Seed | T-207 | 08 §3 DOC-01..07; FR-DC-23 | TC-IDP-009, TC-UC07-003 | 8 | QA | BLOCKED-BY DEC-030 |
-| T-402 | Seed script `app.seed`: user, role, 18 metric, business_records nền | S4 | Seed | T-101, T-301, T-401 | 08 §2, §5; ENT-User, ENT-Role, ENT-Metric, ENT-BusinessRecord | TC-DATA-015, TC-DATA-004, TC-DATA-011 | 8 | BE | BLOCKED-BY DEC-062, DEC-030 |
-| T-403 | Seed lịch sử NRR + ROLLING_12M + xác minh 12 alert | S4 | Seed | T-402, T-305 | 08 §5.1, §5.2; METRIC-CUS-03, METRIC-CUS-04, METRIC-HR-01, METRIC-HR-02; ALERT-* | TC-DASH-219, TC-DASH-109, TC-DASH-110 | 5 | QA | BLOCKED-BY DEC-062 (qua T-402) |
+| T-401 | Tạo file mẫu DOC-01 → DOC-07 (7 loại, ground truth 08 §3) | S4 | Seed | T-207 | 08 §3 DOC-01..07; FR-DC-23 | TC-IDP-009, TC-UC07-003 | 8 | QA | (resolved) DEC-030 |
+| T-402 | Seed script `app.seed`: user, role, 18 metric, business_records nền | S4 | Seed | T-101, T-301, T-401 | 08 §2, §5; ENT-User, ENT-Role, ENT-Metric, ENT-BusinessRecord | TC-DATA-015, TC-DATA-004, TC-DATA-011 | 8 | BE | (resolved) DEC-062, DEC-030 |
+| T-403 | Seed lịch sử NRR + ROLLING_12M + xác minh 12 alert | S4 | Seed | T-402, T-305 | 08 §5.1, §5.2; METRIC-CUS-03, METRIC-CUS-04, METRIC-HR-01, METRIC-HR-02; ALERT-* | TC-DASH-219, TC-DASH-109, TC-DASH-110 | 5 | QA | (resolved) DEC-062 (qua T-402) |
 | T-404 | EP-52 audit-logs + FE SCR-14 Nhật ký audit | S4 | Governance | T-102, T-108 | EP-52, SCR-14; FR-DC-22; ENT-AuditLog | TC-IDP-039, TC-SYS-005 | 6 | FS | — |
 | T-405 | E2E + perf: KPI demo (drill-down ≤ 3 click, chuyển vai ≤ 2 s, review ≤ 60 s) | S4 | Test | T-310, T-312, T-219 | SCR-01, SCR-05, SCR-06, SCR-08, SCR-09, SCR-10, SCR-12; KPI demo | TC-KPI-001, TC-KPI-002, TC-KPI-003, TC-KPI-004, TC-KPI-005, TC-KPI-007, TC-IDP-040, TC-UC07-005 | 8 | QA | — |
 | T-406 | A11y + responsive + hoàn thiện trạng thái (axe, 375/768/1280) | S4 | Test | T-310, T-312 | SCR-01..15; P04 | TC-UI-006, TC-UI-007, TC-UI-009, TC-UI-005 | 8 | QA | — |

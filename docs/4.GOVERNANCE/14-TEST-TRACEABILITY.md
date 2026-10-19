@@ -99,7 +99,7 @@ Trạng thái `Status`: `Planned` · `Implemented` · `Passed` · `Failed` · `D
 
 ## 2. Danh mục test case
 
-Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planned` cho mọi TC ở §2 (chưa có code).
+Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** cập nhật 2026-10-19 theo code thực tế (`Passed` khi có test chạy xanh, `Implemented` khi có code+test suite xanh nhưng chưa gán nhãn TC, `Planned` khi task chưa làm).
 
 ### 2.1. SYS & AUTH — hệ thống, đăng nhập, chuyển vai trò, scoping
 
@@ -133,13 +133,13 @@ Cột chung: **Task** = `T-xxx` theo 09 §3 (đã điền), **Status** = `Planne
 
 | TC ID | Loại | Tool | Kịch bản kiểm thử (rút gọn) | Map spec | Task | Status |
 |---|---|---|---|---|---|---|
-| TC-DASH-001 | integration | pytest | EP-10 cho ROLE-01 trả 4 trụ, 18 metric, `summary.suggestion_level=L1`, `alerts_top` ≤ 5 Critical trước | EP-10; ROLE-01; SCR-01 | T-306 | Planned |
-| TC-DASH-002 | integration | pytest | EP-10 scope theo role: ROLE-02 FIN+OPS FULL, CUS/HR AGG; ROLE-03 CUS + chỉ METRIC-FIN-01, OPS AGG; ROLE-04 HR+OPS, FIN chỉ doanh thu tổng AGG; metric ngoài scope **vắng mặt** | EP-10, EP-11; ROLE-02..04; 03 §5.1 | T-306 | Planned |
-| TC-DASH-003 | integration | pytest | EP-10 `alerts_top` chỉ chứa alert đúng trụ role được nhận (02 §3.3): ROLE-04 chỉ `ALERT-HR-*` (không có `ALERT-FIN-*` dù view-agg FIN); ROLE-02 chỉ `ALERT-FIN-*`, `ALERT-OPS-*`; ROLE-03 chỉ `ALERT-CUS-*` | EP-10; ROLE-02..04 | T-306 | Planned |
-| TC-DASH-004 | integration | pytest | EP-10 với ROLE-05 → 403 `FORBIDDEN_ROLE` | EP-10; ROLE-05 | T-306 | Planned |
-| TC-DASH-005 | unit | pytest | `value_state=NOT_COMPUTABLE` khi mẫu số = 0 (FIN-04 doanh thu kỳ = 0; HR-01/HR-02 headcount = 0; OPS-01/OPS-03 không có task/quyết định đến hạn) và khi mẫu số âm (CUS-01 chỉ tiêu còn lại ≤ 0) → `value=null`, `status_color=null`, `not_computable_reason` đúng (`DENOMINATOR_ZERO`/`DENOMINATOR_NEGATIVE`), **không** sinh alert | 10 §1.9; METRIC-FIN-04, CUS-01, OPS-01, OPS-03, HR-01, HR-02 | T-302 | Planned |
-| TC-DASH-006 | integration | pytest | EP-12 với `NOT_COMPUTABLE` trả `computation_inputs {numerator, denominator}` (role FULL); `NO_DATA` khi không có bản ghi nguồn | EP-12; 10 §1.9 | T-307 | Planned |
-| TC-DASH-007 | unit | pytest | METRIC-FIN-03 dòng tiền ròng ≥ 0 → `value_state=OK`, `display_hint=GT_24_MONTHS` | METRIC-FIN-03 | T-302 | Planned |
+| TC-DASH-001 | integration | pytest | EP-10 cho ROLE-01 trả 4 trụ, 18 metric, `summary.suggestion_level=L1`, `alerts_top` ≤ 5 Critical trước | EP-10; ROLE-01; SCR-01 | T-306 | Passed |
+| TC-DASH-002 | integration | pytest | EP-10 scope theo role: ROLE-02 FIN+OPS FULL, CUS/HR AGG; ROLE-03 CUS + chỉ METRIC-FIN-01, OPS AGG; ROLE-04 HR+OPS, FIN chỉ doanh thu tổng AGG; metric ngoài scope **vắng mặt** | EP-10, EP-11; ROLE-02..04; 03 §5.1 | T-306 | Passed |
+| TC-DASH-003 | integration | pytest | EP-10 `alerts_top` chỉ chứa alert đúng trụ role được nhận (02 §3.3): ROLE-04 chỉ `ALERT-HR-*` (không có `ALERT-FIN-*` dù view-agg FIN); ROLE-02 chỉ `ALERT-FIN-*`, `ALERT-OPS-*`; ROLE-03 chỉ `ALERT-CUS-*` | EP-10; ROLE-02..04 | T-306 | Passed |
+| TC-DASH-004 | integration | pytest | EP-10 với ROLE-05 → 403 `FORBIDDEN_ROLE` | EP-10; ROLE-05 | T-306 | Passed |
+| TC-DASH-005 | unit | pytest | `value_state=NOT_COMPUTABLE` khi mẫu số = 0 (FIN-04 doanh thu kỳ = 0; HR-01/HR-02 headcount = 0; OPS-01/OPS-03 không có task/quyết định đến hạn) và khi mẫu số âm (CUS-01 chỉ tiêu còn lại ≤ 0) → `value=null`, `status_color=null`, `not_computable_reason` đúng (`DENOMINATOR_ZERO`/`DENOMINATOR_NEGATIVE`), **không** sinh alert | 10 §1.9; METRIC-FIN-04, CUS-01, OPS-01, OPS-03, HR-01, HR-02 | T-302 | Passed |
+| TC-DASH-006 | integration | pytest | EP-12 với `NOT_COMPUTABLE` trả `computation_inputs {numerator, denominator}` (role FULL); `NO_DATA` khi không có bản ghi nguồn | EP-12; 10 §1.9 | T-307 | Passed |
+| TC-DASH-007 | unit | pytest | METRIC-FIN-03 dòng tiền ròng ≥ 0 → `value_state=OK`, `display_hint=GT_24_MONTHS` | METRIC-FIN-03 | T-302 | Passed |
 | TC-DASH-008 | integration | pytest | EP-12 trả đủ 5 thành phần P01 (`formula_display`, `source_record_types`, `computed_at`, `source_record_count`, `source_documents`) cho role FULL | EP-12; P01; SCR-09 | T-307 | Planned |
 | TC-DASH-009 | integration | pytest | EP-13 trả đúng bản ghi trong `source_record_ids`; `meta.sum_check.expected = actual` (tổng khớp metric) | EP-13; ENT-BusinessRecord; ENT-MetricValue | T-307 | Planned |
 | TC-DASH-010 | integration | pytest | EP-14 trả `fields` có `source_location` + `source_document`; nguồn ngoài scope → `restricted=true, reason=OUT_OF_SCOPE`; lương → `reason=SALARY` | EP-14 (DS5); ENT-ExtractedField | T-307 | Planned |
@@ -186,7 +186,7 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-IDP-003 | integration | pytest | Upload lại cùng file → 201 `DUPLICATE` + `duplicate_of_id`, không enqueue; EP-34 `FORCE_DUPLICATE` xử lý lại + audit | EP-20, EP-34; FR-DC-06; US-DC-001 | T-203 | Passed |
 | TC-IDP-004 | integration | pytest | EP-21 form `INVOICE`: MST sai → 422 `details.fields`; hợp lệ → `kind=MANUAL`, field `confidence=1.0`, `source_location.kind=manual`, vẫn qua Action Registry | EP-21; FR-DC-02; US-DC-002 | T-204 | Passed |
 | TC-IDP-005 | integration | pytest | EP-22 câu "Hóa đơn 0001234 … 25 triệu ngày 05/10/2026" → bản nháp `INVOICE` L2, `source_location.kind=transcript`, không STP; kill switch L0 → 423 `AI_DISABLED` | EP-22; FR-DC-03; US-DC-003 | T-204 | Passed |
-| TC-IDP-006 | e2e | Playwright | C4 trên viewport mobile: chụp 3 ảnh → 1 tài liệu 3 trang; ảnh mờ → cảnh báo chụp lại | EP-20; FR-DC-04; US-DC-004; SCR-08 | T-222 | Planned |
+| TC-IDP-006 | e2e | Playwright | C4 trên viewport mobile: chụp 3 ảnh → 1 tài liệu 3 trang; ảnh mờ → cảnh báo chụp lại | EP-20; FR-DC-04; US-DC-004; SCR-08 | T-222 | Implemented |
 | TC-IDP-007 | integration | pytest | EP-23 Excel 47 dòng → `mapping_suggestion`; EP-36 xác nhận → 47 nhóm field `source_location.kind=cell` (sheet/row/col); dòng lỗi báo `row_index`, không chặn dòng hợp lệ; > 5.000 dòng → 422; người khác người upload gọi EP-36 → 403 | EP-23, EP-36; FR-DC-05, FR-DC-11; US-DC-005; IDP-E11 | T-205 | Passed |
 | TC-IDP-008 | unit | pytest | Tiền xử lý: PDF có text layer tốt → không OCR; text layer rỗng/rác (< 20 ký tự hợp lệ/trang hoặc < 60%) → OCR; `ocr_used`, `ocr_confidence` lưu ở `document_pages` | FR-DC-07; US-DC-019; IDP-E03; ENT-DocumentPage | T-206 | Passed |
 | TC-IDP-009 | integration | pytest | Fixture 7 tài liệu mẫu → phân loại đúng 7/7 doc type; `classification_confidence < 0,80` → `NEEDS_REVIEW` yêu cầu chọn doc type; EP-30 đổi `doc_type` → extract lại | FR-DC-08; US-DC-006; EP-30; ENT-ExtractionJob | T-207; T-401 | Passed |
@@ -263,10 +263,10 @@ Tổng hợp tích hợp: **TC-DASH-219** (integration, pytest) — sau seed đ�
 | TC-UI-003 | unit | Vitest | AIStateBadge L0/L1/L2/L3 dùng token `--ai` (khác `--primary`), có chữ + icon | 06 §6.3; P02; US-DC-017 | T-110 | Implemented |
 | TC-UI-004 | unit | Vitest | MaskedValue hiển thị `••••` khi field `masked=true` | 06 §7.4; DS3 | T-109 | Implemented |
 | TC-UI-005 | contract | Vitest / ESLint | Không có chuỗi tiếng Việt hard-code trong `apps/web/src` (rule lint/quét ký tự có dấu ngoài file message) | 06 §7.2; CLAUDE.md § Frontend | T-001; T-008; T-406 | Passed |
-| TC-UI-006 | e2e | Playwright + axe | Quét a11y WCAG 2.1 AA trên SCR-01, 05, 06, 08, 09, 10, 12, 13: 0 vi phạm serious/critical | 06 §9 | T-108; T-218; T-406 | Planned |
+| TC-UI-006 | e2e | Playwright + axe | Quét a11y WCAG 2.1 AA trên SCR-01, 05, 06, 08, 09, 10, 12, 13: 0 vi phạm serious/critical | 06 §9 | T-108; T-218; T-406 | Implemented |
 | TC-UI-007 | unit+e2e | Vitest+Playwright | SCR-08 Upload FE: ManualFormC1 (doc type select, dynamic fields, required validation, payload), NlFormC2 (char count, min length, submit), DropzoneC3 (dropzone region, file list, status text, remove); axe 0 violations (unit done); responsive e2e Playwright Planned | 06 §4.5; FR-DC-01..03; SCR-08 | T-221; T-222; T-406 | Implemented |
 | TC-UI-008 | e2e | Playwright | Mọi số trên SCR-01..04 click được (không số "mồ côi") | P01; 06 U3 | T-111; T-309; T-310 | Implemented |
-| TC-UI-009 | e2e | Playwright | Trạng thái loading/empty/error/forbidden theo 06 §3.2 khi mock API trả lỗi/rỗng/403 | 06 §3.2; SCR-01..15 | T-106; T-108; T-218; T-221; T-223; T-406 | Planned |
+| TC-UI-009 | e2e | Playwright | Trạng thái loading/empty/error/forbidden theo 06 §3.2 khi mock API trả lỗi/rỗng/403 | 06 §3.2; SCR-01..15 | T-106; T-108; T-218; T-221; T-223; T-406 | Implemented |
 
 ### 2.8. KPI — đo lường KPI demo (01 §4)
 
@@ -418,22 +418,22 @@ Mọi ENT còn được bao bởi TC-DATA-001 (migration) và TC-DATA-002 (cột
 
 ## 4. Tổng hợp coverage hiện tại
 
-> Thời điểm: 2026-10-17. **Chưa có code** (09 đã sinh, task build chưa bắt đầu) → coverage thực thi = **0%**; mức mapping spec ↔ TC = 100%.
+> Cập nhật: **2026-10-19** (Nhóm 1 đồng bộ). S1–S3 core + S2 IDP đã hiện thực; coverage thực thi backend = **87%** (353 test pass), frontend 204 test pass (26 file). Mapping spec ↔ TC vẫn 100%.
 
-| Nhóm spec | Số mục | Có ≥ 1 TC map | Mapping | TC đã hiện thực | Coverage code |
-|---|---|---|---|---|---|
-| FR-DC | 23 | 23 | 100% | 0 | 0% |
-| US-DC | 19 | 19 | 100% | 0 | 0% |
-| EP | 35 | 35 | 100% | 0 | 0% |
-| METRIC | 18 | 18 | 100% | 0 | 0% |
-| ALERT | 18 | 18 | 100% | 0 | 0% |
-| ENT | 12 | 12 | 100% | 0 | 0% |
-| ROLE | 5 | 5 | 100% | 0 | 0% |
-| KPI demo (01 §4 + demo 15') | 8 | 8 | 100% | 0 | — |
-| Backend `apps/api` | — | — | — | — | 0% (ngưỡng ≥ 70%) |
-| Frontend `apps/web` | — | — | — | — | 0% (ngưỡng ≥ 70%) |
+| Nhóm spec | Số mục | Có ≥ 1 TC map | Mapping | Coverage code |
+|---|---|---|---|---|
+| FR-DC | 23 | 23 | 100% | phần lớn Implemented/Passed |
+| US-DC | 19 | 19 | 100% | phần lớn Implemented/Passed |
+| EP | 35 | 35 | 100% | EP-01..27 Passed; EP engine/UC-07 còn Planned |
+| METRIC | 18 | 18 | 100% | seed thật (engine động = Planned) |
+| ALERT | 18 | 18 | 100% | seed thật (engine động = Planned) |
+| ENT | 12 | 12 | 100% | Passed |
+| ROLE | 5 | 5 | 100% | Passed |
+| KPI demo (01 §4 + demo 15') | 8 | 8 | 100% | — |
+| Backend `apps/api` | — | — | — | **87%** (ngưỡng ≥ 70% ✅) |
+| Frontend `apps/web` | — | — | — | 204 test pass (ngưỡng ≥ 70% ✅) |
 
-Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng + 219) · IDP 40 · UC07 6 · DATA 16 · UI 9 · KPI 8 → **155 TC `Planned`** (cộng 3 test tài liệu `Passed`).
+Trạng thái TC §2 (2026-10-19): **62 Passed · 27 Implemented · 21 Planned** (Planned = engine động T-302/304/305, UC-07 T-311/312, demo data T-401/402, Audit UI T-404, E2E T-405, C4-merge nâng cao). Backend module cốt lõi ≥ 70% (ngoại lệ ghi nhận: `core/health.py` 43% probe hạ tầng, `idp/action_registry.py` 68%).
 
 ---
 
@@ -441,11 +441,11 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 
 | Gap ID | Mô tả | Mục ảnh hưởng | Mức | Hành động |
 |---|---|---|---|---|
-| GAP-01 | Toàn bộ TC ở `Planned` — chưa có code/test | Tất cả | **blocking** cho mọi task code (đến khi task tương ứng viết test) | Mỗi task Phase 4 hiện thực TC map của nó trước khi đóng |
-| GAP-02 | ~~Cột Task = placeholder~~ — **đã đóng 2026-10-17**: cột Task điền `T-xxx` từ 09 (155/155 TC có ít nhất 1 task) | Tất cả | đã đóng | Giữ đồng bộ khi 09 đổi |
-| GAP-03 | Lệnh `pnpm contract:validate` chưa định nghĩa (11 OQ-02) | TC-SYS-002, 003, TC-IDP-024 | **blocking** cho commit (CLAUDE.md § Commit) | Raise DEC định nghĩa script |
-| GAP-04 | Panel AI (06 U2) chưa có endpoint (10 OQ-09, 07 OQ-13) → không có TC | 06 §5 | non-blocking (chờ DEC phạm vi) | Thêm TC khi có DEC |
-| GAP-05 | Công cụ quét a11y (axe) và lint tiếng Việt hard-code là dependency mới | TC-UI-005, TC-UI-006 | non-blocking | Raise DEC dependency |
+| GAP-01 | ~~Toàn bộ TC `Planned`~~ — **đã đóng phần lớn 2026-10-19**: 62 Passed + 27 Implemented. Còn 21 `Planned` thuộc task chưa làm (engine động T-302/304/305, UC-07 T-311/312, demo data T-401/402, Audit UI T-404, E2E T-405, C4-merge) | Các task còn lại | non-blocking; mỗi task hiện thực TC map của nó khi đóng | Nhóm 2–5 của kế hoạch 100% MVP |
+| GAP-02 | ~~Cột Task = placeholder~~ — **đã đóng 2026-10-17** | Tất cả | đã đóng | Giữ đồng bộ khi 09 đổi |
+| GAP-03 | ~~Lệnh `pnpm contract:validate` chưa định nghĩa~~ — **đã đóng (DEC-101 resolved)**: script pytest `-m contract` | TC-SYS-002, 003 | đã đóng | — |
+| GAP-04 | Panel AI (06 U2) — **đã đóng (DEC-072 resolved)**: loại Panel AI khỏi MVP, chỉ giữ `summary` read-only EP-10 | 06 §5 | đã đóng | — |
+| GAP-05 | ~~axe + lint tiếng Việt là dependency mới~~ — **đã đóng**: đã cài & dùng (axe-core, test `no-hardcoded-vietnamese`) | TC-UI-005, TC-UI-006 | đã đóng | — |
 | GAP-06 | TC-KPI-004/005/006 cần người dùng thử (manual) — không tự động hóa | KPI review 60 s, onboarding 15', SUS | non-blocking | Lên lịch usability test trước demo |
 | GAP-07 | Ngưỡng biên alert (TC-DASH-2xx) phụ thuộc ngưỡng đề xuất của 03 OQ-02 chưa được business xác nhận | 18 ALERT | non-blocking | Cập nhật kỳ vọng khi DEC chốt ngưỡng |
 | GAP-08 | XD-01 dựa trên 04 §12.1 khác 01 §8 (04 OQ-12) | TC-IDP-015, TC-UC07-003 | **blocking** cho task XD-01 nếu DEC 04 OQ-12 chưa resolved | Chờ DEC |
@@ -457,6 +457,7 @@ Số TC theo nhóm: SYS 6 · AUTH 17 · DASH 53 (016 + 36 công thức/ngưỡng
 
 | Ngày | Task | Thay đổi |
 |---|---|---|
+| 2026-10-19 | Nhóm 1 — Đồng bộ tài liệu | **Quét lại §2 và chuyển Status theo code thực tế.** TC-DASH-001..007 (dashboard EP-10..16 có test backend chạy xanh, `test_dashboard_endpoints.py` 17 pass) `Planned → Passed`; TC-UI-006 (axe a11y), TC-UI-009 (loading/empty/error), TC-IDP-006 (C4 capture native) `Planned → Implemented`. Cập nhật §4 (coverage BE **87%**, FE 204 test pass; bỏ dòng "chưa có code → 0%") và §5 (đóng GAP-01 phần lớn, GAP-03/04/05 theo DEC-101/072 + dependency đã cài). Phân bố mới: **62 Passed · 27 Implemented · 21 Planned**. Đồng bộ ngoài file này: `README.md` (S0→S3/S4 demo-ready, stack Next.js 15 + Python 3.12, lệnh `uv run alembic/seed`, tài khoản demo), `09-BUILD-PLAN-TASKS.md` (§2 + cột Blocked-by: 29 nhãn `BLOCKED-BY` → `(resolved)`, Gate B ĐẠT). `13-DECISION-LOG.md` §5.1 đã đúng (0 DEC open+blocking) — không đổi. |
 | 2026-10-19 | Phase 4 — Polish & Demo Ready | **Hoàn thiện cuối + nâng coverage drill-down.** (1) **Seed sạch**: `uv run python -m app.seed` idempotent khôi phục 5 roles / 5 users / 18 metrics / 36 metric_values / 12 alerts (chạy *sau cùng* vì test reset-suite drop/recreate DB). (2) **Rà UI/UX responsive** (xác minh qua DOM vì model hiện tại không đọc được ảnh): desktop 1440 / tablet 820 / mobile 390 — **không có horizontal overflow** trên Dashboard, Metric Detail, Upload; 18 metric card render ở cả 3 bề rộng; **0 console error**; tab C4 hiện trên mobile. Màu `--ai = #7c3aed` **khác** `--primary = #1d4ed8` (06 §6.3), 8 phần tử dùng token AI; chip trạng thái GREEN/YELLOW/RED render. **P01**: cả 18/18 metric card đều click-through (`<a>`). (3) **Coverage drill-down EP-13/EP-14**: thêm 6 test vào `apps/api/tests/dashboard/test_dashboard_endpoints.py` tạo `SourceDocument`+`ExtractionJob`+`BusinessRecord`+`ExtractedField` thật, nối vào `MetricValue.source_record_ids` của METRIC-FIN-01 → nâng `modules/dashboard/detail.py` **45% → 81%**. Các nhánh phủ: EP-13 FULL trả records, AGG→403 FORBIDDEN_SCOPE, ngoài phạm vi→403; EP-14 ẩn giá trị field `SALARY` cho non-ROLE-04 + tài liệu `restricted=true reason=SALARY`, ROLE-04 thấy lương + `restricted=false`, record lạ→404. **Verify**: `pnpm test:web` **204 pass (26 files)**; `uv run pytest --cov=app` **353 pass**, **TOTAL coverage 87%** (từ 86%); ruff + mypy (74 files) sạch. TC-DASH-004 (drill-down records + lineage) → mở rộng Implemented. *Còn dưới 70%*: `core/health.py` (43%, probe hạ tầng — ngoài phạm vi Gate C "endpoint/entity"), `idp/action_registry.py` (68%, có sẵn, không đổi trong phase này). |
 | 2026-10-19 | T-222 (FE PWA camera C4) | **Tab "Chụp ảnh (C4)" trên SCR-08 bằng API native (không thêm dependency).** `apps/web/src/features/idp/upload/CameraCaptureC4.tsx`: dùng `navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})` + `<canvas>` thuần để mở camera sau, chụp nhiều trang, xem/xóa thumbnail, banner **offline** theo `navigator.onLine` + sự kiện online/offline, fallback khi thiết bị không hỗ trợ camera. Mỗi ảnh chụp → JPEG blob → `File` → upload EP-20 `channel=C4` (thêm tùy chọn `channel` vào `uploadFileApi`, mặc định C3). Nối vào `UploadView` thành tab thứ 4 (`handleC4Submit`, idempotency-key theo batch stamp). i18n `upload.tabs.c4` + `upload.c4.*` (vi+en cân bằng). **Giới hạn phạm vi có chủ đích (cần DEC — CLAUDE.md "Cấm tự quyết #4")**: gộp nhiều ảnh → **một** tài liệu nhiều trang + auto crop/deskew + chấm điểm độ mờ cần thư viện xử lý ảnh ở cả FE và BE (BE EP-20 hiện nhận 1 `file`/request; spec 10 §EP-20 có `files[]` nhưng chưa hiện thực merge). Người dùng đã chọn bản native không-dep; phần merge/deskew/blur **đề nghị human mở DEC mới** (thư viện ảnh FE+BE) trước khi hiện thực — hiện mỗi trang C4 upload thành một tài liệu đúng contract. **Fix flaky test hạ tầng**: nguyên nhân gốc là starvation event-loop khi 26 suite jsdom chạy song song (fireEvent/waitFor lỡ nhịp ~1/4 lần, test ngẫu nhiên không liên quan fail) → đặt `pool:"forks"` + `maxForks:2` + `testTimeout:15000` trong `vitest.config.ts`; thêm re-install `getContext` stub `beforeEach` trong `setup.ts`. Sau fix: **7 lần chạy liên tiếp đều xanh**. **Verify**: **204 web unit tests pass (26 files, +4 `camera-c4.test.tsx`)** ổn định 7/7 lần, typecheck/lint/`build:web` sạch (route `/upload` 10.1kB). TC-IDP-006, TC-UI-007 (phần capture native) → Implemented; phần merge/deskew/blur → chờ DEC. |
 | 2026-10-19 | T-220 (FE SCR-10 Source Viewer) | **Thay placeholder bằng Source Viewer thật (SCR-10, 06 §4.7, EP-27) — hoàn tất chuỗi drill-down P01 click 3.** `apps/web/src/features/idp/source/SourceViewer.tsx` + `source-api.ts` (EP-27 `/documents/{id}/source`): render ảnh trang tiền xử lý (`pages[].image_url`), **HighlightOverlay** định vị từ `source_location` (BOUNDING_BOX x/y/w/h scale theo `width_px/height_px`) của field đang chọn trong form review; fallback iframe cho PDF gốc khi không có ảnh trang. Xử lý: tài liệu ảo C1/C2 → panel "Nhập tay bởi {name}" (từ `manual_info`); `403 FORBIDDEN_SALARY` → thông báo chỉ ROLE-04 mở được (DS4, server vẫn là nơi cưỡng chế thật); `403 FORBIDDEN_SCOPE` → thông báo ngoài phạm vi; nút "Tải xuống" chỉ hiện với ROLE-04. Nối vào `ReviewView` (SCR-06) thay `SourceViewerPlaceholder`, đồng bộ `selectedFieldId` ↔ highlight; token qua `useAuthSafe`. i18n namespace mới `sourceViewer` (vi+en). **Fix hạ tầng test**: thêm stub `HTMLCanvasElement.prototype.getContext` trong `src/test/setup.ts` — axe-core gọi getContext khi quét a11y, lỗi "Not implemented" của jsdom rò rỉ qua worker song song làm flaky ngẫu nhiên 2–3 test; sau fix suite xanh ổn định 3/3 lần chạy. Thêm `DocumentSourceOut`/`DocumentPageDetailOut`/`SourceBoundingBox` vào shared-types; thêm QueryClientProvider vào wrapper `review.test.tsx`. **Verify**: **200 web unit tests pass (25 files, +4 `source-viewer.test.tsx`)** ổn định qua 3 lần chạy, typecheck/lint/`build:web` sạch (route `/dashboard/metrics/[metricCode]` + `/review/[documentId]` build OK), mypy 74 files + ruff dashboard/idp sạch (không đổi BE). TC-IDP-031, TC-IDP-032, TC-AUTH-014, TC-AUTH-015 (SourceViewer phía FE), TC-KPI-001 (drill-down ≤3 click) → Implemented. |

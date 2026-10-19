@@ -23,10 +23,14 @@ Aureon là một nền tảng quản trị doanh nghiệp lấy AI làm trung t�
 
 | Mục | Trạng thái |
 |---|---|
-| Giai đoạn | Demo / Prototype |
-| Sprint hiện tại | S0 — Setup |
-| Tech stack | React + FastAPI |
-| Thời gian build | 8 tuần (4 sprint) |
+| Giai đoạn | **Demo-ready (MVP)** |
+| Sprint hiện tại | **S3/S4 — Dashboard động + IDP hoàn chỉnh, đang polish** |
+| Tech stack | **Next.js 15 + FastAPI (Python 3.12)** |
+| Thời gian build | 8 tuần (5 mốc sprint S0–S4) |
+
+**Đã có:** Dashboard 4 trụ (18 metric · 12 cảnh báo · drill-down P01), IDP upload C1–C4 + Review + Source Viewer, 5 vai trò phân quyền, 35 endpoint theo `10-API-SPECIFICATION`. Chi tiết ở [`DEMO-READY-REPORT.md`](DEMO-READY-REPORT.md).
+
+**Gate:** `pnpm test:web` 204 pass · `uv run pytest` 353 pass (coverage 87%) · typecheck/lint/mypy/ruff sạch · Gate A/B/C ĐẠT (0 DEC open+blocking).
 
 ---
 
@@ -105,15 +109,27 @@ docker compose up -d postgres redis minio
 cp .env.example .env
 # Điền: DATABASE_URL, REDIS_URL, MINIO_*, OMNIROUTE_API_KEY
 
-# 4. Migrate + seed
-pnpm db:migrate
-pnpm db:seed
+# 4. Migrate + seed (DEC-062: dùng uv, không dùng pnpm db:*)
+uv run alembic upgrade head
+uv run python -m app.seed        # chạy LẠI sau mỗi lần pytest (reset-suite drop/recreate DB)
 
-# 5. Chạy dev
-pnpm dev          # Web (3000) + API (4000) + Worker song song
+# 5. Chạy dev (3 tiến trình)
+uv run uvicorn app.main:app --port 4000               # API
+uv run celery -A app.worker worker --loglevel=info    # Worker IDP
+pnpm dev:web                                          # Web (3000) → proxy /api/v1/* sang :4000
 ```
 
-Chi tiết đầy đủ ở `CLAUDE.md` § Commands.
+Mở **http://127.0.0.1:3000**. Chi tiết lệnh ở `CLAUDE.md` § Commands.
+
+### Tài khoản demo
+
+| Vai trò | Email | Mật khẩu |
+|---|---|---|
+| CEO (ROLE-01) | ceo@abc.demo | `Demo-mi-GsAKV9PaC` |
+| CFO (ROLE-02) | cfo@abc.demo | `Demo-H2LoFloiNv5T` |
+| Sales (ROLE-03) | sales@abc.demo | `Demo-8gtajs092QwK` |
+| HR (ROLE-04) | hr@abc.demo | `Demo-VmVpzbsQ9NeA` |
+| Reviewer (ROLE-05) | reviewer@abc.demo | `Demo-WixV_XvcOLZ7` |
 
 ---
 
@@ -121,10 +137,12 @@ Chi tiết đầy đủ ở `CLAUDE.md` § Commands.
 
 | Layer | Công nghệ |
 |---|---|
-| Frontend | React 18 + Vite + TypeScript + Tailwind + shadcn/ui |
-| Backend | Python 3.11 + FastAPI + SQLAlchemy 2.0 |
+| Frontend | Next.js 15 (App Router) + React 18 + TypeScript + Tailwind + shadcn/ui |
+| i18n / Chart | next-intl + Recharts (DEC-064) |
+| Backend | Python 3.12 + FastAPI + SQLAlchemy 2.0 + Pydantic v2 |
+| Auth | PyJWT HS256 (DEC-073) |
 | Database | PostgreSQL 16 + pgvector |
-| Queue | Redis + Celery (hoặc ARQ) |
+| Queue | Redis + Celery |
 | Storage | MinIO (dev) / S3 (prod) |
 | OCR | PaddleOCR / Google Vision |
 | LLM | Claude + GPT qua OmniRoute |
