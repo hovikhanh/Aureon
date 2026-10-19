@@ -152,7 +152,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
 |---|---|---|---|---|
 | TC-PRD-001 | integration | Products/features/roadmap/releases; launch/release → event | FR-PRD-01..05 | T-201 |
-| TC-PRD-002 | unit | ProductMetric append-only (update → lỗi); BR-PRD-01 fixture churn 2,41% vs 1,5% → anomaly; seed demo 1,79% → không anomaly (08, DEC-143) | FR-PRD-06..07, BR-PRD-01 | T-202 |
+| TC-PRD-002 | unit | ProductMetric append-only (update → lỗi); BR-PRD-01 fixture churn 2,41% vs 1,5% → anomaly; seed demo 1,79% → không anomaly (08, DEC-143). **Verify via fixture, không qua seed** (E3 không còn trong seed v2) | FR-PRD-06..07, BR-PRD-01 | T-202 |
 | TC-RSK-001 | unit | score = L × I; bảng level BR-RSK-02 (1–4 / 5–9 / 10–15 / 16–25) | BR-RSK-01..02 | T-211 |
 | TC-RSK-002 | integration | Accept rủi ro chỉ CEO, bắt buộc lý do, ghi Decision | FR-RSK-03 | T-211 |
 | TC-RSK-003 | event | hiring_plan_delayed → tự sinh R (source=event, owner null); event trùng không tạo trùng | BR-RSK-03 | T-212 |
