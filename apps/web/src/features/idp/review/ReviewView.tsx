@@ -18,6 +18,8 @@ import type {
 } from "@aureon/shared-types";
 import { AIStateBadge } from "@/components/ai/AIStateBadge";
 import { cn } from "@/lib/utils";
+import { useAuthSafe } from "@/features/auth/auth-context";
+import { SourceViewer } from "@/features/idp/source/SourceViewer";
 import { ExtractionForm } from "./ExtractionForm";
 import { RejectDialog } from "./RejectDialog";
 import { ShortcutsModal } from "./ShortcutsModal";
@@ -168,37 +170,6 @@ function LockTimer({ expiresAt }: { expiresAt: Date }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Source Viewer placeholder (T-220 will replace with real PDF viewer)        */
-/* -------------------------------------------------------------------------- */
-function SourceViewerPlaceholder({
-  filename,
-  channel,
-}: {
-  filename: string | null;
-  channel: string;
-}) {
-  const t = useTranslations("review");
-
-  return (
-    <div className="flex h-full min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 p-8 text-center">
-      {channel === "C1" ? (
-        <p className="text-sm text-muted-foreground">{t("noSourceFile")}</p>
-      ) : (
-        <div className="space-y-2">
-          <div className="text-4xl select-none">📄</div>
-          <p className="text-sm font-medium text-foreground">{filename}</p>
-          <p className="text-xs text-muted-foreground">{t("sourceViewerSubtitle", { page: 1, totalPages: 1 })}</p>
-          <p className="mt-4 text-xs text-muted-foreground/70">
-            {/* T-220: SourceViewer with PDF/Image/Excel highlight replaces this area */}
-            Source Viewer (PDF/Image) — T-220
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* ReviewView — main component                                                  */
 /* -------------------------------------------------------------------------- */
 export function ReviewView({
@@ -215,6 +186,11 @@ export function ReviewView({
 }: ReviewViewProps) {
   const t = useTranslations("review");
   const router = useRouter();
+  const auth = useAuthSafe();
+  const token = auth?.session?.accessToken;
+  // ROLE-04 (HR Manager) is the only role allowed to download salary docs (DS4); keep the
+  // download affordance off for everyone else — the server still enforces the real rule.
+  const canDownload = role === "ROLE-04";
 
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -397,9 +373,13 @@ export function ReviewView({
             {t("sourceViewerTitle")}
           </h2>
           <div className="flex-1 overflow-auto">
-            <SourceViewerPlaceholder
-              filename={document.original_filename}
+            <SourceViewer
+              documentId={document.id}
               channel={document.channel}
+              canDownload={canDownload}
+              fields={extraction.fields}
+              selectedFieldId={state.selectedFieldId}
+              token={token}
             />
           </div>
         </div>

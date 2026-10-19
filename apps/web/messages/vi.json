@@ -698,5 +698,17 @@
       "SYSTEM": "Hệ thống",
       "AI": "AI"
     }
+  },
+  "sourceViewer": {
+    "loading": "Đang tải tài liệu gốc…",
+    "loadError": "Không mở được tài liệu",
+    "retry": "Thử lại",
+    "forbiddenSalary": "Tài liệu chứa dữ liệu lương cá nhân — chỉ Trưởng phòng nhân sự được mở",
+    "forbiddenScope": "Nguồn thuộc phạm vi khác — bạn không có quyền xem",
+    "manualEntry": "Nhập tay bởi {name} lúc {time}",
+    "download": "Tải xuống",
+    "page": "Trang {page}/{total}",
+    "openOriginal": "Mở tài liệu gốc",
+    "highlightLabel": "Vùng chứa giá trị của trường được chọn"
   }
 }

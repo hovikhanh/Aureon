@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import axe from "axe-core";
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import viMessages from "../../../../messages/vi.json";
 import { ConfidenceIndicator } from "./ConfidenceIndicator";
@@ -29,10 +30,13 @@ vi.mock("next/navigation", () => ({
 afterEach(cleanup);
 
 function withIntl(ui: ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return (
-    <NextIntlClientProvider locale="vi" messages={viMessages} timeZone="Asia/Ho_Chi_Minh">
-      {ui}
-    </NextIntlClientProvider>
+    <QueryClientProvider client={qc}>
+      <NextIntlClientProvider locale="vi" messages={viMessages} timeZone="Asia/Ho_Chi_Minh">
+        {ui}
+      </NextIntlClientProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -289,7 +293,7 @@ describe("TC-IDP-033 RejectDialog", () => {
 describe("TC-IDP-033 ReviewView", () => {
   const { document, review_id: reviewId, extraction } = DEMO_REVIEW_OPEN_OUT;
 
-  it("renders 2-column layout: source viewer placeholder + extraction form", () => {
+  it("renders 2-column layout: source viewer (SCR-10) + extraction form", () => {
     render(
       withIntl(
         <ReviewView
@@ -304,7 +308,10 @@ describe("TC-IDP-033 ReviewView", () => {
     );
     expect(screen.getByText("Tài liệu gốc")).toBeInTheDocument();
     expect(screen.getByText("Các trường trích xuất")).toBeInTheDocument();
-    // filename appears in both the top bar and the source viewer placeholder
+    // Source panel now mounts the real SourceViewer; without a token it shows its loading
+    // shell (the query is disabled), so the panel is present even though no file is fetched.
+    expect(screen.getByText("Đang tải tài liệu gốc…")).toBeInTheDocument();
+    // filename still appears in the top bar.
     const filenameEls = screen.getAllByText(document.original_filename ?? "");
     expect(filenameEls.length).toBeGreaterThan(0);
   });

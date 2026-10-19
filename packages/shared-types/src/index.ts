@@ -415,6 +415,37 @@ export interface ReviewOpenOut {
   extraction: ExtractionResultOut;
 }
 
+/** EP-27 page metadata for the SourceViewer + HighlightOverlay (10 §4). */
+export interface DocumentPageDetailOut {
+  page_number: number;
+  image_url: string | null;
+  width_px: number | null;
+  height_px: number | null;
+  ocr_used: boolean;
+  ocr_confidence: number | null;
+}
+
+/** EP-27 GET /documents/{id}/source `data` — SCR-10 Source Viewer (10 §4). */
+export interface DocumentSourceOut {
+  url: string | null;
+  expires_at: string | null;
+  mime_type: string | null;
+  page_count: number | null;
+  pages: DocumentPageDetailOut[];
+  /** Present for virtual C1/C2 documents instead of a file `url`. */
+  manual_info?: { created_by_full_name: string; created_at: string } | null;
+}
+
+/** A `source_location` bounding box resolved from extracted_fields (05 §7.1). */
+export interface SourceBoundingBox {
+  kind: "BOUNDING_BOX" | string;
+  page: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 // EP-25 GET /documents/{id} — detail with jobs, status timeline, reviews, affected.
 export interface StatusTimelineItem {
   status: DocumentStatus | string;

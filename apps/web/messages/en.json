@@ -698,5 +698,17 @@
       "SYSTEM": "System",
       "AI": "AI"
     }
+  },
+  "sourceViewer": {
+    "loading": "Loading source document…",
+    "loadError": "Could not open the document",
+    "retry": "Retry",
+    "forbiddenSalary": "Document contains personal salary data — only the HR Manager may open it",
+    "forbiddenScope": "Source is in another scope — you do not have permission to view it",
+    "manualEntry": "Entered manually by {name} at {time}",
+    "download": "Download",
+    "page": "Page {page}/{total}",
+    "openOriginal": "Open original document",
+    "highlightLabel": "Region containing the selected field value"
   }
 }
