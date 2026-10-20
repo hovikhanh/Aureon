@@ -401,7 +401,7 @@ Score = Likelihood × Impact (1–5); level theo 03 BR-RSK-02: **critical 16–2
 | R-10 | Chậm phê duyệt hóa đơn điện tử | finance.invoices | 2 | 4 | 8 | medium | Trần Thị Minh | 01/09/2026 | 1 (quá hạn) |
 | R-11 | Thay đổi quy định NĐ 13 về dữ liệu cá nhân | platform | 2 | 3 | 6 | medium | Bùi Thu Trang | 01/07/2026 | 1 |
 
-**R-12 (không có trong file — tự sinh từ event, `source='EVENT'`):** "Chậm tuyển 6 sales HN ảnh hưởng doanh thu Q4", liên kết HP-2026-07, L 3 × I 4 = **12 high**, owner **—** (chờ phân công), mở 20/10/2026, 0 mitigation (chưa tính vào RSK-03 vì < 30 ngày). Tổng **14 mitigation đang mở, 3 quá hạn**.
+**R-12 (không có trong file — tự sinh từ event, `risk_source='event'`, `status='proposed'` — DEC-148, DEC-154):** "Chậm tuyển 6 sales HN ảnh hưởng doanh thu Q4", liên kết HP-2026-07, L 3 × I 4 = **12 high**, owner **—** (chờ phân công), đề xuất 20/10/2026, 0 mitigation; **không** tính vào METRIC-RSK-01..05 cho tới khi owner xác nhận (§10.2).
 
 ---
 
@@ -429,11 +429,14 @@ Bộ "tài liệu lệch" để demo MISMATCH: bản sao DOC-02 có HV-047 subto
 | `sales.clients` | 14 khách DOC-02 + 1 prospect (Hoàng Gia) + 25 khách lịch sử | Dedupe theo MST |
 | `sales.deals` | 39 mở + 12 won T9 + 38 lost T9 + 140 lịch sử | |
 | `hr.employees` | 150 ACTIVE + 20 TERMINATED (12 tháng) | Tên giả định |
-| `execution.tasks` | 105 seed + 15 từ DOC-05; 243 task mở tổng cộng | |
+| `execution.tasks` | 105 seed + 15 từ DOC-05 + 15 Initiative (§10.1); 243 task mở trước v2.1 (+13 chưa `done`) | `task_source` (DEC-154) |
+| `execution.initiatives` / `milestones` | 5 / 13 (§10.1) | DEC-147 |
+| `finance.cash_flow_forecasts` / `_lines` | 3 / 39 (§10.4) | DEC-148 |
+| `platform.approval_rules` / `approval_requests` / `reports` | 4 / 8 / 5 (§10.5–12.6) | DEC-153 |
 | `execution.projects` | 6 (2 trễ: "Mở kho Bình Dương", "Tích hợp ABC Order – ERP") | |
 | `product.products` / `features` / `roadmap_items` | 3 / 28 / 12 (T9 đến hạn) | |
-| `risk.risks` | 11 (DOC-09) + 1 tự sinh (R-12) | |
-| `finance.*` lịch sử | Doanh thu 12 tháng theo khách; HĐ T7/T8 tổng hợp; HL-001; ngân sách Q3; forecast 3 kịch bản Q4 | `source='SEED'`, drill-down P01 dừng ở bản ghi seed có nhãn "Dữ liệu seed lịch sử" |
+| `risk.risks` | 11 (DOC-09) + 3 `proposed` (R-12 event, R-13 ai, R-14 document — §10.2) | 13 danh mục DEC-148 |
+| `finance.*` lịch sử | Doanh thu 12 tháng theo khách; HĐ T7/T8 tổng hợp; HL-001; ngân sách Q3; forecast 3 kịch bản Q4 | C19 `source='SEED'`, drill-down P01 dừng ở bản ghi seed có nhãn "Dữ liệu seed lịch sử" |
 
 ---
 
@@ -468,10 +471,10 @@ Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9
 | METRIC-PRD-03 | Retention 30 ngày | `retention_30d_pct` | % | W < 40 · C < 25 | 72 · 71 · 70,5 · 70 · 69 · 68,3 | **68,3** | 41 / 60 (DOC-08) | OK | — |
 | METRIC-PRD-04 | Roadmap đúng tiến độ | RoadmapItem không trễ / RoadmapItem của quý × 100 | % | W < 70 · C < 50 | 90 · 88 · 85 · 80 · 78 · 75 | **75,0** | 9 / 12 (DOC-08) | OK | — |
 | METRIC-PRD-05 | Tính năng release trong kỳ | số feature released; attainment = released / planned × 100 | tính năng (+ %) | W attainment < 70 · C < 40 | 2 · 3 · 2 · 4 · 2 · 3 | **3 (75%)** | 3 release / 4 kế hoạch T9 (DOC-08) | OK | — |
-| METRIC-RSK-01 | Rủi ro high/critical đang mở | đếm level ∈ {high, critical}, chưa closed/accepted | rủi ro | W ≥ 1 high · C ≥ 1 critical | 3 · 4 · 5 · 6 · 7 · 8 | **8** | R-01..07, R-12 (3 critical: R-01, R-04, R-05) | **Critical** | ALERT-RSK-01 Critical |
-| METRIC-RSK-02 | Rủi ro high chưa có chủ | đếm level ≥ high, owner null | rủi ro | W ≥ 1 medium chưa chủ > 7 ngày · C ≥ 1 | 0 · 0 · 0 · 1 · 1 · 2 | **2** | R-06, R-12 | **Critical** | ALERT-RSK-02 Critical |
+| METRIC-RSK-01 | Rủi ro high/critical đang mở | đếm level ∈ {high, critical}, chưa closed/accepted | rủi ro | W ≥ 1 high · C ≥ 1 critical | 3 · 4 · 5 · 6 · 7 · 7 | **7** | R-01..07 (3 critical: R-01, R-04, R-05); R-12 `proposed` không đếm (DEC-148) | **Critical** | ALERT-RSK-01 Critical |
+| METRIC-RSK-02 | Rủi ro high chưa có chủ | đếm level ≥ high, owner null | rủi ro | W ≥ 1 medium chưa chủ > 7 ngày · C ≥ 1 | 0 · 0 · 0 · 1 · 1 · 1 | **1** | R-06 (R-12 `proposed` không đếm) | **Critical** | ALERT-RSK-02 Critical |
 | METRIC-RSK-03 | Rủi ro high > 30 ngày không mitigation | level ≥ high, mở > 30 ngày, không có mitigation in_progress | rủi ro | W ≥ 1 · C ≥ 1 rủi ro critical | 0 · 0 · 0 · 0 · 1 · 1 | **1** | R-03 (high) | Warning | ALERT-RSK-03 Warning |
-| METRIC-RSK-04 | Điểm rủi ro tổng hợp | Σ score rủi ro mở / số rủi ro mở (thang 1–25) | điểm | W ≥ 10 · C ≥ 15 (DEC-143) | 9,5 · 10,1 · 10,6 · 11,2 · 11,8 · 12,3 | **12,3** | 148 / 12 | Warning | ALERT-RSK-04 Warning |
+| METRIC-RSK-04 | Điểm rủi ro tổng hợp | Σ score rủi ro mở / số rủi ro mở (thang 1–25) | điểm | W ≥ 10 · C ≥ 15 (DEC-143) | 9,5 · 10,1 · 10,6 · 11,2 · 11,8 · 12,4 | **12,4** | 136 / 11 | Warning | ALERT-RSK-04 Warning |
 | METRIC-RSK-05 | Biện pháp quá hạn | đếm mitigation planned/in_progress quá hạn | biện pháp | W ≥ 1 · C ≥ 5 hoặc ≥ 1 thuộc rủi ro critical | 1 · 1 · 1 · 2 · 2 · 3 | **3** | 3 / 14 (R-01, R-07, R-10); 1 thuộc R-01 critical | **Critical** | ALERT-RSK-05 Critical |
 | METRIC-RSK-06 | Strategy execution index | Σ weight × on_track / Σ weight × 100 (Objective Q3) | % | W < 70 · C < 50 | — · — · — · — · — · 66,7 | **66,7** | 4 / 6 Objective Q3 on track (weight bằng nhau) | Warning | ALERT-RSK-06 Warning |
 
@@ -486,7 +489,7 @@ Trend là giá trị cuối tháng T4→T9/2026 (6 kỳ); kỳ hiện tại = T9
 | PIL-S | 0 | 3 | 3 | **critical** (RSK-01/02/05) |
 | **Tổng 31** | **16** | **12** | **3** | **2 ok · 2 warning · 1 critical** (DEC-143) |
 
-Ngoại lệ dồn vào trụ S (đúng câu chuyện "rủi ro mới chưa có chủ"). 15 alert đang mở (12 Warning + 3 Critical). Briefing CEO lấy tối đa 3 ngoại lệ ưu tiên: ALERT-RSK-02 (R-12 chờ phân công), ALERT-RSK-01 (R-01 thiếu hụt dòng tiền, critical), ALERT-HR-04 (HP-2026-07 — nguyên nhân R-12).
+Ngoại lệ dồn vào trụ S (đúng câu chuyện "rủi ro mới chưa có chủ"). 15 alert đang mở (12 Warning + 3 Critical). Briefing CEO lấy tối đa 3 ngoại lệ ưu tiên: ALERT-RSK-02 (R-06 chưa có chủ; kèm khối "Rủi ro đề xuất" R-12 chờ phân công — §10.2), ALERT-RSK-01 (R-01 thiếu hụt dòng tiền, critical), ALERT-HR-04 (HP-2026-07 — nguyên nhân R-12).
 
 ---
 
@@ -501,9 +504,10 @@ Seed phát qua outbox như luồng thật (không ghi thẳng vào bảng consum
 | E3 | — | (không phát) | PRD-ORDER churn 1,79% < sàn 2% (BR-PRD-01) | R-05 lấy từ DOC-09; demo BR-PRD-01 bằng fixture TC-PRD-002 |
 | E4 | 06/10/2026 | `EVT-risk.risk_level_changed` | R-01 high → critical | platform: ALERT-RSK-01 cập nhật · ai_core: đưa vào Briefing |
 | E5 | 15/10/2026 | `EVT-sales.deal_closed_lost` | deal "Trang bị VP Tân Phú" 0,8 tỷ, lý do giá | risk: < `RISK_LOST_DEAL_MIN_VALUE` (1 tỷ), chỉ log |
-| E6 | 20/10/2026 07:00 | `EVT-hr.hiring_plan_delayed` | HP-2026-07, trễ 35 ngày, 6 vị trí SAL | risk: **tự sinh R-12** (`source='EVENT'`, owner null, high) → `EVT-risk.risk_identified` |
-| E7 | 20/10/2026 07:01 | `EVT-risk.risk_identified` | R-12, score 12 | platform: ALERT-RSK-02 lên Critical (2 rủi ro high chưa có chủ) · ai_core: insight liên miền "Chậm tuyển → rủi ro hụt KR1.1 doanh thu Q4" |
+| E6 | 20/10/2026 07:00 | `EVT-hr.hiring_plan_delayed` | HP-2026-07, trễ 35 ngày, 6 vị trí SAL | risk: **tự sinh R-12** (`risk_source='event'`, `status='proposed'`, owner null, high) → `EVT-risk.risk_proposed` (BR-RSK-03, DEC-148) |
+| E7 | 20/10/2026 07:01 | `EVT-risk.risk_proposed` | R-12, category `people`, severity high | platform: thông báo RISK_MANAGER (không alert — 03 §3.1 #9) · ai_core: insight liên miền "Chậm tuyển → rủi ro hụt KR1.1 doanh thu Q4"; `EVT-risk.risk_identified` chỉ phát khi owner xác nhận ở phút 9–11 (§8) |
 | E8 | 20/10/2026 07:05 | `EVT-execution.task_overdue` | 4 task DOC-05 quá hạn | platform: METRIC-OPS-01 tính lại |
+| E9 | 20/10/2026 07:10 | `EVT-finance.cash_flow_forecast_updated` | bản base: đáy 3,1 tỷ tuần 7 (§10.4) | risk: R-13 `proposed` (kịch bản bi quan âm tuần 9) · ai_core: insight SCR-31 |
 
 Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_events`).
 
@@ -517,10 +521,10 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 | 2–5 | CEO | Bấm thẻ METRIC-FIN-01 (88,5%) → Panel AI → drill-down | DOC-01, DOC-02 | Nguyên nhân có source chip; ≤ 3 click tới trang 4 PDF DOC-01 và dòng HV-xxx |
 | 5–7 | CEO | Hỏi AI "Rủi ro tuyển dụng chậm ảnh hưởng thế nào đến dự báo tài chính?" rồi "Runway nếu tháng sau không có doanh thu mới?" | R-12, HP-2026-07, forecast | Trả lời có `sources`; runway với doanh thu = 0 tính từ tool Finance, không bịa số |
 | 7–9 | CEO | Chọn phương án → Action card L2 → xác nhận | QD-01 | 3 task tạo, toast hoàn tác 10 giây, quyết định mới ghi log |
-| 9–11 | CFO → Risk Manager | Chuyển vai; SCR-21 what-if R-01 | R-01, cash 20,4 tỷ | Tác động lên runway/nhân sự/sản phẩm; gán owner R-12 và R-06 → METRIC-RSK-02 = 0, ALERT-RSK-02 đóng |
+| 9–11 | CFO → Risk Manager | Chuyển vai; SCR-21 what-if R-01 | R-01, cash 20,4 tỷ | Tác động lên runway/nhân sự/sản phẩm; xác nhận R-12 (`proposed` → `identified`, owner Lê Hoàng Giang) và gán owner R-06 → METRIC-RSK-02 = 0, ALERT-RSK-02 đóng; CFO mở SCR-31 (đáy 3,1 tỷ tuần 7) và SCR-29 duyệt AR-02 |
 | 11–16 | CEO | UC-07: thả 9 tài liệu | DOC-01..09 | Phân loại đúng 9/9; trang 7 DOC-01 confidence Thấp |
 | 16–18 | Reviewer | F2: duyệt DOC-02 trên SCR-10 | DOC-02 | Duyệt ≤ 60 giây; XD-01 MATCH; ghi vào `finance.invoices` qua Action Registry |
-| 18–20 | CEO | Quay lại SCR-01 | lineage | Metric cập nhật, insight mới, lineage tới tài liệu vừa duyệt |
+| 18–20 | CEO | Quay lại SCR-01; SCR-29 duyệt bước 2 AR-01 (620 triệu ≥ 500 triệu — DEC-155); SCR-30 tạo báo cáo `BOARD` | lineage, §10.5–12.6 | Metric cập nhật, insight mới, lineage tới tài liệu vừa duyệt |
 
 **Dự phòng:** nếu provider LLM lỗi → `MODEL_GATEWAY_MODE=fixture` trả kết quả ground truth ở §3; dashboard vẫn chạy (P08).
 
@@ -548,13 +552,176 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 | K16 | NRR | 69,9 / 66,9; 69,9 + 3,6 (khách mới) = 73,5 | 104,5% ✓ |
 | K17 | Doanh thu theo sản phẩm | 19,125 + 4,08 + 2,295 | 25,5 tỷ ✓ |
 | K18 | Tài khoản ABC Order | 1.950 + 63 − 35 | 1.978; MAU 1.430 / 1.978 = 72,3%; churn 35 / 1.950 = 1,79% ✓ |
-| K19 | Rủi ro | 12 rủi ro, score = L × I, Σ 148 / 12 | index 12,3 (Warning, DEC-143); 8 high+; 3 critical ✓ |
+| K19 | Rủi ro | 11 rủi ro mở (R-12..14 `proposed` không đếm — DEC-148), score = L × I, Σ 136 / 11 | index 12,4 (Warning, DEC-143); 7 high+; 3 critical ✓ (xem K28) |
 | K20 | Mitigation | 14 mở, 3 quá hạn (1 thuộc R-01 critical) | METRIC-RSK-05 = 3 → Critical ✓ |
 | K21 | Trạng thái 31 metric | đánh giá theo ngưỡng 03 §2 | 16 OK · 12 W · 3 C, khớp cột "Trạng thái"; trụ 2 ok · 2 warning · 1 critical ✓ |
 
 ---
 
-## 10. Open questions
+## 10. Seed bổ sung v2.1 (Phase 3d — DEC-147, DEC-148, DEC-153, DEC-155, DEC-157)
+
+Mọi số trong mục này tính bằng script (DEC-022); kiểm tra ở §10.8. `source = 'SEED'`, `data_classification` theo 03 §7.4 (DEC-157).
+
+### 10.1. Initiative / Milestone / Task (`ENT-Initiative`, `ENT-Milestone`, `ENT-Task` — DEC-147)
+
+Mỗi trụ một Initiative, gắn Objective Q4 (DOC-07); `weight_pct` trong Objective = 100 (một Initiative / Objective). `progress_pct` = milestone `done` / tổng milestone × 100 (hệ thống tính; seed ghi sẵn để khớp).
+
+| Mã | Initiative | Trụ | Objective | Owner | Phòng ban | Bắt đầu → Kết thúc dự kiến | Trạng thái | Ngân sách |
+|---|---|---|---|---|---|---|---|---|
+| `INI-2026-01` | Thu hồi công nợ quá hạn ≤ 10% | F | O2 | Trần Thị Minh | FIN | 01/10/2026 → 31/12/2026 | `active` | 150.000.000 |
+| `INI-2026-02` | Tuyển đủ 9 sales HN + đào tạo nhập môn | O | O3 | Phạm Thị Hạnh | HRA | 15/09/2026 → 30/11/2026 | `at_risk` | 420.000.000 |
+| `INI-2026-03` | Giữ chân top 5 khách hàng | C | O1 | Lê Hoàng Giang | SAL | 01/10/2026 → 31/12/2026 | `active` | 300.000.000 |
+| `INI-2026-04` | ABC Order 2.0 — giảm churn | U | O4 | Đỗ Quang Huy | PRD | 01/09/2026 → 15/01/2027 | `active` | 1.200.000.000 |
+| `INI-2026-05` | Đa dạng hóa nhà cung cấp mực in | S | O5 | Bùi Thu Trang | BOD | 01/10/2026 → 31/12/2026 | `planned` | 80.000.000 |
+
+| Initiative | Milestone (hạn · trạng thái) | Task (assignee · hạn · trạng thái · `task_source`) |
+|---|---|---|
+| INI-2026-01 | M1 Phân loại 39 khoản phải thu theo tuổi nợ (10/10 · `done`) · M2 Thu HL-001 + 5 HĐ quá hạn (15/11 · `planned`) · M3 Áp điều khoản thanh toán mới (15/12 · `planned`) | Gọi điện 5 khách quá hạn (Vũ Đức Thắng · 25/10 · `in_progress` · manual) · Gửi thư nhắc HL-001 lần 2 (Trần Thị Minh · 22/10 · `todo` · ai) · Cập nhật mẫu hợp đồng điều khoản 30 ngày (Trần Thị Minh · 30/11 · `backlog` · manual) |
+| INI-2026-02 | M1 Đăng tuyển 3 kênh (25/09 · `done`) · M2 Phỏng vấn vòng 2 (25/10 · `missed`) · M3 Nhận việc 9 người (30/11 · `planned`) | Sàng lọc 120 CV (Phạm Thị Hạnh · 05/10 · `done` · manual) · Đặt lịch phỏng vấn HN (Phạm Thị Hạnh · 18/10 · `blocked` "thiếu người phỏng vấn SAL" · meeting) · Chuẩn bị chương trình onboarding (Phạm Thị Hạnh · 20/11 · `todo` · meeting) |
+| INI-2026-03 | M1 Họp QBR với 5 khách (31/10 · `planned`) · M2 Gia hạn HD-2026-002 (15/11 · `planned`) | Chuẩn bị QBR Văn phòng Phẩm (Ngô Thị Lan · 28/10 · `in_progress` · manual) · Đề xuất giá gia hạn HD-2026-002 (Lê Hoàng Giang · 05/11 · `todo` · document) · Khảo sát hài lòng top 5 (Ngô Thị Lan · 15/11 · `backlog` · ai) |
+| INI-2026-04 | M1 Phỏng vấn 20 khách rời bỏ (30/09 · `done`) · M2 Phát hành onboarding mới (15/11 · `planned`) · M3 Thông báo trong app (15/12 · `planned`) | Tổng hợp lý do churn (Đỗ Quang Huy · 05/10 · `done` · manual) · Thiết kế luồng onboarding (Đỗ Quang Huy · 30/10 · `in_review` · manual) · Đo MAU sau phát hành (Đỗ Quang Huy · 30/11 · `todo` · ai) |
+| INI-2026-05 | M1 Danh sách 3 NCC thay thế (31/10 · `planned`) · M2 Ký hợp đồng NCC thứ hai (15/12 · `planned`) | Xin báo giá 3 NCC (Bùi Thu Trang · 28/10 · `todo` · mitigation) · Đánh giá rủi ro NCC (Bùi Thu Trang · 10/11 · `backlog` · mitigation) · Đề xuất ngân sách thử nghiệm (Trần Thị Minh · 15/11 · `backlog` · manual) |
+
+**Đếm:** 5 Initiative · **13 Milestone** (3 `done`, 1 `missed`, 9 `planned`) · **15 Task** (2 `done`, 2 `in_progress`, 1 `in_review`, 1 `blocked`, 5 `todo`, 4 `backlog`). Task này **bổ sung** vào 105 + 15 task §5 (`execution.tasks` = 135); mọi hạn từ 05/10 trở đi (ngoài kỳ T9) nên METRIC-OPS-01 kỳ T9 không đổi. `progress_pct`: INI-01 33,3 · INI-02 33,3 · INI-03 0 · INI-04 33,3 · INI-05 0.
+
+### 10.2. Rủi ro đề xuất (`status = proposed` — DEC-148)
+
+R-12 đổi từ "tự sinh `identified`" sang **`proposed`** (BR-RSK-03 2.1.0): rủi ro tự sinh chờ owner xác nhận, **không** tính vào METRIC-RSK-01..05.
+
+| Mã | Rủi ro | `risk_source` | Nguồn | Danh mục (13 — DEC-148) | L × I | Level | Owner đề xuất | Đề xuất lúc |
+|---|---|---|---|---|---|---|---|---|
+| R-12 | Chậm tuyển 6 sales HN ảnh hưởng doanh thu Q4 | `event` | E6 `EVT-hr.hiring_plan_delayed` (HP-2026-07) | `people` | 3 × 4 = 12 | high | — (chờ phân công) | 20/10/2026 07:00 |
+| R-13 | Dòng tiền âm tuần 9 ở kịch bản bi quan | `ai` | E9 `EVT-finance.cash_flow_forecast_updated` (§10.4, `pessimistic` đáy −1,984 tỷ) | `financial` | 2 × 5 = 10 | high | Trần Thị Minh | 20/10/2026 07:10 |
+| R-14 | Hợp đồng HD-2026-002 thiếu điều khoản phạt chậm thanh toán | `document` | DOC-04 (IDP, trường `penalty_clause = null`) | `legal` | 2 × 3 = 6 | medium | Lê Hoàng Giang | 20/10/2026 07:20 |
+
+Kịch bản demo (phút 9–11): Risk Manager xác nhận R-12 → `identified` + owner Lê Hoàng Giang → `EVT-risk.risk_identified` (high) — METRIC-RSK-01 7 → 8 (vẫn Critical), METRIC-RSK-02 không đổi (R-12 có chủ ngay khi xác nhận). Bác bỏ R-14 → `rejected` (bắt buộc lý do).
+
+### 10.3. Data Quality Score theo domain (METRIC-DQ-01 — 03 §2.6)
+
+`dq_score = completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`; ngưỡng warning < 80, critical < 60 (`THR_DQ_01_*`). Seed vào `ENT-MetricValue` (`scope_type = company` + bản ghi theo domain trong `metric_snapshot` lineage — 05 không có `scope_type = domain`, OQ-10).
+
+| Domain | Completeness | Accuracy | Freshness | DQ Score | Trạng thái | Nguyên nhân seed |
+|---|---|---|---|---|---|---|
+| finance | 96 | 92 | 100 | **95,6** | ok | DOC-01/02 duyệt đủ; 8% field tiền bị reviewer sửa |
+| sales | 91 | 86 | 80 | **85,7** | ok | 1/5 nguồn quá SLA (pipeline cập nhật 30 giờ trước) |
+| hr | 84 | 78 | 60 | **74,4** | warning | 16% hồ sơ thiếu `position`; DOC-06 nạp 4 ngày trước |
+| product | 88 | 82 | 70 | **80,2** | ok | DOC-08 nạp 5 ngày trước (≤ 72 giờ: không) |
+| risk | 62 | 58 | 50 | **56,8** | critical | 4/12 rủi ro thiếu `review_date`; R-06 thiếu owner; sổ rủi ro chưa cập nhật 6 ngày |
+| execution | 79 | 74 | 55 | **69,8** | warning | 21% task thiếu `estimate_hours`; check-in KR quá hạn |
+| **Công ty** | | | | **77,1** | **warning** | Trung bình 6 domain (không trọng số) → ALERT-DQ-01 Warning |
+
+METRIC-DQ-01 **không** tham gia trạng thái trụ (03 §4) → §6.1 giữ nguyên 2 ok · 2 warning · 1 critical. Tổng metric seed: **32** (31 trụ + DQ-01); alert mở: **16** (15 + ALERT-DQ-01 Warning).
+
+**SLA freshness theo domain (seed + cấu hình):**
+
+| Domain | Warning khi chưa cập nhật | Critical khi chưa cập nhật | Env |
+|---|---|---|---|
+| finance | 24 giờ | 48 giờ | `SLA_FRESHNESS_FINANCE_HOURS` (`24,48`) |
+| sales | 24 giờ | 48 giờ | `SLA_FRESHNESS_SALES_HOURS` (`24,48`) |
+| hr | 72 giờ | — | `SLA_FRESHNESS_HR_HOURS` (`72`) |
+| product | 72 giờ | — | `SLA_FRESHNESS_PRODUCT_HOURS` (`72`) |
+| risk | 48 giờ | — | `SLA_FRESHNESS_RISK_HOURS` (`48`) |
+| execution | 48 giờ | — | `SLA_FRESHNESS_EXECUTION_HOURS` (`48`) |
+
+Freshness thành phần = nguồn trong SLA warning / tổng nguồn × 100. Bảng này **lệch** 03 §2.6 (BO-02: tài chính ≤ 24 giờ, task/sales ≤ 1 giờ, còn lại `FRESHNESS_STALE_DAYS`) và 6 env `SLA_FRESHNESS_*` chưa có ở 07 §7 → OQ-11 (đề xuất DEC; seed dùng bảng này).
+
+### 10.4. Dòng tiền 13 tuần (`ENT-CashFlowForecast` + 13 `ENT-CashFlowForecastLine` × 3 kịch bản — DEC-148)
+
+`start_week` = 19/10/2026 (Thứ Hai tuần chứa `DEMO_REFERENCE_DATE`); `opening_cash` = **18.400.000.000** (số dư 30/09 20,4 tỷ − chi ròng 01–18/10 2,0 tỷ, `ENT-CashPosition` 18/10). Đơn vị bảng: **triệu đồng** (seed lưu VND × 1.000.000). Kịch bản chỉ khác **tỷ lệ thu công nợ đúng hạn** (`assumptions.collection_on_time_pct`): lạc quan 95% · **cơ sở 85%** · bi quan 75%; dòng thu công nợ = cơ sở × (tỷ lệ / 85), làm tròn triệu. Chi giữ nguyên. Lương: tổng tháng 2.925 (DOC-06), trả tuần 1/5/9 (không lương cá nhân — 05).
+
+**Kịch bản cơ sở (`is_current = true`, `confidence_level = MEDIUM`):**
+
+| Tuần | Bắt đầu | Thu công nợ | Thu khác | Trả NCC | Lương | Opex | Chi khác | Ròng | Số dư cuối |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 19/10 | 4.200 | 300 | 2.100 | 2.925 | 800 | 900 | −2.225 | 16.175 |
+| 2 | 26/10 | 5.200 | 100 | 6.200 | 0 | 800 | 660 | −2.360 | 13.815 |
+| 3 | 02/11 | 4.800 | 100 | 5.400 | 0 | 800 | 0 | −1.300 | 12.515 |
+| 4 | 09/11 | 5.000 | 150 | 5.200 | 0 | 800 | 0 | −850 | 11.665 |
+| 5 | 16/11 | 4.600 | 100 | 4.300 | 2.925 | 800 | 900 | −4.225 | 7.440 |
+| 6 | 23/11 | 4.400 | 100 | 5.900 | 0 | 800 | 0 | −2.200 | 5.240 |
+| 7 | 30/11 | 3.800 | 100 | 5.240 | 0 | 800 | 0 | −2.140 | **3.100** (đáy) |
+| 8 | 07/12 | 7.600 | 200 | 4.300 | 0 | 800 | 0 | 2.700 | 5.800 |
+| 9 | 14/12 | 6.800 | 100 | 4.600 | 2.925 | 800 | 900 | −2.325 | 3.475 |
+| 10 | 21/12 | 7.400 | 150 | 4.100 | 0 | 800 | 0 | 2.650 | 6.125 |
+| 11 | 28/12 | 6.900 | 100 | 4.500 | 0 | 800 | 0 | 1.700 | 7.825 |
+| 12 | 04/01 | 7.200 | 100 | 4.400 | 0 | 800 | 0 | 2.100 | 9.925 |
+| 13 | 11/01 | 4.725 | 150 | 4.200 | 0 | 800 | 0 | −125 | **9.800** |
+
+Chi khác tuần 1/5/9 = BHXH + thuế TNCN nộp hộ 900; tuần 2 = thuế TNDN tạm nộp Q3 660 (= `income_tax` DOC-01).
+
+**Tổng hợp 3 kịch bản** (bản `optimistic`/`pessimistic` lưu `is_current = false`, `assumptions.scenario`):
+
+| Kịch bản | Thu đúng hạn | Σ thu 13 tuần | Σ chi 13 tuần | Đáy (tuần) | Số dư tuần 13 |
+|---|---|---|---|---|---|
+| `optimistic` | 95% | 82.920 | 82.975 | 6.865 (tuần 7) | 18.345 |
+| `base` | 85% | 74.375 | 82.975 | **3.100 (tuần 7)** | **9.800** |
+| `pessimistic` | 75% | 65.830 | 82.975 | **−1.984 (tuần 9)** | 1.255 |
+
+Khớp wireframe SCR-31 (06 §4.14: đầu kỳ 18,4 tỷ · đáy 3,1 tỷ tuần 7 · cuối kỳ 9,8 tỷ). Bi quan âm tuần 9 → E9 + R-13 (§10.2).
+
+**Event seed bổ sung (§7):** E9 20/10/2026 07:10 `EVT-finance.cash_flow_forecast_updated` `{ min_projected_cash: 3100000000, min_cash_week: 7 }` (bản base) → risk: R-13 `proposed` (từ kịch bản bi quan, `RISK_EVENT_SCORING`) · ai_core: insight SCR-31.
+
+### 10.5. Mẫu báo cáo (`ENT-Report` — DEC-153; 10 EP-120)
+
+| Mẫu (`template_code`) | `kind` lưu | Kỳ seed | Phạm vi | Định dạng | Trạng thái seed | Nội dung |
+|---|---|---|---|---|---|---|
+| `DAILY` | — (Briefing EP-10, không lưu `ENT-Report`) | 20/10/2026 | công ty / theo role | màn hình | — | §6.1 + 3 ngoại lệ Briefing |
+| `WEEKLY` | `WEEKLY` | `2026-W42` | công ty + phòng ban LOG | PDF | `READY` ×2 | 31 metric + DQ, alert mới, task quá hạn, rủi ro mới |
+| `MONTHLY` | `MONTHLY` | `2026-09` | công ty | PDF + XLSX | `READY` ×2 | P&L T9 (DOC-01), ngân sách (§3), pipeline, nhân sự, rủi ro |
+| `BOARD` | `MONTHLY` (`metric_snapshot.template_code = BOARD`) | `2026-Q3` → kỳ `2026-09` | công ty | PDF | `QUEUED` (demo bấm tạo → `READY`) | MONTHLY + 5 Initiative (§10.1), dòng tiền 13 tuần (§10.4), quyết định cần HĐQT |
+
+Đếm seed `ENT-Report`: **5** bản ghi (4 `READY`, 1 `QUEUED`). Word (.docx) hoãn v2.1 (DEC-153).
+
+### 10.6. Yêu cầu phê duyệt (`ENT-ApprovalRule`, `ENT-ApprovalRequest` — DEC-153, DEC-155)
+
+**Rule (4):**
+
+| Code | `target_kind` | Điều kiện | Bước 1 | Bước 2 | SLA |
+|---|---|---|---|---|---|
+| `APR-EXPENSE-LARGE` | `ACT-record_expense` | `amount ≥ 50.000.000` | `CFO` | `CEO` khi `amount ≥ APPROVAL_FINANCE_THRESHOLD_VND` (500.000.000) | 8 giờ |
+| `APR-INVOICE-IN` | `ACT-create_invoice` | `amount ≥ 100.000.000` | `CFO` | `CEO` khi ≥ 500.000.000 | 8 giờ |
+| `APR-HIRING` | `hiring_plan` | `headcount ≥ 1` | `CFO` | — | 16 giờ |
+| `APR-AI-POLICY` | `ai_action` | nâng autonomy (10 EP-117) | chủ domain (`CFO` / `VP_SALES` / `HR_MANAGER` / `CPO` / `RISK_MANAGER`) | — | 24 giờ |
+
+**Request (8):**
+
+| # | Rule | Nội dung | Giá trị | Người gửi | Trạng thái | Bước | Hạn / ghi chú |
+|---|---|---|---|---|---|---|---|
+| AR-01 | APR-EXPENSE-LARGE | Mua 40 máy in nhập khẩu (kho LOG) | 620.000.000 | Hoàng Minh Tuấn | `PENDING` | 2 (CFO đã duyệt 19/10) | Chờ CEO, hạn 21/10 08:00 — "quyết định đang chờ anh" (US-CEO-006) |
+| AR-02 | APR-INVOICE-IN | HĐ NCC mực in T10 | 180.000.000 | Vũ Đức Thắng | `PENDING` | 1 | Chờ CFO, hạn 20/10 16:00 |
+| AR-03 | APR-HIRING | HP-2026-07 bổ sung 2 vị trí | 2 người | Phạm Thị Hạnh | `PENDING` | 1 | **Quá SLA** → `escalated_at` 20/10 06:00 tới CEO |
+| AR-04 | APR-EXPENSE-LARGE | Hội nghị khách hàng Q4 (do AI soạn — `ai_action_id`, `TOOL-request_approval`) | 95.000.000 | Lê Hoàng Giang | `PENDING` | 1 | Chờ CFO, nhãn "AI soạn" |
+| AR-05 | APR-EXPENSE-LARGE | Gia hạn bản quyền phần mềm kế toán | 72.000.000 | Trần Thị Minh | `APPROVED` | 1 | CEO duyệt 15/10 (người gửi là CFO → bước 1 dùng `escalate_to_role_code`) |
+| AR-06 | APR-INVOICE-IN | HĐ vận chuyển T9 | 540.000.000 | Vũ Đức Thắng | `APPROVED` | 2 | CFO 10/10 → CEO 11/10 |
+| AR-07 | APR-EXPENSE-LARGE | Quà tặng khách VIP | 150.000.000 | Ngô Thị Lan | `REJECTED` | 1 | CFO từ chối 14/10, lý do "vượt định mức chi tiếp khách Q4" |
+| AR-08 | APR-AI-POLICY | Nâng `ACT-create_task` → L3 cho phòng SAL | — | Trịnh Văn Khoa | `APPROVED` | 1 | VP Sales xác nhận 12/10 (GAP D-08) |
+
+Đếm: **8** request — 4 `PENDING` (1 bước 2, 1 escalated, 1 do AI soạn), 3 `APPROVED`, 1 `REJECTED`. Badge SCR-29 của CEO = 2 (AR-01, AR-03 escalated); CFO = 2 (AR-02, AR-04).
+
+### 10.7. Phân loại dữ liệu seed (DEC-157)
+
+| Dữ liệu seed | `data_classification` | Provider AI khi demo |
+|---|---|---|
+| `platform.metric_values` (32 metric × 6 kỳ), `platform.reports`, Briefing | `INTERNAL` | Cloud (chain 07 §6.1) |
+| Từng hóa đơn DOC-02, deal, hợp đồng DOC-04, rủi ro DOC-09, approval request | `CONFIDENTIAL` | Local `qwen2.5:7b-instruct`; ADMIN override cloud qua EP-129 nếu máy demo không chạy được Ollama |
+| Lương cá nhân, ngày sinh, địa chỉ DOC-06 | `SECRET` | Không LLM |
+
+### 10.8. Kiểm tra số học bổ sung
+
+| # | Kiểm tra | Phép tính | Kết quả |
+|---|---|---|---|
+| K22 | Đếm Initiative / Milestone / Task | 5 · (3+3+2+3+2) · 5 × 3 | 5 · 13 · 15 ✓ |
+| K23 | Dòng tiền base | 18.400 + Σ ròng (−8.600) | 9.800; đáy tuần 7 = 3.100 ✓ |
+| K24 | Σ thu / chi base | 74.375 − 82.975 | −8.600 = 9.800 − 18.400 ✓ |
+| K25 | Kịch bản | thu công nợ × 95/85 và × 75/85 | đáy 6.865 (T7) · −1.984 (T9) ✓ |
+| K26 | DQ domain | c × 0,3 + a × 0,4 + f × 0,3 | 95,6 · 85,7 · 74,4 · 80,2 · 56,8 · 69,8 ✓ |
+| K27 | DQ công ty | Σ 6 domain / 6 = 462,5 / 6 | 77,1 → warning ✓ |
+| K28 | Rủi ro mở (không gồm `proposed`) | 11 rủi ro, Σ score 136 | index 12,4 (Warning); RSK-01 = 7 (3 critical); RSK-02 = 1 (R-06) ✓ |
+| K29 | Approval | 4 + 3 + 1 | 8 request ✓ |
+
+---
+
+## 11. Open questions
 
 | # | Câu hỏi | Đề xuất | Ảnh hưởng |
 |---|---|---|---|
@@ -565,15 +732,21 @@ Kiểm thử idempotency: chạy seed E6 hai lần → chỉ 1 R-12 (`processed_
 | OQ-05 | Chưa liệt kê đủ 150 nhân viên, 28 feature, 140 deal lịch sử | Sinh bằng script seed có seed ngẫu nhiên cố định, giữ các tổng ở §9 | T-510 |
 | OQ-06 | R-12 sinh từ event; nếu demo chạy lại trong ngày, thời điểm E6–E8 có cố định 20/10 07:00 không | Cố định theo `DEMO_REFERENCE_DATE` | T-510 |
 | OQ-07 | ✅ **Resolved — DEC-143** (ngưỡng mới + hiệu chỉnh seed → 2 ok · 2 warning · 1 critical). Câu hỏi gốc: Với ngưỡng mặc định của 03 (vd CUS-01 C < 3,0x, RSK-04 C ≥ 12) cả 5 trụ đều critical — CEO thấy "toàn đỏ", giảm hiệu quả P07 | Human xem lại ngưỡng CUS-01/RSK-04 ở 03, hoặc chấp nhận cho demo | 03, 08 §6 |
+| OQ-08 | R-12 đổi sang `proposed` (DEC-148) làm METRIC-RSK-01 8 → 7, RSK-02 2 → 1, RSK-04 12,3 → 12,4 — trạng thái không đổi | Chấp nhận (đã cập nhật §6, K19/K28); demo xác nhận R-12 tại phút 9–11 | 03, 14 TC-RSK-006 |
+| OQ-09 | Task của Initiative có ảnh hưởng METRIC-OPS-01 kỳ T9 không | Không — hạn từ 05/10 (ngoài kỳ T9) | 03 |
+| OQ-10 | DQ Score theo domain: 05 `platform.scope_type` chỉ có `company, department, product` | Lưu domain trong `metric_snapshot`/lineage của bản `company`; thêm `domain` vào enum nếu cần drill-down → DEC (Phase 4) | 05, 03 §2.6 |
+| OQ-11 | SLA freshness theo domain (§10.3: finance/sales 24/48 giờ, hr/product 72 giờ, risk/execution 48 giờ; env `SLA_FRESHNESS_<DOMAIN>_HOURS`) lệch 03 §2.6 (BO-02: tài chính ≤ 24 giờ, task/sales ≤ 1 giờ) và chưa có trong 07 §7 | **Đề xuất DEC (human):** chốt bảng §10.3 cho demo, đăng ký 6 env ở 07 §7 và cập nhật 03 §2.6; trước khi chốt seed dùng §10.3 | 03, 07, `.env.example` (T-014) |
 
 ---
 
-## 11. Version
+## 12. Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3d)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo DEC-136 (ABC ~150 NV, 9 tài liệu, 31 metric, 10 tài khoản, seed sự kiện); v1.0.0 lưu ở nhánh `v1`.
+- **Change 2.1.0 (Phase 3d — DEC-147, DEC-148, DEC-153..155, DEC-157):** §10 seed v2.1 — 5 Initiative / 13 Milestone / 15 Task (mỗi trụ một), 3 rủi ro `proposed` (R-12 event, R-13 ai, R-14 document), DQ Score 6 domain (3 ok · 2 warning · 1 critical; công ty 77,1 warning), dòng tiền 13 tuần × 3 kịch bản (base đáy 3,1 tỷ tuần 7), 4 mẫu báo cáo / 5 report, 4 approval rule / 8 request, SLA freshness theo domain, phân loại seed; R-12 → `proposed` (RSK-01 7, RSK-02 1, RSK-04 12,4); event E6/E7 + E9; kiểm tra K22–K29; OQ-08..11.
 - **Change (2026-10-19, DEC-143):** ngưỡng CUS-01/RSK-04/HR-04 mới; hiệu chỉnh seed (ngân sách SAL 3.350, pipeline 235,5 tỷ, top 5 146,7 tỷ, churn 35 → 1,79%, MAU 1.430, roadmap 9/12); §6.1 = 16 OK · 12 W · 3 C, trụ 2 ok · 2 warning · 1 critical; đóng OQ-07.
 
