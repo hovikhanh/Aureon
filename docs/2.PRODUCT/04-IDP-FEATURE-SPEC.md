@@ -620,7 +620,7 @@ Lịch sử giao review lưu ở `ENT-ReviewAssignment` (05, append-only; **khô
 | Nhắc | System (job SLA mỗi 15 phút) | Còn 25% SLA → thông báo người được giao | `ENT-Notification` |
 | `ESCALATE` | System | Quá `due_at` → giao lên trưởng phòng hoặc `escalate_to` của doc type; phát `EVT-idp.review_escalated`; quá tiếp 1 SLA → escalate lên CEO/CFO theo trụ | `kind = ESCALATE`; event payload theo 05 §5 |
 
-`ACT-reassign_review`, `ACT-merge_review` là action nội bộ module `idp` (không ghi domain) — bổ sung §10.2; endpoint (mở rộng EP-29..37 hoặc EP mới trong dải EP-20..41) chốt ở 10 **Phase 3d**.
+`ACT-reassign_review`, `ACT-merge_review` là action nội bộ module `idp` (không ghi domain) — bổ sung §10.2; endpoint: **EP-126** (reassign), **EP-127** (merge) — 10 §3.12 (dải EP-20..41 đã kín).
 
 ---
 
@@ -713,7 +713,7 @@ Action Registry là **cổng duy nhất** để IDP (và AI Core khi xác nhận
 
 ### 10.3. Tool IDP (BRD §6.10 — GAP B-12)
 
-BRD liệt kê **10 tool** của domain; Aureon v2.0 ánh xạ như sau (đặc tả input/output, lớp tool và metadata ở 10 §7 — **Phase 3d**). IDP pipeline **không có tool calling** (§14.1 PI-03); các tool dưới đây dành cho Trợ lý AI.
+BRD liệt kê **10 tool** của domain; Aureon v2.0 ánh xạ như sau (đặc tả input/output, lớp tool và metadata ở 10 §7.4–§7.5). IDP pipeline **không có tool calling** (§14.1 PI-03); các tool dưới đây dành cho Trợ lý AI.
 
 | # | Tool BRD | Aureon v2.0 | Lớp (02 §7.3) | Ghi chú |
 |---|---|---|---|---|
@@ -787,7 +787,7 @@ Hiệu năng: mở tài liệu ≤ 1,5 giây; mục tiêu review hóa đơn 6 tr
 
 1. Tải XLSX/CSV → chọn sheet → AI đề xuất doc type / entity đích (VD `EMPLOYEE_LIST`).
 2. **Map cột**: bảng `Cột nguồn → Field schema` với confidence mapping; cột không map → bỏ qua; người xác nhận/sửa; lưu template theo `(doc type, chữ ký header)` để lần sau tự áp.
-3. **Xem trước** 50 dòng đã chuẩn hóa (đồng bộ 06 §4.6; 10 EP-23 `preview_rows` sửa 20 → 50 ở Phase 3d); lỗi theo ô tô đỏ kèm thông điệp.
+3. **Xem trước** 50 dòng đã chuẩn hóa (đồng bộ 06 §4.6; 10 EP-23 `preview_rows: [50]`); lỗi theo ô tô đỏ kèm thông điệp.
 4. **Kết quả validation toàn file**: N dòng hợp lệ / M dòng lỗi / K dòng trùng (XD-05) — chọn "cập nhật" hoặc "bỏ qua" cho dòng trùng.
 5. Gửi: dòng hợp lệ vào routing (theo §7; `EMPLOYEE_LIST` luôn Review — Review dạng lưới, duyệt theo lô); tải file dòng lỗi (CSV có cột `error`).
 
@@ -1091,7 +1091,7 @@ Mọi FR-DC-01..23 và FR-DC-101..102 có ≥ 1 US; test case `TC-IDP-xxx` map �
 | OQ-08 | Event `EVT-idp.document_submitted` / `EVT-idp.review_required` (thông báo người duyệt) không có trong 00 §4.5 | Dùng `ENT-Notification` trực tiếp trong module `idp`; chỉ escalation có event (`EVT-idp.review_escalated`, DEC-151) | 00, 10 |
 | OQ-09 | Ngưỡng nới §7.4 (98% / 200 tài liệu) và hệ số chi phí lương XD-06 (1,25) là giả định | Giữ mặc định, cấu hình được | 08, 13 |
 | OQ-10 | ✅ **DEC-153** — C2 voice **P0 dạng mock STT** (fixture) ở v2.0; STT thật v2.1 (DEC-050 còn mở cho lựa chọn provider). Câu hỏi gốc: STT cho C2 voice | — | 07 |
-| OQ-14 | `ACT-reassign_review`, `ACT-merge_review` (§8.3) cần endpoint — mở rộng EP-29..37 hay EP mới? | EP mới trong dải EP-20..41 nếu còn số, nếu không dùng EP-120..129; chốt ở 10 Phase 3d | 10 |
+| OQ-14 | ✅ Phase 3d: EP-126 / EP-127 (10 §3.12). Câu hỏi gốc: `ACT-reassign_review`, `ACT-merge_review` (§8.3) cần endpoint — mở rộng EP-29..37 hay EP mới? | — | 10 |
 | OQ-15 | Mẫu SOP → Knowledge (§4.1): metadata 4 trường có đủ cho demo? | Đủ; RAG v2.1 | 08, 10 |
 | OQ-11 | Khóa mềm Review 15 phút (DEC-031 open) | Giữ 15 phút | 10 |
 

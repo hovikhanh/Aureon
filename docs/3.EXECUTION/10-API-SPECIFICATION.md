@@ -1,7 +1,7 @@
 # 10 — API Specification
 
 > **Contract nguồn duy nhất** cho API HTTP, SSE và domain event của **Aureon v2**. Backend FastAPI (`apps/api`, Modular Monolith — DEC-125) và frontend Next.js (`apps/web`) phải bám đúng file này. Không tự thêm endpoint/field/event — mọi thay đổi cập nhật file này trước hoặc raise `DEC-xxx` (`CLAUDE.md` § Cấm tự quyết).
-> Nguồn: `00-INDEX.md` §4 (ID registry: ROLE, ENT, EVT, SCR, dải EP §4.6), `01-PROJECT-OVERVIEW.md`, DEC-124 → DEC-137 (`13-DECISION-LOG.md` §3.5), A-EMS (`SOURCE-BRD-v1.0` §III), AI-EOS (`SOURCE-BRD-v1.1` §3, §4.2, §4.4). Bản v1 (35 endpoint, 4 trụ, 5 role) lưu ở nhánh git `v1`.
+> Nguồn: `00-INDEX.md` §4 (ID registry: ROLE, ENT, EVT, SCR, dải EP §4.6), `01-PROJECT-OVERVIEW.md`, DEC-124 → DEC-137 (`13-DECISION-LOG.md` §3.5), DEC-144 → DEC-157 (Phase 3: BRD `_reference/` canonical, ID scheme DEC-146, rename C19 DEC-154), A-EMS (`SOURCE-BRD-v1.0` §III), AI-EOS (`SOURCE-BRD-v1.1` §3, §4.2, §4.4). Bản v1 (35 endpoint, 4 trụ, 5 role) lưu ở nhánh git `v1`.
 > Spec liên quan: quyền `02`, metric/alert `03`, IDP/Action Registry `04`, bảng/cột/enum `05`, màn hình `06`, kiến trúc/ModelGateway `07`.
 
 ---
@@ -17,6 +17,7 @@
 | Resource | Danh từ **số nhiều**, từ ghép **kebab-case** (`/hr/hiring-plans`, `/product/roadmap-items`); hành động không phải CRUD dùng sub-resource động từ (`/invoices/{id}/pay`, `/risks/{id}/accept`) |
 | Định dạng | JSON UTF-8; upload `multipart/form-data`; streaming AI `text/event-stream` (§6); tải file qua presigned URL |
 | Tên field JSON | `snake_case`, trùng tên cột ở `05-DATA-MODEL.md` |
+| Trường chung C19 (DEC-147, DEC-154) | Mọi response entity nghiệp vụ có `source` (`MANUAL, IDP, IMPORT, AI, EVENT, SEED` — kênh tạo, chỉ đọc), `data_classification` (`PUBLIC, INTERNAL, CONFIDENTIAL, SECRET`), `version` (integer, optimistic locking: `PATCH` gửi `version`, lệch → `409 CONFLICT_STATE`). **Không** dùng `source`/`version` cho nghĩa domain — 5 cột đổi tên (DEC-154): `source_note` (revenue), `cash_source` (cash position), `risk_source` (risk), `task_source` (task), `release_version` (release) |
 | ID | UUID v4 dạng chuỗi; mã nghiệp vụ dùng mã chuẩn registry: `METRIC-FIN-01`, `ALERT-RSK-02`, `ROLE-07`, `PIL-S` (trong API trả gọn `pillar: "S"`) |
 | Tiền | **Số nguyên (BIGINT) theo đơn vị nhỏ nhất** của `currency` + field `currency` (ISO 4217, mặc định `VND`). VD `{ "amount": 1250000, "currency": "VND" }`. Không chuỗi, không số thực |
 | Tỷ lệ | Field có hậu tố `_pct`, số thực **đã nhân 100** (`28.0` = 28%). Metric có `unit = PCT` trả `value` theo cùng thang 0–100 |
@@ -30,6 +31,8 @@
 - Dải số theo `00-INDEX.md` §4.6. **Một EP = một resource** (collection + item). Các thao tác của resource ghi bằng ký hiệu: **L** = `GET` collection, **C** = `POST` collection, **R** = `GET /{id}`, **U** = `PATCH /{id}`, **D** = `DELETE /{id}` (soft delete). Khi trích dẫn thao tác cụ thể dùng `EP-61.C`, `EP-81.U`.
 - Hành động phi CRUD có EP riêng (VD `EP-68` thanh toán hóa đơn).
 - EP-20..41 giữ **số** của v1; path đổi sang prefix `/idp/...` (OQ-01).
+- EP-120..129 (mới v2.1) cấp cho endpoint của dải đã kín (Report, Approval, review IDP, dòng tiền, override phân loại — §3.12).
+- Mã FR-DC theo BRD (00 §4.12, DEC-146); mã US theo 00 §4.11 (bảng cũ → mới 00 §4.13).
 
 ### 1.3. Response envelope (DEC-130)
 
@@ -69,7 +72,7 @@ Lỗi:
 | 409 | `REVIEW_LOCKED` | Tài liệu đang được người khác review (khóa mềm 15 phút) | `details.locked_by`, `locked_until` |
 | 409 | `IDEMPOTENCY_CONFLICT` | Cùng `Idempotency-Key` nhưng body khác | §1.6 |
 | 409 | `DUPLICATE_DOCUMENT` | Trùng SHA-256 file (thông tin; tài liệu vẫn tạo ở `DUPLICATE`) | EP-20, `details.duplicate_of_id` |
-| 409 | `DUPLICATE_RESOURCE` | Vi phạm ràng buộc duy nhất nghiệp vụ | Trùng `product.code`, `release.version`, `cash_position.period` |
+| 409 | `DUPLICATE_RESOURCE` | Vi phạm ràng buộc duy nhất nghiệp vụ | Trùng `product.code`, `release.release_version`, `cash_position.period` |
 | 410 | `UNDO_EXPIRED` | Quá hạn hoàn tác (7 ngày IDP / 24 giờ AI L3 — DEC-134) | EP-33, EP-116 |
 | 413 | `FILE_TOO_LARGE` | Vượt `MAX_FILE_SIZE_MB` / `MAX_PAGES` / `MAX_FILES_PER_UPLOAD` | EP-20 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | Định dạng không hỗ trợ | `.zip` |
@@ -161,7 +164,7 @@ Mỗi endpoint khai báo đúng **một** permission bắt buộc qua `Depends(r
 | `read` | Bản ghi chi tiết (danh sách, chi tiết, lịch sử) |
 | `write` | Tạo / sửa / xóa mềm |
 | `query` | Dữ liệu tổng hợp: dashboard domain, KPI, trend, what-if — không trả bản ghi cá nhân |
-| `approve` | Duyệt trong workflow (`hr:approve` kế hoạch tuyển dụng, `risk:approve` chấp nhận rủi ro, `idp:approve` duyệt/commit/hoàn tác extraction) |
+| `approve` | Duyệt trong workflow (`hr:approve` kế hoạch tuyển dụng, `risk:approve` chấp nhận rủi ro, `idp:approve` duyệt/commit/hoàn tác extraction, `platform:approve` yêu cầu phê duyệt `ENT-ApprovalRequest` — 02 §5.6) |
 | `admin` | Cấu hình domain (`idp:admin`, `ai:admin`, `dashboard:admin`, `platform:admin`) |
 
 Domain ∈ `finance, sales, hr, product, risk, execution, idp, ai, dashboard, platform` (`ai` = module `ai_core`). Auth của chính mình (EP-03, EP-07, EP-08, EP-53) chỉ cần token hợp lệ (ký hiệu **`authenticated`**); quản trị user = `platform:admin`.
@@ -189,7 +192,8 @@ Quy tắc:
 |---|---|---|
 | Rất nhạy cảm | Lương, lịch sử lương, ngày sinh, địa chỉ, liên hệ khẩn cấp, CCCD, số tài khoản cá nhân | Chỉ ROLE-01, ROLE-04 (ROLE-05 trong phiên review được phân); role khác nhận `{ "masked": true }`; **không bao giờ** có trong kết quả tool gửi LLM |
 | Nhạy cảm | Họ tên, email, điện thoại nhân viên và người liên hệ khách hàng | Theo RBAC; lọc PII (thay bằng mã tham chiếu `EMP-xxxx`) trước khi gửi LLM |
-| Bí mật kinh doanh | Số liệu tài chính, deal, dự báo, rủi ro | Theo RBAC; HTTPS |
+| Bí mật kinh doanh | Bản ghi giao dịch: từng hóa đơn, deal, hợp đồng, khoản chi, rủi ro (`CONFIDENTIAL`) | Theo RBAC; HTTPS; AI xử lý bằng LLM local (DEC-157) |
+| Nội bộ | Số **tổng hợp**: dashboard `summary`, `MetricValue`, báo cáo (`INTERNAL` — DEC-157) | Theo RBAC; AI dùng provider cloud bình thường |
 | Bảo mật hệ thống | `password_hash`, khóa JWT, API key provider | Không bao giờ có trong response hoặc log |
 
 ---
@@ -250,9 +254,9 @@ Không có endpoint tổng hợp 5 trụ (03 §9 — cô lập lỗi): thẻ tr�
 | EP-34 | POST | `/idp/documents/{id}/retry` | `RETRY` / `REOPEN` / `FORCE_DUPLICATE` | `idp:write \| idp:approve` |
 | EP-35 | POST | `/idp/documents/{id}/review/release` | Đóng review không lưu | `idp:approve` |
 | EP-36 | POST | `/idp/documents/{id}/import-mapping` | Import C5 — bước 2: xác nhận mapping | `idp:write` |
-| EP-37 | POST | `/idp/documents/{id}/split` | Tách / chỉnh ranh giới tài liệu ghép (FR-DC-09) | `idp:write \| idp:approve` |
+| EP-37 | POST | `/idp/documents/{id}/split` | Tách / chỉnh ranh giới tài liệu ghép (FR-DC-10) | `idp:write \| idp:approve` |
 | EP-38 | GET | `/idp/documents/{id}/row-errors` | Xuất file dòng lỗi C5 (FR-DC-18) | `idp:read` |
-| EP-39 | GET | `/idp/stats` | Accuracy / STP / thời gian review theo doc type × field (FR-DC-23) | `idp:admin` |
+| EP-39 | GET | `/idp/stats` | Accuracy / STP / thời gian review theo doc type × field (FR-DC-102) | `idp:admin` |
 | EP-40 | L C | `/idp/batches` | Tạo / liệt kê batch (UC-07, upload nhiều file) | `idp:write` |
 | EP-41 | GET | `/idp/batches/{id}` | Tiến độ + tổng hợp + đối chiếu chéo batch | `idp:read` |
 
@@ -263,7 +267,7 @@ Không có endpoint tổng hợp 5 trụ (03 §9 — cô lập lỗi): thẻ tr�
 | EP-42 | L C R U D | `/execution/meetings` | Cuộc họp (UC-06) | `execution:read` / `write` |
 | EP-43 | L C R U | `/execution/decisions` | Decision log (lý do, phương án loại, kết quả kỳ vọng) | `execution:read` / `write` |
 | EP-44 | L C R U D | `/execution/tasks` | Task (giao việc, hạn, trạng thái) | `execution:read` / `write` |
-| EP-45 | L C R U D | `/execution/projects` | Dự án | `execution:read` / `write` |
+| EP-45 | L C R U D | `/execution/projects` (+ `/execution/initiatives`, `/execution/initiatives/{id}/milestones`) | Dự án; Initiative + Milestone (DEC-147 — Strategy → Initiative → Project/Task) | `execution:read` / `write` |
 | EP-46 | L C R U D | `/execution/objectives` (+ `/{id}/key-results`) | OKR: Objective + Key Result | `execution:read` / `write` |
 | EP-47 | L C R U D | `/execution/kpis` (+ `/{id}/measurements`) | KPI + đo lường kỳ | `execution:read` / `write` |
 | EP-48 | L C | `/execution/check-ins` | Check-in KR/KPI (F4) | `execution:read` / `write` |
@@ -281,7 +285,7 @@ Không có endpoint tổng hợp 5 trụ (03 §9 — cô lập lỗi): thẻ tr�
 | EP-55 | L U | `/dashboard/metric-configs` | Ngưỡng warning/critical metric/alert (NFR-19) | `dashboard:admin` |
 | EP-56 | L + POST replay | `/platform/dead-letters` | Event trong DLQ; phát lại | `platform:admin` |
 | EP-57 | GET | `/platform/system-status` | Tình trạng hệ thống (trang chủ ADMIN) | `platform:admin` |
-| EP-58 | GET | `/platform/permission-preview` | "Xem như người dùng" — preview quyền chỉ đọc (US-ADM-04) | `platform:admin` |
+| EP-58 | GET | `/platform/permission-preview` | "Xem như người dùng" — preview quyền chỉ đọc (US-ADM-102) | `platform:admin` |
 | EP-59 | GET | `/platform/roles` | Danh mục 10 role + permission | `platform:admin` |
 
 ### 3.6. Finance — EP-60..69 (module `finance`, PIL-F)
@@ -364,6 +368,25 @@ Không có endpoint tổng hợp 5 trụ (03 §9 — cô lập lỗi): thẻ tr�
 | EP-118 | GET, PUT | `/ai/kill-switch` | Trạng thái / bật tắt kill switch | `ai:query` (PUT: `ai:admin`) |
 | EP-119 | GET | `/ai/tools` (+ `/ai/usage`) | Tool khả dụng cho tôi / chi phí & provider (SCR-15) | `ai:query` (`/ai/usage`: `ai:admin`) |
 
+### 3.12. Mới v2.1 — EP-120..129 (Report, Approval, IDP review, dòng tiền, phân loại — DEC-148, DEC-151, DEC-153, DEC-157)
+
+Dải `00` §4.6 EP-120..129 dùng cho endpoint mới khi dải module đã kín. Path vẫn theo prefix module (§1.1); cột "Path đề xuất" ghi path rút gọn trong yêu cầu Phase 3d để truy vết.
+
+| EP | Method | Path | Path đề xuất | Module | Mô tả | Permission |
+|---|---|---|---|---|---|---|
+| EP-120 | GET | `/platform/reports/templates` | `/reports/templates` | platform | 4 mẫu báo cáo: `DAILY` (= Briefing), `WEEKLY`, `MONTHLY`, `BOARD` (tháng mở rộng) | `dashboard:read` |
+| EP-121 | POST | `/platform/reports` | `/reports/generate` | platform | Tạo báo cáo **bất đồng bộ** → `202 { job_id }` (FR-DSH-09) | `dashboard:read` |
+| EP-122 | L R | `/platform/reports` (+ `/{id}`) | `/reports/{id}` | platform | Lịch sử / trạng thái / link tải báo cáo | `dashboard:read` |
+| EP-123 | L (+ `/platform/approval-rules` L C U) | `/platform/approvals` | `/approvals` | platform | Hàng chờ phê duyệt của tôi / tôi gửi / đã xử lý (FR-DSH-10); rule do ADMIN cấu hình | `platform:approve` \| `dashboard:read` (rule: `platform:admin`) |
+| EP-124 | GET | `/platform/approvals/{id}` | `/approvals/{id}` | platform | Chi tiết request: payload diff (mask mức 4), bước, timeline | `platform:approve` \| `dashboard:read` |
+| EP-125 | POST | `/platform/approvals/{id}/decide` | `/approvals/{id}/decide` | platform | Duyệt / từ chối một bước (bước 2 cho tài chính > ngưỡng — DEC-155) | `platform:approve` |
+| EP-126 | POST | `/idp/documents/{id}/review/reassign` | `/idp/review/{id}/reassign` | idp | `ACT-reassign_review` — chuyển reviewer, bắt buộc lý do (04 §8.3) | `idp:approve` |
+| EP-127 | POST | `/idp/review-queue/merge` | `/idp/review/merge` | idp | `ACT-merge_review` — gộp tài liệu cùng doc type thành một lượt review | `idp:approve` |
+| EP-128 | GET (+ POST `/recompute`) | `/finance/cash-flow-forecast` | `/finance/cash-flow-forecast` | finance | Dự báo dòng tiền 13 tuần hiện hành + dòng; tính lại với giả định mới (UC-08) | `finance:read` (recompute: `finance:write`) |
+| EP-129 | GET, PATCH | `/ai/classification-override` | `/admin/classification-override` | ai_core | ADMIN cho phép `CONFIDENTIAL` → provider cloud (demo), có audit (DEC-157) | `ai:admin` |
+
+Initiative / Milestone (DEC-147) **không** dùng dải này: là sub-resource của EP-45 (`/execution/initiatives`, `/execution/initiatives/{id}/milestones` — §3.4).
+
 ---
 
 ## 4. Chi tiết endpoint
@@ -382,7 +405,7 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-06 | `{ refresh_token }` | như EP-02 (refresh token mới) | `401 REFRESH_TOKEN_INVALID` | Dùng lại token đã xoay → thu hồi chuỗi + `auth.refresh_reuse`; FR-AUTH-02 |
 | EP-07 | `{ refresh_token }` | `204` | — | `auth.logout` |
 | EP-08 | `{ current_password, new_password }` | `204` | `401 INVALID_CREDENTIALS`, `422 VALIDATION_ERROR` (≥ 8 ký tự, đủ hoa/thường/số/đặc biệt) | `auth.password_change`; thu hồi mọi refresh token khác |
-| EP-09 | C `{ email, full_name, role_code, department_id?, initial_password? }`; U `{ role_code?, department_id?, is_active? }` | `UserOut` | `409 DUPLICATE_RESOURCE` (email), `422 BUSINESS_RULE_VIOLATION` (tự đổi role của chính mình) | `user.create`, `user.role_change`; FR-AUTH-05, US-ADM-01, DEC-137. CEO chỉ được gán role ≠ ADMIN (OQ-04) |
+| EP-09 | C `{ email, full_name, role_code, department_id?, initial_password? }`; U `{ role_code?, department_id?, is_active? }` | `UserOut` | `409 DUPLICATE_RESOURCE` (email), `422 BUSINESS_RULE_VIOLATION` (tự đổi role của chính mình) | `user.create`, `user.role_change`; FR-AUTH-05, US-ADM-101, DEC-137. CEO chỉ được gán role ≠ ADMIN (OQ-04) |
 
 **UserOut:** `id`, `email`, `full_name`, `role_code`, `role_id`, `permissions[]`, `department_id`, `locale`, `is_active`, `last_login_at`. Không bao giờ có `password_hash`.
 
@@ -411,32 +434,32 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 
 | EP | Request | Response `data` | Lỗi | Ghi chú |
 |---|---|---|---|---|
-| EP-20 | `multipart`: `files[]` (1..100), `doc_type_hint?`, `batch_id?`, `pillar_hint?` | `202` `[DocumentOut]` (status `UPLOADED`), trong ≤ 2 giây | `413 FILE_TOO_LARGE` (> 50 MB), `415`, `422` (> 100 file), `409 DUPLICATE_DOCUMENT` (thông tin: document vẫn tạo `DUPLICATE`) | Stream lên MinIO, SHA-256; ClamAV chạy ở worker (`MALWARE_DETECTED` → `FAILED`); FR-DC-01, 02, 05, 07 |
-| EP-21 | `{ doc_type, fields: {…}, draft: bool }` | `201` `DocumentOut` (draft → không vào pipeline) | `422 VALIDATION_ERROR`, `422 BUSINESS_RULE_VIOLATION` | C1; vẫn đi validation + Action Registry; FR-DC-04 |
-| EP-22 | `{ text? (≤ 2000), audio? (multipart ≤ 60 s), context?: { screen, entity_ref } }` | `202` `{ document: DocumentOut, ai_action_id }` — luôn L2 | `422`, `423 AI_DISABLED` | C2; FR-DC-03 |
-| EP-23 | `multipart file` (xlsx/csv, ≤ 5000 dòng/sheet), `doc_type?` | `202` `{ document, sheets: [{ name, rows, columns[] }], mapping_suggestion: [{ column, field, confidence }], preview_rows: [20] }` | `413`, `415`, `422` | C5 bước 1; FR-DC-18 |
+| EP-20 | `multipart`: `files[]` (1..100), `doc_type_hint?`, `batch_id?`, `pillar_hint?`, `consent_given: bool` (bắt buộc `true` khi tài liệu chứa dữ liệu cá nhân của bên thứ ba / transcript — NĐ 13/2023; lưu `consent_confirmed_by`) | `202` `[DocumentOut]` (status `UPLOADED`), trong ≤ 2 giây | `413 FILE_TOO_LARGE` (> 50 MB), `415`, `422` (> 100 file), `409 DUPLICATE_DOCUMENT` (thông tin: document vẫn tạo `DUPLICATE`) | Stream lên MinIO, SHA-256; ClamAV chạy ở worker (`MALWARE_DETECTED` → `FAILED`); FR-DC-07, 08 (upload, hash, ClamAV, OCR); `consent_given = false` với `doc_type_hint ∈ (EMPLOYEE_LIST, MEETING_MINUTES)` → `422 VALIDATION_ERROR` |
+| EP-21 | `{ doc_type, fields: {…}, draft: bool }` | `201` `DocumentOut` (draft → không vào pipeline) | `422 VALIDATION_ERROR`, `422 BUSINESS_RULE_VIOLATION` | C1; vẫn đi validation + Action Registry; FR-DC-01 (form), FR-DC-04 (draft) |
+| EP-22 | `{ text? (≤ 2000), audio? (multipart ≤ 60 s), context?: { screen, entity_ref } }` | `202` `{ document: DocumentOut, ai_action_id }` — luôn L2 | `422`, `423 AI_DISABLED` | C2; FR-DC-03. v2.0 voice = **mock STT** (WAV mẫu + transcript fixture — DEC-050, DEC-153); STT thật v2.1 |
+| EP-23 | `multipart file` (xlsx/csv, ≤ 5000 dòng/sheet), `doc_type?` | `202` `{ document, sheets: [{ name, rows, columns[] }], mapping_suggestion: [{ column, field, confidence }], preview_rows: [50] }` | `413`, `415`, `422` | C5 bước 1; FR-DC-18 |
 | EP-24 | `status?`, `doc_type?`, `channel?`, `pillar?`, `batch_id?`, `q?`, `from?`, `to?`, phân trang | `[DocumentOut]` | — | Scope `p/d/o/r` |
 | EP-25 | — | `DocumentOut` + `{ jobs: [JobOut], status_timeline: [{ status, at, actor }], affected_records: [RecordRef], reviews: [ReviewOut], children?: [DocumentOut] }` | `404`, `403 FORBIDDEN_SCOPE` | |
-| EP-26 | `job_id?` | `{ schema_version, doc_type, classification_confidence, fields: [FieldResult], tables: [{ name, rows: [[FieldResult]] }], validations: [{ rule, result: pass\|warn\|fail, field_paths, message_key }], conflicts: [{ xd_code, ref }], master_matches: [...] }` | `403 FORBIDDEN_SALARY` (giá trị mask khi `contains_salary` — chỉ metadata) | FR-DC-10..14 |
+| EP-26 | `job_id?` | `{ schema_version, doc_type, classification_confidence, fields: [FieldResult], tables: [{ name, rows: [[FieldResult]] }], validations: [{ rule, result: pass\|warn\|fail, field_paths, message_key }], conflicts: [{ xd_code, ref }], master_matches: [...] }` | `403 FORBIDDEN_SALARY` (giá trị mask khi `contains_salary` — chỉ metadata) | FR-DC-11..14 |
 | EP-27 | `page?` | `{ url (presigned ≤ 15 phút), mime, page_count, pages: [{ page_no, width, height, ocr_used, ocr_confidence }] }` | `403 FORBIDDEN_SALARY`, `404`; `422` khi file `INFECTED` | Audit `document.open_pii` / `document.open_denied` |
-| EP-28 | `doc_type?`, `pillar?`, `batch_id?`, `channel?`, phân trang (sort mặc định theo ưu tiên FR-DC-17) | `[DocumentOut + { priority_reason, sla_due_at, critical_field_count, low_conf_count }]` | — | FR-DC-17, SCR-08 |
+| EP-28 | `doc_type?`, `pillar?`, `batch_id?`, `channel?`, phân trang (sort mặc định theo ưu tiên FR-DC-21) | `[DocumentOut + { priority_reason, sla_due_at, critical_field_count, low_conf_count }]` | — | FR-DC-21 (queue/SLA/escalation), SCR-08; `assigned_to_me?` lọc theo `ENT-ReviewAssignment` |
 | EP-29 | — | `{ locked_until, document: DocumentOut }` | `409 REVIEW_LOCKED`, `409 CONFLICT_STATE` | Khóa mềm 15 phút; gia hạn khi PATCH |
-| EP-30 | `{ doc_type?, fields: [{ path, value, action: confirm\|correct\|clear }] }` | `{ fields: [FieldResult], validations }` | `409 REVIEW_LOCKED`, `422` | Lưu cả `ai_value` và `corrected_value` |
-| EP-31 | `{ field_paths?: [...] (null = toàn bộ), comment? }` | `{ document: DocumentOut (COMMITTED), actions: [{ action_name, ids[] }], undo_deadline }` | `409`, `422 ACTION_REJECTED`, `422 BUSINESS_RULE_VIOLATION` (về `NEEDS_REVIEW` + `details.idp_error_code=IDP-E11`) | Four-eyes trường trọng yếu; FR-DC-20, 21 |
+| EP-30 | `{ doc_type?, fields: [{ path, value, action: confirm\|correct\|clear }] }` | `{ fields: [FieldResult], validations }` | `409 REVIEW_LOCKED`, `422` | Lưu cả `ai_value` và `corrected_value`; `accept_all_high` xác nhận mọi field HIGH **không** trọng yếu (FR-DC-20) |
+| EP-31 | `{ field_paths?: [...] (null = toàn bộ), comment? }` | `{ document: DocumentOut (COMMITTED), actions: [{ action_name, ids[] }], undo_deadline }` | `409`, `422 ACTION_REJECTED`, `422 BUSINESS_RULE_VIOLATION` (về `NEEDS_REVIEW` + `details.idp_error_code=IDP-E11`) | Four-eyes trường trọng yếu; FR-DC-16 (trường trọng yếu), FR-DC-22 |
 | EP-32 | `{ reason }` | `DocumentOut` (`REJECTED`) | `409`, `422` | `ACT-reject_document` |
-| EP-33 | `{ reason }` | `DocumentOut` (`ROLLED_BACK`) | `410 UNDO_EXPIRED`, `409 CONFLICT_STATE` (bản ghi đích đã sửa — `details.diff`) | `ACT-rollback_document`; FR-DC-22 |
+| EP-33 | `{ reason }` | `DocumentOut` (`ROLLED_BACK`) | `410 UNDO_EXPIRED`, `409 CONFLICT_STATE` (bản ghi đích đã sửa — `details.diff`) | `ACT-rollback_document`; FR-DC-101 (undo 7 ngày) |
 | EP-34 | `{ mode: RETRY\|REOPEN\|FORCE_DUPLICATE }` | `202 DocumentOut` | `409 CONFLICT_STATE` | `FORCE_DUPLICATE` ghi audit |
 | EP-35 | — | `204` | `409` | |
 | EP-36 | `{ sheet, mapping: [{ column, field }], save_template: bool }` | `202 { document, valid_rows, error_rows: [{ row_no, errors[] }] }` | `422` | Ghi dòng hợp lệ, không chặn bởi dòng lỗi |
-| EP-37 | `{ segments: [{ page_from, page_to, doc_type? }] }` | `[DocumentOut]` (tài liệu con; cha → `SPLIT`) | `409`, `422` | FR-DC-09 |
+| EP-37 | `{ segments: [{ page_from, page_to, doc_type? }] }` | `[DocumentOut]` (tài liệu con; cha → `SPLIT`) | `409`, `422` | FR-DC-10; gộp ngược = EP-127 |
 | EP-38 | `format=xlsx\|csv` | `{ url (presigned) }` | `404` | |
-| EP-39 | `doc_type?`, `from?`, `to?` | `[{ doc_type, field_path, docs, accuracy_pct, stp_pct, avg_review_seconds, suggest_relax: bool }]` | — | §7.4 04 (≥ 98% / 200 tài liệu) |
+| EP-39 | `doc_type?`, `from?`, `to?` | `[{ doc_type, field_path, docs, accuracy_pct, stp_pct, avg_review_seconds, avg_cost_micro_usd, suggest_relax: bool }]` (`avg_cost_micro_usd` = TB `ENT-ModelCallLog.estimated_cost_micro_usd` / tài liệu — NFR-IDP-08) | — | §7.4 04 (≥ 98% / 200 tài liệu); FR-DC-102 |
 | EP-40 | C `{ name, purpose: ONBOARDING\|BULK }`; L phân trang | `ImportBatchOut` | — | UC-07 |
 | EP-41 | — | `ImportBatchOut + { documents: [DocumentOut], progress: { total, committed, needs_review, failed }, cross_checks: [{ xd_code, docs[], status }] }` | `404` | |
 
-**DocumentOut:** `id`, `batch_id`, `parent_id`, `channel` (`C1..C5`), `filename`, `mime`, `size_bytes`, `page_count`, `doc_type`, `pillars[]`, `status` (04 §8.1: `UPLOADED, PREPROCESSING, CLASSIFYING, EXTRACTING, VALIDATING, NEEDS_REVIEW, IN_REVIEW, AUTO_APPROVED, APPROVED, COMMITTED, REJECTED, FAILED, DUPLICATE, ROLLED_BACK, SPLIT`), `status_reason?`, `ai_state` (i18n key nhãn AI — P02), `autonomy_level` (`L0..L3`), `routing_decision?` (`STP\|REVIEW`), `routing_reason?`, `contains_salary`, `contains_pii`, `scan_status`, `duplicate_of_id?`, `uploaded_by`, `created_at`, `committed_at?`, `undo_deadline?`, `locked_by?`, `locked_until?`, `retry_count`, `latest_job?: JobOut`, `can: { review, approve, rollback, retry, open_source }`.
+**DocumentOut:** `id`, `batch_id`, `parent_id`, `kind` (`FILE, MANUAL, TRANSCRIPT`), `type_preselected`, `channel` (`C1..C5`), `filename`, `mime`, `size_bytes`, `page_count`, `doc_type`, `pillars[]`, `status` (04 §8.1: `UPLOADED, PREPROCESSING, CLASSIFYING, EXTRACTING, VALIDATING, NEEDS_REVIEW, IN_REVIEW, AUTO_APPROVED, APPROVED, COMMITTED, REJECTED, FAILED, DUPLICATE, ROLLED_BACK, SPLIT, SUPERSEDED` — `SUPERSEDED` v2.1, DEC-151), `status_reason?`, `assigned_to?` (`ENT-ReviewAssignment` hiện hành), `sla_due_at?`, `data_classification`, `ai_state` (i18n key nhãn AI — P02), `autonomy_level` (`L0..L3`), `routing_decision?` (`STP\|REVIEW`), `routing_reason?`, `contains_salary`, `contains_pii`, `scan_status`, `duplicate_of_id?`, `uploaded_by`, `created_at`, `committed_at?`, `undo_deadline?`, `locked_by?`, `locked_until?`, `retry_count`, `latest_job?: JobOut`, `can: { review, approve, rollback, retry, open_source }`.
 
-**FieldResult:** `path`, `label_key`, `value`, `raw_text`, `confidence` (0..1), `band` (`HIGH ≥ 0,90 \| MEDIUM 0,60–<0,90 \| LOW < 0,60` — DEC-133), `is_critical`, `source_location: { kind: page\|cell\|transcript\|form, page_no?, bbox?, sheet?, cell?, char_range? }`, `validation: pass\|warn\|fail`, `corrected_value?`, `corrected_by?`.
+**FieldResult:** `path`, `label_key`, `value`, `raw_text`, `confidence` (0..1), `band` (`HIGH ≥ 0,90 \| MEDIUM 0,60–<0,90 \| LOW < 0,60` — DEC-133), `is_critical`, `field_type` (`text, number, date, money, checkbox, signature_present, stamp_present` — DEC-151), `source_location: { kind: page\|cell\|transcript\|form, page_no?, bbox?, sheet?, cell?, char_range? }`, `validation: pass\|warn\|fail`, `corrected_value?`, `corrected_by?`.
 
 **JobOut:** `id`, `attempt_no`, `status`, `classification_confidence`, `routing_decision`, `error_code?` (`IDP-Exx`), `model_calls`, `started_at`, `finished_at`.
 
@@ -444,20 +467,21 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 
 | EP | Field chính (request C/U) | Bộ lọc L | Quy tắc / lỗi | Event |
 |---|---|---|---|---|
-| EP-42 | `title`, `held_at`, `participants[]` (employee_id), `source_document_id?`, `recording_consent` | `from`, `to`, `department_id` | — | — |
-| EP-43 | `meeting_id?`, `title`, `rationale`, `rejected_options[]`, `decided_by`, `expected_outcome`, `review_at[]` (30/60/90 ngày) | `status`, `meeting_id` | Rủi ro `accepted` tạo Decision (BR-RSK-02) | — |
-| EP-44 | `title`, `assignee_id`, `due_date`, `priority`, `status` (`todo, in_progress, done, cancelled`), `project_id?`, `decision_id?`, `key_result_id?`, `source_location?` | `assignee_id`, `status`, `overdue`, `department_id` | EMPLOYEE chỉ cập nhật task của mình (scope `o`) | `EVT-execution.task_overdue` (scheduler) |
+| EP-42 | `title`, `held_at`, `chair_id?`, `attendee_ids[]` (user_id), `department_id?`, `summary?`, `source_document_id?`, `transcript_id?` (v2.1) | `from`, `to`, `department_id` | Transcript: tạo qua upload SCR-18 (EP-20 `kind = TRANSCRIPT` + `consent_given = true` — NĐ 13/2023, 05 `ENT-MeetingTranscript.consent_confirmed_by`); đổi tên field theo 05 (GAP C-15: `participants[]` → `attendee_ids[]`, bỏ `recording_consent`) | — |
+| EP-43 | `meeting_id?`, `content`, `rationale?`, `alternatives_rejected?`, `expected_outcome?`, `owner_id?`, `decided_at`, `due_date?`, `review_at[]` (mặc định `decided_at` + 30/60/90 ngày), `initiative_id?`, `status` (`open, in_progress, done, cancelled`); U thêm `actual_outcome`, `outcome_verified_at` | `status`, `meeting_id`, `initiative_id`, `review_due` | Rủi ro `accepted` tạo Decision (BR-RSK-02); khớp 05 (GAP C-15: `title` → `content`, `rejected_options[]` → `alternatives_rejected`, `decided_by` → `owner_id`) | — |
+| EP-44 | `title`, `description?`, `owner_id?`, `assignee_id?`, `department_id?`, `start_date?`, `due_date?`, `priority`, `status` (7 trạng thái DEC-147: `backlog, todo, in_progress, blocked, in_review, done, cancelled`), `blocked_reason?` (bắt buộc khi `blocked`), `estimate_hours?`, `actual_hours?`, `evidence?`, `project_id?`, `initiative_id?`, `milestone_id?`, `decision_id?`, `key_result_id?`, `kpi_id?`, `task_source` (`manual, meeting, ai, document, mitigation` — DEC-154, thay `source`), `source_document_id?` | `assignee_id`, `owner_id`, `status`, `overdue`, `department_id`, `initiative_id` | EMPLOYEE chỉ cập nhật task của mình (scope `o`); response có C19 `source`, `data_classification`, `version` | `EVT-execution.task_overdue` (scheduler) |
 | EP-45 | `name`, `owner_id`, `department_id`, `start_date`, `due_date`, `status` | `status`, `department_id` | — | — |
+| EP-45 (initiatives) | `code`, `title`, `description?`, `objective_id`, `pillar?`, `owner_id`, `department_id?`, `start_date`, `planned_end_date`, `status` (`planned, active, at_risk, done, cancelled`), `weight_pct`, `budget_amount?`, `currency?`; milestones: `title`, `due_date`, `status` (`planned, done, missed`) | `objective_id`, `status`, `pillar` | `progress_pct` hệ thống tính từ milestone/task; nguồn METRIC-RSK-06 (SEI) | — |
 | EP-46 | Objective: `title`, `owner_id`, `period_key`, `parent_id?`; KR (`/{id}/key-results`): `title`, `baseline`, `target`, `unit`, `owner_id` | `period_key`, `owner_id` | Kích hoạt chỉ sau duyệt (US-DC-005) | — |
 | EP-47 | KPI: `code`, `name`, `unit`, `target`, `owner_id`, `metric_code?`; measurement: `period_key`, `actual_value` | `owner_id`, `metric_code` | — | `EVT-execution.kpi_measured` |
-| EP-48 | `key_result_id \| kpi_id`, `value`, `confidence`, `note` | `owner_id`, `period_key` | ≤ 30 giây UX (US-EMP-03) | `EVT-execution.kpi_measured` (khi là KPI) |
+| EP-48 | `key_result_id \| kpi_id` (đúng một — 05 CK, GAP C-08), `value`, `confidence`, `note?`, `blocker?`, `support_needed?`, `next_action?` | `owner_id`, `period_key`, `kpi_id`, `key_result_id` | ≤ 30 giây UX (US-OKR-006) | `EVT-execution.kpi_measured` (khi là KPI) |
 | EP-49 | `period?`, `department_id?` | — | `summary`: `tasks_on_time_pct`, `projects_late`, `decision_execution_pct`, `overloaded_count`; `workload_heatmap: [{ employee_ref, week, load_pct }]`; `ontime_trend` | — |
 
 ### 4.5. Config, audit, notification (EP-50..59)
 
 | EP | Request / Query | Response `data` | Ghi chú |
 |---|---|---|---|
-| EP-50 | C/U `{ code, name_key, pillars[], target_actions[], fields: [{ path, type, is_critical, threshold_auto }], classify_threshold, stp_enabled }` | `DocumentTypeOut` + `schemas: [{ version, status }]` | Sửa schema = version mới (FR-DC-23); `idp:admin` |
+| EP-50 | C/U `{ code, name_key, pillars[], target_actions[], fields: [{ path, type, is_critical, threshold_auto }], classify_threshold, stp_enabled }` | `DocumentTypeOut` + `schemas: [{ version, status }]` | Sửa schema = version mới (FR-DC-102); `idp:admin` |
 | EP-51 | `{ doc_type, rule_code, expression, severity: warn\|fail, message_key }` | `ValidationRuleOut` | |
 | EP-52 | `actor_user_id?`, `actor_type?`, `action?`, `target_type?`, `target_id?`, `from`, `to`, phân trang | `[AuditLogOut]` (before/after đã mask) | Append-only; không có C/U/D |
 | EP-53 | L `unread?`; U `{ read: true }` hoặc `POST /platform/notifications/read-all` | `[NotificationOut { id, kind, title_key, params, link, severity?, read_at }]` | FR-NTF-01; chỉ của tôi |
@@ -465,22 +489,22 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-55 | U `{ warning, critical, enabled }` theo `metric_code` | `[MetricConfigOut]` | Đổi ngưỡng → tính lại status; NFR-19 |
 | EP-56 | L `consumer?`, `event_type?`; `POST /platform/dead-letters/{id}/replay` | `[{ event_id, event_type, consumer, attempts, last_error }]` | Replay idempotent theo `(event_id, consumer)` |
 | EP-57 | — | `{ services: [{ name, status }], outbox_pending, dlq_count, ai: { mode, primary, budget_used_pct, kill_switch } }` | Trang chủ ADMIN (03 §10) |
-| EP-58 | `role_code` | `{ permissions[], pillars: [{ pillar, access: full\|aggregate\|none }], tools: [TOOL-*] }` | Không trả dữ liệu nghiệp vụ (US-ADM-04) |
+| EP-58 | `role_code` | `{ permissions[], pillars: [{ pillar, access: full\|aggregate\|none }], tools: [TOOL-*] }` | Không trả dữ liệu nghiệp vụ (US-ADM-102) |
 | EP-59 | — | `[{ role_id, role_code, name_key, permissions[] }]` | Nguồn: 02 §5.3 |
 
 ### 4.6. Finance (EP-60..69)
 
 | EP | Field chính (C/U) | Bộ lọc L | Quy tắc / lỗi | Event |
 |---|---|---|---|---|
-| EP-61 | `amount` (> 0), `currency`, `category` (`product_sales, service, consulting, other`), `recognized_on`, `client_id?`, `product_id?`, `department_id?` | `period`, `category`, `client_id` | `422 BUSINESS_RULE_VIOLATION` khi `amount ≤ 0` | `EVT-finance.forecast_updated` (gián tiếp) |
+| EP-61 | `amount` (> 0), `currency`, `category` (`product_sales, service, consulting, other`), `recognized_on`, `client_id?`, `product_id?`, `department_id?`, `source_note?` (mô tả nguồn — DEC-154, thay `source`) | `period`, `category`, `client_id` | `422 BUSINESS_RULE_VIOLATION` khi `amount ≤ 0` | `EVT-finance.forecast_updated` (gián tiếp) |
 | EP-62 | `amount`, `category` (`cogs, salary, infrastructure, marketing, office, travel, other`), `department_id`, `spent_on`, `is_recurring`, `vendor?` | `period`, `department_id`, `category` | MANAGER chỉ phòng mình (`403 FORBIDDEN_SCOPE`) | `EVT-finance.budget_exceeded` (BR-FIN-05) |
 | EP-63 | `department_id`, `fiscal_year`, `quarter`, `category`, `allocated_amount` | `fiscal_year`, `quarter`, `department_id` | UQ (phòng ban, năm, quý, hạng mục) → `409 DUPLICATE_RESOURCE` | — |
 | EP-64 | `period?`, `department_id?` | — | `[{ department_id, allocated_amount, spent_amount, budget_utilization_pct, status }]` | — |
-| EP-65 | `period` (`YYYY-MM`), `opening_balance`, `closing_balance` (≥ 0), `source` (`bank_statement, manual, imported`) | `from`, `to` | UQ kỳ → `409 DUPLICATE_RESOURCE` | — |
+| EP-65 | `period` (`YYYY-MM`), `opening_balance`, `closing_balance` (≥ 0), `cash_source` (`bank_statement, manual, imported` — DEC-154, thay `source`) | `from`, `to` | UQ kỳ → `409 DUPLICATE_RESOURCE` | — |
 | EP-66 | `scenario` (`optimistic, base, pessimistic`), `horizon` (`1m, 3m, 6m, 1y`), `lines: [{ period_key, revenue, expense }]`, `confidence_pct` | `scenario`, `horizon` | — | `EVT-finance.forecast_updated` |
-| EP-67 | `client_id`, `number`, `issued_on`, `due_date` (> `issued_on`), `lines: [{ description, quantity, unit_price, vat_pct = 10 }]`, `status` | `status`, `client_id`, `overdue`, `period` | ≥ 1 dòng; `409 DUPLICATE_RESOURCE` trùng `number` | — |
+| EP-67 | `client_id`, `number`, `issued_on`, `due_date` (> `issued_on`), `lines: [{ description, quantity, unit_price, vat_pct = 10 }]`, `status` | `status`, `client_id`, `overdue`, `period` | ≥ 1 dòng; `409 DUPLICATE_RESOURCE` trùng `number` | `EVT-finance.invoice_created` (GAP D-26) |
 | EP-68 | `{ amount_paid, paid_at, method? }` | — | `409 CONFLICT_STATE` (`void`/`paid`); thanh toán một phần → `partially_paid` | `EVT-finance.invoice_paid` khi đủ |
-| EP-69 | `as_of?` | — | `{ runway_months_no_new_revenue, closing_balance, avg_expense_3m, sources[] }` (BR-FIN-06); `null` + `status_reason` khi thiếu CashPosition | — |
+| EP-69 | `as_of?`, `revenue_change_pct?` (−100..+100, mặc định −100), `expense_change_pct?`, `extra_monthly_cost?` (tham số chi phí — GAP D-16) | — | `{ runway_months_no_new_revenue, closing_balance, avg_expense_3m, sources[] }` (BR-FIN-06); `null` + `status_reason` khi thiếu CashPosition | — |
 
 ### 4.7. Sales (EP-70..78)
 
@@ -493,7 +517,7 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-75 | `period?`, `owner_id?` | — | `[{ stage, count, value, weighted_value, avg_days_in_stage }]` + `coverage_ratio` (BR-SAL-04) | — |
 | EP-76 | `period?`, `group_by=team\|owner` | — | `[{ owner_ref, closed_value, quota, attainment_pct, win_rate_pct }]` | — |
 | EP-77 | `period_type` (`month, quarter, year`), `period_key`, `scope` (`team, individual`), `owner_id?`, `target_amount` | `period_key`, `scope` | `owner_id` bắt buộc khi `individual`; CEO chỉ ghi target (`sales:write ◑t`) | — |
-| EP-78 | `client_id`, `deal_id?`, `value`, `start_date`, `end_date`, `renewal_date?`, `milestones[]` | `client_id`, `expiring_within_days` | — | — |
+| EP-78 | `contract_number`, `client_id`, `deal_id?`, `contract_value`, `currency`, `signed_at`, `effective_date`, `expiry_date?` (≥ effective), `renewal_notice_days?`, `payment_terms?` (`[{ due_date, amount, description }]`), `status` (`draft, active, expired, terminated`), `is_recurring`, `source_document_id?` | `client_id`, `status`, `expiring_within_days` | Khớp 05 (GAP C-19: `value` → `contract_value`, `start_date/end_date` → `effective_date/expiry_date`, `milestones[]` → `payment_terms`); `409 DUPLICATE_RESOURCE` trùng `contract_number`. Contract xuyên domain (mua hàng, nhân sự) hoãn — OQ-17 | — |
 
 ### 4.8. HR (EP-80..87)
 
@@ -515,14 +539,14 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-91 | `code` (duy nhất), `name`, `status` (`ideation, in_development, beta, launched, sunset`), `lifecycle_stage`, `owner_id` | D bị chặn khi còn Feature `in_progress` / Release `planned, in_progress` → `422 BUSINESS_RULE_VIOLATION` | — |
 | EP-92 | `product_id`, `name`, `status` (`backlog, in_progress, released, …`), `release_id?` | — | `EVT-product.feature_released` |
 | EP-93 | `product_id`, `title`, `quarter`, `target_date`, `status` (`planned, in_progress, done, dropped`) | — | — |
-| EP-94 | `product_id`, `version` (UQ theo sản phẩm), `status` (`planned, in_progress, released, rolled_back`), `released_at?` | `409 DUPLICATE_RESOURCE` | `EVT-product.product_launched` (release đầu) |
+| EP-94 | `product_id`, `release_version` (UQ theo sản phẩm — DEC-154, thay `version`; `version` = C19 optimistic locking), `status` (`planned, in_progress, released, rolled_back`), `released_at?` | `409 DUPLICATE_RESOURCE` | `EVT-product.product_launched` (release đầu) |
 | EP-95 | C `{ period_key, mau, adoption_pct, churn_rate_pct, retention_30d_pct, nps, arpu }` | Append-only; trùng kỳ → bản mới đánh dấu `superseded` bản cũ | `EVT-product.metric_anomaly` (BR-PRD-01) |
-| EP-101 | `title`, `category` (`financial, operational, market, people, compliance, technology, strategic`), `likelihood` (1..5), `impact` (1..5), `owner_id?`, `linked_entities[]` | `risk_score`, `level`, `code RSK-YYYY-NNN` do hệ thống sinh; `medium`+ nhập tay bắt buộc owner (BR-RSK-02) | `EVT-risk.risk_identified` (≥ high) |
+| EP-101 | `title`, `category` (13 danh mục DEC-148: `financial, operational, strategic, people, business, customer, product, technology, security, compliance, legal, partner_supplier, ai`), `likelihood` (1..5), `impact` (1..5), `owner_id?`, `linked_entities[]`, `risk_source` (`manual, event, ai, document` — DEC-154, thay `source`; response) | `risk_score`, `level`, `code RSK-YYYY-NNN` do hệ thống sinh; `medium`+ nhập tay bắt buộc owner (BR-RSK-02) | `risk_source ≠ manual` → `status = proposed` + `EVT-risk.risk_proposed`; owner xác nhận (EP-106 `to_status = identified`) → `EVT-risk.risk_identified` (≥ high) |
 | EP-102 | `{ likelihood, impact, note }` | Level đổi → assessment mới | `EVT-risk.risk_level_changed` |
 | EP-103 | `risk_id`, `title`, `owner_id`, `due_date`, `progress_pct`, `status` (`planned, in_progress, done, cancelled`) | — | `EVT-risk.risk_mitigated` (khi risk → `monitoring`) |
 | EP-104 | `{ reason }` | Chỉ CEO; tạo `ENT-Decision`; `409 CONFLICT_STATE` từ `closed` | — |
 | EP-105 | `{ risk_ids: [1..10], horizon_months: 1..24, assumptions? }` | `{ scenario_id, impacts: { finance: { status: ok\|unavailable, revenue_delta, expense_delta, runway_delta_months }, sales: {…pipeline_delta}, hr: {…headcount_delta}, product: {…roadmap_items_at_risk} }, sources[] }`; mỗi miền timeout 5 s → `unavailable` | — (lưu `ENT-Scenario`) |
-| EP-106 | `{ to_status, reason? }` | Vòng đời BR-RSK-02; không đóng khi còn mitigation `in_progress` (`422`); owner bắt buộc trước `mitigating`/`closed` | `EVT-risk.risk_mitigated` (`monitoring`/`closed`) |
+| EP-106 | `{ to_status, reason? }` | Vòng đời BR-RSK-02 + `proposed → identified` (owner / `risk:approve` xác nhận) hoặc `proposed → rejected` (bắt buộc `reason`); không đóng khi còn mitigation `in_progress` (`422`); owner bắt buộc trước `mitigating`/`closed` | `EVT-risk.risk_mitigated` (`monitoring`/`closed`) |
 
 ### 4.10. AI Core (EP-110..119)
 
@@ -531,13 +555,28 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-110 | `{ message (≤ 4000 ký tự), conversation_id?, context?: { screen: SCR-xx, entity_ref?, metric_code?, period? }, locale? }` | `{ conversation_id, message_id, answer, sources: [SourceRef], function_calls: [{ tool, status, latency_ms }], suggested_actions: [AIActionOut], truncated, warnings[] }` | `422 AI_CONTEXT_TOO_LARGE`, `429 AI_QUOTA_EXCEEDED`, `502 AI_PROVIDER_ERROR`, `502 AI_FUNCTION_CALL_FAILED`, `504 AI_PROVIDER_TIMEOUT` | Ngữ cảnh 10 cặp tin nhắn gần nhất (FR-AI-05); `Idempotency-Key` bắt buộc |
 | EP-111 | như EP-110 | `text/event-stream` (§6) | Lỗi trước khi stream → JSON như EP-110; sau khi stream → event `error` | Client hủy (nút Dừng) → server dừng tool + lưu lượt `truncated:true` |
 | EP-112 | L phân trang; R `/{id}/messages`; D | `[ConversationOut { id, title, last_message_at }]`; messages `[MessageOut { id, sender, content, sources, function_calls, truncated, created_at }]` | `404` (hội thoại người khác → `404`, không lộ tồn tại) | DS5; D = xóa mềm |
-| EP-113 | `{ message_id? \| insight_id?, rating: up\|down, reason?: inaccurate_number\|missing_context\|too_verbose\|not_relevant\|other, comment? }` | `201 FeedbackOut` | `422` (thiếu cả hai id) | US-ALL-03 |
+| EP-113 | `{ message_id? \| insight_id?, rating: up\|down, reason?: inaccurate_number\|missing_context\|too_verbose\|not_relevant\|other, comment? }` | `201 FeedbackOut` | `422` (thiếu cả hai id) | US-ALL-103 |
 | EP-114 | L `pillar?`, `kind?`, `severity?`; `POST /ai/insights/{id}/dismiss` | `[InsightOut { id, kind, pillar, severity, observation, evidence: [SourceRef], impact?, recommendations: [{ text, action?: AIActionOut }], confidence: { band, reason }, created_at, expires_at }]` | — | Lọc theo `audience_roles` + scope; insight không nguồn không trả |
 | EP-115 | L `status?` (`proposed, executed, undone, …`), `autonomy_level?`, `from`; R; `POST /ai/actions/{id}/confirm` `{ edited_input? }`; `POST /ai/actions/{id}/reject` `{ reason }` | `AIActionOut { id, action_name (ACT-*), tool_name (TOOL-*), autonomy_level, status, input_preview, result_refs, on_behalf_of, executed_at, undo_deadline, can_undo }` | `409 CONFLICT_STATE`, `422 ACTION_REJECTED`, `403` thiếu `<domain>:write` | Confirm cần `ai:write` **và** `<domain>:write` đích; kill switch không chặn confirm L2 (người xác nhận) |
 | EP-116 | `{ reason? }` | `AIActionOut` (`undone`) | `410 UNDO_EXPIRED` (> 24 giờ), `409 CONFLICT_STATE` (bản ghi đã sửa) | DEC-134; hành động do IDP STP hoàn tác qua EP-33 (7 ngày) |
-| EP-117 | `{ action_name (ACT-* \| *), role_code?, max_amount?, currency?, level: L0..L3, max_level }` | `[AutonomyPolicyOut]` | `422` (L4 hoặc `level > max_level`) | Hạ level hiệu lực ngay; nâng chỉ cho tài liệu mới (04 §9.1) |
-| EP-118 | PUT `{ enabled: bool, mode: WRITE_OFF\|L0, reason }` | `{ enabled, mode, changed_by, changed_at }` | `422` (thiếu lý do) | CEO chỉ bật/tắt (`ai:admin ◑k`); audit `ai.kill_switch` + `EVT-platform.alert_raised` |
-| EP-119 | `/ai/tools` —; `/ai/usage` `from`, `to`, `group_by=provider\|model\|task_kind\|user` | Tools: `[{ name: TOOL-*, kind: READ\|WRITE\|COMPUTE, autonomy_default, available: bool }]`; Usage: `{ budget_usd, used_usd, used_pct, rows: [{ key, calls, tokens_in, tokens_out, cost_usd, error_rate, p95_ms }] }` | — | Cảnh báo 80% ngân sách (DEC-131) |
+| EP-117 | `{ action_name (ACT-* \| *), role_code?, max_amount?, currency?, level: L0..L3, max_level }` | `[AutonomyPolicyOut]` | `422` (L4 hoặc `level > max_level`) | Hạ level hiệu lực ngay; nâng chỉ cho tài liệu mới (04 §9.1). **Nâng level** cho action của domain X cần `domain_owner_ack: { user_id, at }` — xác nhận của chủ domain (VD CFO cho `ACT-record_expense`) qua `ENT-ApprovalRequest` (`target_kind = ai_action`) trước khi ADMIN lưu; thiếu → `422 BUSINESS_RULE_VIOLATION` (GAP D-08) |
+| EP-118 | PUT `{ enabled: bool, mode: WRITE_OFF\|L0, agents?: [agent_code] (per-agent — DEC-149; trống = toàn cục), reason }` | `{ enabled, mode, changed_by, changed_at }` | `422` (thiếu lý do) | CEO chỉ bật/tắt (`ai:admin ◑k`); audit `ai.kill_switch` + `EVT-platform.alert_raised` |
+| EP-119 | `/ai/tools` —; `/ai/usage` `from`, `to`, `group_by=provider\|model\|task_kind\|user\|department\|agent\|classification`, `format?=json\|xlsx` (báo cáo AI governance tháng — GAP D-13) | Tools: `[{ name: TOOL-*, kind: READ\|WRITE\|COMPUTE\|APPROVAL\|EXECUTION, autonomy_default, available: bool, schema, data_scope, classification, reversible, cost_estimate }]` (§7.4); Usage: `{ budget_usd, used_usd, used_pct, rows: [{ key, calls, tokens_in, tokens_out, cost_usd, error_rate, p95_ms }] }` | — | Cảnh báo 80% ngân sách (DEC-131); ngân sách theo phòng ban/agent hoãn v2.1 (DEC-150) — v2.0 chỉ báo cáo phân rã |
+
+### 4.11. Mới v2.1 (EP-120..129)
+
+| EP | Request | Response `data` | Lỗi | Ghi chú |
+|---|---|---|---|---|
+| EP-120 | — | `[{ code: DAILY\|WEEKLY\|MONTHLY\|BOARD, kind: WEEKLY\|MONTHLY\|null, formats: [PDF, XLSX], sections: [key], scope_types: [company, department] }]` | — | `DAILY` chỉ trỏ tới Briefing (EP-10), không sinh `ENT-Report`; `BOARD` = `kind = MONTHLY` + section HĐQT (lưu `metric_snapshot.template_code`, không thêm cột); Word hoãn v2.1 (DEC-153) |
+| EP-121 | `{ template_code: WEEKLY\|MONTHLY\|BOARD, period_key, scope_type: company\|department, scope_id?, formats: [PDF\|XLSX] (1..2), include_ai_summary: bool }` | `202 { job_id, reports: [ReportOut] }` (status `QUEUED`; `job_id` = Celery task id) | `422 VALIDATION_ERROR`, `403 FORBIDDEN_SCOPE` (MANAGER ngoài phòng ban), `409 DUPLICATE_RESOURCE` (UQ 05 — trả bản có sẵn trong `details.report_id`) | `Idempotency-Key` bắt buộc; nội dung lọc theo scope người yêu cầu (02 §6); `READY` → `EVT-platform.report_generated`. `TOOL-generate_report` gọi EP này (L2) |
+| EP-122 | L `template_code?`, `period_key?`, `status?`, phân trang; R — | `ReportOut { id, kind, template_code, period_key, scope_type, scope_id, format, status, generated_at, requested_by, download_url? (presigned ≤ 15 phút khi READY), metric_snapshot: [{ metric_code, metric_value_id }], error_code? }` | `404` | Job định kỳ = `requested_by: null` (nhãn "Tự động") |
+| EP-123 | L `box=mine\|sent\|done`, `status?`, `target_kind?`, phân trang (sort mặc định `due_at` tăng); Rule: C/U `{ code, target_kind, condition: { field, op, value, currency? }, approver_role_codes[], second_approver_role_codes?, sla_hours, escalate_to_role_code?, is_active, priority }` | `[ApprovalRequestOut { id, rule_code, target_kind, target_table, target_id, amount, currency, status, step, requested_by, ai_action_id?, due_at, escalated_at? }]`; rule: `ApprovalRuleOut` | `422` (op ngoài whitelist `>=, >, <=, <, =`) | `box=mine` cần `platform:approve`; `box=sent` chỉ cần token + `dashboard:read`. ROLE-10 chỉ thấy rule, không thấy payload |
+| EP-124 | — | `ApprovalRequestOut + { payload_diff: [{ path, before, after }] (mask mức 4), timeline: [{ step, actor_ref, decision, reason?, at }], source_refs: [SourceRef] }` | `404`, `403 FORBIDDEN_SCOPE` | |
+| EP-125 | `{ decision: approve\|reject, reason? (bắt buộc khi reject), reauth_token? }` | `ApprovalRequestOut` (bước 1 xong + có bước 2 → `step = 2`, `PENDING`) | `409 CONFLICT_STATE` (đã xử lý / hết hạn), `403 FORBIDDEN_ROLE` (không thuộc role bước hiện tại), `422 BUSINESS_RULE_VIOLATION` (người duyệt = người yêu cầu hoặc = người duyệt bước 1 — 05 CK) | Tài chính ≥ `APPROVAL_FINANCE_THRESHOLD_VND` cần 2 người (DEC-155); `APPROVED` cuối → thực thi đối tượng đích qua Action Registry trong cùng transaction + `EVT-platform.approval_decided`. `TOOL-approve_request`/`TOOL-reject_request` gọi EP này chỉ khi người dùng bấm xác nhận |
+| EP-126 | `{ to_user_id? \| to_role_code?, reason }` | `{ document: DocumentOut, assignment: { id, kind: REASSIGN, to_user_ref, due_at } }` | `422` (thiếu lý do; người nhận không có `idp:approve` đúng phạm vi), `409 REVIEW_LOCKED` | Giữ SLA gốc; audit `idp.review.reassign`; `ENT-Notification` cho người nhận |
+| EP-127 | `{ document_ids: [uuid] (2..20), primary_id? }` | `{ parent: DocumentOut, children: [DocumentOut] }` | `409 CONFLICT_STATE` (có tài liệu không ở `NEEDS_REVIEW` hoặc khác doc type/batch) | Đảo ngược của EP-37 (tách lại = hoàn tác); audit `idp.review.merge` |
+| EP-128 | GET `as_of?`; POST `/recompute` `{ assumptions?: { collection_on_time_pct, fixed_opex_weekly, payroll_monthly_override? } }` | `CashFlowForecastOut { id, start_week, weeks: 13, opening_cash, currency, min_projected_cash, min_cash_week, confidence_level, generated_at, generated_by, assumptions, lines: [{ week_no, week_start, inflow_receivables, inflow_other, outflow_payables, outflow_payroll, outflow_opex, outflow_other, net_flow, closing_cash }], stale: bool }`; recompute → `202 { job_id }` | `404` + `status_reason = NO_CASH_POSITION` khi chưa có CashPosition | Lương chỉ tổng (không lương cá nhân); bản mới `is_current`, bản cũ giữ lịch sử → `EVT-finance.cash_flow_forecast_updated`. `TOOL-get_cash_flow_forecast` gọi GET |
+| EP-129 | GET —; PATCH `{ level: CONFIDENTIAL, provider: <provider id §6.1 của 07> \| null (gỡ override), reason }` | `{ levels: [{ level, effective_provider, source: env\|override, set_by?, set_at?, reason? }] }` | `422` (`level = SECRET` không override được; thiếu `reason`; provider không có trong chain) | Lưu `ENT-SystemSetting` key `ai.classification_overrides`; audit `ai.classification_override` (before/after) + `EVT-platform.alert_raised` (info) cho CEO; SCR-15 hiện băng vàng khi đang bật (06 §4.7) |
 
 **SourceRef (source chip):** `{ type: metric_value\|record\|document_page\|tool_result, id, label, metric_code?, period_key?, value?, lineage_url }`. Mọi con số trong `answer` phải có ≥ 1 SourceRef (P01, P05); không có dữ liệu → `warnings: ["AI_NO_DATA_AVAILABLE"]`.
 
@@ -617,7 +656,7 @@ Quy tắc:
 
 ## 7. Tool Registry (`TOOL-<name>`)
 
-AI Core chỉ gọi tool trong registry dưới đây; tool khả dụng của một lượt = tool có **permission** người hỏi đang có (02 §7.2). Tool đọc gọi service nội bộ tương đương endpoint, với **JWT của người hỏi**; tool ghi tạo `ENT-AIAction` rồi thực thi `ACT-*` qua Action Registry (04 §10) theo `ENT-AutonomyPolicy`. `risk_level`: `low` (đọc tổng hợp), `medium` (đọc chi tiết / tính toán / ghi nội bộ hoàn tác được), `high` (ghi tài chính, nhân sự, hợp đồng). Autonomy mặc định: READ/COMPUTE = **L0**; WRITE theo 04 §9.1.
+AI Core chỉ gọi tool trong registry dưới đây (**43 tool** — 00 §4.8: 35 v2.0 §7.1–7.2 + 8 v2.1 §7.3; metadata §7.4); tool khả dụng của một lượt = tool có **permission** người hỏi đang có (02 §7.2). Tool đọc gọi service nội bộ tương đương endpoint, với **JWT của người hỏi**; tool ghi tạo `ENT-AIAction` rồi thực thi `ACT-*` qua Action Registry (04 §10) theo `ENT-AutonomyPolicy`. `risk_level`: `low` (đọc tổng hợp), `medium` (đọc chi tiết / tính toán / ghi nội bộ hoàn tác được), `high` (ghi tài chính, nhân sự, hợp đồng). Autonomy mặc định: READ/COMPUTE = **L0**; WRITE theo 04 §9.1.
 
 ### 7.1. Tool đọc / tính toán
 
@@ -669,7 +708,74 @@ Quy tắc:
 1. Kết quả tool gửi LLM đã lọc PII/lương (§2.4), bọc trong delimiter "dữ liệu" (prompt injection — 07 §Bảo mật).
 2. Kill switch `WRITE_OFF` → mọi tool ghi chỉ tạo action card L2; `L0` → tool ghi bị gỡ khỏi danh sách.
 3. Mỗi tool call ghi `ENT-ToolCallLog` (`tool_name`, `arguments` mask, `status`, `http_status`, `latency_ms`).
-4. Thêm tool = đổi contract → cập nhật bảng này + 02 §7.2 trước.
+4. Thêm tool = đổi contract → cập nhật bảng này + 00 §4.8 + 02 §7.3 trước.
+5. Chọn provider theo `classification` của tool result (§7.4, 07 §6.5 — DEC-157).
+
+### 7.3. Tool mới v2.1 (DEC-149 — GAP D-03; 00 §4.8)
+
+| Tool | Endpoint / Action | Permission | Lớp (02 §7.3) | risk_level | Autonomy mặc định / tối đa |
+|---|---|---|---|---|---|
+| TOOL-get_kpi_status | EP-47.L (+ evaluation band, check-in gần nhất) | `execution:read` | QUERY (READ) | low | L0 |
+| TOOL-get_cash_flow_forecast | EP-128 (GET) | `finance:read` | QUERY (READ) | medium | L0 |
+| TOOL-assign_task | EP-44.U (`assignee_id`, `owner_id`) — undo bằng snapshot `before` trong `ENT-AIAction` | `ai:write` + `execution:write` | WRITE | medium | L2 / L3 |
+| TOOL-generate_report | EP-121 | `ai:write` + `dashboard:read` | WRITE | low | L2 / L2 |
+| TOOL-request_approval | EP-123.C | `ai:write` + `dashboard:read` | WRITE | medium | L2 / L2 |
+| TOOL-send_notification | Service `platform.notify` (không có EP công khai; người nhận đọc qua EP-53) | `ai:write` | WRITE (in-app) · EXECUTION (`email`) | low / medium | in-app L3 / L3 · email L2 / L2 |
+| TOOL-approve_request | EP-125 `decision=approve` | `platform:approve` | APPROVAL | high | — (**không khai báo cho model**; chỉ server gọi khi người dùng bấm) |
+| TOOL-reject_request | EP-125 `decision=reject` (bắt buộc lý do) | `platform:approve` | APPROVAL | medium | — (như trên) |
+
+Hành động WRITE khớp `ENT-ApprovalRule` (VD chi > ngưỡng) → AI gọi `TOOL-request_approval` thay vì thực thi (02 §7.3 #2). Tool tiền trần **L2** ở v2.0 (DEC-150) dù cột "tối đa" ghi L3.
+
+### 7.4. Metadata tool (DEC-149 — GAP D-02)
+
+Mọi tool khai báo 5 thuộc tính trong registry code (`ai_core/tools/registry.py`) và trả qua EP-119 `/ai/tools`:
+
+| Thuộc tính | Quy ước |
+|---|---|
+| `schema` | JSON Schema input/output sinh từ Pydantic model của endpoint đích (§4) — không viết tay; output luôn kèm `sources[]` |
+| `data_scope` | Domain + mức chi tiết: `<domain>:aggregate` (số tổng hợp) hoặc `<domain>:record` (bản ghi); scope `p/d/o/r` theo JWT người hỏi (§2.3) |
+| `classification` | Mức cao nhất của output (DEC-157): `aggregate` → `INTERNAL`; `record` → `CONFIDENTIAL`; output có trường mức 4 → `SECRET` (bị PII filter loại trước khi tới model). Quyết định provider theo 07 §6.5 |
+| `reversible` | `true` khi có undo (WRITE qua `ACT-*` — 24 giờ, DEC-134); QUERY = `n/a`; APPROVAL/EXECUTION = `false` |
+| `cost_estimate` | `low` (1 truy vấn, ≤ 100 ms) · `medium` (nhiều truy vấn / tổng hợp ≤ 1 s) · `high` (job nền: báo cáo, what-if, recompute) — dùng cho ngân sách lượt (≤ 8 call, 5 s/call) |
+
+| Tool | `data_scope` | `classification` | `reversible` | `cost_estimate` |
+|---|---|---|---|---|
+| TOOL-get_finance_dashboard, TOOL-get_budget_status, TOOL-get_finance_forecast, TOOL-get_runway_what_if, TOOL-get_cash_flow_forecast | `finance:aggregate` | `INTERNAL` | n/a | low (what-if: medium) |
+| TOOL-list_expenses, TOOL-list_invoices | `finance:record` | `CONFIDENTIAL` | n/a | medium |
+| TOOL-get_sales_dashboard, TOOL-get_sales_pipeline | `sales:aggregate` | `INTERNAL` | n/a | low |
+| TOOL-list_deals | `sales:record` | `CONFIDENTIAL` | n/a | medium |
+| TOOL-get_hr_dashboard | `hr:aggregate` | `INTERNAL` | n/a | low |
+| TOOL-list_hiring_plans, TOOL-get_workload | `hr:record` (tên → mã giả danh `EMP-xxxx`) | `CONFIDENTIAL` | n/a | medium |
+| TOOL-get_product_dashboard, TOOL-get_product_metrics | `product:aggregate` | `INTERNAL` | n/a | low |
+| TOOL-get_risk_dashboard, TOOL-run_risk_scenario | `risk:aggregate` | `INTERNAL` | n/a | low (scenario: high) |
+| TOOL-list_risks | `risk:record` | `CONFIDENTIAL` | n/a | medium |
+| TOOL-get_execution_dashboard, TOOL-get_kpi_status, TOOL-get_metric, TOOL-list_alerts | `execution:aggregate` / `dashboard:aggregate` | `INTERNAL` | n/a | low |
+| TOOL-list_tasks, TOOL-list_objectives, TOOL-get_lineage | `execution:record` / `dashboard:record` | `CONFIDENTIAL` | n/a | medium |
+| TOOL-search_documents, TOOL-get_source_document | `idp:record` | `CONFIDENTIAL` (tài liệu `contains_salary` → `SECRET`, chỉ metadata) | n/a | medium |
+| TOOL-create_task, TOOL-assign_task, TOOL-record_decision, TOOL-create_meeting, TOOL-record_kpi_measurement | `execution:record` | `CONFIDENTIAL` | `true` | low |
+| TOOL-record_expense, TOOL-create_invoice | `finance:record` | `CONFIDENTIAL` | `true` | low |
+| TOOL-upsert_deal | `sales:record` | `CONFIDENTIAL` | `true` | low |
+| TOOL-upsert_risk, TOOL-create_mitigation | `risk:record` | `CONFIDENTIAL` | `true` | low |
+| TOOL-submit_document | `idp:record` | `CONFIDENTIAL` | `true` (rollback EP-33, 7 ngày) | medium |
+| TOOL-generate_report | `dashboard:aggregate` | `INTERNAL` | `false` (báo cáo xóa mềm được) | high |
+| TOOL-request_approval | `platform:record` | `CONFIDENTIAL` | `true` (hủy request `CANCELLED`) | low |
+| TOOL-send_notification | `platform:record` | `INTERNAL` | `false` | low |
+| TOOL-approve_request, TOOL-reject_request | `platform:record` | `CONFIDENTIAL` | `false` | low |
+
+### 7.5. Ánh xạ 10 tool IDP của BRD → endpoint (04 §10.3, GAP B-12)
+
+| # | Tool BRD | Aureon v2.0 | Endpoint / cơ chế | AI được gọi? |
+|---|---|---|---|---|
+| 1 | upload_document | TOOL-submit_document | EP-22 (câu C2 / file đính kèm chat → EP-20 nội bộ) | ✅ L2 (action card) |
+| 2 | classify_document | Bước [4] pipeline | Celery `classify_document` — không có EP | ❌ (nội bộ) |
+| 3 | extract_document | Bước [6] pipeline | Celery `extract_document` — kết quả đọc qua EP-26 | ❌ |
+| 4 | validate_extraction | Bước [8] pipeline | Validation rule EP-51 — kết quả trong EP-26 `validations` | ❌ |
+| 5 | submit_extraction_for_review | Bước [9] routing | Tự động → hàng chờ EP-28 (giao/chuyển: EP-126) | ❌ |
+| 6 | approve_extraction | Người bấm | EP-31 | ❌ (FR-DC-16) |
+| 7 | commit_extraction | Action Registry `ACT-*` | EP-31 (người) hoặc STP (`AUTO_APPROVED`); hoàn tác EP-33 | ❌ (kế thừa autonomy action đích) |
+| 8 | import_table | Người (C5) | EP-23 → EP-36 | ❌ |
+| 9 | search_documents | TOOL-search_documents | EP-24 (+ RAG v2.1) | ✅ L0 |
+| 10 | get_source_document | TOOL-get_source_document | EP-25, EP-27 | ✅ L0 |
 
 ---
 
@@ -716,7 +822,7 @@ Quy tắc:
 | EVT-hr.employee_onboarded | hr (EP-82, ACT-upsert_employee) | finance, platform, ai | finance: cập nhật dự báo chi phí lương; platform: tính lại METRIC-HR-01..03 |
 | EVT-hr.employee_terminated | hr (EP-82) | finance, risk, platform, ai | finance: dự báo; risk: đánh giá rủi ro nhân sự chủ chốt; platform: METRIC-HR-02 |
 | EVT-hr.salary_updated | hr (EP-83) | finance, ai | finance: đọc tổng quỹ lương qua `hr` service, cập nhật dự báo |
-| EVT-hr.hiring_plan_delayed | hr (job hằng ngày, FR-HR-04) | risk, finance, platform | risk: tạo Risk `source=event` (BR-RSK-03); finance: điều chỉnh dự báo; platform: ALERT-HR-04 |
+| EVT-hr.hiring_plan_delayed | hr (job hằng ngày, FR-HR-04) | risk, finance, platform | risk: tạo Risk `risk_source=event` ở `proposed` (BR-RSK-03, DEC-148); finance: điều chỉnh dự báo; platform: ALERT-HR-04 |
 | EVT-sales.deal_closed_won | sales (EP-73) | finance, product, platform | finance: doanh thu dự kiến; product: gắn adoption; platform: METRIC-CUS-* |
 | EVT-sales.deal_closed_lost | sales (EP-73) | finance, risk, platform | risk: tạo Risk khi deal ≥ `RISK_LOST_DEAL_MIN_VALUE` |
 | EVT-finance.budget_exceeded | finance (EP-62, BR-FIN-05) | hr, risk, platform | hr: cảnh báo tuyển dụng phòng ban; risk: Risk `financial`; platform: ALERT-FIN-06 |
@@ -726,7 +832,7 @@ Quy tắc:
 | EVT-product.product_launched | product (EP-94) | sales, finance | sales: cập nhật danh mục bán; finance: dự báo doanh thu |
 | EVT-product.feature_released | product (EP-92) | sales | Thông báo đội sales |
 | EVT-product.metric_anomaly | product (EP-95, BR-PRD-01) | risk, platform, ai | risk: Risk `market`; platform: ALERT-PRD-02 |
-| EVT-risk.risk_identified | risk (EP-101, consumer) | finance, hr, product, platform | Gắn cờ rủi ro vào bản ghi liên kết; platform: ALERT-RSK-01 |
+| EVT-risk.risk_identified | risk (EP-101 nhập tay; EP-106 owner xác nhận `proposed`) | finance, hr, product, platform | Gắn cờ rủi ro vào bản ghi liên kết; platform: ALERT-RSK-01 |
 | EVT-risk.risk_level_changed | risk (EP-102) | finance, hr, platform | Cập nhật cờ; tính lại METRIC-RSK-* |
 | EVT-risk.risk_mitigated | risk (EP-103, EP-106) | finance, hr, platform | Gỡ cờ; METRIC-RSK-* |
 | EVT-execution.task_overdue | execution (job hằng ngày) | platform, ai | platform: METRIC-OPS-01, thông báo assignee |
@@ -735,7 +841,29 @@ Quy tắc:
 | EVT-idp.document_rolled_back | idp (EP-33) | platform, ai, mọi module có bản ghi | Tính lại metric, gỡ bản ghi bị hoàn tác |
 | EVT-platform.alert_raised | platform (metric engine, EP-118) | ai, platform (notification) | ai: insight/briefing; notification: FR-NTF-01/02 |
 
-Payload chi tiết từng event: `05-DATA-MODEL.md` §5.3 (nguồn chuẩn cột). Thêm event = cập nhật 00 §4.5, 05 §5.3 và bảng này trước.
+| EVT-finance.invoice_created | finance (EP-67.C, `ACT-create_invoice`) | finance, risk, platform | finance: tính lại dòng tiền 13 tuần (EP-128); risk: rủi ro công nợ khi khách quá hạn nhiều; platform: METRIC-FIN-* (GAP D-26) |
+| EVT-finance.cash_flow_forecast_updated | finance (EP-128 recompute, consumer `finance.on_invoice_created` / `on_invoice_paid` / `on_salary_updated`) | risk, platform, ai | risk: đáy dòng tiền dưới ngưỡng → Risk `financial` ở `proposed`; ai: insight SCR-31 |
+| EVT-risk.risk_proposed | risk (consumer event, EP-101 với `risk_source ≠ manual`, `ACT-upsert_risk` từ IDP/AI) | platform, ai | platform: `ENT-Notification` cho owner đề xuất (không alert — 03 §5.5); ai: gợi ý owner xác nhận |
+| EVT-platform.approval_requested | platform (EP-123.C, rule khớp trong Action Registry, `TOOL-request_approval`) | platform (notification), ai | Badge SCR-29 + thông báo người duyệt bước hiện tại |
+| EVT-platform.approval_decided | platform (EP-125) | module sở hữu `target_*`, ai, platform (notification) | Module đích thực thi/hủy thay đổi chờ duyệt (idempotent theo `approval_request_id`); thông báo người yêu cầu |
+| EVT-platform.report_generated | platform (worker EP-121, job định kỳ) | platform (notification) | Thông báo "Báo cáo sẵn sàng" + link SCR-30 |
+| EVT-idp.review_escalated | idp (job SLA mỗi 15 phút) | platform (notification, metric) | Thông báo người nhận escalation; đếm review quá SLA |
+
+Payload chi tiết từng event: `05-DATA-MODEL.md` §5.3 (nguồn chuẩn cột). Thêm event = cập nhật 00 §4.5, 05 §5.3 và bảng này trước. **28 event** (21 v2.0 + 7 v2.1).
+
+### 8.4. Payload 7 event mới v2.1 (00 §4.5 — DEC-148, DEC-151, DEC-153)
+
+Nguồn cột: 05 §5.3. Payload chỉ chứa id + số tổng hợp (§8.1); `version = 1`.
+
+| Event (`event_type`) | `payload` | Ví dụ |
+|---|---|---|
+| `finance.invoice_created` | `{ invoice_id, direction: OUT\|IN, client_id?, total_amount, currency, due_date }` | `{ "invoice_id": "…", "direction": "OUT", "client_id": "…", "total_amount": 1320000000, "currency": "VND", "due_date": "2026-11-19" }` |
+| `finance.cash_flow_forecast_updated` | `{ forecast_id, min_projected_cash, min_cash_week (1..13), currency }` | `{ "forecast_id": "…", "min_projected_cash": 3100000000, "min_cash_week": 7, "currency": "VND" }` |
+| `risk.risk_proposed` | `{ risk_id, category (13 giá trị — 05), severity, risk_source: event\|ai\|document, linked_entities }` | `{ "risk_id": "…", "category": "people", "severity": "high", "risk_source": "event", "linked_entities": { "hiring_plan_id": "…" } }` |
+| `platform.approval_requested` | `{ approval_request_id, rule_code, target_table?, target_id?, amount?, currency?, due_at }` | `{ "approval_request_id": "…", "rule_code": "APR-EXPENSE-LARGE", "target_table": "expenses", "target_id": null, "amount": 620000000, "currency": "VND", "due_at": "2026-10-21T01:00:00Z" }` |
+| `platform.approval_decided` | `{ approval_request_id, status: APPROVED\|REJECTED, step, target_table?, target_id? }` | `{ "approval_request_id": "…", "status": "APPROVED", "step": 2, "target_table": "expenses", "target_id": "…" }` |
+| `platform.report_generated` | `{ report_id, kind: WEEKLY\|MONTHLY, period_key, scope_type, format: PDF\|XLSX }` | `{ "report_id": "…", "kind": "MONTHLY", "period_key": "2026-09", "scope_type": "company", "format": "PDF" }` |
+| `idp.review_escalated` | `{ source_document_id, review_assignment_id, to_role_code, overdue_hours }` | `{ "source_document_id": "…", "review_assignment_id": "…", "to_role_code": "CFO", "overdue_hours": 9 }` |
 
 ---
 
@@ -743,59 +871,67 @@ Payload chi tiết từng event: `05-DATA-MODEL.md` §5.3 (nguồn chuẩn cột
 
 | EP | FR | US | SCR |
 |---|---|---|---|
-| EP-01 | NFR (07) | US-ALL-04 | SCR-15 |
+| EP-01 | NFR (07) | US-ALL-104 | SCR-15 |
 | EP-02, EP-06, EP-07 | FR-AUTH-01, FR-AUTH-02 | — | SCR-13 |
 | EP-03, EP-08 | FR-AUTH-03 | — | SCR-26 |
 | EP-04, EP-05 | (demo, DEC-073) | — | SCR-13 |
-| EP-09, EP-59 | FR-AUTH-04, FR-AUTH-05 | US-ADM-01 | SCR-26 |
-| EP-10, EP-19 | FR-DSH-01, FR-DSH-04 | US-CEO-01, US-CEO-02, US-EMP-01 | SCR-01, SCR-28 |
-| EP-11, EP-12, EP-18 | FR-DSH-02, FR-DSH-03, FR-DSH-05 | US-CEO-05 | SCR-02..07 |
-| EP-13, EP-14 | FR-DSH-03, FR-DC-21 | US-CEO-05, US-DC-011 | SCR-07 |
-| EP-15..17 | FR-RSK-05, FR-NTF-01 | US-SAL-04, US-RSK-03 | SCR-01..06 |
-| EP-20 | FR-DC-01, 02, 05..08 | US-DC-003, US-EMP-02 | SCR-08, SCR-09, SCR-28 |
-| EP-21 | FR-DC-04 | US-DC-001 | SCR-09 |
+| EP-09, EP-59 | FR-AUTH-04, FR-AUTH-05 | US-ADM-101 | SCR-26 |
+| EP-10, EP-19 | FR-DSH-01, FR-DSH-04 | US-CEO-101, US-CEO-002, US-TASK-002 | SCR-01, SCR-28 |
+| EP-11, EP-12, EP-18 | FR-DSH-02, FR-DSH-03, FR-DSH-05 | US-CEO-103 | SCR-02..07 |
+| EP-13, EP-14 | FR-DSH-03, FR-DC-23 | US-CEO-103, US-CEO-007 | SCR-07 |
+| EP-15..17 | FR-RSK-05, FR-NTF-01 | US-SAL-102, US-GOV-102 | SCR-01..06 |
+| EP-20 | FR-DC-07, FR-DC-08 | US-DC-003, US-DC-009 | SCR-08, SCR-09, SCR-28 |
+| EP-21 | FR-DC-01, FR-DC-02, FR-DC-04 | US-DC-001 | SCR-09 |
 | EP-22 | FR-DC-03 | US-DC-002 | SCR-09, SCR-16 |
 | EP-23, EP-36, EP-38 | FR-DC-18 | US-DC-007 | SCR-11 |
-| EP-24, EP-25, EP-28 | FR-DC-17 | US-MGR-03 | SCR-08 |
-| EP-26, EP-27, EP-29..32, EP-35 | FR-DC-10..16, 19, 20 | US-DC-006, US-DC-009, US-DC-010 | SCR-10 |
-| EP-31, EP-33 | FR-DC-21, FR-DC-22 | US-DC-006 | SCR-10, SCR-08 |
-| EP-34, EP-37 | FR-DC-05, FR-DC-09 | US-DC-003 | SCR-08, SCR-10 |
-| EP-39, EP-50, EP-51 | FR-DC-23 | US-DC-008 | SCR-27 |
-| EP-40, EP-41 | FR-DC-01, FR-DC-14 (UC-07) | US-DC-007 | SCR-12 |
-| EP-42, EP-43, EP-44 | FR-DC-11 (UC-06) | US-DC-004, US-MGR-02 | SCR-18, SCR-19 |
-| EP-45, EP-49 | (execution — OQ-08) | US-MGR-02 | SCR-19, SCR-03 |
-| EP-46, EP-47, EP-48 | (execution — OQ-08) | US-DC-005, US-EMP-03 | SCR-20 |
-| EP-52 | FR-DC-22 | US-ADM-04 | SCR-14 |
+| EP-24, EP-25, EP-28 | FR-DC-21 | US-MGR-102 | SCR-08 |
+| EP-26, EP-27, EP-29..32, EP-35 | FR-DC-11..16, FR-DC-19, FR-DC-20, FR-DC-22, FR-DC-23 | US-DC-006, US-DC-010, US-DC-011 | SCR-10 |
+| EP-31, EP-33 | FR-DC-17, FR-DC-05, FR-DC-101 | US-DC-006 | SCR-10, SCR-08 |
+| EP-34, EP-37 | FR-DC-08, FR-DC-10, FR-DC-14 | US-DC-003 | SCR-08, SCR-10 |
+| EP-39, EP-50, EP-51 | FR-DC-102, FR-DC-09 | US-DC-008 | SCR-27 |
+| EP-40, EP-41 | FR-DC-07, FR-DC-14 (UC-07) | US-DC-007 | SCR-12 |
+| EP-42, EP-43, EP-44 | FR-DC-11 (UC-06, UC-02) | US-DC-004, US-TASK-003 | SCR-18, SCR-19 |
+| EP-45, EP-49 | (execution — OQ-08) | US-TASK-003 | SCR-19, SCR-03 |
+| EP-46, EP-47, EP-48 | (execution — OQ-08) | US-DC-005, US-OKR-006 | SCR-20 |
+| EP-52 | FR-DC-05 | US-ADM-102 | SCR-14 |
 | EP-53 | FR-NTF-01, FR-NTF-02 | — | (header toàn cục) |
-| EP-54..58 | FR-DSH-02 (ngưỡng cấu hình) | US-ADM-04 | SCR-15, SCR-26, SCR-27 |
-| EP-60 | FR-FIN-07 | US-CFO-01 | SCR-02, SCR-22 |
-| EP-61, EP-62, EP-65 | FR-FIN-01, FR-FIN-02, FR-FIN-04 | US-CFO-01, US-MGR-01 | SCR-22 |
-| EP-63, EP-64 | FR-FIN-03 | US-CFO-02 | SCR-22 |
-| EP-66 | FR-FIN-05, FR-FIN-08 | US-CFO-03, US-CFO-04 | SCR-22 |
-| EP-67, EP-68 | FR-FIN-06 | US-CFO-05 | SCR-22 |
-| EP-69 | FR-FIN-07 (BR-FIN-06), FR-AI-09 | US-CEO-04 | SCR-16 |
-| EP-70, EP-75, EP-76 | FR-SAL-04, FR-SAL-05, FR-SAL-07 | US-SAL-03, US-SAL-04 | SCR-04, SCR-23 |
-| EP-71 | FR-SAL-03 | US-SAL-02 | SCR-23 |
-| EP-72..74 | FR-SAL-01, FR-SAL-02 | US-SAL-01, US-MGR-01 | SCR-23 |
-| EP-77 | FR-SAL-06 | US-CEO-08 | SCR-23 |
-| EP-78 | (03 §6.2 ghi chú Contract) | US-DC-010 | SCR-23 |
-| EP-80, EP-87 | FR-HR-06 | US-HR-04, US-MGR-02 | SCR-03, SCR-24, SCR-19 |
-| EP-81, EP-82, EP-83 | FR-HR-01, FR-HR-02, FR-HR-05 | US-HR-01 | SCR-24 |
-| EP-84..86 | FR-HR-03, FR-HR-04, FR-HR-07 | US-HR-02, US-HR-03, US-CFO-06 | SCR-24 |
-| EP-90 | FR-PRD-07 | US-PRD-01 | SCR-05, SCR-25 |
-| EP-91..94 | FR-PRD-01..04 | US-PRD-01 | SCR-25 |
-| EP-95 | FR-PRD-05, FR-PRD-06 | US-PRD-02, US-PRD-03 | SCR-25 |
-| EP-100 | FR-RSK-07 | US-RSK-01 | SCR-06, SCR-21 |
-| EP-101, EP-102, EP-106 | FR-RSK-01..03 | US-RSK-01, US-RSK-02 | SCR-21 |
-| EP-103 | FR-RSK-04 | US-RSK-03 | SCR-21 |
-| EP-104 | FR-RSK-01 (BR-RSK-02) | US-CEO-07 | SCR-21 |
-| EP-105 | FR-RSK-06 | US-CEO-06 | SCR-21 |
-| EP-110, EP-111 | FR-AI-01..04, FR-AI-08, FR-AI-10, FR-DSH-08 | US-CEO-03, US-AI-01, US-AI-02, US-AI-05 | SCR-16 |
-| EP-112 | FR-AI-05 | US-ALL-02 | SCR-16 |
-| EP-113 | FR-AI-06 | US-ALL-03 | SCR-16, SCR-01 |
-| EP-114 | FR-AI-07, FR-DSH-04 | US-CEO-02 | SCR-01..06 |
-| EP-115, EP-116 | FR-AI-08 (ghi qua `ACT-*`, OQ-15) | US-AI-03, US-AI-04 | SCR-17, SCR-16 |
-| EP-117, EP-118, EP-119 | FR-DC-23 (autonomy) | US-ADM-02, US-ADM-03 | SCR-15 |
+| EP-54..58 | FR-DSH-02 (ngưỡng cấu hình) | US-ADM-102 | SCR-15, SCR-26, SCR-27 |
+| EP-60 | FR-FIN-07 | US-FIN-001 | SCR-02, SCR-22 |
+| EP-61, EP-62, EP-65 | FR-FIN-01, FR-FIN-02, FR-FIN-04 | US-FIN-001, US-MGR-101 | SCR-22 |
+| EP-63, EP-64 | FR-FIN-03 | US-FIN-002 | SCR-22 |
+| EP-66 | FR-FIN-05, FR-FIN-08 | US-FIN-101, US-FIN-102 | SCR-22 |
+| EP-67, EP-68 | FR-FIN-06 | US-FIN-103 | SCR-22 |
+| EP-69 | FR-FIN-07 (BR-FIN-06), FR-AI-09 | US-CEO-102 | SCR-16 |
+| EP-70, EP-75, EP-76 | FR-SAL-04, FR-SAL-05, FR-SAL-07 | US-SAL-003, US-SAL-102 | SCR-04, SCR-23 |
+| EP-71 | FR-SAL-03 | US-SAL-101 | SCR-23 |
+| EP-72..74 | FR-SAL-01, FR-SAL-02 | US-SAL-002, US-MGR-101 | SCR-23 |
+| EP-77 | FR-SAL-06 | US-CEO-106 | SCR-23 |
+| EP-78 | (03 §6.2 ghi chú Contract) | US-DC-011 | SCR-23 |
+| EP-80, EP-87 | FR-HR-06 | US-HR-104, US-TASK-003 | SCR-03, SCR-24, SCR-19 |
+| EP-81, EP-82, EP-83 | FR-HR-01, FR-HR-02, FR-HR-05 | US-HR-101 | SCR-24 |
+| EP-84..86 | FR-HR-03, FR-HR-04, FR-HR-07 | US-HR-102, US-HR-103, US-FIN-104 | SCR-24 |
+| EP-90 | FR-PRD-07 | US-PRD-001 | SCR-05, SCR-25 |
+| EP-91..94 | FR-PRD-01..04 | US-PRD-001 | SCR-25 |
+| EP-95 | FR-PRD-05, FR-PRD-06 | US-PRD-101, US-PRD-102 | SCR-25 |
+| EP-100 | FR-RSK-07 | US-GOV-003 | SCR-06, SCR-21 |
+| EP-101, EP-102, EP-106 | FR-RSK-01..03 | US-GOV-003, US-GOV-101 | SCR-21 |
+| EP-103 | FR-RSK-04 | US-GOV-102 | SCR-21 |
+| EP-104 | FR-RSK-01 (BR-RSK-02) | US-CEO-105 | SCR-21 |
+| EP-105 | FR-RSK-06 | US-CEO-104 | SCR-21 |
+| EP-110, EP-111 | FR-AI-01..04, FR-AI-08, FR-AI-10, FR-DSH-08 | US-CEO-001, US-AI-101, US-AI-102, US-AI-105 | SCR-16 |
+| EP-112 | FR-AI-05 | US-ALL-102 | SCR-16 |
+| EP-113 | FR-AI-06 | US-ALL-103 | SCR-16, SCR-01 |
+| EP-114 | FR-AI-07, FR-DSH-04 | US-CEO-002 | SCR-01..06 |
+| EP-115, EP-116 | FR-AI-08 (ghi qua `ACT-*`, OQ-15) | US-AI-103, US-AI-104 | SCR-17, SCR-16 |
+| EP-117, EP-118, EP-119 | FR-DC-102 (autonomy), FR-AI-08, FR-AI-10 | US-AI-004, US-AI-007 | SCR-15 |
+
+| EP-120, EP-121, EP-122 | FR-DSH-09 | US-RPT-001, US-RPT-002, US-RPT-005 | SCR-30 |
+| EP-123, EP-124, EP-125 | FR-DSH-10 | US-CEO-006, US-AI-005, US-FIN-104 | SCR-29 |
+| EP-126, EP-127 | FR-DC-21, FR-DC-22, FR-DC-10 | US-DC-006 | SCR-08, SCR-10 |
+| EP-128 | FR-FIN-05 (dòng tiền 13 tuần — DEC-148), FR-AI-09 | US-FIN-003 | SCR-31 |
+| EP-129 | FR-AI-10 (classification → provider — DEC-157) | US-AI-006 | SCR-15 |
+
+Mã FR-DC theo BRD (00 §4.12) và US theo 00 §4.11 (đã ánh xạ từ mã cũ qua 00 §4.13 — DEC-146).
 
 Test case `TC-<AREA>-xxx` cho từng EP do `14-TEST-TRACEABILITY.md` sở hữu (Gate C).
 
@@ -812,14 +948,18 @@ Test case `TC-<AREA>-xxx` cho từng EP do `14-TEST-TRACEABILITY.md` sở hữu 
 | OQ-05 | Endpoint Briefing (EP-10) cho MANAGER/EMPLOYEE (không có `dashboard:read`) — permission `authenticated` + cắt khối theo permission | Giữ như §3.2 | 02, 03 §10 |
 | OQ-06 | PIL-O gồm HR (EP-80) + Execution (EP-49): hai endpoint cho một trụ; trạng thái trụ ghép ở frontend | Giữ hai endpoint (cô lập lỗi) | 03 §9, 06 |
 | OQ-07 | Envelope event thêm `correlation_id`, `producer` ngoài 5 field DEC-126 | Optional, consumer không phụ thuộc; xác nhận bằng DEC | 05 §5.3, 07 |
-| OQ-08 | Module `execution` (meeting, decision, task, project, OKR, KPI, check-in) chưa có `FR-EXE-*` trong 00 §4 (FR area chỉ gồm `AUTH, FIN, SAL, HR, PRD, RSK, AI, DSH, NTF, DC`) | Truy vết qua US-DC-004/005, US-MGR-02, US-EMP-03, UC-06; đề xuất thêm area `EXE` | 00, 03, 14 |
+| OQ-08 | Module `execution` (meeting, decision, task, project, OKR, KPI, check-in) chưa có `FR-EXE-*` trong 00 §4 (FR area chỉ gồm `AUTH, FIN, SAL, HR, PRD, RSK, AI, DSH, NTF, DC`) | Truy vết qua US-DC-004/005, US-TASK-003, US-OKR-006, UC-06; đề xuất thêm area `EXE` | 00, 03, 14 |
 | OQ-09 | Danh mục `TOOL-*` (§7) — tên tool mới ngoài 13 function A-EMS (VD `TOOL-create_task`, `TOOL-search_documents`, `TOOL-get_runway_what_if`) | File này là owner `TOOL-*` (00 §4); xác nhận ở review Phase 3 | 02 §7.2, 14 |
 | OQ-10 | Upload limit `MAX_FILE_SIZE_MB` v1 = 20, v2 = 50 MB / 300 trang / 100 file (04 §15.1) | Theo 04; cập nhật `.env.example` (T-014) | 07, `.env.example` |
-| OQ-11 | Thêm mã lỗi `REFRESH_TOKEN_INVALID`, `MALWARE_DETECTED`, `BAD_REQUEST`, `INVALID_CREDENTIALS` ngoài danh sách nhiệm vụ | Giữ (cần cho FR-AUTH-02, FR-DC-02) | 14 |
+| OQ-11 | Thêm mã lỗi `REFRESH_TOKEN_INVALID`, `MALWARE_DETECTED`, `BAD_REQUEST`, `INVALID_CREDENTIALS` ngoài danh sách nhiệm vụ | Giữ (cần cho FR-AUTH-02, FR-DC-08 — mã cũ 02) | 14 |
 | OQ-12 | 04 §15.2 dùng `CONFLICT` cho xung đột commit; file này dùng `CONFLICT_STATE` | Dùng `CONFLICT_STATE`; human sửa 04 | 04 |
 | OQ-13 | ✅ DEC-143: `StreamingResponse` thuần. Thư viện SSE (`sse-starlette` hay `StreamingResponse` thuần) | `StreamingResponse` thuần — không thêm dependency; nếu cần `sse-starlette` → DEC (T-002) | 07 |
 | OQ-14 | Email notification (FR-NTF-02) cần SMTP provider | Tắt mặc định (`NOTIFY_EMAIL_ENABLED=false`); log thay gửi | 07 |
 | OQ-15 | ~~`FR-AI-01..10` được 09/14 trích dẫn nhưng **chưa có bảng định nghĩa** ở 02/03 (00 §4 có area `AI`). File này dùng nghĩa suy từ 09: 01..04 chat/SSE/tool executor/nguồn, 05..06 hội thoại + feedback, 07 insight, 08 hành động AI (giả định), 09 what-if runway, 10 PII filter~~ **Đã xử lý 2026-10-19:** FR-AI-01..10 được định nghĩa ở 03 §6.8, khớp nghĩa dùng trong file này (FR-AI-08 = hành động AI L1–L3) | Human/owner 02 bổ sung bảng FR-AI; xác nhận FR-AI-08 | 02, 09, 14 |
+| OQ-16 | Phase 3d dùng path rút gọn `/reports/...`, `/approvals`, `/idp/review/...`, `/admin/classification-override`; §1.1 yêu cầu prefix module | Giữ prefix module (`/platform/reports`, `/platform/approvals`, `/idp/documents/{id}/review/reassign`, `/idp/review-queue/merge`, `/ai/classification-override`); cột "Path đề xuất" §3.12 ghi path gốc để truy vết | 06, 09 |
+| OQ-17 | EP-78 Contract chỉ cho hợp đồng khách hàng; BRD mô tả contract xuyên domain (mua hàng, lao động — GAP C-19) | Hoãn v2.1 (DEC-148 "contract xuyên domain (P1)") | 05, 03 |
+| OQ-18 | Mẫu `BOARD` (HĐQT) và `DAILY` không có trong enum `platform.report_kind` (`WEEKLY, MONTHLY`) | `BOARD` = `MONTHLY` + `metric_snapshot.template_code = BOARD`; `DAILY` = Briefing EP-10, không sinh `ENT-Report` — không đổi schema (DEC-153) | 05, 06 SCR-30 |
+| OQ-19 | `TOOL-send_notification` không có EP công khai (gọi service `platform.notify`) — lệch quy tắc "tool gọi service tương đương endpoint" | Chấp nhận: người nhận đọc qua EP-53; kênh email tắt mặc định (OQ-14) | 07 |
 
 ---
 
@@ -839,8 +979,10 @@ Test case `TC-<AREA>-xxx` cho từng EP do `14-TEST-TRACEABILITY.md` sở hữu 
 
 ## Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3d)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
+- **Change 2.1.0 (Phase 3d — DEC-146..157):** **10 EP mới** EP-120..129 (§3.12, §4.11: Report ×3, Approval ×3, IDP reassign/merge, dòng tiền 13 tuần, classification override); **5 field đổi tên** theo DEC-154 (`source_note`, `cash_source`, `risk_source`, `task_source`, `release_version`) + trường chung C19 §1.1; Tool Registry 43 tool (§7.3 8 tool v2.1, §7.4 metadata 5 thuộc tính, §7.5 ánh xạ 10 tool IDP BRD); 7 event mới + payload (§8.3, §8.4); EP-20 `consent_given`, EP-23 `preview_rows` 50, EP-39 `avg_cost_micro_usd`, EP-30 `correction_reason`/`accept_all_high`, EP-42/43/44/48/78 khớp 05 (GAP C-08, C-15, C-19), EP-45 Initiative/Milestone, EP-69 tham số chi phí (D-16), EP-101/106 risk `proposed` + 13 danh mục, EP-117 xác nhận chủ domain (D-08), EP-118 per-agent, EP-119 metadata + báo cáo governance (D-13); ma trận §9 theo mã FR-DC/US BRD (DEC-146). OQ-16..19.
 - **Change:** Viết lại toàn bộ theo DEC-124..137: prefix module (DEC-125), envelope + `limit/offset` (DEC-130), RS256 + permission `<domain>:<action>` (DEC-129), 10 role (DEC-128), domain Finance/Sales/HR/Product/Risk/Execution, AI Core (chat SSE, action, policy, kill switch — DEC-131/132/134), Tool Registry, event contract (DEC-126). Bản 1.x (35 endpoint) lưu ở nhánh `v1`.

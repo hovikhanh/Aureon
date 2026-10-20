@@ -509,7 +509,7 @@ Domain "Approval" và "Report" (mới v2.0 — DEC-153) dùng permission ở §5
 | `platform:admin` | Cấu hình `ENT-ApprovalRule` (điều kiện, SLA, escalation) | ADMIN | Ngưỡng 2 người duyệt tài chính đọc từ env `APPROVAL_FINANCE_THRESHOLD_VND` (mặc định 500.000.000 đ), Admin override qua `ENT-AutonomyPolicy` (DEC-155) |
 | `dashboard:read` | Tạo / tải báo cáo weekly/monthly PDF + Excel (`ENT-Report`) | Role có `dashboard:read`; MANAGER chỉ báo cáo phòng ban (`d`) | Nội dung lọc theo trụ trong scope (§6) lúc sinh; job định kỳ chạy bằng service account và chỉ sinh báo cáo cấp công ty cho CEO |
 
-Permission `platform:approve` được thêm vào danh mục §5.2; endpoint cụ thể (dải EP-120..129) và `required_permission` do 10 chốt ở Phase 3d.
+Permission `platform:approve` được thêm vào danh mục §5.2; endpoint EP-123..125 (Approval), EP-120..122 (Report) — `required_permission` ở 10 §3.12.
 
 ---
 
@@ -622,7 +622,7 @@ Quy tắc cứng:
 1. **AI không tự gọi tool APPROVAL** — tool lớp APPROVAL không được khai báo cho model trong lượt chat; chỉ server gọi khi có thao tác xác nhận của người dùng có `platform:approve`. AI chỉ được tạo yêu cầu qua `TOOL-request_approval`.
 2. Hành động WRITE vượt rule `ENT-ApprovalRule` (VD chi > ngưỡng) → AI tạo `ENT-ApprovalRequest` thay vì thực thi; thực thi sau khi đủ người duyệt.
 3. AI **không bao giờ** là người chịu trách nhiệm cuối (RACI "A" — 01 §5A).
-4. Lớp QUERY/WRITE/APPROVAL/EXECUTION và metadata tool (`data_scope`, `classification`, `reversible`, `cost_estimate`) được ghi vào 10 §7 ở Phase 3d (DEC-149).
+4. Lớp QUERY/WRITE/APPROVAL/EXECUTION và metadata tool (`data_scope`, `classification`, `reversible`, `cost_estimate`) ghi ở 10 §7.3–§7.4 (DEC-149).
 
 ### 7.4. Ràng buộc AI về con người và dữ liệu (BRD §17.1 #11–12, FR-PERF-03/05 — GAP C-23, D-10)
 

@@ -191,6 +191,21 @@ Không có bản cũ của `SOURCE-BRD-v1.1.md` để diff (`_reference/` bị g
 
 **Kế hoạch Phase 3 (4 sub-phase):** 3a = 00, 05 (G2, G3, G4) · 3b = 01, 02, 03 (G1, G2, G5) · 3c = 04, 06, 07 (G1, G6) · 3d = 08, 09, 10, 11 (G3–G6). Gap "tự sửa" (§A–§D) thực hiện cùng sub-phase của file đích.
 
+## H. Đóng gap Phase 3d (2026-10-20)
+
+| Gap | Xử lý | Vị trí |
+|---|---|---|
+| C-08 | EP-48 `key_result_id \| kpi_id` khớp ENT-CheckIn (05 đã có `kpi_id`) | 10 §4.4 |
+| C-15 | EP-42/43 đổi field theo 05 (`attendee_ids[]`, `content`, `alternatives_rejected`, `owner_id`, `review_at[]`); consent qua upload transcript | 10 §4.4 |
+| C-19 | EP-78 field theo 05; contract xuyên domain → 10 OQ-17 (hoãn, DEC-148) | 10 §4.7 |
+| D-02 | Metadata tool 5 thuộc tính | 10 §7.4 |
+| D-03 | 8 tool v2.1 → endpoint | 10 §7.3 |
+| D-08 | EP-117 nâng level cần xác nhận chủ domain | 10 §4.10 |
+| D-13 | EP-119 `/ai/usage` group_by department/agent/classification + xlsx; ngân sách theo phòng ban hoãn (DEC-150) | 10 §4.10 |
+| D-16 | EP-69 tham số chi phí; nhắc việc = `TOOL-send_notification`; giọng nói = mock STT (DEC-050) | 10 §4.6, §7.3 |
+| D-21 | EP-120..122 (PDF + Excel; Word hoãn — DEC-153) | 10 §3.12 |
+| D-26 | `EVT-finance.invoice_created` publish/consume + payload | 10 §8.3, §8.4 |
+
 ## Version
 
 - **Version:** 1.0.0 (reference)

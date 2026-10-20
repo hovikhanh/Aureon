@@ -406,7 +406,7 @@ Desktop ≥ 1280 px
 
 **Responsive:** desktop chia 60/40 danh sách–chi tiết · tablet (768–1279) danh sách toàn chiều rộng, chi tiết mở `Sheet` phải · mobile < 768 (SCR-28 tab "Duyệt") `ApprovalCard` xếp dọc, nút Duyệt/Từ chối cố định đáy, vùng chạm ≥ 44 px.
 **A11y:** danh sách là `role="list"`, SLA đọc thành chữ ("quá hạn 1 giờ"); diff có nhãn "trước/sau" không chỉ bằng màu; focus chuyển vào chi tiết khi chọn hàng; phím `J/K` hàng kế/trước, `A` duyệt, `R` từ chối (mở hộp lý do).
-**EP:** danh sách, chi tiết, duyệt, từ chối, CRUD rule — **EP mới dải EP-120..129, thêm ở 3d** (10); sự kiện `EVT-platform.approval_requested` / `EVT-platform.approval_decided` → badge sidebar + `ENT-Notification`.
+**EP:** EP-123 (danh sách + CRUD rule), EP-124 (chi tiết), EP-125 (duyệt / từ chối) — 10 §3.12; sự kiện `EVT-platform.approval_requested` / `EVT-platform.approval_decided` → badge sidebar + `ENT-Notification`.
 
 ### 4.13. SCR-30 — Báo cáo (DEC-153)
 
@@ -448,7 +448,7 @@ Ghi chú phạm vi: **báo cáo ngày** = Briefing SCR-01 (không trùng mẫu);
 
 **Responsive:** desktop form + bảng · tablet form thu gọn thành nút mở `Sheet` · mobile < 768: chỉ xem danh sách và tải (tạo báo cáo ở desktop, theo §1.3 quyết định 6).
 **A11y:** radio mẫu/định dạng có nhãn; trạng thái tạo thông báo qua `aria-live="polite"`; link tải ghi rõ định dạng và dung lượng.
-**EP:** tạo, liệt kê, tải báo cáo — **EP mới dải EP-120..129, thêm ở 3d** (10); `TOOL-generate_report` cho phép tạo từ chat (L2 — action card).
+**EP:** EP-120 (mẫu), EP-121 (tạo — async `job_id`), EP-122 (liệt kê / tải) — 10 §3.12; `TOOL-generate_report` cho phép tạo từ chat (L2 — action card).
 
 ### 4.14. SCR-31 — Dòng tiền 13 tuần (DEC-148)
 
@@ -489,7 +489,7 @@ Desktop ≥ 1280 px
 
 **Responsive:** desktop đầy đủ · tablet biểu đồ trên, bảng cuộn ngang trong khung (cột Tuần cố định) · mobile < 768: chỉ 4 ô tóm tắt + biểu đồ đơn giản (số dư cuối tuần), bảng chi tiết ở desktop.
 **A11y:** màu thu/chi kèm ký hiệu `+`/`−` và nhãn; số âm hiển thị dấu `−` (không chỉ màu đỏ); biểu đồ có `aria-describedby` tóm tắt đáy.
-**EP:** đọc dự báo hiện hành + dòng, tính lại, sửa giả định — **EP mới (dải EP-120..129 hoặc dải finance nếu còn), thêm ở 3d** (10); `EVT-finance.cash_flow_forecast_updated` → làm mới màn hình.
+**EP:** EP-128 (GET dự báo hiện hành + dòng; POST `/recompute` với giả định mới) — 10 §3.12; `EVT-finance.cash_flow_forecast_updated` → làm mới màn hình.
 
 ### 4.15. SCR-18 — Upload transcript họp (mock — UC-02, GAP C-13)
 

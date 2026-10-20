@@ -465,7 +465,7 @@ Index `ix_invoice_lines_invoice_id`, `ix_invoice_lines_product_id`.
 |---|---|---|---|---|
 | period_key | text | N | UQ (khi `deleted_at IS NULL`) | `YYYY-MM` |
 | closing_balance / currency | bigint / char(3) | N | | |
-| cash_source | finance.cash_source | N | | `bank_statement`, `manual`, `imported` — **đổi tên từ `source`** (v2.1, C19); field API EP-65 cập nhật ở 10 (Phase 3d) |
+| cash_source | finance.cash_source | N | | `bank_statement`, `manual`, `imported` — **đổi tên từ `source`** (v2.1, C19); field API EP-65 `cash_source` (10 §4.6) |
 | note | text | Y | | |
 | recorded_by | uuid | N | SR → auth.users | |
 | source_document_id | uuid | Y | SR | |
