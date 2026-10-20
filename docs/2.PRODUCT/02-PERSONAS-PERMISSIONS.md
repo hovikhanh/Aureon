@@ -1,7 +1,7 @@
 # 02 — Personas & Permissions
 
 > Đặc tả **10 vai trò**, user stories hợp nhất, yêu cầu xác thực (FR-AUTH) và **ma trận quyền** dạng permission string `<domain>:<action>` của Aureon v2.
-> Nguồn: A-EMS (`SOURCE-BRD-v1.0` §I, §II.1, §III.2, §VI.3), AI-EOS (`SOURCE-BRD-v1.1` §4.2, §4.5, §5.1), UI/UX AI-EOS §2, §4.1; quyết định DEC-128 (10 role), DEC-129 (RS256), DEC-132 (AI Assistant), DEC-137 (không self-register).
+> **Canonical Source (DEC-144):** `_reference/SOURCE-BRD-v1.1.md` §3.2 (vai trò), §3.3 (RACI), §5.2 (D02 Admin & Security), §11.3 (phân loại tool), §15 (user story), §17.1 (AI governance). Kế thừa A-EMS (`SOURCE-BRD-v1.0` §I, §II.1, §III.2, §VI.3), UI/UX AI-EOS §2, §4.1. Quyết định: DEC-128 (10 role), DEC-129 (RS256), DEC-132, DEC-137, DEC-146 (mã US BRD), DEC-149/150 (AI governance), DEC-155 (ngưỡng duyệt).
 > Phụ thuộc: `01-PROJECT-OVERVIEW.md`. Endpoint cụ thể do `10-API-SPECIFICATION.md` sở hữu — file này **chỉ** dùng permission string, không dùng số EP.
 
 ---
@@ -24,6 +24,7 @@
 Ghi chú:
 - Mỗi user có đúng **một role chính** (`ENT-User.role`). Người kiêm nhiệm (vd. Manager kiêm Reviewer) dùng cơ chế đổi ngữ cảnh ở thanh trên (06) — v2 chỉ hỗ trợ qua chế độ demo §9; đa role thật là OQ-01.
 - MANAGER và EMPLOYEE **không** có dashboard điều hành F.O.C.U.S; họ thấy dữ liệu đơn vị/cá nhân qua workspace và trang chủ riêng.
+- Ánh xạ vai trò BRD §3.2 → 10 role: CEO → ROLE-01; Executive/Director → ROLE-02/03/04/06/07 theo trụ; Manager → ROLE-08; Employee → ROLE-09; Reviewer → ROLE-05; Admin → ROLE-10; **AI Agent** không phải role người dùng — danh tính riêng ở §7.3. Role tùy biến của BRD hoãn v2.1 (DEC-150; giữ 10 role DEC-128).
 
 ---
 
@@ -145,113 +146,214 @@ Ghi chú:
 
 ## 3. User stories hợp nhất
 
-Quy ước: ưu tiên **Must / Should / Could** (A-EMS). Cột "Nguồn": `A` = A-EMS, `E` = AI-EOS / UIUX, `v2` = bổ sung khi hợp nhất. User story IDP (`US-DC-001..012`, EPIC R) do `04-IDP-FEATURE-SPEC.md` sở hữu — xem §3.12.
+Quy ước: mã `US-<AREA>-nnn` theo registry 00 §4.11 (DEC-146): **001–099 = mã BRD §15**, **101+ = story chỉ có ở docs**; mã cũ v2.0.0 → mã mới ở 00 §4.13.1. Ưu tiên **Must / Should / Could** (A-EMS). Cột "Nguồn": `A` = A-EMS, `E` = AI-EOS / UIUX, `v2` = bổ sung khi hợp nhất. Cột "Phạm vi": `v2.0` · `v2.0 lite` · `[v2.1]` · `[OUT]` (01 §3). §3.1–3.11 giữ tiêu chí nghiệm thu chi tiết của 50 story đã có; §3.13 liệt kê 94 story BRD còn lại theo role. User story IDP (`US-DC-001..012`) do `04-IDP-FEATURE-SPEC.md` sở hữu — xem §3.12.
 
 ### 3.1. CEO (ROLE-01)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-CEO-01 | Là CEO, tôi muốn xem toàn cảnh 5 trụ F.O.C.U.S trên một màn hình, để không phải rà nhiều báo cáo rời rạc | 5 thẻ trụ, mỗi thẻ có KPI chính + trạng thái ok/warning/critical (FR-DSH-01/02) | Must | A |
-| US-CEO-02 | Là CEO, tôi muốn thấy insight cảnh báo ngay đầu dashboard, để biết điều bất thường mà không phải tự tìm | Briefing ở đầu SCR-01; mục "bình thường" gộp 1 dòng (P07) | Must | A, E |
-| US-CEO-03 | Là CEO, tôi muốn hỏi AI câu hỏi liên phòng ban và nhận câu trả lời kèm nguồn số liệu | Mọi số trong câu trả lời có source chip; AI chỉ dùng quyền của tôi (P05, P06) | Must | A |
-| US-CEO-04 | Là CEO, tôi muốn hỏi "Runway bao nhiêu tháng nếu tháng sau không có doanh thu mới" | AI trả lời theo BR-FIN-06, có nguồn | Should | A |
-| US-CEO-05 | Là CEO, tôi muốn drill-down từ mỗi trụ xuống dữ liệu chi tiết và tài liệu gốc | ≤ 3 click từ thẻ trụ → bản ghi → trang tài liệu (P01) | Must | A, E |
-| US-CEO-06 | Là CEO, tôi muốn chạy what-if tác động của rủi ro lên tài chính, nhân sự, sản phẩm | Kết quả theo miền; miền lỗi trả `unavailable` (FR-RSK-06) | Should | A |
-| US-CEO-07 | Là CEO, tôi muốn chấp nhận một rủi ro kèm lý do, để ghi nhận quyết định chính thức | Chỉ CEO đặt `accepted`; bắt buộc lý do; ghi audit + Decision log | Should | A |
-| US-CEO-08 | Là CEO, tôi muốn đặt mục tiêu doanh thu theo kỳ, để hệ thống đo hoàn thành và pipeline coverage | `ENT-SalesTarget` kỳ month/quarter/year; dùng cho METRIC-FIN-01, METRIC-CUS-01 | Should | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-CEO-101 | Là CEO, tôi muốn xem toàn cảnh 5 trụ F.O.C.U.S trên một màn hình, để không phải rà nhiều báo cáo rời rạc | 5 thẻ trụ, mỗi thẻ có KPI chính + trạng thái ok/warning/critical (FR-DSH-01/02) | Must | A | v2.0 |
+| US-CEO-002 | Là CEO, tôi muốn thấy insight cảnh báo ngay đầu dashboard, để biết điều bất thường mà không phải tự tìm | Briefing ở đầu SCR-01; mục "bình thường" gộp 1 dòng (P07) | Must | A, E | v2.0 |
+| US-CEO-001 | Là CEO, tôi muốn hỏi AI câu hỏi liên phòng ban và nhận câu trả lời kèm nguồn số liệu | Mọi số trong câu trả lời có source chip; AI chỉ dùng quyền của tôi (P05, P06) | Must | A | v2.0 |
+| US-CEO-102 | Là CEO, tôi muốn hỏi "Runway bao nhiêu tháng nếu tháng sau không có doanh thu mới" | AI trả lời theo BR-FIN-06, có nguồn | Should | A | v2.0 |
+| US-CEO-103 | Là CEO, tôi muốn drill-down từ mỗi trụ xuống dữ liệu chi tiết và tài liệu gốc | ≤ 3 click từ thẻ trụ → bản ghi → trang tài liệu (P01) | Must | A, E | v2.0 |
+| US-CEO-104 | Là CEO, tôi muốn chạy what-if tác động của rủi ro lên tài chính, nhân sự, sản phẩm | Kết quả theo miền; miền lỗi trả `unavailable` (FR-RSK-06) | Should | A | v2.0 |
+| US-CEO-105 | Là CEO, tôi muốn chấp nhận một rủi ro kèm lý do, để ghi nhận quyết định chính thức | Chỉ CEO đặt `accepted`; bắt buộc lý do; ghi audit + Decision log | Should | A | v2.0 |
+| US-CEO-106 | Là CEO, tôi muốn đặt mục tiêu doanh thu theo kỳ, để hệ thống đo hoàn thành và pipeline coverage | `ENT-SalesTarget` kỳ month/quarter/year; dùng cho METRIC-FIN-01, METRIC-CUS-01 | Should | A | v2.0 |
 
 ### 3.2. CFO (ROLE-02)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-CFO-01 | Là CFO, tôi muốn ghi doanh thu, chi phí và số dư tiền mặt cuối kỳ, để hệ thống tính đúng lợi nhuận, burn, runway | BR-FIN-01..03 tính tự động | Must | A |
-| US-CFO-02 | Là CFO, tôi muốn đặt ngân sách theo phòng ban và quý, và được cảnh báo khi phòng ban vượt ngân sách | `EVT-finance.budget_exceeded`; ALERT-FIN-06 | Must | A |
-| US-CFO-03 | Là CFO, tôi muốn xem dự báo theo horizon và kịch bản lạc quan/cơ sở/bi quan | `ENT-Forecast` horizon 1m/3m/6m/1y × 3 kịch bản | Must | A |
-| US-CFO-04 | Là CFO, tôi muốn được cảnh báo khi Net Burn dự kiến vượt dự báo quá ngưỡng (mặc định 10%) | ALERT-FIN-07, tối đa 1 lần/ngày | Should | A |
-| US-CFO-05 | Là CFO, tôi muốn quản lý hóa đơn và trạng thái thanh toán, để theo dõi tiền thực thu | `EVT-finance.invoice_paid`; METRIC-FIN-04/05 | Should | A |
-| US-CFO-06 | Là CFO, tôi muốn phê duyệt kế hoạch tuyển dụng trước khi chi phí lương dự kiến vào dự báo | §8; duyệt/từ chối bắt buộc lý do | Could | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-FIN-001 | Là CFO, tôi muốn ghi doanh thu, chi phí và số dư tiền mặt cuối kỳ, để hệ thống tính đúng lợi nhuận, burn, runway | BR-FIN-01..03 tính tự động | Must | A | v2.0 |
+| US-FIN-002 | Là CFO, tôi muốn đặt ngân sách theo phòng ban và quý, và được cảnh báo khi phòng ban vượt ngân sách | `EVT-finance.budget_exceeded`; ALERT-FIN-06 | Must | A | v2.0 |
+| US-FIN-101 | Là CFO, tôi muốn xem dự báo theo horizon và kịch bản lạc quan/cơ sở/bi quan | `ENT-Forecast` horizon 1m/3m/6m/1y × 3 kịch bản | Must | A | v2.0 |
+| US-FIN-102 | Là CFO, tôi muốn được cảnh báo khi Net Burn dự kiến vượt dự báo quá ngưỡng (mặc định 10%) | ALERT-FIN-07, tối đa 1 lần/ngày | Should | A | v2.0 |
+| US-FIN-103 | Là CFO, tôi muốn quản lý hóa đơn và trạng thái thanh toán, để theo dõi tiền thực thu | `EVT-finance.invoice_paid`; METRIC-FIN-04/05 | Should | A | v2.0 |
+| US-FIN-104 | Là CFO, tôi muốn phê duyệt kế hoạch tuyển dụng trước khi chi phí lương dự kiến vào dự báo | §8; duyệt/từ chối bắt buộc lý do | Could | A | v2.0 |
 
 ### 3.3. VP_SALES (ROLE-03)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-SAL-01 | Là VP Sales, tôi muốn quản lý deal và chuyển giai đoạn trong pipeline | Lưu `ENT-DealStageHistory`; won/lost phát event | Must | A |
-| US-SAL-02 | Là VP Sales, tôi muốn quản lý danh sách khách hàng, để gắn deal đúng khách | Tên khách duy nhất; khớp mờ khi nhập (IDP, 04) | Must | A |
-| US-SAL-03 | Là VP Sales, tôi muốn xem pipeline theo giai đoạn, win rate và hiệu suất từng người | FR-SAL-04/05/07 | Must | A |
-| US-SAL-04 | Là VP Sales, tôi muốn được cảnh báo khi pipeline < 2,8 lần mục tiêu quý (DEC-143) hoặc win rate giảm bất thường | ALERT-CUS-01, ALERT-CUS-02 | Should | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-SAL-002 | Là VP Sales, tôi muốn quản lý deal và chuyển giai đoạn trong pipeline | Lưu `ENT-DealStageHistory`; won/lost phát event | Must | A | v2.0 |
+| US-SAL-101 | Là VP Sales, tôi muốn quản lý danh sách khách hàng, để gắn deal đúng khách | Tên khách duy nhất; khớp mờ khi nhập (IDP, 04) | Must | A | v2.0 |
+| US-SAL-003 | Là VP Sales, tôi muốn xem pipeline theo giai đoạn, win rate và hiệu suất từng người | FR-SAL-04/05/07 | Must | A | v2.0 |
+| US-SAL-102 | Là VP Sales, tôi muốn được cảnh báo khi pipeline < 2,8 lần mục tiêu quý (DEC-143) hoặc win rate giảm bất thường | ALERT-CUS-01, ALERT-CUS-02 | Should | A | v2.0 |
 
 ### 3.4. HR_MANAGER (ROLE-04)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-HR-01 | Là HR Manager, tôi muốn quản lý hồ sơ nhân viên và lịch sử lương | `ENT-Employee`, `ENT-SalaryHistory`; đổi lương phát `EVT-hr.salary_updated` | Must | A |
-| US-HR-02 | Là HR Manager, tôi muốn tạo và theo dõi kế hoạch tuyển dụng theo phòng ban so với định biên | `ENT-HiringPlan` có `filled`/`headcount` | Must | A |
-| US-HR-03 | Là HR Manager, tôi muốn hệ thống tự cảnh báo khi kế hoạch tuyển dụng trễ > 30 ngày | `EVT-hr.hiring_plan_delayed`; ALERT-HR-04 | Must | A |
-| US-HR-04 | Là HR Manager, tôi muốn theo dõi turnover năm hóa và được cảnh báo khi vượt ngưỡng | BR-HR-01; ALERT-HR-02 | Should | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-HR-101 | Là HR Manager, tôi muốn quản lý hồ sơ nhân viên và lịch sử lương | `ENT-Employee`, `ENT-SalaryHistory`; đổi lương phát `EVT-hr.salary_updated` | Must | A | v2.0 |
+| US-HR-102 | Là HR Manager, tôi muốn tạo và theo dõi kế hoạch tuyển dụng theo phòng ban so với định biên | `ENT-HiringPlan` có `filled`/`headcount` | Must | A | v2.0 |
+| US-HR-103 | Là HR Manager, tôi muốn hệ thống tự cảnh báo khi kế hoạch tuyển dụng trễ > 30 ngày | `EVT-hr.hiring_plan_delayed`; ALERT-HR-04 | Must | A | v2.0 |
+| US-HR-104 | Là HR Manager, tôi muốn theo dõi turnover năm hóa và được cảnh báo khi vượt ngưỡng | BR-HR-01; ALERT-HR-02 | Should | A | v2.0 |
 
 ### 3.5. CPO (ROLE-06)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-PRD-01 | Là CPO, tôi muốn quản lý sản phẩm, tính năng, roadmap theo quý và release | FR-PRD-01..04 | Must | A |
-| US-PRD-02 | Là CPO, tôi muốn ghi chỉ số sản phẩm theo kỳ (MAU, adoption, churn, retention, NPS, ARPU) | Snapshot chỉ thêm (`ENT-ProductMetric`) | Must | A |
-| US-PRD-03 | Là CPO, tôi muốn được cảnh báo khi churn tăng bất thường | BR-PRD-01 (> 50% tương đối **và** ≥ 2%); ALERT-PRD-02 | Must | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-PRD-001 | Là CPO, tôi muốn quản lý sản phẩm, tính năng, roadmap theo quý và release | FR-PRD-01..04 | Must | A | v2.0 |
+| US-PRD-101 | Là CPO, tôi muốn ghi chỉ số sản phẩm theo kỳ (MAU, adoption, churn, retention, NPS, ARPU) | Snapshot chỉ thêm (`ENT-ProductMetric`) | Must | A | v2.0 |
+| US-PRD-102 | Là CPO, tôi muốn được cảnh báo khi churn tăng bất thường | BR-PRD-01 (> 50% tương đối **và** ≥ 2%); ALERT-PRD-02 | Must | A | v2.0 |
 
 ### 3.6. RISK_MANAGER (ROLE-07)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-RSK-01 | Là Risk Manager, tôi muốn ghi rủi ro và để hệ thống tự chấm điểm, phân mức | BR-RSK-01 `score = likelihood × impact` | Must | A |
-| US-RSK-02 | Là Risk Manager, tôi muốn hệ thống tự sinh rủi ro từ sự kiện nghiệp vụ | BR-RSK-03; idempotent theo `event_id` | Must | A |
-| US-RSK-03 | Là Risk Manager, tôi muốn quản lý biện pháp giảm thiểu và xác nhận cảnh báo đến khi đóng | Không đóng rủi ro còn mitigation `in_progress` | Must | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-GOV-003 | Là Risk Manager, tôi muốn ghi rủi ro và để hệ thống tự chấm điểm, phân mức | BR-RSK-01 `score = likelihood × impact` | Must | A | v2.0 |
+| US-GOV-101 | Là Risk Manager, tôi muốn hệ thống tự sinh rủi ro từ sự kiện nghiệp vụ | BR-RSK-03; idempotent theo `event_id` | Must | A | v2.0 |
+| US-GOV-102 | Là Risk Manager, tôi muốn quản lý biện pháp giảm thiểu và xác nhận cảnh báo đến khi đóng | Không đóng rủi ro còn mitigation `in_progress` | Must | A | v2.0 |
 
 ### 3.7. MANAGER (ROLE-08)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-MGR-01 | Là Manager, tôi muốn nhập chi phí, hóa đơn, deal, tính năng, rủi ro của bộ phận mình | Bản ghi gắn `department_id` của tôi; ngoài đơn vị → 403 | Must | A |
-| US-MGR-02 | Là Manager, tôi muốn thấy heatmap workload team và nhận gợi ý chuyển task khi có người quá tải | F5 ≤ 1 phút; gợi ý L1 (suggestion chip) | Should | E |
-| US-MGR-03 | Là Manager, tôi muốn duyệt dữ liệu/check-in do nhân viên đơn vị gửi lên | Hàng chờ chỉ chứa tài liệu của đơn vị; trường trọng yếu tài chính vẫn cần REVIEWER/CFO | Should | E |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-MGR-101 | Là Manager, tôi muốn nhập chi phí, hóa đơn, deal, tính năng, rủi ro của bộ phận mình | Bản ghi gắn `department_id` của tôi; ngoài đơn vị → 403 | Must | A | v2.0 |
+| US-TASK-003 | Là Manager, tôi muốn thấy heatmap workload team và nhận gợi ý chuyển task khi có người quá tải | F5 ≤ 1 phút; gợi ý L1 (suggestion chip) | Should | E | v2.0 |
+| US-MGR-102 | Là Manager, tôi muốn duyệt dữ liệu/check-in do nhân viên đơn vị gửi lên | Hàng chờ chỉ chứa tài liệu của đơn vị; trường trọng yếu tài chính vẫn cần REVIEWER/CFO | Should | E | v2.0 |
 
 ### 3.8. EMPLOYEE (ROLE-09)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-EMP-01 | Là nhân viên, tôi muốn thấy "việc hôm nay" và mục tiêu của tôi ngay khi mở app | SCR-01 chỉ dữ liệu `owner = tôi` | Must | E |
-| US-EMP-02 | Là nhân viên, tôi muốn gửi chứng từ (chụp/thả file/nói) trong ≤ 3 chạm | Tài liệu kế thừa quyền của tôi; tôi theo dõi được trạng thái | Must | E |
-| US-EMP-03 | Là nhân viên, tôi muốn check-in KR và cập nhật task trong ≤ 30 giây | F4; giá trị AI điền sẵn, tôi xác nhận | Should | E |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-TASK-002 | Là nhân viên, tôi muốn thấy "việc hôm nay" và mục tiêu của tôi ngay khi mở app | SCR-01 chỉ dữ liệu `owner = tôi` | Must | E | v2.0 |
+| US-DC-009 | Là nhân viên, tôi muốn gửi chứng từ (chụp/thả file/nói) trong ≤ 3 chạm | Tài liệu kế thừa quyền của tôi; tôi theo dõi được trạng thái | Must | E | v2.0 |
+| US-OKR-006 | Là nhân viên, tôi muốn check-in KR và cập nhật task trong ≤ 30 giây | F4; giá trị AI điền sẵn, tôi xác nhận | Should | E | v2.0 lite — bằng lời nói v2.1 |
 
 ### 3.9. ADMIN (ROLE-10)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-ADM-01 | Là Admin, tôi muốn tạo user và gán/đổi role (không có self-register) | FR-AUTH-05; DEC-137; ghi audit | Must | A, v2 |
-| US-ADM-02 | Là Admin, tôi muốn cấu hình autonomy theo tool × role × ngưỡng giá trị | `ENT-AutonomyPolicy`; L4 bị khóa | Must | E |
-| US-ADM-03 | Là Admin, tôi muốn một thao tác bật kill switch tắt mọi hành động WRITE của AI | L3 → L2 toàn hệ thống; băng thông báo đầu app; ghi audit | Must | E |
-| US-ADM-04 | Là Admin, tôi muốn xem audit log và "xem như người dùng" để kiểm tra quyền | SCR-14; công cụ preview quyền chỉ đọc (không xem dữ liệu nghiệp vụ thật) | Should | E |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-ADM-101 | Là Admin, tôi muốn tạo user và gán/đổi role (không có self-register) | FR-AUTH-05; DEC-137; ghi audit | Must | A, v2 | v2.0 |
+| US-AI-004 | Là Admin, tôi muốn cấu hình autonomy theo tool × role × ngưỡng giá trị | `ENT-AutonomyPolicy`; L4 bị khóa | Must | E | v2.0 lite — tool × role; theo agent v2.1 — DEC-150 |
+| US-AI-007 | Là Admin, tôi muốn một thao tác bật kill switch tắt mọi hành động WRITE của AI | L3 → L2 toàn hệ thống; băng thông báo đầu app; ghi audit | Must | E | v2.0 |
+| US-ADM-102 | Là Admin, tôi muốn xem audit log và "xem như người dùng" để kiểm tra quyền | SCR-14; công cụ preview quyền chỉ đọc (không xem dữ liệu nghiệp vụ thật) | Should | E | v2.0 |
 
 ### 3.10. Yêu cầu chung (mọi role)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-ALL-01 | Là người dùng, tôi chỉ thấy dữ liệu trong phạm vi quyền, kể cả khi hỏi qua AI | §5–§7; test leak theo từng role | Must | A |
-| US-ALL-02 | Là người dùng, tôi muốn xem lại và xóa hội thoại AI của mình | Chỉ chủ hội thoại đọc/xóa | Should | A |
-| US-ALL-03 | Là người dùng, tôi muốn đánh giá câu trả lời AI (hữu ích/không + lý do) | Lý do: `inaccurate_number`, `missing_context`, `too_verbose`, `not_relevant`, `other` | Could | A |
-| US-ALL-04 | Là người dùng, tôi muốn dashboard vẫn dùng được khi AI hoặc một module lỗi | Chỉ widget lỗi báo "Dịch vụ tạm thời không khả dụng" (P08) | Must | A |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-ALL-101 | Là người dùng, tôi chỉ thấy dữ liệu trong phạm vi quyền, kể cả khi hỏi qua AI | §5–§7; test leak theo từng role | Must | A | v2.0 |
+| US-ALL-102 | Là người dùng, tôi muốn xem lại và xóa hội thoại AI của mình | Chỉ chủ hội thoại đọc/xóa | Should | A | v2.0 |
+| US-ALL-103 | Là người dùng, tôi muốn đánh giá câu trả lời AI (hữu ích/không + lý do) | Lý do: `inaccurate_number`, `missing_context`, `too_verbose`, `not_relevant`, `other` | Could | A | v2.0 |
+| US-ALL-104 | Là người dùng, tôi muốn dashboard vẫn dùng được khi AI hoặc một module lỗi | Chỉ widget lỗi báo "Dịch vụ tạm thời không khả dụng" (P08) | Must | A | v2.0 |
 
 ### 3.11. Trợ lý AI (mọi role có `ai:query`)
 
-| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn |
-|---|---|---|---|---|
-| US-AI-01 | Là người dùng, tôi muốn hỏi AI ở mọi màn hình (⌘K) và AI hiểu ngữ cảnh đang xem | Panel hiển thị "AI đang xem: …" | Must | E |
-| US-AI-02 | Là người dùng, tôi muốn thấy AI đang làm gì (bước tra cứu thật) và dừng được | SSE `thinking/tool_call/tool_result`; nút Dừng | Must | A, E |
-| US-AI-03 | Là người dùng, tôi muốn phân biệt rõ AI gợi ý / AI soạn chờ xác nhận / AI đã làm | Mẫu giao diện cố định theo L1/L2/L3 (P02) | Must | E |
-| US-AI-04 | Là người dùng, tôi muốn hoàn tác hành động AI đã làm (L3) trong 24 giờ | Feed "AI đã làm" (SCR-17); DEC-134 | Must | E |
-| US-AI-05 | Là người dùng, tôi muốn AI trả lời bằng ngôn ngữ câu hỏi và nói rõ khi thiếu dữ liệu | VI/EN (DEC-135); không bịa số (P05) | Should | A, E |
+| ID | User story | Tiêu chí nghiệm thu chính | Ưu tiên | Nguồn | Phạm vi |
+|---|---|---|---|---|---|
+| US-AI-101 | Là người dùng, tôi muốn hỏi AI ở mọi màn hình (⌘K) và AI hiểu ngữ cảnh đang xem | Panel hiển thị "AI đang xem: …" | Must | E | v2.0 |
+| US-AI-102 | Là người dùng, tôi muốn thấy AI đang làm gì (bước tra cứu thật) và dừng được | SSE `thinking/tool_call/tool_result`; nút Dừng | Must | A, E | v2.0 |
+| US-AI-103 | Là người dùng, tôi muốn phân biệt rõ AI gợi ý / AI soạn chờ xác nhận / AI đã làm | Mẫu giao diện cố định theo L1/L2/L3 (P02) | Must | E | v2.0 |
+| US-AI-104 | Là người dùng, tôi muốn hoàn tác hành động AI đã làm (L3) trong 24 giờ | Feed "AI đã làm" (SCR-17); DEC-134 | Must | E | v2.0 |
+| US-AI-105 | Là người dùng, tôi muốn AI trả lời bằng ngôn ngữ câu hỏi và nói rõ khi thiếu dữ liệu | VI/EN (DEC-135); không bịa số (P05) | Should | A, E | v2.0 |
+
+### 3.13. Story BRD còn lại theo role chính (94 story — 00 §4.11.1)
+
+Tiêu chí nghiệm thu chi tiết của các story này do spec chức năng sở hữu (03 domain/dashboard, 04 IDP, 06 UI) và được bổ sung ở Phase 3c–3d. Cột "Role chính" ánh xạ actor BRD → 10 role DEC-128 ("Finance Manager" → CFO, "Sales/Legal" → VP_SALES, "Product Manager" → CPO, "Governance/Compliance/Risk Manager" → RISK_MANAGER, "Trưởng phòng/bộ phận" → MANAGER; "AI" = agent `assistant`, chạy bằng quyền người được phục vụ — §7). Tag: `v2.0` · `v2.0 lite` · `[v2.1]` · `[OUT]` (01 §3).
+
+| ID | User story (BRD §15) | Role chính | Ưu tiên BRD | Phạm vi | Ghi chú |
+|---|---|---|---|---|---|
+| US-ORG-001 | Là CEO, tôi muốn định nghĩa cơ cấu tổ chức (công ty, phòng ban, team, quản lý, nhân viên, reporting line) | CEO | P0 | v2.0 lite | Team/Position; không ma trận, không effective-dated — DEC-147 |
+| US-ORG-002 | Là Admin, tôi muốn cấu hình vai trò và quyền | ADMIN | P0 | v2.0 lite | gán 10 role cố định; role tùy biến v2.1 — DEC-150 |
+| US-ORG-003 | Là Admin, tôi muốn định nghĩa phạm vi truy cập của AI theo phòng ban và vai trò | ADMIN | P0 | [v2.1] | quyền agent ∩ người — DEC-150 |
+| US-ORG-004 | Là Admin, tôi muốn dựng cơ cấu từ sơ đồ tổ chức và danh sách nhân sự có sẵn | ADMIN | P0 | v2.0 | UC-07 |
+| US-DC-001 | Là Employee, tôi muốn nhập dữ liệu qua form có kiểm tra tức thì | EMPLOYEE | P0 | v2.0 |  |
+| US-DC-002 | Là Manager, tôi muốn nói hoặc gõ một câu để AI tạo bản ghi, chỉ ghi sau khi tôi xác nhận | MANAGER | P0 | v2.0 lite | gõ v2.0; nói (C2) v2.1 — DEC-153 |
+| US-DC-003 | Là User, tôi muốn tải PDF, Word, ảnh để AI tự trích xuất dữ liệu | Mọi role | P0 | v2.0 |  |
+| US-DC-004 | Là Manager, tôi muốn tải biên bản họp để AI tạo task, giao người và đặt hạn | MANAGER | P0 | v2.0 |  |
+| US-DC-005 | Là Manager, tôi muốn tải file kế hoạch KPI/OKR hiện có thay vì nhập lại | MANAGER | P0 | v2.0 |  |
+| US-DC-006 | Là Reviewer, tôi muốn xem tài liệu gốc cạnh dữ liệu AI trích để duyệt nhanh | REVIEWER | P0 | v2.0 |  |
+| US-DC-007 | Là Admin, tôi muốn import danh sách từ Excel với AI tự map cột | ADMIN | P0 | v2.0 |  |
+| US-DC-008 | Là Admin, tôi muốn cấu hình loại tài liệu, schema và ngưỡng tự ghi không cần code | ADMIN | P0 | v2.0 |  |
+| US-DC-010 | Là Finance, tôi muốn tải hoặc chuyển tiếp hóa đơn để AI ghi chi phí và công nợ | CFO | P1 | v2.0 | UC-08 bản demo |
+| US-DC-011 | Là Legal/Sales, tôi muốn tải hợp đồng để AI trích giá trị, mốc thanh toán, hạn gia hạn | VP_SALES | P1 | v2.0 |  |
+| US-DC-012 | Là bộ phận, tôi muốn chuyển tiếp email có đính kèm vào hệ thống | MANAGER | P1 | [OUT] | C6 email — 01 §3 |
+| US-FIN-003 | Là CFO, tôi muốn theo dõi dòng tiền và runway | CFO | P0 | v2.0 | gồm dòng tiền 13 tuần — DEC-148 |
+| US-FIN-004 | Là CEO, tôi muốn AI phân tích hiệu quả tài chính | CEO | P1 | [v2.1] |  |
+| US-FIN-005 | Là CEO, tôi muốn AI phát hiện rủi ro tài chính | CEO | P1 | [v2.1] |  |
+| US-HR-001 | Là HR, tôi muốn quản lý vòng đời nhân sự | HR_MANAGER | P1 | v2.0 lite | hồ sơ + lịch sử lương; vòng đời đầy đủ v2.1 |
+| US-HR-002 | Là HR, tôi muốn quản lý vị trí trong tổ chức | HR_MANAGER | P0 | v2.0 | DEC-147 |
+| US-HR-003 | Là Manager, tôi muốn xem workload của nhân viên | MANAGER | P0 | v2.0 |  |
+| US-HR-004 | Là CEO, tôi muốn AI nhận diện rủi ro nhân lực | CEO | P1 | [v2.1] |  |
+| US-HR-005 | Là HR, tôi muốn xác định thiếu hụt kỹ năng | HR_MANAGER | P1 | [v2.1] | dữ liệu kỹ năng có ở v2.0 (ENT-EmployeeSkill) |
+| US-SAL-001 | Là Sales, tôi muốn quản lý lead | VP_SALES | P1 | [v2.1] |  |
+| US-SAL-004 | Là CEO, tôi muốn AI dự báo doanh thu | CEO | P1 | [v2.1] |  |
+| US-SAL-005 | Là Sales Manager, tôi muốn AI gợi ý next-best-action | VP_SALES | P1 | [v2.1] |  |
+| US-CUS-001 | Là CEO, tôi muốn biết khách nào có nguy cơ churn hoặc cần tôi follow-up | CEO | P1 | [v2.1] |  |
+| US-PTN-001 | Là Partner Manager, tôi muốn theo dõi hiệu quả và hoa hồng đối tác | — (OUT) | P1 | [OUT] | Partner — GAP C-24 |
+| US-PRC-001 | Là Trưởng phòng, tôi muốn tạo đề nghị mua sắm và theo dõi phê duyệt | MANAGER | P1 | [OUT] | Procurement — 01 §3 |
+| US-CTR-001 | Là CFO, tôi muốn được nhắc trước hạn thanh toán và gia hạn hợp đồng | CFO | P1 | [v2.1] | contract xuyên domain — DEC-148 |
+| US-PRD-002 | Là Product Manager, tôi muốn quản lý yêu cầu | CPO | P1 | [v2.1] |  |
+| US-PRD-003 | Là Product Manager, tôi muốn AI phân tích phản hồi khách hàng | CPO | P1 | [v2.1] |  |
+| US-PRD-004 | Là CPO, tôi muốn AI nhận diện rủi ro sản phẩm | CPO | P1 | [v2.1] |  |
+| US-ENG-001 | Là Engineering Manager, tôi muốn quản lý dự án kỹ thuật | — (OUT) | P1 | [OUT] | Technical domain — GAP C-24 |
+| US-ENG-002 | Là Engineering Manager, tôi muốn theo dõi delivery | — (OUT) | P1 | [OUT] | Technical domain |
+| US-ENG-003 | Là CTO, tôi muốn theo dõi technical debt | — (OUT) | P1 | [OUT] | Technical domain |
+| US-ENG-004 | Là CTO, tôi muốn AI phát hiện rủi ro delivery | — (OUT) | P1 | [OUT] | Technical domain |
+| US-GOV-001 | Là Governance Manager, tôi muốn quản lý chính sách và control | RISK_MANAGER | P2 | [OUT] | P2 |
+| US-GOV-002 | Là Compliance Manager, tôi muốn theo dõi bằng chứng | RISK_MANAGER | P2 | [OUT] | P2 |
+| US-GOV-004 | Là CEO, tôi muốn AI tóm tắt rủi ro quản trị | CEO | P1 | [v2.1] |  |
+| US-STR-001 | Là CEO, tôi muốn định nghĩa mục tiêu chiến lược | CEO | P0 | v2.0 | DEC-147 |
+| US-STR-002 | Là CEO, tôi muốn định nghĩa initiative chiến lược | CEO | P0 | v2.0 | ENT-Initiative — DEC-147 |
+| US-STR-003 | Là CEO, tôi muốn theo dõi thực thi chiến lược | CEO | P0 | v2.0 |  |
+| US-STR-004 | Là CEO, tôi muốn AI đánh giá thực thi chiến lược và chạy mô phỏng what-if | CEO | P1 | [v2.1] | what-if runway/rủi ro đã có (US-CEO-104) |
+| US-KPI-001 | Là CEO/Manager, tôi muốn định nghĩa KPI | CEO | P0 | v2.0 |  |
+| US-KPI-002 | Là Manager, tôi muốn cấu hình target KPI | MANAGER | P0 | v2.0 | ENT-KPITarget |
+| US-KPI-003 | Là Manager, tôi muốn cấu hình trọng số KPI | MANAGER | P0 | v2.0 |  |
+| US-KPI-004 | Là Manager, tôi muốn cấu hình phương pháp đo và nguồn dữ liệu KPI | MANAGER | P0 | v2.0 |  |
+| US-KPI-005 | Là Manager, tôi muốn theo dõi giá trị thực tế KPI | MANAGER | P0 | v2.0 |  |
+| US-KPI-006 | Là Manager, tôi muốn đánh giá KPI theo rule | MANAGER | P0 | v2.0 | evaluation bands — DEC-147 |
+| US-KPI-007 | Là CEO, tôi muốn so sánh KPI giữa phòng ban | CEO | P0 | v2.0 |  |
+| US-KPI-008 | Là AI, tôi muốn phát hiện bất thường KPI | AI | P0 | v2.0 | insight |
+| US-KPI-009 | Là AI, tôi muốn xác định nguyên nhân gốc của KPI yếu | AI | P0 | v2.0 | insight 9 phần — DEC-149 |
+| US-KPI-010 | Là AI, tôi muốn khuyến nghị hành động khắc phục | AI | P0 | v2.0 |  |
+| US-OKR-001 | Là CEO, tôi muốn định nghĩa Objective công ty | CEO | P0 | v2.0 |  |
+| US-OKR-002 | Là Manager, tôi muốn định nghĩa Objective phòng ban | MANAGER | P0 | v2.0 |  |
+| US-OKR-003 | Là Manager, tôi muốn định nghĩa Key Result | MANAGER | P0 | v2.0 |  |
+| US-OKR-004 | Là Manager, tôi muốn theo dõi tiến độ KR | MANAGER | P0 | v2.0 |  |
+| US-OKR-005 | Là CEO, tôi muốn xem sơ đồ alignment OKR | CEO | P0 | v2.0 |  |
+| US-OKR-007 | Là Manager, tôi muốn thực hiện check-in OKR | MANAGER | P0 | v2.0 |  |
+| US-OKR-008 | Là AI, tôi muốn phát hiện OKR có rủi ro | AI | P0 | v2.0 |  |
+| US-OKR-009 | Là AI, tôi muốn khuyến nghị hành động khắc phục | AI | P0 | v2.0 |  |
+| US-PERF-001 | Là CEO/HR, tôi muốn chọn khung KPI, OKR hoặc hybrid cho từng phòng ban | CEO | P0 | [v2.1] | khung KPI/OKR theo phòng ban (GAP C-06) |
+| US-PERF-002 | Là HR, tôi muốn định nghĩa chu kỳ đánh giá | HR_MANAGER | P1 | [v2.1] |  |
+| US-PERF-003 | Là Employee, tôi muốn tự đánh giá | EMPLOYEE | P1 | [v2.1] |  |
+| US-PERF-004 | Là Manager, tôi muốn đánh giá nhân viên với bằng chứng do AI tổng hợp | MANAGER | P1 | [v2.1] |  |
+| US-PERF-005 | Là HR, tôi muốn thực hiện calibration | HR_MANAGER | P1 | [v2.1] |  |
+| US-PERF-006 | Là CEO, tôi muốn AI phân tích hiệu suất toàn tổ chức | CEO | P0 | [v2.1] | AI không chấm điểm cá nhân — DEC-149 |
+| US-TASK-001 | Là Manager, tôi muốn tạo và giao task | MANAGER | P0 | v2.0 |  |
+| US-TASK-004 | Là AI, tôi muốn đề xuất phân bổ lại task | AI | P0 | v2.0 | gợi ý L1 |
+| US-TASK-005 | Là AI, tôi muốn phát hiện task quá hạn và nhắc việc | AI | P0 | v2.0 |  |
+| US-TASK-006 | Là CEO, tôi muốn xem tình trạng thực thi toàn doanh nghiệp | CEO | P0 | v2.0 |  |
+| US-MTG-001 | Là User, tôi muốn AI tóm tắt cuộc họp từ transcript hoặc biên bản | Mọi role | P0 | v2.0 | transcript mock upload — DEC-153 |
+| US-MTG-002 | Là Manager, tôi muốn AI trích quyết định và action item rồi giao việc | MANAGER | P0 | v2.0 |  |
+| US-MTG-003 | Là User, tôi muốn AI tham gia Google Meet để ghi và tóm tắt | Mọi role | P1 | [OUT] | Meet bot |
+| US-CAL-001 | Là User, tôi muốn đồng bộ Google/Outlook Calendar và thấy deadline trên lịch | Mọi role | P0 | [v2.1] | DEC-153 |
+| US-CAL-002 | Là User, tôi muốn AI phát hiện trùng lịch và nhắc sự kiện quan trọng | Mọi role | P0 | [v2.1] | DEC-153 |
+| US-AI-001 | Là AI Agent, tôi muốn khám phá các tool khả dụng | AI | P0 | v2.0 |  |
+| US-AI-002 | Là AI Agent, tôi muốn truy xuất dữ liệu doanh nghiệp được phép | AI | P0 | v2.0 |  |
+| US-AI-003 | Là AI Agent, tôi muốn thực hiện hành động được phép | AI | P0 | v2.0 |  |
+| US-AI-005 | Là Admin, tôi muốn cấu hình phê duyệt cho tool tác động cao | ADMIN | P0 | v2.0 | 2 người duyệt cho finance > ngưỡng — DEC-149 |
+| US-AI-006 | Là Admin, tôi muốn audit mọi tool call của AI | ADMIN | P0 | v2.0 |  |
+| US-AI-008 | Là Admin, tôi muốn theo dõi chất lượng và chi phí AI theo agent | ADMIN | P0 | v2.0 lite | 1 agent profile — DEC-150 |
+| US-CEO-003 | Là CEO, tôi muốn AI tóm tắt hiệu suất công ty và rủi ro | CEO | P0 | v2.0 |  |
+| US-CEO-004 | Là CEO, tôi muốn AI khuyến nghị hành động chiến lược | CEO | P0 | v2.0 |  |
+| US-CEO-005 | Là CEO, tôi muốn AI tạo task và nhắc cam kết | CEO | P0 | v2.0 |  |
+| US-CEO-006 | Là CEO, tôi muốn biết quyết định nào đang chờ mình | CEO | P0 | v2.0 | hàng chờ phê duyệt — DEC-153 |
+| US-CEO-007 | Là CEO, tôi muốn mọi con số AI báo cáo đều truy được nguồn gốc | CEO | P0 | v2.0 |  |
+| US-CEO-008 | Là CEO, tôi muốn xem lại quyết định cũ và kết quả thực tế | CEO | P0 | v2.0 lite | Decision review_at |
+| US-RPT-001 | Là CEO, tôi muốn tạo báo cáo điều hành và HĐQT | CEO | P0 | v2.0 lite | weekly/monthly PDF + Excel — DEC-153 |
+| US-RPT-002 | Là Manager, tôi muốn tạo báo cáo phòng ban | MANAGER | P0 | v2.0 lite |  |
+| US-RPT-003 | Là HR, tôi muốn báo cáo hiệu suất | HR_MANAGER | P1 | [v2.1] |  |
+| US-RPT-004 | Là CFO, tôi muốn báo cáo tài chính quản trị | CFO | P1 | [v2.1] |  |
+| US-RPT-005 | Là AI, tôi muốn tự tạo báo cáo định kỳ | AI | P0 | v2.0 | báo cáo định kỳ tự động |
 
 ### 3.12. Data Capture & IDP (tham chiếu)
 
-`US-DC-001..012` (EPIC R — nhập form, nhập lời, upload, biên bản → task, KPI/OKR, review song song, import nhân sự, cấu hình schema, hóa đơn, hợp đồng, lineage cho CEO, email) được đặc tả ở `04-IDP-FEATURE-SPEC.md`. Quyền thực hiện các story này theo domain `idp` ở §5.
+`US-DC-001..012` (BRD epic B — form, nói/gõ, upload, biên bản → task, KPI/OKR, review song song, import Excel, cấu hình schema, chụp chứng từ, hóa đơn, hợp đồng, email `[OUT]`; danh sách ở §3.13) được đặc tả ở `04-IDP-FEATURE-SPEC.md`. Quyền thực hiện các story này theo domain `idp` ở §5.
 
 ---
 
@@ -313,6 +415,7 @@ Chỉ các permission dưới đây tồn tại; mọi tổ hợp khác coi là 
 | `dashboard:write` | Xác nhận (acknowledge) / bỏ qua alert, chọn 4 chỉ số Briefing cá nhân | |
 | `dashboard:admin` | Cấu hình ngưỡng warning/critical của metric/alert (biến cấu hình) | |
 | `platform:read` | Xem audit log | |
+| `platform:approve` | Duyệt / từ chối yêu cầu phê duyệt (`ENT-ApprovalRequest`) theo rule | Mới v2.0 (DEC-153) — §5.6 |
 | `platform:admin` | Quản trị user & role, system setting | FR-AUTH-05 |
 
 ### 5.3. Ma trận permission × role
@@ -352,6 +455,7 @@ Ký hiệu: **●** toàn bộ · **◑** có phạm vi (ghi chú chữ: `d` = p
 | `dashboard:write` | ● | ◑p | ◑p | ◑p | — | ◑p | ◑p | — | — | — |
 | `dashboard:admin` | — | — | — | — | — | — | — | — | — | ● |
 | `platform:read` | ● | — | — | — | — | — | — | — | — | ● |
+| `platform:approve` | ● | ◑p | ◑p | ◑p | — | ◑p | ◑p | ◑d | — | — |
 | `platform:admin` | ◑u | — | — | — | — | — | — | — | — | ● |
 
 Ghi chú ma trận:
@@ -377,6 +481,35 @@ Ghi chú ma trận:
 | ROLE-10 ADMIN | — | — | — | — | — |
 
 "Chỉ tổng hợp" = role thấy giá trị metric và trend của trụ (qua `<domain>:query`) nhưng **không** drill-down tới bản ghi chi tiết hay tài liệu gốc của trụ đó; lineage dừng ở "Nguồn thuộc phạm vi khác — không có quyền xem" (§6.1 quy tắc 4). Trụ "—" bị ẩn hẳn khỏi điều hướng (`06-UI-UX-SPEC.md`).
+
+### 5.5. Ma trận tóm tắt 10 role × 12 domain nghiệp vụ
+
+Tóm tắt §5.3 theo **domain nghiệp vụ** (BRD §4, §3.2) để đọc nhanh; khi lệch, §5.3 (permission string) là chuẩn. Ký hiệu: **F** = đầy đủ (read + write + query), **R** = đọc chi tiết, **Q** = chỉ tổng hợp, **A** = phê duyệt, **C** = cấu hình, hậu tố phạm vi `d`/`o`/`p`/`r` như §5.3, **—** = không.
+
+| Role | Finance | Sales | HR | Product | Risk | Execution (Strategy · Initiative · KPI/OKR · Task) | Meeting & Decision | Data Capture (IDP) | AI Assistant | Dashboard & Report | Approval | Admin & Audit |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| CEO | R Q | R Q (ghi mục tiêu) | R Q (lương mức 4) | R Q | R Q A (chấp nhận) | F | F | R + gửi (không duyệt) | F + kill switch | F | A (bước 2 tài chính) | R audit, tạo user |
+| CFO | F | Q | Q + A (tuyển dụng) | Q | R Q | F `d` | F `d` | Ap (trụ F) | F | F `p` | A (bước 1 tài chính) | — |
+| VP_SALES | Q | F | — | Q | R `l` | F `d` | F `d` | gửi `p` | F | F `p` | A (sales) | — |
+| HR_MANAGER | Q | — | F (lương mức 4) | — | R `l` | F `d`, Q toàn công ty | F `d` | Ap (nhân sự) | F | F `p` | A (nhân sự) | — |
+| REVIEWER | R `r` | R `r` | R `r` | R `r` | R `r` | — | — | F `r` (duyệt) | F `r` | — | — | — |
+| CPO | Q | Q | — | F | R `l` | F `d` | F `d` | gửi `p` | F | F `p` | A (product) | — |
+| RISK_MANAGER | Q | Q | Q | Q | F | F `d` | F `d` | gửi `p` | F | F `p` | A (risk) | — |
+| MANAGER | F `d` | F `d` | R Q `d` | F `d` | F `d` | F `d` | F `d` | Ad (trừ trường trọng yếu) | F | — (workspace đơn vị; báo cáo phòng ban) | A `d` | — |
+| EMPLOYEE | — | — | R `o` | — | — | F `o` | F `o` | gửi `o` | F `o` | — | — | — |
+| ADMIN | — | — | — | — | — | — | — | C (schema, ngưỡng) | C (autonomy, provider, kill switch) | C (ngưỡng) | C (rule, SLA) | F |
+
+Domain "Approval" và "Report" (mới v2.0 — DEC-153) dùng permission ở §5.6.
+
+### 5.6. Permission cho Approval và Report (DEC-149, DEC-153, DEC-155)
+
+| Permission | Cho phép | Role | Ghi chú |
+|---|---|---|---|
+| `platform:approve` | Duyệt / từ chối `ENT-ApprovalRequest` khi role của mình nằm trong `approver_role_codes` (bước 1) hoặc `second_approver_role_codes` (bước 2) của rule | CEO, CFO, VP_SALES, HR_MANAGER, CPO, RISK_MANAGER, MANAGER (`d`) | Người duyệt ≠ người yêu cầu; bước 2 ≠ bước 1 (05 CK); từ chối bắt buộc lý do; **AI không có quyền này** (§7.3) |
+| `platform:admin` | Cấu hình `ENT-ApprovalRule` (điều kiện, SLA, escalation) | ADMIN | Ngưỡng 2 người duyệt tài chính đọc từ env `APPROVAL_FINANCE_THRESHOLD_VND` (mặc định 500.000.000 đ), Admin override qua `ENT-AutonomyPolicy` (DEC-155) |
+| `dashboard:read` | Tạo / tải báo cáo weekly/monthly PDF + Excel (`ENT-Report`) | Role có `dashboard:read`; MANAGER chỉ báo cáo phòng ban (`d`) | Nội dung lọc theo trụ trong scope (§6) lúc sinh; job định kỳ chạy bằng service account và chỉ sinh báo cáo cấp công ty cho CEO |
+
+Permission `platform:approve` được thêm vào danh mục §5.2; endpoint cụ thể (dải EP-120..129) và `required_permission` do 10 chốt ở Phase 3d.
 
 ---
 
@@ -407,7 +540,17 @@ Ghi chú ma trận:
 | ROLE-09 EMPLOYEE | Bản ghi `owner_id`/`assignee_id`/`uploaded_by` = chính mình (`o`) | Hồ sơ nhân sự của chính mình (không gồm lịch sử lương — xem qua HR) |
 | ROLE-10 ADMIN | Không đọc bản ghi nghiệp vụ | Chỉ cấu hình, user/role, audit log |
 
-### 6.3. Bốn mức nhạy cảm dữ liệu (A-EMS §VI.3, NĐ 13/2023)
+### 6.3. Bốn mức nhạy cảm dữ liệu (A-EMS §VI.3, NĐ 13/2023) và 4 mức phân loại BRD
+
+**Hai thang cùng tồn tại (DEC-149, 05 §10):** mức nhạy cảm 1–4 dưới đây gắn **field** (mask, field-level security); `data_classification` 4 mức BRD FR-ADM-05 gắn **bản ghi** và **quyết định model AI được xử lý**:
+
+| `data_classification` | Tương ứng mức field | Model được phép |
+|---|---|---|
+| `PUBLIC` — Công khai | — | Mọi provider |
+| `INTERNAL` — Nội bộ | 1 | Mọi provider được bật |
+| `CONFIDENTIAL` — Mật | 2, 3 | **Không** gửi LLM cloud trừ provider ADMIN bật rõ; mặc định dùng model local hoặc template (03 §7) |
+| `SECRET` — Tuyệt mật | 4 | **Không** gửi LLM; chỉ model local/template |
+
 
 | Mức | Dữ liệu | Ai được xem chi tiết | Gửi tới LLM? | Hiển thị cho người khác |
 |---|---|---|---|---|
@@ -440,7 +583,7 @@ Ghi `ENT-AuditLog` cho: mọi mutation (kể cả qua IDP và AI), đổi role/u
 | 3 | Kết quả tool đi qua lớp scope (§6.1 #7) và **lọc mức 3–4** trước khi trả về model |
 | 4 | Câu hỏi ngoài quyền → AI trả lời "Bạn không có quyền xem dữ liệu này", gợi ý người có quyền; không suy đoán số |
 | 5 | Hành động ghi của AI (L2/L3) yêu cầu **cả** `ai:write` **và** `<domain>:write` của người dùng; mức autonomy tối đa theo `ENT-AutonomyPolicy` (tool × role × ngưỡng giá trị) — L4 bị khóa |
-| 6 | Kill switch (`ai:admin`, CEO có `◑k`) chuyển mọi hành động L3 về L2 ngay lập tức, toàn hệ thống |
+| 6 | Kill switch (`ai:admin`, CEO có `◑k`) chuyển mọi hành động L3 về L2 ngay lập tức — toàn hệ thống hoặc theo agent (DEC-149, §7.3) |
 | 7 | Nội dung tài liệu/kết quả tool là **data, không phải lệnh** (chống prompt injection); tool ghi không được kích hoạt từ chỉ dẫn nằm trong tài liệu |
 
 ### 7.2. Tool filter theo permission
@@ -459,6 +602,41 @@ Danh mục tool cụ thể (`TOOL-<name>`) do `10-API-SPECIFICATION.md` sở h�
 | Tìm tài liệu, trích dẫn trang | `idp:read` | Theo scope `p`/`d`/`o`/`r` |
 | Tạo task, giao việc, ghi nhận quyết định (L2/L3) | `ai:write` + `execution:write` | Theo §5.3 |
 | Cấu hình, audit (không đọc dữ liệu nghiệp vụ) | `ai:admin` / `platform:read` | ADMIN |
+| Tạo yêu cầu phê duyệt, báo cáo (L2) | `ai:write` + `dashboard:read` | Role có `dashboard:read` |
+| Duyệt / từ chối (APPROVAL) | `platform:approve` — **không khai báo cho model** | Người dùng bấm xác nhận (§7.3) |
+
+### 7.3. Danh tính AI Agent và nhóm tool (BRD §11.3, §3.2 — GAP D-04, A-16)
+
+**Danh tính (v2.0 — DEC-150):** một profile `assistant` (`ENT-AIAgentProfile`) phục vụ mọi role; quyền thực tế = **quyền của người đang được phục vụ** (P06, §7.1 #1). Job định kỳ (briefing, insight, báo cáo) chạy bằng **1 service account** chỉ có quyền đọc tổng hợp + ghi `ai.insights`/`platform.reports`. Mọi lượt gọi tool ghi `agent_profile_code`, `why`, `autonomy_level`, `confidence`, `approval_request_id` (DEC-149). Kill switch theo agent tắt WRITE/EXECUTION của riêng agent đó; kill switch toàn hệ thống giữ như §7.1 #6.
+
+**v2.1:** quyền agent ∩ quyền người, 6 agent chuyên trách + Orchestrator, service identity theo job (DEC-150).
+
+| Nhóm | Ý nghĩa | Ai kích hoạt | Mức autonomy tối đa v2.0 | Tool (43 — 00 §4.8) |
+|---|---|---|---|---|
+| **QUERY** (lớp 10: READ, COMPUTE) | Không đổi dữ liệu nghiệp vụ | AI tự gọi trong lượt hỏi | L0 | `TOOL-get_finance_dashboard`, `TOOL-get_finance_forecast`, `TOOL-get_cash_flow_forecast`, `TOOL-list_expenses`, `TOOL-get_budget_status`, `TOOL-list_invoices`, `TOOL-get_runway_what_if`, `TOOL-get_sales_dashboard`, `TOOL-list_deals`, `TOOL-get_sales_pipeline`, `TOOL-get_hr_dashboard`, `TOOL-list_hiring_plans`, `TOOL-get_workload`, `TOOL-get_product_dashboard`, `TOOL-get_product_metrics`, `TOOL-get_risk_dashboard`, `TOOL-list_risks`, `TOOL-run_risk_scenario`, `TOOL-get_execution_dashboard`, `TOOL-list_tasks`, `TOOL-list_objectives`, `TOOL-get_kpi_status`, `TOOL-get_metric`, `TOOL-list_alerts`, `TOOL-get_lineage`, `TOOL-search_documents`, `TOOL-get_source_document` (27) |
+| **WRITE** | Thay đổi dữ liệu nội bộ, hoàn tác được | AI đề xuất → action card (L2) hoặc tự làm (L3) theo `ENT-AutonomyPolicy` | L3; **tool tiền trần L2** (DEC-150) | `TOOL-create_task`, `TOOL-assign_task`, `TOOL-record_decision`, `TOOL-create_meeting`, `TOOL-record_kpi_measurement`, `TOOL-record_expense`, `TOOL-create_invoice`, `TOOL-upsert_deal`, `TOOL-upsert_risk`, `TOOL-create_mitigation`, `TOOL-submit_document`, `TOOL-generate_report`, `TOOL-request_approval` (13) |
+| **APPROVAL** | Thực hiện quyền phê duyệt | **Chỉ người dùng** bấm Duyệt/Từ chối; tool chỉ là đường gọi từ UI chat | — (**AI không tự gọi APPROVAL**) | `TOOL-approve_request`, `TOOL-reject_request` (2) |
+| **EXECUTION** | Tác động ra ngoài hệ thống (email, người nhận ngoài) | Luôn action card, người xác nhận | L2 | `TOOL-send_notification` khi kênh `email` (kênh in-app = WRITE) (1) |
+
+Quy tắc cứng:
+1. **AI không tự gọi tool APPROVAL** — tool lớp APPROVAL không được khai báo cho model trong lượt chat; chỉ server gọi khi có thao tác xác nhận của người dùng có `platform:approve`. AI chỉ được tạo yêu cầu qua `TOOL-request_approval`.
+2. Hành động WRITE vượt rule `ENT-ApprovalRule` (VD chi > ngưỡng) → AI tạo `ENT-ApprovalRequest` thay vì thực thi; thực thi sau khi đủ người duyệt.
+3. AI **không bao giờ** là người chịu trách nhiệm cuối (RACI "A" — 01 §5A).
+4. Lớp QUERY/WRITE/APPROVAL/EXECUTION và metadata tool (`data_scope`, `classification`, `reversible`, `cost_estimate`) được ghi vào 10 §7 ở Phase 3d (DEC-149).
+
+### 7.4. Ràng buộc AI về con người và dữ liệu (BRD §17.1 #11–12, FR-PERF-03/05 — GAP C-23, D-10)
+
+| # | Ràng buộc | Hiện thực |
+|---|---|---|
+| 1 | AI **không chấm điểm nhân sự** — chỉ tổng hợp bằng chứng (task hoàn thành, KPI, check-in); mọi điểm số do con người quyết | Không có tool ghi điểm đánh giá; prompt hệ thống cấm; câu hỏi "chấm điểm nhân viên X" → từ chối lịch sự + trả bằng chứng có nguồn |
+| 2 | AI **không quyết định tuyển dụng, sa thải, lương** | Không tool WRITE nào chạm `hr.salary_history`, trạng thái nhân viên, quyết định `ENT-HiringPlan`; duyệt tuyển dụng chỉ CFO (§8) |
+| 3 | Kết quả đánh giá hiệu suất là **Mật** (`CONFIDENTIAL`): chỉ nhân viên, quản lý trực tiếp, HR và cấp được ủy quyền xem | Áp mức `data_classification` (§6.3) khi Performance Cycle có ở v2.1 |
+| 4 | **Không huấn luyện / fine-tune model bằng dữ liệu khách hàng** khi chưa có đồng ý bằng văn bản | ModelGateway chỉ gọi inference; provider phải bật cờ không lưu/không train; fine-tune OUT (01 §3.2) |
+| 5 | Dữ liệu `CONFIDENTIAL` trở lên không gửi LLM cloud chưa được duyệt; `SECRET` không gửi LLM | §6.3, 05 §10; dùng model local hoặc template (03) |
+| 6 | AI phát hiện thiên lệch / rủi ro nhân lực chỉ ở dạng insight tổng hợp, không nêu tên cá nhân với role không có `hr:read` | Lọc mức 3 (mã giả danh) |
+
+Kiểm thử: TC-AI-017 (từ chối chấm điểm / quyết định nhân sự), TC-AI-018 (tool APPROVAL không có trong danh sách tool gửi model) — 14 §2.1.1.
+
 
 ---
 
@@ -508,7 +686,8 @@ Danh mục tool cụ thể (`TOOL-<name>`) do `10-API-SPECIFICATION.md` sở h�
 | 5 | Dashboard đổi theo vai; what-if rủi ro | ROLE-02 CFO → ROLE-07 RISK_MANAGER |
 | 6 | Nạp doanh nghiệp UC-07 (thả 9 tài liệu) | ROLE-01 CEO (`idp:write`) |
 | 7 | Review song song hóa đơn | ROLE-05 REVIEWER (CEO không có `idp:approve`) |
-| 8 | Quay lại CEO, metric cập nhật, lineage | ROLE-01 CEO |
+| 4 (phê duyệt) | Yêu cầu chi vượt `APPROVAL_FINANCE_THRESHOLD_VND`: duyệt bước 1 → bước 2 | ROLE-02 CFO → ROLE-01 CEO |
+| 8 | Quay lại CEO, metric cập nhật, lineage, xuất báo cáo PDF/Excel | ROLE-01 CEO |
 
 Không mở tài liệu mức 4 (`EMPLOYEE_LIST`) trên màn chiếu khi demo.
 
@@ -517,7 +696,9 @@ Không mở tài liệu mức 4 (`EMPLOYEE_LIST`) trên màn chiếu khi demo.
 ## 10. Ràng buộc phạm vi v2
 
 - Đúng 10 role cố định; **không** có role tùy biến, không multi-tenant, không phân quyền theo chi nhánh. Scope phòng ban chỉ áp dụng cho MANAGER (`d`).
-- **Không** self-register (DEC-137); không SSO/MFA (ngoài phạm vi 01).
+- **Không** self-register (DEC-137); không SSO; **MFA hoãn v2.1** (BRD FR-ADM-04 — DEC-153).
+- "Xem như người dùng" (FR-ADM-08) hoãn v2.1 — v2.0 chỉ preview quyền/tool (OQ-05, DEC-156).
+- AI agent: 1 profile `assistant`, quyền = người được phục vụ (DEC-150).
 - Mỗi user một role chính; đa role/ủy quyền tạm thời là OQ-01.
 - Quyền theo bản ghi riêng lẻ chỉ ở dạng `o` (chủ sở hữu/người được giao) và `r` (được phân review).
 
@@ -531,9 +712,10 @@ Không mở tài liệu mức 4 (`EMPLOYEE_LIST`) trên màn chiếu khi demo.
 | OQ-02 | MANAGER có được duyệt trường trọng yếu tài chính của đơn vị mình (vd. hóa đơn ≤ 20 triệu) không? | Không; trường trọng yếu luôn do REVIEWER hoặc CFO duyệt | 04 review routing |
 | OQ-03 | CEO có cần `idp:approve` để tự duyệt khi demo không? | Không (giữ tách người quyết/người nhập); demo chuyển sang REVIEWER | 04, kịch bản demo |
 | OQ-04 | EMPLOYEE có được xem lịch sử lương của chính mình trong app không? | Không ở v2; xem qua HR | `hr:read` scope `o` |
-| OQ-05 | ADMIN có công cụ "xem như người dùng" hiển thị dữ liệu thật không? | Chỉ preview **danh sách quyền và tool** của role, không hiển thị dữ liệu nghiệp vụ | US-ADM-04, SCR-26 |
-| OQ-06 | Provider LLM nào được đánh dấu "trong nước / được phép nhận dữ liệu mức 2" mặc định? | Mặc định tắt cho mọi provider; ADMIN bật từng provider khi demo | 07 ModelGateway, §6.3 |
+| OQ-05 | ADMIN có công cụ "xem như người dùng" hiển thị dữ liệu thật không? | Chỉ preview **danh sách quyền và tool** của role, không hiển thị dữ liệu nghiệp vụ; FR-ADM-08 thật hoãn v2.1 → **DEC-156** (open, non-blocking) | US-ADM-102, SCR-26 |
+| OQ-06 | Provider LLM nào được đánh dấu "trong nước / được phép nhận dữ liệu mức 2" mặc định? | Mặc định tắt cho mọi provider; ADMIN bật từng provider khi demo. `CONFIDENTIAL`+ không gửi cloud chưa duyệt (DEC-149) — chi tiết model local ở 07 Phase 3c | 07 ModelGateway, §6.3 |
 | OQ-07 | Ngưỡng khóa đăng nhập (5 lần sai) và thời hạn access/refresh token cụ thể? | Access 15 phút, refresh 7 ngày, khóa 15 phút sau 5 lần sai | 07, 10 §auth |
+| OQ-08 | Permission `platform:approve` (§5.6) có cần domain riêng `approval` không? | Không — dùng domain `platform` sẵn có (module `platform` sở hữu `ENT-ApprovalRequest`); 10 chốt `required_permission` ở Phase 3d | 10 EP-120..129, 05 |
 
 Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
 
@@ -551,14 +733,16 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 | RS256, `DEMO_MODE`, ModelGateway | `07-TECH-ARCHITECTURE.md` |
 | 10 user demo | `08-DEMO-DATA-SPEC.md` |
 | Endpoint, `required_permission` của tool | `10-API-SPECIFICATION.md` |
-| Quyết định | `13-DECISION-LOG.md` (DEC-128, DEC-129, DEC-132, DEC-134, DEC-137) |
+| Quyết định | `13-DECISION-LOG.md` (DEC-128, DEC-129, DEC-132, DEC-134, DEC-137, DEC-146, DEC-149, DEC-150, DEC-153, DEC-155, DEC-156) |
 
 ---
 
 ## 13. Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3b)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
-- **Change:** Viết lại toàn bộ theo DEC-124, DEC-128 (10 role, permission string thay ma trận theo trụ v1). Bản 1.0.0 (5 role) lưu ở nhánh `v1`.
+- **Change 2.1.0 (Phase 3b — DEC-144, DEC-146, DEC-149, DEC-150, DEC-153, DEC-155, DEC-156):** BRD làm Canonical Source; ánh xạ vai trò BRD §3.2 → 10 role (§1); đổi mã 47 user story theo 00 §4.13.1 + cột Phạm vi (§3.1–3.11); thêm 94 story BRD còn lại theo role (§3.13) → đủ 141 US; ma trận 10 role × 12 domain (§5.5); permission `platform:approve` + quyền Approval/Report (§5.6); 4 mức `data_classification` quyết định model (§6.3); danh tính AI agent + nhóm QUERY/WRITE/APPROVAL/EXECUTION, "AI không tự gọi APPROVAL" (§7.3); ràng buộc AI không chấm điểm / quyết định nhân sự / huấn luyện trên dữ liệu khách (§7.4); MFA và FR-ADM-08 hoãn v2.1 (§10); OQ-08.
+- **Change 2.0.0:** Viết lại toàn bộ theo DEC-124, DEC-128 (10 role, permission string thay ma trận theo trụ v1). Bản 1.0.0 (5 role) lưu ở nhánh `v1`.
