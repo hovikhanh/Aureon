@@ -1,8 +1,8 @@
 # 05 — Data Model
 
-> Mô hình dữ liệu vật lý của **Aureon v2**: PostgreSQL 16 + pgvector, **một database, 10 schema** (một schema / module — DEC-125), entity `ENT-*` theo đúng registry `00-INDEX.md` §4.3, outbox/event, lineage, phân loại dữ liệu nhạy cảm, migration.
-> Nguồn hợp nhất (DEC-124): A-EMS `SOURCE-BRD-v1.0` §VI (entity theo database, dữ liệu nhạy cảm), §III.3 (event); AI-EOS `SOURCE-BRD-v1.1` §3.9, §4.1 (Data Foundation), §4.2 (autonomy); bản 05 v1.0.0 (quy ước, lineage, audit append-only — nhánh `v1`).
-> Quyết định: DEC-125 (Modular Monolith, schema per module), DEC-126 (outbox + Celery/Redis, envelope), DEC-127 (5 trụ, 31 metric), DEC-128 (10 role), DEC-133 (confidence), DEC-134 (undo); **DEC-016 superseded** — bỏ bảng chung `business_records`, mỗi domain có bảng riêng.
+> Mô hình dữ liệu vật lý của **Aureon v2**: PostgreSQL 16 + pgvector, **một database, 10 schema** (một schema / module — DEC-125), entity `ENT-*` theo đúng registry `00-INDEX.md` §4.3 (bản 2.1.0: **79 entity** — DEC-147..153), outbox/event, lineage, phân loại dữ liệu nhạy cảm, migration.
+> Nguồn hợp nhất (DEC-124): A-EMS `SOURCE-BRD-v1.0` §VI (entity theo database, dữ liệu nhạy cảm), §III.3 (event); AI-EOS `SOURCE-BRD-v1.1` (canonical — DEC-144) §13 Data Foundation (entity §13.2, trường chung §13.3), §11.6 autonomy, §7–§10 domain; bản 05 v1.0.0 (quy ước, lineage, audit append-only — nhánh `v1`).
+> Quyết định: DEC-125 (Modular Monolith, schema per module), DEC-126 (outbox + Celery/Redis, envelope), DEC-127 (5 trụ, 31 metric), DEC-128 (10 role), DEC-133 (confidence), DEC-134 (undo), **v2.1:** DEC-147 (data model lite + trường chung), DEC-148 (risk/DQ/dòng tiền), DEC-149/150 (AI governance), DEC-151 (IDP), DEC-153 (approval, report, transcript); **DEC-016 superseded** — bỏ bảng chung `business_records`, mỗi domain có bảng riêng.
 > Quy tắc: **không đổi schema mà không cập nhật file này trước** (CLAUDE.md § Database). Mọi migration qua Alembic, reversible. Hành vi nghiệp vụ (công thức metric, pipeline IDP, quyền) thuộc 03, 04, 02 — file này chỉ mô tả cấu trúc lưu trữ.
 
 ---
@@ -30,7 +30,9 @@
 | C17 | Audit actor | Bảng nghiệp vụ có `created_by uuid` và `updated_by uuid` (soft ref `auth.users`; null khi SYSTEM); hành động của AI ghi `created_by` = user ủy quyền và audit `actor_type = AI` |
 | C18 | Nguồn dữ liệu | Bảng nghiệp vụ nhận dữ liệu từ IDP có `source_document_id uuid NULL` (soft ref `idp.source_documents`) để lineage nhanh; lineage đầy đủ ở `platform.data_lineage` (§7) |
 
-**Cột chuẩn** C3, C4, C5, C17 (`id`, `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`) **có mặt ở mọi bảng nghiệp vụ và không lặp lại** trong bảng spec §4 trừ khi khác quy ước.
+| C19 | **Trường chung BRD §13.3 (DEC-147, GAP D-23)** | Mọi **entity nghiệp vụ** có thêm 3 cột: `source platform.record_source NOT NULL` (`MANUAL`, `IDP`, `IMPORT`, `AI`, `EVENT`, `SEED` — kênh tạo bản ghi; cột nguồn chi tiết riêng của domain như `finance.record_origin`, `risk.risk_source`, `task_source` giữ nguyên làm chi tiết) · `data_classification platform.data_classification NOT NULL DEFAULT 'INTERNAL'` (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `SECRET` — 4 mức BRD, DEC-149; quyết định provider AI được xử lý, §10) · `version integer NOT NULL DEFAULT 1` (tăng mỗi UPDATE; optimistic locking — `PATCH` gửi `version`, lệch → `409 CONFLICT_STATE`). Phạm vi áp dụng và ngoại lệ ở §2.1 |
+
+**Cột chuẩn** C3, C4, C5, C17, C19 (`id`, `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`, `source`, `data_classification`, `version`) **có mặt ở mọi bảng nghiệp vụ và không lặp lại** trong bảng spec §4 trừ khi khác quy ước.
 
 Ký hiệu cột trong bảng spec: **Null** `N` = NOT NULL / `Y` = nullable · **Ràng buộc** `PK`, `FK → bảng` (cùng schema), `SR → schema.bảng` (soft reference, không constraint), `UQ`, `CK` (check) · **Mức** = mức nhạy cảm §10 (trống = mức 1–2 theo bảng).
 
@@ -49,10 +51,21 @@ Ký hiệu cột trong bảng spec: **Null** `N` = NOT NULL / `Y` = nullable · 
 | `execution` | execution | ENT-Meeting → `meetings` · ENT-Decision → `decisions` · ENT-Task → `tasks` · ENT-Project → `projects` · ENT-Objective → `objectives` · ENT-KeyResult → `key_results` · ENT-CheckIn → `check_ins` · ENT-KPI → `kpis` · ENT-KPIMeasurement → `kpi_measurements` | 9 |
 | `ai` | ai_core | ENT-Conversation → `conversations` · ENT-Message → `messages` · ENT-ToolCallLog → `tool_call_logs` · ENT-Feedback → `feedback` · ENT-Insight → `insights` · ENT-AIAction → `ai_actions` · ENT-AutonomyPolicy → `autonomy_policies` · ENT-ModelCallLog → `model_call_logs` | 8 |
 | `idp` | idp | ENT-SourceDocument → `source_documents` · ENT-DocumentPage → `document_pages` · ENT-DocumentType → `document_types` · ENT-ExtractionSchema → `extraction_schemas` · ENT-ExtractionJob → `extraction_jobs` · ENT-ExtractedField → `extracted_fields` · ENT-ExtractionReview → `extraction_reviews` · ENT-ValidationRule → `validation_rules` · ENT-ImportBatch → `import_batches` | 9 |
-| `platform` | platform | ENT-Metric → `metrics` · ENT-MetricValue → `metric_values` · ENT-Alert → `alerts` · ENT-DataLineage → `data_lineage` · ENT-AuditLog → `audit_logs` · ENT-Notification → `notifications` · ENT-OutboxEvent → `outbox_events` · ENT-ProcessedEvent → `processed_events` · ENT-SystemSetting → `system_settings` | 9 |
-| **Tổng** | | **64 entity / 64 bảng** | 64 |
+| `platform` | platform | ENT-Metric → `metrics` · ENT-MetricValue → `metric_values` · ENT-Alert → `alerts` · ENT-DataLineage → `data_lineage` · ENT-AuditLog → `audit_logs` · ENT-Notification → `notifications` · ENT-OutboxEvent → `outbox_events` · ENT-ProcessedEvent → `processed_events` · ENT-SystemSetting → `system_settings` · **ENT-ApprovalRule → `approval_rules` · ENT-ApprovalRequest → `approval_requests` · ENT-Report → `reports`** | 12 |
+| **Tổng** | | **67 entity / 67 bảng** (đang cập nhật Phase 3a — đích 79, 00 §4.3) | 67 |
 
 Bảng phụ trợ **không phải entity** (không có ID `ENT-*`, xem OQ-01): `auth.user_roles` không cần (một user một role, DEC-128); `execution.task_assignees` không cần (một assignee). Vector embedding là **cột** trên bảng có sẵn (§11), không tạo bảng mới.
+
+### 2.1. Phạm vi trường chung C19 (`source`, `data_classification`, `version` — DEC-147)
+
+| Nhóm | Entity | C19 |
+|---|---|---|
+| **Entity nghiệp vụ** — dữ liệu doanh nghiệp, người dùng hoặc AI/IDP tạo/sửa | Mọi entity `finance`, `sales`, `hr`, `product`, `risk`, `execution`; `idp.source_documents`, `idp.extracted_fields`; `ai.insights`, `ai.ai_actions`; `platform.metric_values`, `platform.approval_requests`, `platform.reports` | **Đủ 3 cột** |
+| **Cấu hình / danh mục** — sửa qua `*:admin`, có version nghiệp vụ riêng | `auth.roles`, `platform.metrics`, `platform.approval_rules`, `platform.system_settings`, `idp.document_types`, `idp.extraction_schemas`, `idp.validation_rules`, `ai.autonomy_policies`, `ai.agent_profiles` | `version` + `data_classification`; **không** `source` (luôn `MANUAL`/`SEED`) |
+| **Định danh** | `auth.users` | `version` + `data_classification` (= `CONFIDENTIAL`, mức 3) |
+| **Append-only / log / kỹ thuật** — không UPDATE nên `version` vô nghĩa; nguồn = chính loại log | `auth.refresh_tokens`, `platform.audit_logs`, `platform.data_lineage`, `platform.outbox_events`, `platform.processed_events`, `platform.notifications`, `ai.conversations`, `ai.messages`, `ai.tool_call_logs`, `ai.model_call_logs`, `ai.feedback`, `idp.document_pages`, `idp.extraction_jobs`, `idp.extraction_reviews`, `idp.import_batches`, `idp.review_assignments`, `*_history`, `sales.deal_stage_history`, `risk.risk_assessments`, `execution.kpi_measurements`, `product.product_metrics`, `execution.check_ins` | **Miễn** — `data_classification` kế thừa bản ghi cha khi cần lọc |
+
+Entity mới thêm sau Phase 3a phải khai báo nhóm ở bảng này.
 
 ---
 
@@ -226,7 +239,11 @@ erDiagram
     metrics ||--o{ alerts : "metric_id"
     metric_values |o--o{ alerts : "metric_value_id"
     metric_values |o--o{ data_lineage : "metric_value_id"
+    approval_rules ||--o{ approval_requests : "rule_id"
+    approval_requests |o--o{ audit_logs : "approval_request_id"
 ```
+
+`reports.metric_snapshot` tham chiếu `metric_values` (jsonb, không FK); `approval_requests.ai_action_id` → `ai.ai_actions` (soft ref).
 
 ---
 
@@ -247,7 +264,7 @@ Cột chuẩn (`id`, `created_at`, `updated_at`, `deleted_at`, `created_by`, `up
 | scope_rules | jsonb | N | | Ký hiệu phạm vi theo permission (`{"finance:read":"r"}` — 02 §5.3) |
 | pillars | platform.pillar[] | N | | Trụ dashboard (00 §4.1) |
 
-Seed 10 bản ghi, không sửa qua UI (đổi quyền = đổi 02 + migration seed). Không `deleted_at`.
+Seed 10 bản ghi, không sửa qua UI (đổi quyền = đổi 02 + migration seed). Không `deleted_at`. **Không có entity `Permission` riêng** (v2.1): permission là mảng `permissions` của role; role tùy biến hoãn v2.1 (DEC-150) — khi có thì tách bảng.
 
 #### ENT-User — `auth.users`
 
@@ -265,7 +282,7 @@ Seed 10 bản ghi, không sửa qua UI (đổi quyền = đổi 02 + migration s
 | failed_login_count | smallint | N | | Khóa tạm sau 5 lần (02 §4) | |
 | locked_until | timestamptz | Y | | | |
 
-Index: `ix_users_role_id`, `ix_users_department_id`, `ix_users_employee_id`.
+Index: `ix_users_role_id`, `ix_users_department_id`, `ix_users_employee_id`. **Service account (DEC-150):** đúng 1 user `is_service_account = true` (cột boolean N, mặc định false) chạy job theo lịch (briefing, báo cáo định kỳ, recompute); không đăng nhập được, không có mật khẩu dùng được; permission = `dashboard:read` + `platform:read` + quyền ghi tối thiểu của job; audit `actor_type = SYSTEM`.
 
 #### ENT-RefreshToken — `auth.refresh_tokens`
 
@@ -1101,9 +1118,9 @@ Index: FK; `(extraction_job_id, field_name, row_index)` UQ. Giá trị mức 4 l
 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
-| code | text | N | UQ | `METRIC-FIN-01`..`METRIC-RSK-06` (31 — 00 §4.2) |
+| code | text | N | UQ | `METRIC-FIN-01`..`METRIC-RSK-06` (31) + `METRIC-DQ-01` (DEC-148) — 00 §4.2 |
 | alert_code | text | N | UQ | `ALERT-*` cùng số (1-1) |
-| pillar | platform.pillar | N | | `F`,`O`,`C`,`U`,`S` |
+| pillar | platform.pillar | Y | | `F`,`O`,`C`,`U`,`S`; **null** = metric nền tảng (`METRIC-DQ-01`) — không vào trạng thái trụ |
 | name_vi / name_en | text | N | | |
 | unit | platform.metric_unit | N | | |
 | direction | platform.threshold_direction | N | | |
@@ -1112,7 +1129,7 @@ Index: FK; `(extraction_job_id, field_name, row_index)` UQ. Giá trị mức 4 l
 | formula_ref | text | N | | Tham chiếu công thức 03 |
 | refresh_events | text[] | N | | `EVT-*` kích hoạt tính lại |
 
-Seed 31 bản ghi; không `deleted_at`.
+Seed **32** bản ghi; không `deleted_at`. METRIC-DQ-01 (DQ Score 0–100): `unit = SCORE`, `direction = LOWER_IS_BAD`, `source_module = platform`, `scope_type` ∈ (`company`, `department`); tính từ `idp.import_batches.quality_score` + tỷ lệ bản ghi thiếu/lỗi validate (công thức ở 03, Phase 3b). Không có bảng `DQScore` riêng (DEC-148).
 
 #### ENT-MetricValue — `platform.metric_values`
 
@@ -1128,7 +1145,7 @@ Seed 31 bản ghi; không `deleted_at`.
 | origin | platform.value_origin | N | | `COMPUTED`, `EXTRACTED`, `MANUAL`, `SEED` |
 | computed_at | timestamptz | N | | |
 | is_current | boolean | N | | Bản mới nhất cho khóa |
-| data_quality_score | numeric(5,2) | Y | | 04 §13.2 |
+| data_quality_score | numeric(5,2) | Y | | Điểm chất lượng của **chính giá trị này** (04 §13.2); tổng hợp lên METRIC-DQ-01 |
 
 UQ `(metric_id, kind, period_key, scope_type, COALESCE(scope_id,'0…0')) WHERE is_current`. Index `(metric_id, period_key)`.
 
@@ -1179,6 +1196,11 @@ Index: `(target_schema, target_table, target_id)`, `ix_data_lineage_metric_value
 | target_schema / target_table / target_id | text / text / uuid | Y | | |
 | source_document_id | uuid | Y | SR | |
 | before / after | jsonb | Y | | Mask mức 3–4 (`••••`) |
+| why | text | Y | | **v2.1 (DEC-149):** lý do — người nhập hoặc AI (tóm tắt `reasoning`); bắt buộc khi sửa trường tài chính (DEC-151) |
+| approval_request_id | uuid | Y | FK → approval_requests | Hành động đi qua phê duyệt (DEC-149, DEC-153) |
+| agent_profile_code | text | Y | | Khi `actor_type = AI`: `AIAgentProfile.code` (v2.0 luôn `assistant`) |
+| autonomy_level | ai.autonomy_level | Y | | Mức autonomy áp dụng khi AI hành động |
+| confidence | numeric(5,4) | Y | | Confidence của AI / IDP cho hành động |
 | metadata | jsonb | Y | | `request_id`, `idempotency_key`, `ip_address` |
 
 Không `deleted_at`; app DB user chỉ có `INSERT, SELECT`; trigger chặn UPDATE/DELETE. Index: SR, `(target_table, target_id)`, `occurred_at`.
@@ -1196,6 +1218,63 @@ Không `deleted_at`; app DB user chỉ có `INSERT, SELECT`; trigger chặn UPDA
 
 Index `(recipient_id, read_at)`.
 
+#### ENT-ApprovalRule — `platform.approval_rules` (mới v2.1 — DEC-153, DEC-149)
+
+Approval cơ bản theo giá trị + SLA (GAP A-06). Không phải workflow engine tổng quát (vẫn OUT — 01 §3).
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| code | text | N | UQ | VD `APR-EXPENSE-LARGE` (nhãn nội bộ, không phải ID registry) |
+| target_kind | text | N | | Loại đối tượng: `ACT-*` (VD `ACT-record_expense`), `hiring_plan`, `budget`, `ai_action` |
+| condition | jsonb | N | | Điều kiện đơn giản `{ "field": "amount", "op": ">=", "value": 50000000, "currency": "VND" }`; **không** biểu thức tự do |
+| approver_role_codes | auth.role_code[] | N | | Bước 1 (một người trong các role) |
+| second_approver_role_codes | auth.role_code[] | Y | | Bước 2 — **chỉ** rule tài chính vượt ngưỡng (2-sided, DEC-149); null = 1 approver |
+| sla_hours | integer | N | CK > 0 | Mặc định 8 (1 ngày làm việc); quá hạn → nhắc + escalation |
+| escalate_to_role_code | auth.role_code | Y | | Mặc định `CEO` |
+| is_active | boolean | N | | |
+| priority | smallint | N | | Rule khớp đầu tiên theo `priority` tăng dần |
+
+Cấu hình qua `platform:admin` (SCR-29); thay đổi ghi audit. Ngưỡng tài chính mặc định do 03/08 chốt (Phase 3b/3d), là cấu hình (NFR-19).
+
+#### ENT-ApprovalRequest — `platform.approval_requests` (mới v2.1 — DEC-153)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| rule_id | uuid | N | FK → approval_rules | |
+| target_schema / target_table / target_id | text / text / uuid | Y | | Bản ghi chờ duyệt (soft ref); null khi đối tượng chưa ghi (payload) |
+| ai_action_id | uuid | Y | SR → ai.ai_actions | Khi yêu cầu do AI tạo (TOOL-request_approval) |
+| payload | jsonb | N | | Snapshot thay đổi đề xuất (mask mức 4) |
+| amount / currency | bigint / char(3) | Y | | Giá trị dùng để khớp rule (C8) |
+| requested_by | uuid | N | SR → auth.users | |
+| status | platform.approval_status | N | | `PENDING` → `APPROVED` / `REJECTED` / `CANCELLED` / `EXPIRED` |
+| step | smallint | N | CK ∈ (1,2) | Bước hiện tại |
+| first_decided_by / first_decided_at | uuid / timestamptz | Y | SR → auth.users | |
+| second_decided_by / second_decided_at | uuid / timestamptz | Y | SR → auth.users | CK `second_decided_by <> first_decided_by` và `<> requested_by` |
+| decision_reason | text | Y | | Bắt buộc khi `REJECTED` |
+| due_at | timestamptz | N | | `created_at + sla_hours` |
+| escalated_at | timestamptz | Y | | |
+
+Index: `ix_approval_requests_rule_id`, `(status, due_at)`, `(target_table, target_id)`, `ix_approval_requests_ai_action_id`. Phát `EVT-platform.approval_requested` (tạo) và `EVT-platform.approval_decided` (APPROVED/REJECTED). Người duyệt không được là người yêu cầu.
+
+#### ENT-Report — `platform.reports` (mới v2.1 — DEC-153)
+
+Reporting tối thiểu (GAP D-21): báo cáo weekly/monthly xuất PDF + Excel; không BI.
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| kind | platform.report_kind | N | | `WEEKLY`, `MONTHLY` |
+| period_key | text | N | | `2026-W42` / `2026-09` |
+| scope_type / scope_id | platform.scope_type / uuid | N / Y | | `company` hoặc `department` (báo cáo phòng ban — US-RPT-002) |
+| format | platform.report_format | N | | `PDF`, `XLSX` |
+| status | platform.report_status | N | | `QUEUED` → `GENERATING` → `READY` / `FAILED` |
+| storage_key | text | Y | | Object MinIO (bucket private) |
+| requested_by | uuid | Y | SR → auth.users | Null = job định kỳ (service account) |
+| generated_at | timestamptz | Y | | |
+| metric_snapshot | jsonb | Y | | Mã metric + `metric_value_id` dùng trong báo cáo (lineage P01) |
+| ai_summary_insight_id | uuid | Y | SR → ai.insights | Tóm tắt AI kèm nguồn (tùy chọn) |
+
+UQ `(kind, period_key, scope_type, COALESCE(scope_id,'0…0'), format) WHERE deleted_at IS NULL`. Phát `EVT-platform.report_generated`. Quyền đọc = quyền đọc các trụ trong báo cáo (lọc khi sinh — 02 §6).
+
 #### ENT-OutboxEvent — `platform.outbox_events`, ENT-ProcessedEvent — `platform.processed_events`
 
 Xem §5.
@@ -1204,7 +1283,7 @@ Xem §5.
 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
-| key | text | N | UQ | `ai.kill_switch`, `ai.kill_switch_mode`, `ai.budget_monthly`, `ai.providers`, `idp.limits`, `idp.freshness`, `privacy.consent` … |
+| key | text | N | UQ | `ai.kill_switch`, `ai.kill_switch_mode`, `ai.kill_switch_agents` (danh sách `AIAgentProfile.code` bị tắt — DEC-149), `ai.budget_monthly`, `ai.providers`, `idp.limits`, `idp.freshness`, `privacy.consent` … |
 | value | jsonb | N | | |
 | is_secret | boolean | N | CK = false | Secret **không** lưu DB (env/secret store) |
 | updated_reason | text | Y | | |
@@ -1282,6 +1361,9 @@ UQ `(event_id, consumer)` — consumer idempotent. Một bảng chung trong `pla
 | EVT-idp.document_committed | idp | platform (metric store, quality score), ai, risk | Commit qua Action Registry | `source_document_id`, `document_type`, `channel`, `actions[]` (`{action_name, schema, table, ids[]}`), `committed_by`, `autonomy_level` |
 | EVT-idp.document_rolled_back | idp | platform, ai, mọi module có bản ghi | Hoàn tác | `source_document_id`, `actions[]`, `rolled_back_by` |
 | EVT-platform.alert_raised | platform | ai (briefing), notification | Alert mới / đổi severity | `alert_id`, `metric_code`, `severity`, `period_key`, `value` |
+| **EVT-platform.approval_requested** (v2.1) | platform | notification, ai | Tạo ApprovalRequest | `approval_request_id`, `rule_code`, `target_table`, `target_id`, `amount`, `currency`, `due_at` |
+| **EVT-platform.approval_decided** (v2.1) | platform | module sở hữu `target_*`, ai, notification | → `APPROVED` / `REJECTED` | `approval_request_id`, `status`, `step`, `target_table`, `target_id` |
+| **EVT-platform.report_generated** (v2.1) | platform | notification | Report → `READY` | `report_id`, `kind`, `period_key`, `scope_type`, `format` |
 
 Mỗi event có đúng một publisher (module sở hữu bảng). AI Core consume mọi event để làm mới insight nhưng **không** phát event nghiệp vụ. Không giả định thứ tự giữa loại event; consumer dựa vào `occurred_at`.
 
@@ -1304,7 +1386,11 @@ Mỗi event có đúng một publisher (module sở hữu bảng). AI Core consu
 | `platform.alert_severity` | `WARNING`, `CRITICAL` | alerts, insights |
 | `platform.alert_status` | `OPEN`, `ACKNOWLEDGED`, `RESOLVED`, `DISMISSED` | alerts |
 | `platform.lineage_kind` | `RECORD_FROM_FIELD`, `METRIC_FROM_RECORD`, `METRIC_FROM_FIELD` | data_lineage |
-| `platform.notification_kind` | `alert`, `review_assigned`, `task_assigned`, `ai_action`, `document_ready`, `reminder`, `system` | notifications |
+| `platform.notification_kind` | `alert`, `review_assigned`, `review_escalated`, `task_assigned`, `approval_requested`, `approval_decided`, `report_ready`, `ai_action`, `document_ready`, `reminder`, `system` | notifications |
+| `platform.record_source` | `MANUAL`, `IDP`, `IMPORT`, `AI`, `EVENT`, `SEED` | mọi bảng C19 |
+| `platform.data_classification` | `PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `SECRET` | mọi bảng C19, reports (§10) |
+| `platform.approval_status` | `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED`, `EXPIRED` | approval_requests |
+| `platform.report_kind` / `report_format` / `report_status` | `WEEKLY`, `MONTHLY` / `PDF`, `XLSX` / `QUEUED`, `GENERATING`, `READY`, `FAILED` | reports |
 | `platform.outbox_status` / `processing_status` | `PENDING`, `PUBLISHED`, `FAILED` / `DONE`, `DLQ` | outbox_events / processed_events |
 | `auth.role_code` | `CEO`, `CFO`, `VP_SALES`, `HR_MANAGER`, `REVIEWER`, `CPO`, `RISK_MANAGER`, `MANAGER`, `EMPLOYEE`, `ADMIN` | roles, snapshots |
 | `finance.revenue_category` | `product_sales`, `service`, `consulting`, `other` | revenues |
@@ -1443,6 +1529,18 @@ Ghi `audit_logs`, `data_lineage`, `outbox_events` là tác dụng phụ của mu
 ---
 
 ## 10. Phân loại dữ liệu nhạy cảm (4 mức — 02 §6.3, A-EMS §VI.3, NĐ 13/2023)
+
+**v2.1 (DEC-149, GAP A-15):** cột `data_classification` (C19) dùng 4 mức BRD FR-ADM-05. Ánh xạ với mức nhạy cảm hiện hành (dùng cho mask/field-level security) — cả hai cùng tồn tại: `data_classification` gắn **bản ghi** và quyết định provider AI được xử lý; "mức" bên dưới gắn **cột** và quyết định mask.
+
+| `data_classification` (BRD) | Mức cột tương ứng | Mặc định cho | Provider AI được xử lý |
+|---|---|---|---|
+| `PUBLIC` — Công khai | — | Danh mục công khai, báo cáo đã phát hành ngoài | Mọi provider |
+| `INTERNAL` — Nội bộ | 1 | Mặc định mọi bản ghi | Mọi provider được bật |
+| `CONFIDENTIAL` — Mật | 2, 3 | `finance.*`, `sales.deals/contracts`, `risk.*`, `auth.users`, `hr.employees` | Theo cấu hình `ai.providers` (provider ngoài lãnh thổ phải được bật rõ; BRD L1221 "xử lý tại VN" — v2.1) |
+| `SECRET` — Tuyệt mật | 4 | `hr.salary_history`, tài liệu IDP mức 4, dữ liệu sức khỏe (DEC-149, GAP B-16) | **Không** gửi LLM (PII filter bỏ); IDP chỉ provider được phép |
+
+Bản ghi lấy mức cao nhất của các cột nó chứa; người dùng có thể nâng (không hạ dưới mức cột).
+
 
 | Mức | Bảng.cột | Lưu trữ | Gửi LLM | Log / audit / event |
 |---|---|---|---|---|
