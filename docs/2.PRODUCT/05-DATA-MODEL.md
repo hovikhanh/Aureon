@@ -1492,7 +1492,7 @@ Approval cơ bản theo giá trị + SLA (GAP A-06). Không phải workflow engi
 | is_active | boolean | N | | |
 | priority | smallint | N | | Rule khớp đầu tiên theo `priority` tăng dần |
 
-Cấu hình qua `platform:admin` (SCR-29); thay đổi ghi audit. Ngưỡng tài chính mặc định do 03/08 chốt (Phase 3b/3d), là cấu hình (NFR-19).
+Cấu hình qua `platform:admin` (SCR-29); thay đổi ghi audit. Ngưỡng 2 người duyệt tài chính (DEC-155): mặc định 500.000.000 VND từ env `APPROVAL_FINANCE_THRESHOLD_VND`, Admin override qua `ai.autonomy_policies.max_amount`; không lưu cứng trong `condition`.
 
 #### ENT-ApprovalRequest — `platform.approval_requests` (mới v2.1 — DEC-153)
 
@@ -1905,7 +1905,7 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 | OQ-08 | Mã hóa cột mức 4 bằng `pgcrypto` — quản lý khóa (KMS/secret store) cho demo | Khóa qua env `PII_ENCRYPTION_KEY`; KMS Phase 2 | 07 |
 | OQ-09 | `ai.autonomy_level` không có `L4` — khi mở L4 phải `ALTER TYPE` | Chấp nhận | 04 |
 | OQ-10 | Đổi tên cột trùng C19 (`revenues.source`→`source_note`, `cash_positions.source`→`cash_source`, `risks.source`→`risk_source`, `tasks.source`→`task_source`, `releases.version`→`release_version`) làm lệch field API ở 10 (EP-65 …) | Sửa 10 theo 05 ở Phase 3d; chưa có code v2 nên không có migration dữ liệu | 10, 14 |
-| OQ-11 | Ngưỡng tài chính mặc định cho ApprovalRule 2 người duyệt (DEC-149) | 03/08 chốt ở Phase 3b/3d; mặc định đề xuất ≥ 500.000.000 đ | 03, 08 |
+| OQ-11 | ✅ DEC-155 — ngưỡng 2 người duyệt tài chính mặc định 500.000.000 VND từ env `APPROVAL_FINANCE_THRESHOLD_VND`, override qua `ENT-AutonomyPolicy.max_amount` | Đã chốt | 07, 08 |
 
 ---
 
