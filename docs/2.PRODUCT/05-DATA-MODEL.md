@@ -49,10 +49,10 @@ Ký hiệu cột trong bảng spec: **Null** `N` = NOT NULL / `Y` = nullable · 
 | `product` | product | ENT-Product → `products` · ENT-Feature → `features` · ENT-RoadmapItem → `roadmap_items` · ENT-Release → `releases` · ENT-ProductMetric → `product_metrics` | 5 |
 | `risk` | risk | ENT-Risk → `risks` · ENT-RiskAssessment → `risk_assessments` · ENT-Mitigation → `mitigations` · ENT-Scenario → `scenarios` | 4 |
 | `execution` | execution | ENT-Meeting → `meetings` · ENT-Decision → `decisions` · ENT-Task → `tasks` · ENT-Project → `projects` · ENT-Objective → `objectives` · ENT-KeyResult → `key_results` · ENT-CheckIn → `check_ins` · ENT-KPI → `kpis` · ENT-KPIMeasurement → `kpi_measurements` · **ENT-Initiative → `initiatives` · ENT-Milestone → `milestones` · ENT-KPITarget → `kpi_targets` · ENT-MeetingTranscript → `meeting_transcripts`** | 13 |
-| `ai` | ai_core | ENT-Conversation → `conversations` · ENT-Message → `messages` · ENT-ToolCallLog → `tool_call_logs` · ENT-Feedback → `feedback` · ENT-Insight → `insights` · ENT-AIAction → `ai_actions` · ENT-AutonomyPolicy → `autonomy_policies` · ENT-ModelCallLog → `model_call_logs` | 8 |
-| `idp` | idp | ENT-SourceDocument → `source_documents` · ENT-DocumentPage → `document_pages` · ENT-DocumentType → `document_types` · ENT-ExtractionSchema → `extraction_schemas` · ENT-ExtractionJob → `extraction_jobs` · ENT-ExtractedField → `extracted_fields` · ENT-ExtractionReview → `extraction_reviews` · ENT-ValidationRule → `validation_rules` · ENT-ImportBatch → `import_batches` | 9 |
+| `ai` | ai_core | ENT-Conversation → `conversations` · ENT-Message → `messages` · ENT-ToolCallLog → `tool_call_logs` · ENT-Feedback → `feedback` · ENT-Insight → `insights` · ENT-AIAction → `ai_actions` · ENT-AutonomyPolicy → `autonomy_policies` · ENT-ModelCallLog → `model_call_logs` · **ENT-AIAgentProfile → `agent_profiles`** | 9 |
+| `idp` | idp | ENT-SourceDocument → `source_documents` · ENT-DocumentPage → `document_pages` · ENT-DocumentType → `document_types` · ENT-ExtractionSchema → `extraction_schemas` · ENT-ExtractionJob → `extraction_jobs` · ENT-ExtractedField → `extracted_fields` · ENT-ExtractionReview → `extraction_reviews` · ENT-ValidationRule → `validation_rules` · ENT-ImportBatch → `import_batches` · **ENT-ReviewAssignment → `review_assignments`** | 10 |
 | `platform` | platform | ENT-Metric → `metrics` · ENT-MetricValue → `metric_values` · ENT-Alert → `alerts` · ENT-DataLineage → `data_lineage` · ENT-AuditLog → `audit_logs` · ENT-Notification → `notifications` · ENT-OutboxEvent → `outbox_events` · ENT-ProcessedEvent → `processed_events` · ENT-SystemSetting → `system_settings` · **ENT-ApprovalRule → `approval_rules` · ENT-ApprovalRequest → `approval_requests` · ENT-Report → `reports`** | 12 |
-| **Tổng** | | **77 entity / 77 bảng** (đang cập nhật Phase 3a — đích 79, 00 §4.3) | 77 |
+| **Tổng** | | **79 entity / 79 bảng** (64 v2.0 + 15 mới v2.1 — 00 §4.3) | 79 |
 
 Bảng phụ trợ **không phải entity** (không có ID `ENT-*`, xem OQ-01): `auth.user_roles` không cần (một user một role, DEC-128); `execution.task_assignees` không cần (một assignee). Vector embedding là **cột** trên bảng có sẵn (§11), không tạo bảng mới.
 
@@ -60,7 +60,7 @@ Bảng phụ trợ **không phải entity** (không có ID `ENT-*`, xem OQ-01): 
 
 | Nhóm | Entity | C19 |
 |---|---|---|
-| **Entity nghiệp vụ** — dữ liệu doanh nghiệp, người dùng hoặc AI/IDP tạo/sửa | Mọi entity `finance`, `sales`, `hr`, `product`, `risk`, `execution`; `idp.source_documents`, `idp.extracted_fields`; `ai.insights`, `ai.ai_actions`; `platform.metric_values`, `platform.approval_requests`, `platform.reports` | **Đủ 3 cột** |
+| **Entity nghiệp vụ** — dữ liệu doanh nghiệp, người dùng hoặc AI/IDP tạo/sửa | Mọi entity `finance`, `sales`, `hr`, `product`, `risk`, `execution` (**trừ** bảng liệt kê ở nhóm append-only bên dưới); `idp.source_documents`, `idp.extracted_fields`; `ai.insights`, `ai.ai_actions`; `platform.metric_values`, `platform.alerts`, `platform.approval_requests`, `platform.reports` | **Đủ 3 cột** |
 | **Cấu hình / danh mục** — sửa qua `*:admin`, có version nghiệp vụ riêng | `auth.roles`, `platform.metrics`, `platform.approval_rules`, `platform.system_settings`, `idp.document_types`, `idp.extraction_schemas`, `idp.validation_rules`, `ai.autonomy_policies`, `ai.agent_profiles` | `version` + `data_classification`; **không** `source` (luôn `MANUAL`/`SEED`) |
 | **Định danh** | `auth.users` | `version` + `data_classification` (= `CONFIDENTIAL`, mức 3) |
 | **Append-only / log / kỹ thuật** — không UPDATE nên `version` vô nghĩa; nguồn = chính loại log | `auth.refresh_tokens`, `platform.audit_logs`, `platform.data_lineage`, `platform.outbox_events`, `platform.processed_events`, `platform.notifications`, `ai.conversations`, `ai.messages`, `ai.tool_call_logs`, `ai.model_call_logs`, `ai.feedback`, `idp.document_pages`, `idp.extraction_jobs`, `idp.extraction_reviews`, `idp.import_batches`, `idp.review_assignments`, `*_history`, `sales.deal_stage_history`, `risk.risk_assessments`, `execution.kpi_measurements`, `product.product_metrics`, `execution.check_ins` | **Miễn** — `data_classification` kế thừa bản ghi cha khi cần lọc |
@@ -71,60 +71,77 @@ Entity mới thêm sau Phase 3a phải khai báo nhóm ở bảng này.
 
 ## 3. ERD
 
-### 3.1. ERD tổng thể (theo schema; nét đứt = soft reference §1 C7)
+### 3.1. ERD tổng thể — 10 schema, 79 bảng (nét đứt = soft reference §1 C7)
+
+Module `dashboard` là module thứ 11, không có schema (đọc `platform` qua service — DEC-125). Bảng **mới v2.1** đánh dấu `*`.
 
 ```mermaid
 flowchart LR
     subgraph auth
-      U[users] --- R[roles]
+      U[users] --- R[roles]; U --- RT[refresh_tokens]
     end
     subgraph hr
       D[departments] --- E[employees] --- SH[salary_history]
-      D --- HP[hiring_plans]
+      D --- HP[hiring_plans]; D --- TM["teams*"]; D --- PO["positions*"]
+      PO --- E; TM --- E; E --- SK["employee_skills*"]; E --- LV["leaves*"]
     end
     subgraph finance
-      INV[invoices] --- IL[invoice_lines]
-      REV[revenues]; EXP[expenses]; BUD[budgets]; CP[cash_positions]
+      INV[invoices] --- IL[invoice_lines]; INV --- EXP[expenses]
+      REV[revenues]; BUD[budgets] --- EXP; CP[cash_positions]
       FC[forecasts] --- FL[forecast_lines]
+      CF["cash_flow_forecasts*"] --- CFL["cash_flow_forecast_lines*"]
     end
     subgraph sales
       CL[clients] --- DL[deals] --- DSH[deal_stage_history]
-      CL --- CT[contracts]; ST[sales_targets]
+      CL --- CT[contracts]; DL --- CT; ST[sales_targets]
     end
     subgraph product
-      P[products] --- F[features]; P --- RI[roadmap_items]; P --- RL[releases]; P --- PM[product_metrics]
+      P[products] --- F[features]; P --- RI[roadmap_items]; P --- RL[releases]; P --- PM[product_metrics]; RL --- F
     end
     subgraph risk
       RK[risks] --- RA[risk_assessments]; RK --- MT[mitigations]; SC[scenarios]
     end
     subgraph execution
-      MTG[meetings] --- DEC[decisions]; MTG --- TK[tasks]; PRJ[projects] --- TK
-      OBJ[objectives] --- KR[key_results] --- CI[check_ins]; KPI[kpis] --- KM[kpi_measurements]
+      OBJ[objectives] --- KR[key_results] --- CI[check_ins]
+      OBJ --- INI["initiatives*"] --- MS["milestones*"]; PRJ[projects] --- MS
+      INI --- TK[tasks]; MS --- TK; PRJ --- TK; KR --- TK
+      MTG[meetings] --- DEC[decisions] --- TK; MTG --- TK; MTR["meeting_transcripts*"] --- MTG
+      KPI[kpis] --- KT["kpi_targets*"] --- KM[kpi_measurements]; KPI --- CI; INI --- KPI; KR --- KPI
     end
     subgraph idp
-      SD[source_documents] --- DP[document_pages]; SD --- EJ[extraction_jobs] --- EF[extracted_fields]
-      SD --- ER[extraction_reviews]; DT[document_types] --- ES[extraction_schemas] --- VR[validation_rules]; IB[import_batches] --- SD
-    end
-    subgraph platform
-      M[metrics] --- MV[metric_values]; M --- AL[alerts]; LN[data_lineage]; AU[audit_logs]; OB[outbox_events]; PE[processed_events]; NT[notifications]; SS[system_settings]
+      IB[import_batches] --- SD[source_documents] --- DP[document_pages]
+      SD --- EJ[extraction_jobs] --- EF[extracted_fields]; DP --- EF
+      EJ --- ER[extraction_reviews]; SD --- RA2["review_assignments*"]
+      DT[document_types] --- ES[extraction_schemas] --- VR[validation_rules]; ES --- EJ
     end
     subgraph ai
-      CV[conversations] --- MS[messages] --- TC[tool_call_logs]; MS --- FB[feedback]; AA[ai_actions]; AP[autonomy_policies]; INS[insights]; MC[model_call_logs]
+      CV[conversations] --- MSG[messages] --- TC[tool_call_logs]; MSG --- FB[feedback]; MSG --- MC[model_call_logs]
+      MSG --- AA[ai_actions]; INS[insights] --- AA; INS --- FB; AP[autonomy_policies]; AGP["agent_profiles*"]
+    end
+    subgraph platform
+      M[metrics] --- MV[metric_values] --- AL[alerts]; M --- AL; MV --- LN[data_lineage]
+      AR["approval_rules*"] --- AQ["approval_requests*"] --- AU[audit_logs]
+      RPT["reports*"]; NT[notifications]; OB[outbox_events]; PE[processed_events]; SS[system_settings]
     end
     E -.department_id.-> D
+    U -.employee_id.-> E
     INV -.client_id.-> CL
-    EXP -.department_id.-> D
     BUD -.department_id.-> D
-    TK -.assignee_id.-> U
+    CFL -.invoices/payroll.-> INV
+    TK -.owner_id/assignee_id.-> U
     RK -.owner_id.-> U
-    LN -.target.-> INV
+    MTR -.source_document_id.-> SD
     LN -.extracted_field_id.-> EF
-    MV -.lineage.-> LN
-    AA -.act on.-> TK
-    E -.user_id.-> U
+    LN -.target.-> INV
+    AA -.result_refs.-> TK
+    AQ -.ai_action_id.-> AA
+    TC -.approval_request_id.-> AQ
+    INS -.decision_id.-> DEC
+    RPT -.metric_snapshot.-> MV
+    RA2 -.to_user_id.-> U
 ```
 
-Quy tắc đọc: đường liền trong một subgraph = FK thật; mọi đường giữa hai subgraph = soft reference (uuid + index, không constraint). `auth.users` và `hr.departments` là hai đích soft reference được dùng ở mọi schema (C7).
+Quy tắc đọc: đường liền trong một subgraph = FK thật; mọi đường giữa hai subgraph = soft reference (uuid + index, không constraint). Quan hệ đầy đủ theo schema ở §3.2–3.11; danh sách cột ở §4.
 
 ### 3.2. `auth`
 
@@ -142,6 +159,7 @@ erDiagram
     invoices ||--o{ expenses : "invoice_id (IN)"
     forecasts ||--o{ forecast_lines : "forecast_id"
     budgets ||--o{ expenses : "budget_id"
+    cash_flow_forecasts ||--o{ cash_flow_forecast_lines : "forecast_id"
 ```
 
 ### 3.4. `sales`
@@ -163,6 +181,13 @@ erDiagram
     employees ||--o{ employees : "manager_id"
     employees ||--o{ salary_history : "employee_id"
     departments ||--o{ hiring_plans : "department_id"
+    departments ||--o{ teams : "department_id"
+    departments ||--o{ positions : "department_id"
+    positions |o--o{ positions : "reports_to_position_id"
+    positions |o--o{ employees : "position_id"
+    teams |o--o{ employees : "team_id"
+    employees ||--o{ employee_skills : "employee_id"
+    employees ||--o{ leaves : "employee_id"
 ```
 
 ### 3.6. `product`
@@ -201,6 +226,19 @@ erDiagram
     key_results |o--o{ tasks : "key_result_id"
     kpis ||--o{ kpi_measurements : "kpi_id"
     key_results |o--o{ kpis : "key_result_id"
+    objectives ||--o{ initiatives : "objective_id"
+    initiatives |o--o{ milestones : "initiative_id"
+    projects |o--o{ milestones : "project_id"
+    initiatives |o--o{ tasks : "initiative_id"
+    milestones |o--o{ tasks : "milestone_id"
+    initiatives |o--o{ decisions : "initiative_id"
+    initiatives |o--o{ kpis : "initiative_id"
+    kpis |o--o{ kpis : "parent_kpi_id"
+    kpis ||--o{ kpi_targets : "kpi_id"
+    kpi_targets ||--o{ kpi_measurements : "kpi_target_id"
+    kpis |o--o{ check_ins : "kpi_id"
+    kpis |o--o{ tasks : "kpi_id"
+    meeting_transcripts |o--o{ meetings : "transcript_id"
 ```
 
 ### 3.9. `ai`
@@ -215,6 +253,8 @@ erDiagram
     messages |o--o{ model_call_logs : "message_id"
 ```
 
+`agent_profiles.code` được tham chiếu bằng giá trị text `agent_profile_code` ở `tool_call_logs`, `ai_actions` (và `platform.audit_logs`) — không FK để log append-only không phụ thuộc cấu hình.
+
 ### 3.10. `idp`
 
 ```mermaid
@@ -222,13 +262,14 @@ erDiagram
     document_types ||--o{ extraction_schemas : "document_type_id"
     extraction_schemas ||--o{ validation_rules : "extraction_schema_id"
     import_batches |o--o{ source_documents : "import_batch_id"
-    source_documents |o--o{ source_documents : "parent_id / duplicate_of_id"
+    source_documents |o--o{ source_documents : "parent_id / duplicate_of_id / superseded_by_id"
     source_documents ||--o{ document_pages : "source_document_id"
     source_documents ||--o{ extraction_jobs : "source_document_id"
     extraction_schemas ||--o{ extraction_jobs : "extraction_schema_id"
     extraction_jobs ||--o{ extracted_fields : "extraction_job_id"
     document_pages |o--o{ extracted_fields : "document_page_id"
     extraction_jobs ||--o{ extraction_reviews : "extraction_job_id"
+    source_documents ||--o{ review_assignments : "source_document_id"
 ```
 
 ### 3.11. `platform`
@@ -919,7 +960,7 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 |---|---|---|---|---|
 | code | text | N | UQ | |
 | name | text | N | | |
-| metric_code | text | Y | | Map 31 metric (00 §4.2) |
+| metric_code | text | Y | | Map 32 metric (00 §4.2) |
 | key_result_id | uuid | Y | FK → key_results | |
 | unit | text | N | | |
 | period_type | platform.period_type | N | | |
@@ -1047,6 +1088,10 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 | status | ai.tool_call_status | N | | `ok`, `error`, `forbidden`, `timeout` |
 | http_status | smallint | Y | | |
 | latency_ms | integer | N | | |
+| agent_profile_code | text | N | | v2.1 (DEC-149) — v2.0 luôn `assistant` |
+| autonomy_level | ai.autonomy_level | Y | | Với tool ghi |
+| why | text | Y | | Lý do AI gọi tool (tóm tắt, không prompt thô) |
+| approval_request_id | uuid | Y | SR → platform.approval_requests | Khi tool cần phê duyệt |
 
 #### ENT-Feedback — `ai.feedback`
 
@@ -1068,6 +1113,8 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 | severity | platform.alert_severity | Y | | |
 | confidence | platform.confidence_band | N | | |
 | sources | jsonb | N | | Bắt buộc ≥ 1 nguồn (grounding) |
+| structured | jsonb | Y | | **v2.1 — insight 9 phần (DEC-149, BRD AI-R04):** `{finding, evidence, root_cause, impact, recommendation, confidence, alternatives, owner_suggestion, next_action}`; bắt buộc với `kind ∈ (anomaly, risk, recommendation)` |
+| decision_id | uuid | Y | SR → execution.decisions | Khi insight được chuyển thành quyết định (BRD-P05) |
 | trigger_event_id | uuid | Y | | Event gây sinh |
 | audience_roles | auth.role_code[] | N | | Lọc theo quyền khi hiển thị |
 | expires_at | timestamptz | Y | | |
@@ -1079,7 +1126,11 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 |---|---|---|---|---|
 | action_name | text | N | | `ACT-*` (04 §10.2) |
 | tool_name | text | Y | | `TOOL-*` gọi action |
-| autonomy_level | ai.autonomy_level | N | | `L0`..`L3` hiệu lực |
+| agent_profile_code | text | N | | v2.1 (DEC-149) |
+| autonomy_level | ai.autonomy_level | N | | `L0`..`L3` hiệu lực; **tool liên quan tiền trần `L2`** (DEC-150) |
+| confidence | numeric(5,4) | Y | | v2.1 (DEC-149) |
+| why | text | Y | | v2.1 — lý do hiển thị trên ActionCard |
+| approval_request_id | uuid | Y | SR → platform.approval_requests | v2.1 — finance > ngưỡng cần 2 người (DEC-149) |
 | status | ai.ai_action_status | N | | `proposed`, `confirmed`, `executed`, `rejected`, `undone`, `failed` |
 | on_behalf_of | uuid | N | SR → auth.users | |
 | message_id / insight_id | uuid | Y | FK | |
@@ -1104,7 +1155,24 @@ Index: SR; `(status, undo_deadline)`. Nguồn feed SCR-17.
 | max_level | ai.autonomy_level | N | | Trần (04 §9.1) |
 | is_active | boolean | N | | |
 
-UQ `(action_name, COALESCE(role_code::text,'*'), COALESCE(max_amount,-1)) WHERE deleted_at IS NULL`. Kill switch lưu ở `platform.system_settings` (`ai.kill_switch`).
+UQ `(action_name, COALESCE(role_code::text,'*'), COALESCE(max_amount,-1)) WHERE deleted_at IS NULL`. Kill switch lưu ở `platform.system_settings` (`ai.kill_switch` toàn hệ thống; `ai.kill_switch_agents` theo agent — DEC-149).
+
+#### ENT-AIAgentProfile — `ai.agent_profiles` (mới v2.1 — DEC-149, DEC-150)
+
+Định danh agent để audit, kill switch và chi phí theo agent (US-AI-008). **v2.0 seed đúng 1 profile dùng chung** `assistant`; Orchestrator + 6 agent chuyên trách hoãn v2.1 (DEC-150) — khi đó thêm bản ghi, không đổi schema.
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| code | text | N | UQ | `assistant` (v2.0) |
+| name_vi / name_en | text | N | | |
+| allowed_tools | text[] | N | | `TOOL-*` agent được dùng; giao với quyền người hỏi (P06) — v2.0 = mọi tool trong 10 §7 |
+| max_autonomy_level | ai.autonomy_level | N | | Trần mức của agent (≤ `L3`) |
+| model_task | text | N | | Khóa `MODEL_<TASK>` của ModelGateway (VD `CHAT`) |
+| prompt_version | text | Y | | Nhãn phiên bản prompt — quản lý version prompt là v2.1 (DEC-150) |
+| monthly_budget_usd | numeric(10,2) | Y | | Null = dùng ngân sách chung |
+| is_enabled | boolean | N | | Tắt = kill switch theo agent |
+
+Không `deleted_at` (vô hiệu = `is_enabled = false`). Mọi thay đổi ghi audit `ai.agent_profile.change`.
 
 #### ENT-ModelCallLog — `ai.model_call_logs` (append-only)
 
@@ -1192,13 +1260,15 @@ UQ `(COALESCE(extraction_schema_id, '0…0'), code)`.
 | storage_key | text | Y | | Key MinIO (không lưu URL ký) |
 | sha256 | char(64) | Y | | Dedupe (không unique — `DUPLICATE` vẫn lưu) |
 | duplicate_of_id | uuid | Y | FK → source_documents | |
+| superseded_by_id | uuid | Y | FK → source_documents | **v2.1 (DEC-151):** bản thay thế (tài liệu sửa đổi/phiên bản mới); bản cũ → `SUPERSEDED`, bản ghi domain vẫn giữ lineage tới bản cũ |
 | scan_status | idp.scan_status | N | | `PENDING`, `CLEAN`, `INFECTED`, `SKIPPED` |
 | manual_payload | jsonb | Y | | Form C1 / transcript C2 |
 | document_type_id | uuid | Y | FK → document_types | Null trước phân loại |
 | classification_confidence | numeric(5,4) | Y | | |
+| type_preselected | boolean | N | | **v2.1 (DEC-151, BRD FR-DC-09):** người dùng chọn loại trước → bỏ bước CLASSIFYING (`classification_confidence = 1`) |
 | pillars | platform.pillar[] | N | | Data scoping |
 | department_id | uuid | Y | SR → hr.departments | Phạm vi MANAGER |
-| status | idp.document_status | N | | 15 trạng thái (04 §8.1) |
+| status | idp.document_status | N | | 16 trạng thái (04 §8.1 + `SUPERSEDED` — DEC-151) |
 | status_reason / routing_reason | text | Y | | |
 | autonomy_level | ai.autonomy_level | Y | | Snapshot |
 | sensitivity_level | smallint | N | CK 1–4 | Max mức field (02 §6.3) |
@@ -1265,6 +1335,7 @@ Index: FK/SR; `(status, submitted_at)`, `ix_source_documents_sha256`, GIN `pilla
 | master_match | jsonb | Y | | `{entity, id, score, status}` |
 | corrected_value | jsonb | Y | | Giá trị người sửa (học từ chỉnh sửa) |
 | corrected_by / corrected_at | uuid / timestamptz | Y | SR → auth.users | |
+| correction_reason | text | Y | | **v2.1 (DEC-151, BRD FR-DC-05):** bắt buộc khi sửa field tài chính (`value_type = money` hoặc `is_critical`) |
 
 Index: FK; `(extraction_job_id, field_name, row_index)` UQ. Giá trị mức 4 lưu mã hóa (`value` = ciphertext khi `sensitivity_level = 4`).
 
@@ -1281,6 +1352,23 @@ Index: FK; `(extraction_job_id, field_name, row_index)` UQ. Giá trị mức 4 l
 | fields_total / fields_corrected | integer | N | | Accuracy |
 | opened_at / decided_at | timestamptz | N / Y | | KPI ≤ 60 giây |
 | duration_ms | integer | Y | | |
+
+#### ENT-ReviewAssignment — `idp.review_assignments` (mới v2.1 — DEC-151, append-only)
+
+Lịch sử giao/chuyển/escalation hàng chờ review (BRD FR-DC-21/22). **Không có entity `EscalationEvent` riêng:** một escalation = một dòng `kind = ESCALATE` + `EVT-idp.review_escalated`.
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| source_document_id | uuid | N | FK → source_documents | |
+| kind | idp.assignment_kind | N | | `ASSIGN` (tự động theo phòng ban/vai trò), `REASSIGN` (reviewer chuyển người khác), `ESCALATE` (quá SLA) |
+| from_user_id | uuid | Y | SR → auth.users | |
+| to_user_id | uuid | Y | SR → auth.users | Null khi giao cho role |
+| to_role_code | auth.role_code | Y | | |
+| reason | text | Y | | Bắt buộc với `REASSIGN` |
+| due_at | timestamptz | N | | SLA mặc định 1 ngày làm việc (cấu hình theo doc type) |
+| is_current | boolean | N | | Một dòng current / tài liệu (partial UQ) |
+
+Index `(source_document_id, is_current)`, `(to_user_id, due_at) WHERE is_current`. Job SLA quét `due_at < now()` → nhắc lần 1, quá hạn tiếp → `ESCALATE` lên trưởng phòng / `escalate_to` của doc type.
 
 ### 4.10. Schema `platform`
 
@@ -1533,6 +1621,7 @@ UQ `(event_id, consumer)` — consumer idempotent. Một bảng chung trong `pla
 | EVT-execution.kpi_measured | execution | platform, ai | Ghi `kpi_measurements` | `kpi_id`, `period_key`, `actual_value`, `achievement_pct` |
 | EVT-idp.document_committed | idp | platform (metric store, quality score), ai, risk | Commit qua Action Registry | `source_document_id`, `document_type`, `channel`, `actions[]` (`{action_name, schema, table, ids[]}`), `committed_by`, `autonomy_level` |
 | EVT-idp.document_rolled_back | idp | platform, ai, mọi module có bản ghi | Hoàn tác | `source_document_id`, `actions[]`, `rolled_back_by` |
+| **EVT-idp.review_escalated** (v2.1) | idp | notification, platform | Review quá SLA → `ESCALATE` | `source_document_id`, `review_assignment_id`, `to_role_code`, `overdue_hours` |
 | EVT-platform.alert_raised | platform | ai (briefing), notification | Alert mới / đổi severity | `alert_id`, `metric_code`, `severity`, `period_key`, `value` |
 | **EVT-platform.approval_requested** (v2.1) | platform | notification, ai | Tạo ApprovalRequest | `approval_request_id`, `rule_code`, `target_table`, `target_id`, `amount`, `currency`, `due_at` |
 | **EVT-platform.approval_decided** (v2.1) | platform | module sở hữu `target_*`, ai, notification | → `APPROVED` / `REJECTED` | `approval_request_id`, `status`, `step`, `target_table`, `target_id` |
@@ -1613,11 +1702,12 @@ Mỗi event có đúng một publisher (module sở hữu bảng). AI Core consu
 | `ai.ai_action_status` | `proposed`, `confirmed`, `executed`, `rejected`, `undone`, `failed` | ai_actions |
 | `idp.input_channel` | `C1`..`C10` (v2 nhận C1–C5) | source_documents |
 | `idp.document_kind` | `FILE`, `MANUAL`, `TRANSCRIPT` | source_documents |
-| `idp.document_status` | `UPLOADED`, `PREPROCESSING`, `CLASSIFYING`, `EXTRACTING`, `VALIDATING`, `NEEDS_REVIEW`, `IN_REVIEW`, `AUTO_APPROVED`, `APPROVED`, `COMMITTED`, `REJECTED`, `FAILED`, `DUPLICATE`, `ROLLED_BACK`, `SPLIT` | source_documents (04 §8.1) |
+| `idp.document_status` | `UPLOADED`, `PREPROCESSING`, `CLASSIFYING`, `EXTRACTING`, `VALIDATING`, `NEEDS_REVIEW`, `IN_REVIEW`, `AUTO_APPROVED`, `APPROVED`, `COMMITTED`, `REJECTED`, `FAILED`, `DUPLICATE`, `ROLLED_BACK`, `SPLIT`, `SUPERSEDED` (v2.1) | source_documents (04 §8.1) |
 | `idp.scan_status` | `PENDING`, `CLEAN`, `INFECTED`, `SKIPPED` | source_documents |
 | `idp.job_status` | `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED` | extraction_jobs |
 | `idp.routing_decision` | `STP`, `REVIEW` | extraction_jobs |
-| `idp.field_value_type` | `date`, `money`, `percent`, `tax_code`, `phone`, `text`, `person_name`, `org_name`, `enum`, `period`, `number` | extracted_fields (04 §5.2) |
+| `idp.field_value_type` | `date`, `money`, `percent`, `tax_code`, `phone`, `text`, `person_name`, `org_name`, `enum`, `period`, `number`, `checkbox`, `signature_present`, `stamp_present` (3 giá trị cuối v2.1 — DEC-151) | extracted_fields (04 §5.2) |
+| `idp.assignment_kind` | `ASSIGN`, `REASSIGN`, `ESCALATE` | review_assignments |
 | `idp.review_decision` | `APPROVED`, `REJECTED`, `ABANDONED` | extraction_reviews |
 | `idp.schema_status` | `draft`, `published`, `retired` | extraction_schemas |
 | `idp.rule_kind` / `rule_severity` | `field`, `cross_field`, `cross_document`, `master_data` / `warn`, `fail`, `blocking` | validation_rules |
@@ -1773,7 +1863,7 @@ Cột `embedding` bổ sung cho `idp.document_pages` (thêm vào spec §4.9):
 | G2 | Thứ tự `upgrade head`: `platform` (extension `pgcrypto`, `vector`, `pg_trgm`, `citext`, enum chung) → `auth` → `hr` → `finance` → `sales` → `product` → `risk` → `execution` → `idp` → `ai`. Không phụ thuộc thứ tự giữa module vì không có FK xuyên schema |
 | G3 | Mọi migration có `upgrade()` + `downgrade()`; review autogenerate (partial index, enum, generated column, HNSW hay bị bỏ sót) |
 | G4 | Quyền DB: mỗi module có DB role `aureon_<schema>` chỉ `USAGE` + DML trên schema của mình; app runtime dùng role tổng hợp nhưng test kiến trúc (import-linter) chặn truy cập chéo; `audit_logs` chỉ `INSERT, SELECT` |
-| G5 | Seed (`uv run python -m app.seed`, 08): 10 roles, user demo, 31 metrics, document types + schema v1, autonomy policies mặc định (04 §9.1), dữ liệu ABC ~150 nhân sự (DEC-136) |
+| G5 | Seed (`uv run python -m app.seed`, 08): 10 roles, user demo + 1 service account, **32 metrics**, 1 agent profile `assistant`, approval rules mặc định, document types + schema v1, autonomy policies mặc định (04 §9.1), dữ liệu ABC ~150 nhân sự (DEC-136) |
 | G6 | `uv run python -m app.reset` chỉ khi `DEMO_MODE`; truncate theo thứ tự ngược G2 (kể cả `audit_logs` — DEC-055 phương án A) |
 | G7 | Mọi đổi schema: cập nhật 05 → migration → cập nhật `14-TEST-TRACEABILITY.md` |
 
@@ -1805,15 +1895,17 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 
 | # | Câu hỏi | Đề xuất mặc định | Ảnh hưởng |
 |---|---|---|---|
-| OQ-01 | 64 bảng đúng 64 entity registry; view `hr.v_payroll_by_department` không phải entity — chấp nhận view không có ID `ENT-*`? | Chấp nhận (view chỉ đọc, không lưu dữ liệu) | 00, 03 |
+| OQ-01 | 79 bảng đúng 79 entity registry (v2.1); view `hr.v_payroll_by_department` không phải entity — chấp nhận view không có ID `ENT-*`? | Chấp nhận (view chỉ đọc, không lưu dữ liệu) | 00, 03 |
 | OQ-02 | Soft reference xuyên schema (C7) không có FK constraint — chấp nhận rủi ro toàn vẹn? | Chấp nhận; test toàn vẹn định kỳ + xóa mềm (không xóa cứng) | 07, 14 |
 | OQ-03 | Nhà cung cấp không có entity (`counterparty_*` trên invoices/expenses) — 04 OQ-04 | Giữ đến Phase 2 (Procurement) | 04, 10 |
 | OQ-04 | ✅ DEC-142 (`bge-m3`, 1024 chiều). Chiều vector 1024 và embedding model nào (dependency/provider)? | 1024, model qua ModelGateway; cần DEC khi chọn | 07 |
 | OQ-05 | Lineage metric → bản ghi với metric tổng hợp rất nhiều bản ghi (VD METRIC-FIN-01 cả năm) — lưu từng dòng hay theo nhóm? | Từng dòng khi ≤ 1.000 bản ghi; lớn hơn lưu nhóm + truy vấn tái tạo | 03, 10 |
-| OQ-06 | Data quality score (04 OQ-07) lưu ở `metric_values.data_quality_score` + `import_batches.quality_score` — đủ hay cần bảng riêng? | Đủ cho v2 | 03, 04 |
+| OQ-06 | ✅ DEC-148 — DQ Score = METRIC-DQ-01, lưu ở `metric_values` (+ `data_quality_score`, `import_batches.quality_score`); không bảng riêng | Đã chốt | 03, 04 |
 | OQ-07 | `processed_events` một bảng chung ở `platform` (khác A-EMS per service) — module consumer ghi vào schema `platform` | Chấp nhận (ngoại lệ hạ tầng, giống outbox) | 07 |
 | OQ-08 | Mã hóa cột mức 4 bằng `pgcrypto` — quản lý khóa (KMS/secret store) cho demo | Khóa qua env `PII_ENCRYPTION_KEY`; KMS Phase 2 | 07 |
 | OQ-09 | `ai.autonomy_level` không có `L4` — khi mở L4 phải `ALTER TYPE` | Chấp nhận | 04 |
+| OQ-10 | Đổi tên cột trùng C19 (`revenues.source`→`source_note`, `cash_positions.source`→`cash_source`, `risks.source`→`risk_source`, `tasks.source`→`task_source`, `releases.version`→`release_version`) làm lệch field API ở 10 (EP-65 …) | Sửa 10 theo 05 ở Phase 3d; chưa có code v2 nên không có migration dữ liệu | 10, 14 |
+| OQ-11 | Ngưỡng tài chính mặc định cho ApprovalRule 2 người duyệt (DEC-149) | 03/08 chốt ở Phase 3b/3d; mặc định đề xuất ≥ 500.000.000 đ | 03, 08 |
 
 ---
 
@@ -1824,7 +1916,7 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 | ID registry (ENT, EVT, METRIC, ROLE) | `00-INDEX.md` §4 |
 | Phạm vi, 9 doc type, ABC | `01-PROJECT-OVERVIEW.md` |
 | Permission, scope, 4 mức nhạy cảm | `02-PERSONAS-PERMISSIONS.md` §5–6 |
-| Công thức 31 metric, ngưỡng, BR | `03-DASHBOARD-SPEC.md` |
+| Công thức 32 metric, ngưỡng, BR | `03-DASHBOARD-SPEC.md` |
 | Pipeline IDP, Extraction Schema, Action Registry `ACT-*` | `04-IDP-FEATURE-SPEC.md` |
 | Kiến trúc module, outbox relay, ModelGateway | `07-TECH-ARCHITECTURE.md` |
 | Seed ABC | `08-DEMO-DATA-SPEC.md` |
@@ -1834,9 +1926,28 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 
 ## Version
 
-- **Version:** 2.0.0
-- **Status:** current (promote 2026-10-19, DEC-124)
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
-- **Supersedes:** 05 v1.0.0 (nhánh `v1`; DEC-016 superseded)
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3a)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
+- **Supersedes:** 05 2.0.0; 05 v1.0.0 (nhánh `v1`; DEC-016 superseded)
 - **Maintainer:** @CyEyes
+
+### Changelog 2.1.0 (Phase 3a — DEC-146..153)
+
+| # | Thay đổi | Lý do / DEC |
+|---|---|---|
+| 1 | 64 → **79 entity** (+15): CashFlowForecast, CashFlowForecastLine, Team, Position, EmployeeSkill, Leave, Initiative, Milestone, KPITarget, MeetingTranscript, AIAgentProfile, ReviewAssignment, ApprovalRule, ApprovalRequest, Report | DEC-147, 148, 149/150, 151, 153 |
+| 2 | Trường chung C19 `source`, `data_classification`, `version` + phạm vi §2.1; đổi tên 5 cột trùng tên (OQ-10) | DEC-147, BRD §13.3 (GAP D-23) |
+| 3 | **Rủi ro đề xuất = trạng thái `proposed` của ENT-Risk**, không entity `ProposedRisk` — một register, một vòng đời, metric chỉ cần lọc trạng thái | DEC-148 (tối giản) |
+| 4 | **Không có `RiskAlert`** — cảnh báo rủi ro dùng ENT-Alert (ALERT-RSK-*) của platform như mọi trụ | DEC-148 (tối giản) |
+| 5 | **Không có bảng `DQScore`** — METRIC-DQ-01 là metric thứ 32 lưu ở ENT-MetricValue; `data_quality_score` giữ cho điểm từng giá trị | DEC-148, OQ-06 đóng |
+| 6 | **Không có entity `Permission`** — ma trận permission vẫn là `roles.permissions` (10 role cố định; role tùy biến v2.1) | DEC-150 (tối giản) |
+| 7 | **Giữ tên ENT-ToolCallLog** (BRD gọi FunctionCallLog) — tránh đổi 528 tham chiếu; bổ sung `agent_profile_code`, `autonomy_level`, `why`, `approval_request_id` | DEC-146, DEC-149 |
+| 8 | **ENT-CashFlowForecast tách riêng** (dòng theo tuần) thay vì mở rộng ENT-Forecast — khác chu kỳ (tuần vs tháng), khác nguồn (công nợ vs P&L) | DEC-148 (GAP C-18) |
+| 9 | Escalation review = dòng `ESCALATE` trong ENT-ReviewAssignment, không entity `EscalationEvent`; `SUPERSEDED` + `superseded_by_id`; `type_preselected`; `correction_reason`; field type checkbox/chữ ký/con dấu | DEC-151 |
+| 10 | Task 7 trạng thái + `owner_id`, `actual_hours`, `evidence`; KPI 4 hướng, cascade, trọng số, band, khóa kỳ; OKR committed/aspirational, trọng số, check-in blocker; Decision `review_at[]` + kết quả thực tế | DEC-147 (GAP C-03..10, D-22) |
+| 11 | Risk 13 danh mục BRD (`market` → `business`) | DEC-148 |
+| 12 | Insight 9 phần (`structured`); audit `why`/`approval`/`agent`/`autonomy`/`confidence`; kill switch theo agent; 4 mức `data_classification` ↔ mức cột (§10) | DEC-149 |
+| 13 | Event mới: `finance.invoice_created`, `finance.cash_flow_forecast_updated`, `risk.risk_proposed`, `platform.approval_requested`, `platform.approval_decided`, `platform.report_generated`, `idp.review_escalated` (00 §4.5) | DEC-148, 151, 153 |
+| 14 | ERD tổng thể vẽ lại cho 10 schema / 79 bảng; §7 lineage và §8 metric ↔ entity cập nhật bảng mới (32 metric) | — |
