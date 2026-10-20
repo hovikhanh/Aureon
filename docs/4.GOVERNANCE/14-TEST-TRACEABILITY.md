@@ -173,6 +173,9 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 | TC-UI-025 | e2e | SCR-31: 13 hàng tuần, đáy + tuần chạm đáy khớp `min_projected_cash`/`min_cash_week`; ROLE-08 → `ForbiddenState`; biểu đồ có bảng thay thế | 06 §4.14, DEC-148 | Phase 3d |
 | TC-UI-026 | e2e | Chat TTFT: skeleton ≤ 300 ms sau khi gửi, thay bằng `ThinkingState` khi có SSE; > 5 s hiện thông báo chờ (fixture trễ) | 06 §4.8, DEC-152 | Phase 3d |
 | TC-UI-027 | e2e | axe-core: SCR-10, SCR-29..31 không có vi phạm WCAG 2.1 AA (tương phản, nhãn, focus) ở 3 điểm ngắt | 06 §10 | Phase 3d |
+| TC-AI-022 | unit | ModelGateway §6.5: `MODEL_PROVIDER_SECRET` ≠ `none` → khởi động fail fast; Σ `DQ_WEIGHT_*` ≠ 1,0 → fail fast; `CONFIDENTIAL` không fallback sang cloud khi provider local lỗi | 07 §6.5, §7, DEC-149 | Phase 3d |
+| TC-AI-023 | integration | `verify_action_outcome`: worker restart bỏ lỡ mốc 24h → beat quét bù trong ≤ 1 giờ; không gọi LLM; `not_met` mốc 7d → `ENT-Notification` | 07 §5.6 | Phase 3d |
+| TC-NFR-004 | perf | TTFT chat p50 ≤ 2 s, p95 ≤ 5 s trên bộ câu hỏi eval (fixture có độ trễ mô phỏng); thao tác UI chuẩn p95 < 2 s | 07 NFR-02, NFR-29, DEC-152 | Phase 3d |
 
 ### 2.2. S1 — Domain F, C, O
 
@@ -344,7 +347,7 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 | 2026-10-19 | DEC-124 Phase 3 | **Reset danh mục test cho v2** theo S0–S5 (108 TC Planned); giữ 3 test tài liệu/tooling |
 | 2026-10-20 | DEC-144 Phase 3a | +11 TC Planned (§2.1.1) cho data model 2.1.0: C19, Task 7 trạng thái, KPI band, risk `proposed`, dòng tiền 13 tuần, METRIC-DQ-01, Approval, IDP DEC-151, agent profile; task gán ở Phase 3d |
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
-| 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA) |
+| 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA); 07 2.1.0 +3 TC Planned (TC-AI-022 phân loại → provider fail fast, TC-AI-023 verify bù, TC-NFR-004 TTFT/p95) |
 
 ---
 

@@ -1,7 +1,8 @@
 # 07 — Tech Architecture
 
-> Kiến trúc kỹ thuật của **Aureon v2**: nguyên tắc, stack, Modular Monolith (DEC-125), cấu trúc thư mục, các luồng chính (request, dashboard, AI, event, IDP), **ModelGateway đa provider** (DEC-131), cấu hình & secret, triển khai, bảo mật, quan sát và **NFR-01..NFR-28** (file này cấp mã `NFR-xx` — 00 §4).
+> Kiến trúc kỹ thuật của **Aureon v2**: nguyên tắc, stack, Modular Monolith (DEC-125), cấu trúc thư mục, các luồng chính (request, dashboard, AI, event, IDP), **ModelGateway đa provider** (DEC-131), cấu hình & secret, triển khai, bảo mật, quan sát và **NFR-01..NFR-33** (file này cấp mã `NFR-xx` — 00 §4).
 > Nguồn: `00-INDEX.md`, `01-PROJECT-OVERVIEW.md`, DEC-001, DEC-013, DEC-124 → DEC-137, A-EMS (`SOURCE-BRD-v1.0` §IV–V, NFR), AI-EOS (`SOURCE-BRD-v1.1` §4.4–4.5, §5.3); bản 07 v1 (nhánh `v1`). Contract API/SSE/event ở `10-API-SPECIFICATION.md`; bảng/cột ở `05-DATA-MODEL.md`.
+> **Canonical Source (DEC-144):** `_reference/SOURCE-BRD-v1.1.md` §17.1 (NFR-SEC/PERF/AV/DATA/AUD/UX), §17.2 (tuân thủ VN), §5.2 (FR-ADM-05 phân loại dữ liệu), §2.3 AI-R10 (Verification). Bổ sung 2.1.0 theo DEC-148 (DQ), DEC-149 (phân loại → model, kill switch theo agent), DEC-152 (TTFT), DEC-153 (phạm vi v2.0/v2.1), DEC-155 (ngưỡng 2 người duyệt).
 
 ---
 
@@ -54,7 +55,9 @@
 | `asyncpg` | Driver async cho SQLAlchemy (hiện code dùng `psycopg[binary]` 3) | ❗ Chưa có DEC — OQ-01 |
 | `httpx` | Adapter ModelGateway (HTTP tới provider), test client | Đã có trong `pyproject.toml`; chưa có DEC riêng — OQ-02 |
 | `respx` | Mock HTTP provider trong test ModelGateway (test dev-only) | ✅ DEC-139 (dev-only) |
-| ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-02 | ✅ DEC-138 |
+| ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-08 (mã cũ 02) | ✅ DEC-138 |
+| Parse PDF / HEIC / DOC / XLS (thư viện chuyển đổi định dạng cũ, HEIC → JPEG) | FR-DC-07 (04 §6.2) | ❗ **Checklist T-002 (S0)** — DEC-151 gom vào T-002, **không** phải DEC riêng; chưa chọn thư viện thì chưa cài |
+| Ollama (container chạy `bge-m3` và model local cho dữ liệu `CONFIDENTIAL`) | Embedding (DEC-142), provider local §6.5 | DEC-142 cho embedding; dùng Ollama làm provider sinh nội dung → **checklist T-002** |
 | `argon2-cffi` | Hash mật khẩu | ✅ DEC-141 |
 | `sse-starlette` | SSE | **Không dùng** — dùng `StreamingResponse` thuần (10 OQ-13) |
 
@@ -73,7 +76,7 @@ flowchart LR
     WEB[web<br/>Next.js :3000<br/>NextAuth]
     API[api<br/>FastAPI :4000<br/>11 module]
     WK[worker<br/>Celery: IDP pipeline,<br/>event consumers, recompute]
-    BEAT[beat<br/>Celery beat ×1:<br/>outbox relay, jobs hằng ngày, briefing 06:00]
+    BEAT[beat<br/>Celery beat ×1:<br/>outbox relay, jobs hằng ngày, briefing BRIEFING_TIME, verification]
     PG[(postgres :5432<br/>PG16 + pgvector<br/>10 schema)]
     RD[(redis :6379<br/>broker, cache,<br/>idempotency, rate limit)]
     S3[(minio :9000<br/>source-documents,<br/>quarantine)]
@@ -106,7 +109,7 @@ flowchart LR
 | `web` | SSR/CSR, NextAuth session, gọi API qua `apiClient` (bóc envelope), SSE client, i18n | Không tự tính KPI; không giữ secret (`NEXT_PUBLIC_*` không chứa secret) |
 | `api` | REST + SSE, auth, RBAC, data scoping, service domain, Action Registry, chat AI (đồng bộ trong request) | Không chạy OCR/extraction dài |
 | `worker` | Pipeline IDP (scan → OCR → classify → extract → validate → route → commit), consumer event, recompute metric, sinh insight | Không nhận HTTP |
-| `beat` | Outbox relay (mỗi 2 s), job hằng ngày (`task_overdue`, `hiring_plan_delayed`, `invoice overdue`, burn vs forecast), Briefing 06:00, dọn idempotency/retention | **Chỉ 1 instance** |
+| `beat` | Outbox relay (mỗi 2 s), job hằng ngày (`task_overdue`, `hiring_plan_delayed`, `invoice overdue`, burn vs forecast), Briefing lúc `BRIEFING_TIME` (mặc định 06:00), quét `verify_action_outcome` mỗi giờ, quét SLA review/approval mỗi 15 phút, báo cáo định kỳ, dọn idempotency/retention | **Chỉ 1 instance** |
 | `postgres` | Dữ liệu nghiệp vụ + AI log + outbox + vector | |
 | `redis` | Broker Celery, result (expire), cache dashboard 60 s, idempotency 24 h, rate limit, khóa review | Không phải nguồn dữ liệu chuẩn |
 | `minio` | File gốc (private), trang render, file dòng lỗi, bucket `quarantine` | Không public bucket |
@@ -214,7 +217,7 @@ sequenceDiagram
 
 - Metric **tính sẵn**: consumer `platform.on_<event>` + task `recompute_metrics(metric_codes, scope)` sau mỗi event ảnh hưởng (≤ 10 s sau commit IDP) → ghi `ENT-MetricValue`, đánh giá alert, xóa cache key liên quan. Job đêm tính lại toàn bộ để chống trôi.
 - Mỗi widget một query (TanStack Query, `refetchInterval` 60 s — FR-DSH-06); endpoint lỗi → widget `unavailable`, widget khác vẫn hiện (FR-DSH-07).
-- Briefing (EP-10) tính sẵn 06:00 bởi `beat` + cập nhật gia tăng khi alert critical; mở trang không gọi LLM.
+- Briefing (EP-10) tính sẵn lúc `BRIEFING_TIME` (mặc định `06:00` Asia/Ho_Chi_Minh; BRD gợi ý 07:00 — 03 OQ-09) bởi `beat` + cập nhật gia tăng khi alert critical; mở trang không gọi LLM.
 
 ### 5.3. AI chat (EP-110/111)
 
@@ -255,6 +258,9 @@ sequenceDiagram
 | Grounding | Mỗi số trong câu trả lời phải khớp một `tool_result`/`MetricValue`; không khớp → gỡ số + `warnings` (P05) |
 | Tool ghi | Tạo `ENT-AIAction` → autonomy policy: L2 → action card (EP-115 confirm), L3 → thực thi `ACT-*` + undo 24 h (DEC-134) |
 | Giới hạn | DEC-131: temp 0,2; ≤ 2048 output token; timeout 30 s/lượt; ≤ 8 tool/lượt; 5 s/tool → `truncated` |
+| Phân loại → provider | Trước lần gọi tổng hợp: lấy `data_classification` cao nhất của mọi `tool_result` trong lượt → chọn provider theo §6.5; `SECRET` → trả lời bằng template (không gọi model) |
+| TTFT (DEC-152) | Token đầu **p50 ≤ 2 s, p95 ≤ 5 s**: gửi SSE `start` ngay (< 300 ms), `thinking` trước khi gọi tool; tool song song; tổng hợp dùng `stream` (không chờ full response); đo `first_token_ms` vào `ENT-ModelCallLog.latency_ms` + log SSE |
+| Verification (AI-R10) | `ENT-AIAction` L2+ `executed` → hẹn `verify_action_outcome` ở **+24h** và **+7d** (§5.6) |
 
 ### 5.4. Event (outbox → consumer)
 
@@ -289,13 +295,26 @@ sequenceDiagram
 | 0 Intake | `api` EP-20 | `UploadFile` đọc chunk 1 MB → stream MinIO, SHA-256 song song; trả ≤ 2 s |
 | 1 Malware scan | `worker` `scan_document` | `clamd` INSTREAM; `INFECTED` → copy sang `quarantine`, `FAILED`; ClamAV down → `scan_status=SKIPPED` + cờ chặn STP (OQ-03) |
 | 2–4 Preprocess / text layer / OCR | `worker` | `text_layer_exists` + chất lượng trước OCR (IDP-E04); PaddleOCR in-process; render trang → MinIO |
-| 5–6 Classify / extract | `worker` → ModelGateway (`task=classify`, `task=extract`) | Nội dung tài liệu bọc delimiter; output JSON schema; `null` khi không thấy; chunk theo trang |
+| 5–6 Classify / extract | `worker` → ModelGateway (`task=classify`, `task=extract`); `type_preselected` → bỏ classify (DEC-151) | Nội dung tài liệu bọc delimiter; output JSON schema; `null` khi không thấy; chunk theo trang |
 | 7–8 Normalize / validate / XD | `worker` | Pydantic + `ENT-ValidationRule`; master data match |
 | 9 Routing | `worker` | DEC-133 + autonomy policy + trường trọng yếu → `STP` / `REVIEW` |
 | 10 Review | `api` EP-28..35 | Khóa mềm Redis 15 phút |
-| 11 Commit | `api` (approve) / `worker` (STP) | Action Registry: một transaction / tài liệu (04 §10.3); phát `EVT-idp.document_committed` |
+| 11 Commit | `api` (approve) / `worker` (STP) | Action Registry: một transaction / tài liệu (04 §10.4); phát `EVT-idp.document_committed` |
+| 12 Hậu commit | `worker` consumer | Metric, alert, risk `proposed`, insight, METRIC-DQ-01 |
+| 13 Verification (GAP D-18) | `worker` `verify_commit` (ngay) + `verify_action_outcome` (24h/7d, khi có `ENT-AIAction`) | Kiểm lineage = số field commit, metric đã tính lại; lệch → cờ data quality, không tự sửa (04 §3) |
+| C2 voice (mock) | `api` EP-22 → ModelGateway `task=stt` | v2.0 luôn chạy **fixture** cho `stt` kể cả khi `MODEL_GATEWAY_MODE=live` (`MODEL_STT=fixture`) — STT thật v2.1 (DEC-153) |
 
 Retry task IDP: 3 lần 5 s/30 s/120 s (IDP-E07) + fallback provider; hết → `FAILED` "cần nhập tay". Throughput mục tiêu: NFR-21, NFR-22.
+
+### 5.6. Verification hành động (`verify_action_outcome` — AI-R10, 03 §7.3)
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Kích hoạt | `ENT-AIAction` có `autonomy_level ∈ (L2, L3)` chuyển `executed`; Celery task hẹn giờ bằng `apply_async(eta=executed_at + 24h)` và `+7d`; beat quét bù mỗi giờ các mốc bị lỡ (worker restart) |
+| Idempotency | Khóa `(ai_action_id, checkpoint ∈ {24h, 7d})`; đã có phần tử trong `verification.checks` cùng `at` → bỏ qua |
+| Xử lý | Đọc lại kết quả qua **service** module đích (không đọc chéo schema): so `verification.expected_outcome` với số thực tế (metric/bản ghi) → `result ∈ met / partially_met / not_met / not_measurable`; ghi `checks[]` + audit `ai.action.verify` |
+| Bỏ qua | Action `undone` / `failed`, hoặc bản ghi đích đã xóa → `not_measurable` |
+| Giới hạn | `time_limit=60`, `soft_time_limit=50`; không gọi LLM (so sánh quy tắc); `not_met` ở mốc 7d → `ENT-Notification` cho người xác nhận action + mục "AI đã làm" (SCR-17) |
 
 ---
 
@@ -335,12 +354,12 @@ Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không 
 | `extract` | `MODEL_EXTRACT` | idp trích xuất, C2, mapping C5 | JSON schema, context dài |
 | `insight` | `MODEL_INSIGHT` | ai_core insight, briefing | Batch, chạy nền |
 | `embed` | `MODEL_EMBED` | RAG | DEC-142: `bge-m3` (Ollama / `sentence-transformers` local); fallback OpenAI `text-embedding-3-small`; trống → tắt RAG |
-| `stt` | `MODEL_STT` | C2 voice (P1) | 04 OQ-10 |
+| `stt` | `MODEL_STT` | C2 voice — **v2.0 mock** (fixture) | DEC-153; STT thật v2.1 (DEC-050) |
 
 - Chuỗi provider: `MODEL_PROVIDER_PRIMARY` rồi lần lượt `MODEL_PROVIDER_FALLBACKS` (CSV). Model mỗi provider: `MODEL_<TASK>` mặc định, ghi đè `MODEL_<TASK>__<PROVIDER>` (VD `MODEL_CHAT__ANTHROPIC`) khi alias khác nhau.
 - Mỗi provider: retry tối đa 2 lần với 5xx/timeout/429 tạm thời (backoff 1 s, 3 s) → chuyển provider kế; lỗi 4xx nội dung (schema/context) không fallback. Hết chuỗi → `AI_PROVIDER_ERROR` / `AI_PROVIDER_TIMEOUT`.
 - Circuit breaker đơn giản: provider lỗi ≥ 5 lần/60 s → bỏ qua 120 s.
-- Dữ liệu mật / data residency: `MODEL_SENSITIVE_PROVIDER` (VD provider on-prem/VN) cho task có cờ `sensitive=True` — mặc định trùng primary (OQ-05).
+- Dữ liệu mật / data residency: chọn provider theo **phân loại dữ liệu** (§6.5) — `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`; thay `MODEL_SENSITIVE_PROVIDER` của 2.0.0 (OQ-05).
 
 ### 6.3. Ngân sách & giới hạn
 
@@ -361,6 +380,22 @@ Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không 
 - Mỗi lần gọi (kể cả fallback, lỗi) ghi `ENT-ModelCallLog`: `caller_module`, `task_kind`, `provider`, `model`, `fallback_from`, token in/out, chi phí ước tính, latency, status, `error_code`, `prompt_sha256` (không lưu prompt thô — 05 §4.8).
 - `MODEL_GATEWAY_MODE`: `fixture` (mặc định dev/CI — không gọi mạng; thiếu fixture → lỗi rõ ràng), `live` (gọi provider), `record` (gọi live + ghi fixture đã mask — chỉ dev).
 - EP-01 báo `model_gateway: { mode, primary, reachable }`; EP-119 `/ai/usage` tổng hợp từ log.
+
+### 6.5. Chọn provider theo phân loại dữ liệu (DEC-149, BRD FR-ADM-05)
+
+Mỗi `ChatRequest`/`ExtractRequest` mang `classification` = mức cao nhất của dữ liệu đưa vào prompt (03 §7.4; IDP: mức của tài liệu/field — 04 §14.3). ModelGateway chọn chuỗi provider **trước** PII filter và ghi lý do vào `ENT-ModelCallLog`.
+
+| `data_classification` | Provider được phép | Mặc định cấu hình | Embedding | Hành vi khi không có provider hợp lệ |
+|---|---|---|---|---|
+| `PUBLIC` | Cloud OK — chuỗi `MODEL_PROVIDER_PRIMARY` → `MODEL_PROVIDER_FALLBACKS` | `omniroute` → `openrouter,deepseek` | `bge-m3` local | Fallback thường (§6.2) |
+| `INTERNAL` | Cloud OK — như trên (PII filter mức 3 vẫn áp) | như trên | `bge-m3` local | như trên |
+| `CONFIDENTIAL` | **Local** (Ollama, `bge-m3` cho embed) hoặc **template**; cloud chỉ khi ADMIN đặt rõ provider đó vào `MODEL_PROVIDER_CONFIDENTIAL` | `MODEL_PROVIDER_CONFIDENTIAL=template` | `bge-m3` local | Trả nội dung **template** (quy tắc + số từ tool), UI ghi "Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài" |
+| `SECRET` | **Không LLM** dưới mọi cấu hình | `MODEL_PROVIDER_SECRET=none` (giá trị khác bị từ chối khi khởi động — fail fast) | Không embed | Template; IDP: field `null` để người nhập (04 §14.3) |
+
+- Giá trị hợp lệ `MODEL_PROVIDER_CONFIDENTIAL`: `template` \| `ollama` \| một provider id ở §6.1 (CSV cho chuỗi). `ollama` là adapter OpenAI-compatible (`OLLAMA_BASE_URL`, không key, không SDK); container Ollama thuộc checklist T-002.
+- `fixture` mode bỏ qua bảng này cho mục đích test nhưng **vẫn ghi** quyết định định tuyến → test TC-AI-021 kiểm được.
+- Fallback **không bao giờ** đi từ local/template sang cloud cho `CONFIDENTIAL`/`SECRET`.
+- Kill switch theo agent (DEC-149): `ai.kill_switch_agents` chặn mọi WRITE của agent đó trước bước chọn provider.
 
 ---
 
@@ -393,9 +428,11 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `DEEPSEEK_BASE_URL`, `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1`, `<deepseek-key>` | khi dùng |
 | | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | `https://api.openai.com/v1`, `<openai-key>` | khi dùng |
 | | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` | `https://api.anthropic.com`, `<anthropic-key>` | khi dùng |
-| | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_EMBED`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `<embed-model>`, `<stt-model>` | ✅ (live) |
+| | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_EMBED`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `bge-m3`, `fixture` (v2.0 mock) | ✅ (live) |
 | | `MODEL_<TASK>__<PROVIDER>` | `MODEL_CHAT__ANTHROPIC=<model-id>` | |
-| | `MODEL_SENSITIVE_PROVIDER` | `omniroute` | |
+| | `MODEL_PROVIDER_CONFIDENTIAL` *(mới 2.1)* | `template` (hoặc `ollama`, provider id) — §6.5 | ✅ |
+| | `MODEL_PROVIDER_SECRET` *(mới 2.1)* | `none` (giá trị duy nhất hợp lệ) — §6.5 | ✅ |
+| | `OLLAMA_BASE_URL` *(mới 2.1)* | `http://localhost:11434/v1` | khi dùng `ollama` |
 | | `MODEL_TEMPERATURE`, `MODEL_MAX_OUTPUT_TOKENS`, `MODEL_PRICING_JSON` | `0.2`, `2048`, `./config/model-pricing.json` | |
 | AI Core | `AI_RATE_LIMIT_PER_MIN`, `AI_MAX_TOOL_CALLS`, `AI_TOOL_TIMEOUT_SEC`, `AI_TURN_TIMEOUT_SEC` | `20`, `8`, `5`, `30` | |
 | | `AI_MONTHLY_BUDGET_USD`, `AI_BUDGET_ALERT_PCT`, `AI_UNDO_WINDOW_HOURS` | `50`, `80`, `24` | |
@@ -403,11 +440,16 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `OCR_PROVIDER`, `GOOGLE_APPLICATION_CREDENTIALS` | `paddle` \| `google_vision`, `./secrets/gcp.json` | |
 | | `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_REQUIRED` | `clamav`, `3310`, `false` (demo) | |
 | | `IDP_UNDO_WINDOW_DAYS`, `REVIEW_LOCK_MINUTES` | `7`, `15` | |
-| Dashboard / ngưỡng | `THR_<METRIC>_WARN`, `THR_<METRIC>_CRIT`, `PILLAR_NO_DATA_RATIO`, `FRESHNESS_STALE_DAYS`, `DASHBOARD_REFRESH_SEC` | theo 03 (giá trị mặc định ở 03 §2) | |
+| Dashboard / ngưỡng | `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS` *(mới 2.1)* | `0.3`, `0.4`, `0.3` — Σ phải = 1,0 (fail fast); METRIC-DQ-01 (03 §2.6, duyệt 03 OQ-10) | |
+| | `BRIEFING_TIME` *(mới 2.1)* | `06:00` (giờ `Asia/Ho_Chi_Minh`; BRD gợi ý 07:00 — override ở v2.1, 03 OQ-09) | |
+| | `THR_<METRIC>_WARN`, `THR_<METRIC>_CRIT`, `PILLAR_NO_DATA_RATIO`, `FRESHNESS_STALE_DAYS`, `DASHBOARD_REFRESH_SEC` | theo 03 (giá trị mặc định ở 03 §2) | |
+| Approval | `APPROVAL_FINANCE_THRESHOLD_VND` *(mới 2.1)* | `500000000` — request tài chính vượt ngưỡng cần 2 người duyệt (DEC-155; Admin override qua `ai.autonomy_policies.max_amount`) | |
 | Notification | `NOTIFY_EMAIL_ENABLED`, `SMTP_URL` | `false`, `smtp://<user>:<pass>@<host>:587` | |
 | Demo | `DEMO_MODE`, `NEXT_PUBLIC_DEMO_MODE`, `DEMO_REFERENCE_DATE` | `true`, `true`, `2026-10-20` | |
 | | `DEMO_<ROLE>_PASSWORD` (10 role, VD `DEMO_CEO_PASSWORD`) | `<demo-password>` | khi `DEMO_MODE` |
 | Retention | `RETENTION_AUDIT_DAYS`, `RETENTION_MODEL_LOG_DAYS`, `RETENTION_CONVERSATION_DAYS` | `3650`, `180`, `365` | |
+
+**Biến mới 2.1.0 (8 biến, đánh dấu *mới 2.1*):** `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS`, `BRIEFING_TIME`, `APPROVAL_FINANCE_THRESHOLD_VND`; bỏ `MODEL_SENSITIVE_PROVIDER` (thay bằng 2 biến phân loại). Đồng bộ `.env.example` thuộc task T-014 (agent không sửa file này trong Phase 3).
 
 Thay đổi so với `.env.example` hiện tại: bỏ `JWT_SECRET`/`JWT_EXPIRES_IN` (HS256) → cặp khóa RS256 + TTL (DEC-129); bỏ `NEXT_PUBLIC_DEMO_PASSWORD_*` (lộ mật khẩu ra client — OQ-07); thêm 5 role demo mới. Cập nhật bởi task T-014.
 
@@ -495,7 +537,10 @@ Production-like (một máy demo): `docker compose up -d --build`; reverse proxy
 | Data residency | Tùy chọn provider VN/on-prem qua `MODEL_SENSITIVE_PROVIDER`; DB/MinIO đặt tại VN khi triển khai thật |
 | Chứng từ kế toán | Tài liệu gốc hóa đơn/BCTC giữ ≥ 10 năm (Luật Kế toán) — không xóa cứng, chỉ archive |
 | CV / dữ liệu ứng viên | Xóa khi hết consent |
-| Log | Audit ≥ 10 năm (`RETENTION_AUDIT_DAYS`); `ModelCallLog` 180 ngày; hội thoại 365 ngày (người dùng xóa sớm được) |
+| Log | Audit ≥ 10 năm (`RETENTION_AUDIT_DAYS`; BRD tối thiểu 2 năm — lấy giá trị cao hơn vì chứng từ kế toán); `ModelCallLog` 180 ngày; hội thoại 365 ngày (người dùng xóa sớm được); audit **tìm kiếm và xuất CSV** qua SCR-14 |
+| Luật Bảo vệ dữ liệu cá nhân + NĐ 13/2023 (GAP D-34) | v2.0: consent (ứng viên, nhân viên, người tham gia họp — `consent_confirmed_by` khi tải transcript), phân loại cơ bản/nhạy cảm (dữ liệu sức khỏe = `SECRET`), quyền truy cập/sửa/xóa của chủ thể qua ADMIN. **v2.1 (production):** hồ sơ **DPIA** (đánh giá tác động xử lý dữ liệu cá nhân) + hồ sơ chuyển dữ liệu ra nước ngoài; quy trình **thông báo vi phạm** ≤ 72 giờ tới cơ quan chức năng và chủ thể — runbook, không phải tính năng |
+| Ghi âm/transcript họp | Thông báo + xác nhận consent khi tải; lưu theo retention hội thoại; xóa theo yêu cầu chủ thể |
+| Luật An ninh mạng (GAP D-34) | Khi triển khai thật cho doanh nghiệp VN: dữ liệu người dùng VN lưu tại VN (DB/MinIO), log truy cập giữ theo yêu cầu cơ quan chức năng — ghi nhận ở checklist go-live v2.1; demo không áp dụng |
 
 ---
 
@@ -515,12 +560,12 @@ Production-like (một máy demo): `docker compose up -d --build`; reverse proxy
 
 ## 11. Yêu cầu phi chức năng (NFR)
 
-NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI-EOS §5.3 và DEC-131. Test chứng minh: `14-TEST-TRACEABILITY.md`.
+NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI-EOS §5.3 và DEC-131; **NFR-29..NFR-33** bổ sung 2.1.0 từ BRD §17.1 (DEC-144). Test chứng minh: `14-TEST-TRACEABILITY.md`.
 
 | ID | Nhóm | Yêu cầu | Cách đo |
 |---|---|---|---|
 | NFR-01 | Hiệu năng | Endpoint dashboard p95 **< 800 ms**; cả 5 trụ tải xong **< 3 s** | Load test 20 user đồng thời trên seed ABC |
-| NFR-02 | Hiệu năng AI | Chat p95 **≤ 30 s** (non-stream); token đầu tiên **≤ 5 s** (stream) | Bộ câu hỏi eval, `ModelCallLog.latency_ms` |
+| NFR-02 | Hiệu năng AI | Token đầu (TTFT) **p50 ≤ 2 s, p95 ≤ 5 s** (DEC-152; BRD < 2 s); câu hỏi nhiều tool hoàn tất **≤ 30 s** (p90 theo BRD), có tiến trình | Bộ câu hỏi eval, `first_token_ms` log SSE + `ModelCallLog.latency_ms` |
 | NFR-03 | Độ tươi | Dữ liệu dashboard trễ **≤ 60 s** so với nguồn; metric cập nhật ≤ 10 s sau commit IDP | Test tích hợp event → metric |
 | NFR-04 | Khả dụng từng phần | Một module hoặc AI lỗi không làm hỏng dashboard (FR-DSH-07) | Test tắt module/ModelGateway |
 | NFR-05 | Xác thực | JWT RS256; private key chỉ `auth` đọc; mật khẩu ≥ 8 ký tự đủ 4 loại | Unit + review cấu hình |
@@ -541,12 +586,32 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 | NFR-20 | Quy mô | Một doanh nghiệp 150–300 nhân sự, một pháp nhân, VND (seed ABC ~150 — DEC-136) | Seed + load test |
 | NFR-21 | Hiệu năng IDP | Tài liệu ≤ 5 trang: extraction p95 **≤ 60 s**; upload trả id ≤ 2 s | Bộ 9 tài liệu mẫu (08) |
 | NFR-22 | Thông lượng IDP | **≥ 1.000 trang/giờ** (1 worker OCR + mở rộng ngang bằng thêm worker) | Benchmark batch |
-| NFR-23 | Phục hồi | **RPO ≤ 15 phút**, **RTO ≤ 4 giờ** (core): WAL archiving/`pg_dump` mỗi 15 phút + snapshot MinIO; runbook khôi phục | Diễn tập khôi phục một lần trước demo |
+| NFR-23 | Phục hồi | **RPO ≤ 15 phút**, **RTO ≤ 4 giờ** (core): WAL archiving/`pg_dump` mỗi 15 phút + snapshot MinIO; **backup hằng ngày giữ 30 ngày**; runbook khôi phục | Demo: diễn tập 1 lần trước demo; v2.1: diễn tập **hằng quý** |
 | NFR-24 | Khả dụng AI | Model chính lỗi → tự chuyển fallback (§6.2); nhập tay C1 luôn hoạt động khi AI tắt | Test fault injection `respx` |
 | NFR-25 | Ngôn ngữ | UI và AI tiếng Việt + tiếng Anh; hiểu câu hỏi trộn hai ngôn ngữ (DEC-135) | Eval song ngữ |
 | NFR-26 | Chi phí AI | Ngân sách tháng `AI_MONTHLY_BUDGET_USD`, cảnh báo 80%, báo cáo chi phí theo provider/task/user (DEC-131) | EP-119 |
 | NFR-27 | Chất lượng AI | Eval set ≥ 30 câu hỏi (5 trụ × role) chạy CI ở fixture mode: 100% câu trả lời có số có source chip; 0 leak ngoài quyền; field accuracy IDP ≥ 90%, error leakage trường trọng yếu < 0,5% (01 KPI) | `tests/ai_eval/` |
-| NFR-28 | Data residency | Cấu hình được vùng lưu trữ; tùy chọn xử lý tại VN (`MODEL_SENSITIVE_PROVIDER`) | Review cấu hình |
+| NFR-28 | Data residency | Cấu hình được vùng lưu trữ; tùy chọn xử lý tại VN (`MODEL_PROVIDER_CONFIDENTIAL` local — §6.5) | Review cấu hình |
+| NFR-29 | Hiệu năng UI | Thao tác chuẩn (mở danh sách, lưu form) p95 **< 2 s**; dashboard tải xong p95 **< 3 s** (BRD NFR-PERF-01; khớp NFR-01) | Playwright đo thời gian + log API |
+| NFR-30 | Khả dụng | Core platform **≥ 99,9%**/tháng — **chỉ v2.1 production**; v2.0 demo single-node không cam kết (ghi OUT) | Uptime monitor (v2.1) |
+| NFR-31 | Phân loại → model | `CONFIDENTIAL` không tới provider cloud chưa được bật; `SECRET` không bao giờ tới LLM (§6.5) | TC-AI-021 |
+| NFR-32 | Truy cập | WCAG 2.1 AA cho màn hình chính (06 §10) | axe-core trong Playwright (TC-UI-027) |
+| NFR-33 | Kiểm chứng | 100% `ENT-AIAction` L2+ `executed` có check 24h và 7d (hoặc `not_measurable`) | TC-AI-020 |
+
+#### 11.1. Tóm tắt NFR vận hành (GAP D-33)
+
+| Hạng mục | v2.0 (demo-ready) | v2.1 (production-ready) | NFR |
+|---|---|---|---|
+| p95 API dashboard | < 800 ms | < 800 ms | NFR-01 |
+| p95 thao tác UI / dashboard | < 2 s / < 3 s | như v2.0 | NFR-29 |
+| TTFT chat | p50 ≤ 2 s, p95 ≤ 5 s | như v2.0 | NFR-02 |
+| IDP ≤ 5 trang | p95 ≤ 60 s | như v2.0 | NFR-21 |
+| RPO / RTO | 15 phút / 4 giờ | 15 phút / 4 giờ | NFR-23 |
+| Backup | Hằng ngày, giữ 30 ngày; diễn tập 1 lần trước demo | Hằng ngày, giữ 30 ngày; diễn tập hằng quý | NFR-23 |
+| Khả dụng | Không cam kết (single-node) | ≥ 99,9% | NFR-30 |
+| Retention audit | ≥ 10 năm, xuất CSV | như v2.0 | §9.3 |
+| Retention log AI / hội thoại | 180 / 365 ngày | như v2.0 | §9.3 |
+| Retention chứng từ kế toán | ≥ 10 năm (archive, không xóa cứng) | như v2.0 | §9.3 |
 
 ---
 
@@ -580,13 +645,15 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 | OQ-02 | ✅ DEC-139/140/141. `httpx`, `respx`, `argon2-cffi` chưa có DEC riêng (httpx, argon2 đã có trong code v1) | Gộp vào một DEC dependency v2 (T-002) | 13 |
 | OQ-03 | ✅ DEC-138. ClamAV (container + client `clamd`) chưa có DEC; 04 OQ-01 | Thêm vào Compose, `CLAMAV_REQUIRED=false` ở demo (scan lỗi → `SKIPPED` + chặn STP) | 04 FR-DC-02, Compose |
 | OQ-04 | `CLAUDE.md` mô tả: 4 trụ, 5 role, HS256 ngầm định ("NextAuth + JWT"), `require_role`, `apps/api/src/modules/` (thiếu `app/`), phạm vi MVP v1, cấm đọc `_reference/`, ma trận load thiếu "Scaffold", "Code domain module", "Code AI Core", "Code UI" | Human cập nhật `CLAUDE.md` theo v2 (DEC-124); agent không tự sửa | CLAUDE.md, 11 |
-| OQ-05 | Provider cho dữ liệu nhạy cảm / data residency VN (`MODEL_SENSITIVE_PROVIDER`) | Demo: trùng primary + PII filter; production: provider on-prem/VN | NFR-11, NFR-28 |
+| OQ-05 | ✅ **DEC-149** — chọn provider theo phân loại (§6.5, `MODEL_PROVIDER_CONFIDENTIAL`/`MODEL_PROVIDER_SECRET`). Câu hỏi gốc: provider cho dữ liệu nhạy cảm (`MODEL_SENSITIVE_PROVIDER`) | — | NFR-11, NFR-28 |
 | OQ-06 | Giới hạn upload v1 (`MAX_FILE_SIZE_MB=20`, `MAX_PAGES=50`) khác v2 (50 MB / 300 trang / 100 file) | Theo 04 §15.1 | `.env.example` |
 | OQ-07 | `.env.example` hiện có `NEXT_PUBLIC_DEMO_PASSWORD_*` (mật khẩu demo lộ ra bundle client) | Bỏ; dùng EP-04/EP-05 role switch | `.env.example`, 06 |
 | OQ-08 | Pre-commit secret scan (gitleaks) là dependency dev mới | Raise DEC hoặc dùng script grep đơn giản | CI |
 | OQ-09 | ✅ DEC-142 (`bge-m3`). Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
 | OQ-10 | ✅ DEC-143: stdlib + formatter JSON. Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
 | OQ-11 | Alias `auto/coding`, `auto/cheap` (OmniRoute) cho `MODEL_*` runtime trùng tên với alias build-agent (11) | Chấp nhận — hai cấu hình tách biệt (runtime env vs agent config) | 11 |
+| OQ-12 | `CONFIDENTIAL` mặc định `template` làm insight kém tự nhiên khi demo dữ liệu tài chính (mức 2 → `CONFIDENTIAL`) | Demo: ADMIN đặt `MODEL_PROVIDER_CONFIDENTIAL=omniroute` có ghi audit; production: `ollama` | 08, 03 §7.4 |
+| OQ-13 | Container Ollama + thư viện parse PDF/HEIC/DOC/XLS | Chốt trong checklist T-002 (S0), không DEC riêng (DEC-151) | 09 T-002 |
 
 ---
 
@@ -605,8 +672,10 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 
 ## Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3c)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
-- **Change:** Viết lại toàn bộ theo DEC-124..137: Modular Monolith 11 module / 10 schema (DEC-125), outbox + Celery beat relay (DEC-126), RS256 (DEC-129), ModelGateway đa provider + fallback + ngân sách (DEC-131), SSE, ClamAV, cấu hình đầy đủ, NFR-01..28. Bản 1.x lưu ở nhánh `v1`.
+- **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-149, DEC-151..153, DEC-155):** chọn provider theo phân loại dữ liệu §6.5 (Public/Internal cloud · Confidential local/template · Secret không LLM; `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`); 8 biến môi trường mới (§7); `verify_action_outcome` 24h/7d §5.6 + bước Verification IDP (D-18); TTFT p50 ≤ 2 s / p95 ≤ 5 s (D-31); NFR-29..33 + bảng tóm tắt p95/RPO/RTO/backup/retention §11.1 (D-33); Luật BVDLCN, DPIA, thông báo vi phạm, Luật ANM §9.3 (D-34); C2 voice mock STT; dependency parse PDF/HEIC/DOC/XLS + Ollama → checklist T-002; OQ-05 đóng, OQ-12/13 mới.
+- **Change 2.0.0:** Viết lại toàn bộ theo DEC-124..137: Modular Monolith 11 module / 10 schema (DEC-125), outbox + Celery beat relay (DEC-126), RS256 (DEC-129), ModelGateway đa provider + fallback + ngân sách (DEC-131), SSE, ClamAV, cấu hình đầy đủ, NFR-01..28. Bản 1.x lưu ở nhánh `v1`.
