@@ -403,7 +403,7 @@ Mỗi task lưu `source_location` của đoạn gốc → lineage "link về đo
 |---|---|---|---|---|---|
 | `risk_code` | text | — | | `risk.risks.code` (upsert theo code; thiếu → sinh mới) | duy nhất |
 | `title` | text | ✅ | | `title` | — |
-| `category` | enum `financial`/`operational`/`strategic`/`compliance`/`people`/`product`/`market` | ✅ | | `category` | — |
+| `category` | enum 13 danh mục `risk.risk_category` (DEC-148: `financial`/`operational`/`strategic`/`people`/`business`/`customer`/`product`/`technology`/`security`/`compliance`/`legal`/`partner_supplier`/`ai`; giá trị cũ `market` → `business`) | ✅ | | `category` | — |
 | `likelihood` / `impact` | int 1–5 | ✅ | | `likelihood` / `impact` → `risk_score = L × I`, `severity` (BR-RSK-01 ở 03) | VR-RSK-01 trong 1–5 |
 | `owner` | person_name | — | | `owner_id` | XD-03; thiếu → rủi ro "chưa có chủ" (METRIC-RSK-02) |
 | `status` | enum `identified`/`assessed`/`mitigating`/`monitoring`/`closed` | ✅ | | `status` | **không** nhận `accepted` qua IDP (cần `risk:approve`, BR-RSK-02) |

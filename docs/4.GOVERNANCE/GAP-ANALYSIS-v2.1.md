@@ -206,6 +206,16 @@ Không có bản cũ của `SOURCE-BRD-v1.1.md` để diff (`_reference/` bị g
 | D-21 | EP-120..122 (PDF + Excel; Word hoãn — DEC-153) | 10 §3.12 |
 | D-26 | `EVT-finance.invoice_created` publish/consume + payload | 10 §8.3, §8.4 |
 
+## I. Kiểm tra cuối Phase 3 (2026-10-20)
+
+| # | Kiểm tra | Kết quả |
+|---|---|---|
+| V1 | Mọi `US-*`, `FR-DC-*`, `ENT-*`, `METRIC-*`, `SCR-*`, `EP-*`, `TOOL-*` trong 12 file 00–11 có trong 00 §4 (EP theo dải §4.6) | **PASS** — ngoại lệ duy nhất `ENT-Supplier` trong 04 OQ-04 (câu hỏi "không có entity", cố ý) |
+| V2 | Mọi EP trích ở 04, 06 có trong 10 | **PASS** — 0 thiếu (EP-120..129 có đủ catalog §3.12 + chi tiết §4.11) |
+| V3 | 10 không còn `source`/`version` trần mang nghĩa domain trong schema request/response | **PASS** — 5 field đổi tên DEC-154; EP-12 `source` → `data_source`, EP-129 `source` → `config_source`; còn lại = C19 (§1.1) hoặc `version` ứng dụng EP-01 |
+| V4 | `DocumentStatus` có `SUPERSEDED` (05 enum, 04, 10 DocumentOut) | **PASS** |
+| V5 | `RiskCategory` 13 danh mục (05 enum, 10 EP-101, 04 schema RISK_REGISTER) | **PASS** — 04 §5 sửa `market` → 13 danh mục ở bước verify |
+
 ## Version
 
 - **Version:** 1.0.0 (reference)
