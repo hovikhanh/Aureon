@@ -314,6 +314,7 @@ Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ
 | Ma trận autonomy | Hàng = tool/action (TOOL-*, ACT-*), cột = role; ô = L0–L3 + ngưỡng giá trị (vd. "L3 nếu ≤ 20 tr, ngược lại L2") | ROLE-10 sửa; ROLE-01 xem |
 | Ngân sách AI | Chi phí tháng / ngân sách, cảnh báo 80%, phân theo tác vụ (chat, classify, extract, insight) | ROLE-10; ROLE-01 xem |
 | Provider | Trạng thái từng provider (primary/fallback), độ trễ p95, tỷ lệ lỗi; **không** hiển thị API key | ROLE-10 |
+| Phân loại → provider (DEC-157) | Bảng 4 mức × provider hiệu lực (`INTERNAL` cloud · `CONFIDENTIAL` local `qwen2.5:7b-instruct` · `SECRET` không LLM); nút **"Cho phép cloud cho dữ liệu Mật"** → hộp thoại bắt buộc lý do + cảnh báo NĐ 13 → EP-129; băng vàng toàn trang SCR-15 khi override đang bật; `SECRET` không có nút | ROLE-10 sửa; ROLE-01 xem |
 | Chất lượng AI | Accuracy trích xuất theo doc type/field, tỷ lệ L2 xác nhận không sửa, tỷ lệ hoàn tác L3, feedback 👎 gần nhất | ROLE-10; ROLE-01 xem |
 
 Đổi autonomy/ngưỡng ghi audit log; nới ngưỡng tự ghi chỉ khi đạt ≥ 98% accuracy trên ≥ 200 tài liệu (04).
@@ -833,7 +834,7 @@ Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY
 | OQ-05 | ✅ **DEC-153** — `VoiceInput` v2.0 gửi audio/WAV qua EP-22, ModelGateway `stt` chạy **mock** (fixture); STT thật v2.1. Câu hỏi gốc: Web Speech API hay STT server? | — |
 | OQ-06 | Người dùng thử cho usability test (≥ 2 người mỗi persona) là ai? | Human chỉ định trước S5 |
 | OQ-07 | SCR-27 (cấu hình doc type/schema) là Should — nếu cắt, ADMIN chỉnh ngưỡng ở đâu? | Giữ tối thiểu slider ngưỡng trong SCR-15 nếu SCR-27 bị dời |
-| OQ-08 | SCR-30: mẫu HĐQT và xuất Word (.docx) — DEC-153 chỉ có weekly/monthly PDF + Excel | HĐQT = mẫu tháng mở rộng (`MONTHLY`); Word hoãn v2.1; báo cáo ngày = Briefing SCR-01 |
+| OQ-08 | ✅ **Duyệt (human 2026-10-20) — DEC-153:** Word export hoãn v2.1. Mẫu HĐQT dùng template tháng mở rộng (spec ở 06 §4.13 SCR-30). Câu hỏi gốc: mẫu HĐQT và xuất Word (.docx) | — |
 | OQ-09 | SCR-31 có cần cho ROLE-08 xem dòng tiền phòng ban? | Không ở v2.0 (chỉ CEO, CFO) |
 
 ---

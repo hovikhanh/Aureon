@@ -459,12 +459,20 @@ Mọi `ENT-AIAction` mức **L2 trở lên** đã `executed` có bước **Verif
 | `data_classification` cao nhất của dữ liệu trong ngữ cảnh | Model sinh nội dung (insight, trả lời, briefing) | Embedding / RAG |
 |---|---|---|
 | `PUBLIC`, `INTERNAL` | Provider chain ModelGateway bình thường | `bge-m3` local (DEC-142) |
-| `CONFIDENTIAL` (Mật) | **Không gửi LLM cloud** trừ provider ADMIN bật rõ cho mức này; mặc định dùng **template** (insight sinh từ quy tắc + số từ tool, không câu chữ LLM) | `bge-m3` local |
+| `CONFIDENTIAL` (Mật) | **LLM local** (Ollama, `LOCAL_CHAT_MODEL` mặc định `qwen2.5:7b-instruct` — DEC-157); local lỗi → **template** (quy tắc + số từ tool). Cloud chỉ khi ADMIN override có audit (EP-129) | `bge-m3` local |
 | `SECRET` (Tuyệt mật) | **Không gửi LLM** dưới mọi cấu hình; chỉ template; giá trị mức 4 bị PII filter loại | Không embed |
 
-- Phân loại lấy mức cao nhất của mọi `tool_result`/`MetricValue` trong lượt (05 §10); quyết định trước khi gọi ModelGateway, ghi vào `ENT-ModelCallLog`.
-- Hạ cấp xuống template phải báo rõ trên UI ("Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài"); không làm mất source chip.
-- Danh mục provider và cờ cho phép theo mức ở 07 §6 (Phase 3c).
+- **Phân loại theo mức tổng hợp (DEC-157):**
+
+| Loại dữ liệu trong ngữ cảnh | `data_classification` | Ví dụ |
+|---|---|---|
+| Metric **tổng hợp** công ty / trụ / phòng ban (`ENT-MetricValue`, dashboard `summary`, `*_trend`) | `INTERNAL` → LLM cloud OK | Doanh thu tổng, ngân sách tổng, biên LN, runway, pipeline coverage, churn rate, turnover, METRIC-DQ-01 |
+| **Giao dịch / bản ghi riêng lẻ** | `CONFIDENTIAL` → LLM local | Từng deal, từng hóa đơn, từng hợp đồng, từng khoản chi, từng rủi ro; họ tên/email nhân viên (mức 3) |
+| **PII mức 4** | `SECRET` → không LLM | Lương cá nhân, lịch sử lương, ngày sinh, địa chỉ, CCCD, số tài khoản, dữ liệu sức khỏe |
+
+- Phân loại lấy mức cao nhất của mọi `tool_result`/`MetricValue` trong lượt (05 §10); quyết định trước khi gọi ModelGateway, ghi vào `ENT-ModelCallLog`. Tool đọc tổng hợp (`TOOL-get_*_dashboard`, `TOOL-get_metric`, `TOOL-get_budget_status`) trả `INTERNAL`; tool liệt kê bản ghi (`TOOL-list_*`) trả `CONFIDENTIAL`.
+- Hạ cấp xuống template (local LLM lỗi hoặc `SECRET`) phải báo rõ trên UI ("Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài"); không làm mất source chip.
+- Danh mục provider và cờ cho phép theo mức ở 07 §6.5; ADMIN override `CONFIDENTIAL` → cloud qua EP-129 (SCR-15, audit — DEC-157).
 
 ---
 
@@ -563,7 +571,7 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 | Metric store, outbox, Celery beat, NFR-xx | `07-TECH-ARCHITECTURE.md` |
 | Dữ liệu demo ABC cho 32 metric | `08-DEMO-DATA-SPEC.md` |
 | Endpoint dashboard, metric, alert, briefing, event | `10-API-SPECIFICATION.md` |
-| Quyết định | `13-DECISION-LOG.md` (DEC-125, DEC-126, DEC-127, DEC-132, DEC-143, DEC-147, DEC-148, DEC-149, DEC-152, DEC-154) |
+| Quyết định | `13-DECISION-LOG.md` (DEC-125, DEC-126, DEC-127, DEC-132, DEC-143, DEC-147, DEC-148, DEC-149, DEC-152, DEC-154, DEC-157) |
 
 ---
 

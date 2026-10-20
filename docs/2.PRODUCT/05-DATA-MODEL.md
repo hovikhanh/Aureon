@@ -1542,7 +1542,7 @@ Xem §5.
 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
-| key | text | N | UQ | `ai.kill_switch`, `ai.kill_switch_mode`, `ai.kill_switch_agents` (danh sách `AIAgentProfile.code` bị tắt — DEC-149), `ai.budget_monthly`, `ai.providers`, `idp.limits`, `idp.freshness`, `privacy.consent` … |
+| key | text | N | UQ | `ai.kill_switch`, `ai.kill_switch_mode`, `ai.kill_switch_agents` (danh sách `AIAgentProfile.code` bị tắt — DEC-149), `ai.budget_monthly`, `ai.providers`, `ai.classification_overrides` (DEC-157: `{ CONFIDENTIAL: { provider, reason, set_by, set_at } }` — EP-129), `idp.limits`, `idp.freshness`, `privacy.consent` … |
 | value | jsonb | N | | |
 | is_secret | boolean | N | CK = false | Secret **không** lưu DB (env/secret store) |
 | updated_reason | text | Y | | |
@@ -1810,8 +1810,8 @@ Ghi `audit_logs`, `data_lineage`, `outbox_events` là tác dụng phụ của mu
 | `data_classification` (BRD) | Mức cột tương ứng | Mặc định cho | Provider AI được xử lý |
 |---|---|---|---|
 | `PUBLIC` — Công khai | — | Danh mục công khai, báo cáo đã phát hành ngoài | Mọi provider |
-| `INTERNAL` — Nội bộ | 1 | Mặc định mọi bản ghi | Mọi provider được bật |
-| `CONFIDENTIAL` — Mật | 2, 3 | `finance.*`, `sales.deals/contracts`, `risk.*`, `auth.users`, `hr.employees` | Theo cấu hình `ai.providers` (provider ngoài lãnh thổ phải được bật rõ; BRD L1221 "xử lý tại VN" — v2.1) |
+| `INTERNAL` — Nội bộ | 1 | Mặc định mọi bản ghi; **`platform.metric_values`, `platform.alerts`, `platform.reports` cấp công ty/trụ/phòng ban (số tổng hợp — DEC-157)** | Mọi provider được bật (cloud OK) |
+| `CONFIDENTIAL` — Mật | 2, 3 | Bản ghi giao dịch riêng lẻ: `finance.*` (từng hóa đơn, khoản chi, dòng tiền), `sales.deals/contracts`, `risk.*`, `auth.users`, `hr.employees` | **LLM local** (Ollama `LOCAL_CHAT_MODEL`, mặc định `qwen2.5:7b-instruct`); lỗi → template; cloud chỉ khi ADMIN override có audit (`ai.classification_overrides`, EP-129 — DEC-157) |
 | `SECRET` — Tuyệt mật | 4 | `hr.salary_history`, tài liệu IDP mức 4, dữ liệu sức khỏe (DEC-149, GAP B-16) | **Không** gửi LLM (PII filter bỏ); IDP chỉ provider được phép |
 
 Bản ghi lấy mức cao nhất của các cột nó chứa; người dùng có thể nâng (không hạ dưới mức cột).

@@ -57,7 +57,7 @@
 | `respx` | Mock HTTP provider trong test ModelGateway (test dev-only) | ✅ DEC-139 (dev-only) |
 | ClamAV (`clamav/clamav` container + client `clamd`) | Malware scan FR-DC-08 (mã cũ 02) | ✅ DEC-138 |
 | Parse PDF / HEIC / DOC / XLS (thư viện chuyển đổi định dạng cũ, HEIC → JPEG) | FR-DC-07 (04 §6.2) | ❗ **Checklist T-002 (S0)** — DEC-151 gom vào T-002, **không** phải DEC riêng; chưa chọn thư viện thì chưa cài |
-| Ollama (container chạy `bge-m3` và model local cho dữ liệu `CONFIDENTIAL`) | Embedding (DEC-142), provider local §6.5 | DEC-142 cho embedding; dùng Ollama làm provider sinh nội dung → **checklist T-002** |
+| Ollama (container chạy `bge-m3` embed + `qwen2.5:7b-instruct` chat cho dữ liệu `CONFIDENTIAL` — DEC-157) | Embedding (DEC-142), provider local §6.5 | DEC-142 cho embedding; dùng Ollama làm provider sinh nội dung → **checklist T-002** |
 | `argon2-cffi` | Hash mật khẩu | ✅ DEC-141 |
 | `sse-starlette` | SSE | **Không dùng** — dùng `StreamingResponse` thuần (10 OQ-13) |
 
@@ -389,12 +389,15 @@ Mỗi `ChatRequest`/`ExtractRequest` mang `classification` = mức cao nhất c�
 |---|---|---|---|---|
 | `PUBLIC` | Cloud OK — chuỗi `MODEL_PROVIDER_PRIMARY` → `MODEL_PROVIDER_FALLBACKS` | `omniroute` → `openrouter,deepseek` | `bge-m3` local | Fallback thường (§6.2) |
 | `INTERNAL` | Cloud OK — như trên (PII filter mức 3 vẫn áp) | như trên | `bge-m3` local | như trên |
-| `CONFIDENTIAL` | **Local** (Ollama, `bge-m3` cho embed) hoặc **template**; cloud chỉ khi ADMIN đặt rõ provider đó vào `MODEL_PROVIDER_CONFIDENTIAL` | `MODEL_PROVIDER_CONFIDENTIAL=template` | `bge-m3` local | Trả nội dung **template** (quy tắc + số từ tool), UI ghi "Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài" |
+| `CONFIDENTIAL` | **Local LLM (Ollama)**; cloud chỉ khi ADMIN override có audit (EP-129, `ai.classification_overrides` — DEC-157) | `MODEL_PROVIDER_CONFIDENTIAL=ollama`, `LOCAL_CHAT_MODEL=qwen2.5:7b-instruct` | `bge-m3` local | Fallback **template** khi local LLM down (quy tắc + số từ tool), UI ghi "Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài" |
 | `SECRET` | **Không LLM** dưới mọi cấu hình | `MODEL_PROVIDER_SECRET=none` (giá trị khác bị từ chối khi khởi động — fail fast) | Không embed | Template; IDP: field `null` để người nhập (04 §14.3) |
 
-- Giá trị hợp lệ `MODEL_PROVIDER_CONFIDENTIAL`: `template` \| `ollama` \| một provider id ở §6.1 (CSV cho chuỗi). `ollama` là adapter OpenAI-compatible (`OLLAMA_BASE_URL`, không key, không SDK); container Ollama thuộc checklist T-002.
+- **`bge-m3` là embedding model, KHÔNG dùng để chat.** Local chat LLM mặc định: `qwen2.5:7b-instruct` (hoặc `llama3.1:8b`). Env: `LOCAL_CHAT_MODEL` (DEC-157).
+- **Phân loại theo mức tổng hợp (DEC-157, 03 §7.4):** metric tổng hợp (doanh thu tổng, ngân sách tổng, pipeline coverage, churn, DQ Score…) = `INTERNAL` → cloud; giao dịch riêng lẻ (deal, hóa đơn, hợp đồng) = `CONFIDENTIAL` → local; PII mức 4 (lương cá nhân, ngày sinh, địa chỉ) = `SECRET` → không LLM.
+- **ADMIN override** (EP-129): đặt `CONFIDENTIAL` → provider cloud cho demo; bắt buộc `reason`, ghi `ENT-AuditLog` `ai.classification_override` khi đặt/gỡ; mỗi lượt gọi cloud cho dữ liệu `CONFIDENTIAL` có `ENT-ModelCallLog.provider` = provider cloud để đối soát (không thêm cột); giá trị override (system setting) thắng env; `SECRET` không override được (`422`).
+- Giá trị hợp lệ `MODEL_PROVIDER_CONFIDENTIAL`: `ollama` (mặc định) \| `template` \| một provider id ở §6.1 (CSV cho chuỗi). `ollama` là adapter OpenAI-compatible (`OLLAMA_BASE_URL`, không key, không SDK); container Ollama thuộc checklist T-002.
 - `fixture` mode bỏ qua bảng này cho mục đích test nhưng **vẫn ghi** quyết định định tuyến → test TC-AI-021 kiểm được.
-- Fallback **không bao giờ** đi từ local/template sang cloud cho `CONFIDENTIAL`/`SECRET`.
+- Fallback **không bao giờ** đi từ local/template sang cloud cho `CONFIDENTIAL`/`SECRET` (chuỗi `CONFIDENTIAL`: `ollama` → `template`).
 - Kill switch theo agent (DEC-149): `ai.kill_switch_agents` chặn mọi WRITE của agent đó trước bước chọn provider.
 
 ---
@@ -430,7 +433,8 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` | `https://api.anthropic.com`, `<anthropic-key>` | khi dùng |
 | | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_EMBED`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `bge-m3`, `fixture` (v2.0 mock) | ✅ (live) |
 | | `MODEL_<TASK>__<PROVIDER>` | `MODEL_CHAT__ANTHROPIC=<model-id>` | |
-| | `MODEL_PROVIDER_CONFIDENTIAL` *(mới 2.1)* | `template` (hoặc `ollama`, provider id) — §6.5 | ✅ |
+| | `MODEL_PROVIDER_CONFIDENTIAL` *(mới 2.1)* | `ollama` (hoặc `template`, provider id) — §6.5, DEC-157 | ✅ |
+| | `LOCAL_CHAT_MODEL` *(mới 2.1)* | `qwen2.5:7b-instruct` (hoặc `llama3.1:8b`) — chat local cho `CONFIDENTIAL`; **không** dùng `bge-m3` | khi `ollama` |
 | | `MODEL_PROVIDER_SECRET` *(mới 2.1)* | `none` (giá trị duy nhất hợp lệ) — §6.5 | ✅ |
 | | `OLLAMA_BASE_URL` *(mới 2.1)* | `http://localhost:11434/v1` | khi dùng `ollama` |
 | | `MODEL_TEMPERATURE`, `MODEL_MAX_OUTPUT_TOKENS`, `MODEL_PRICING_JSON` | `0.2`, `2048`, `./config/model-pricing.json` | |
@@ -449,7 +453,7 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `DEMO_<ROLE>_PASSWORD` (10 role, VD `DEMO_CEO_PASSWORD`) | `<demo-password>` | khi `DEMO_MODE` |
 | Retention | `RETENTION_AUDIT_DAYS`, `RETENTION_MODEL_LOG_DAYS`, `RETENTION_CONVERSATION_DAYS` | `3650`, `180`, `365` | |
 
-**Biến mới 2.1.0 (8 biến, đánh dấu *mới 2.1*):** `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS`, `BRIEFING_TIME`, `APPROVAL_FINANCE_THRESHOLD_VND`; bỏ `MODEL_SENSITIVE_PROVIDER` (thay bằng 2 biến phân loại). Đồng bộ `.env.example` thuộc task T-014 (agent không sửa file này trong Phase 3).
+**Biến mới 2.1.0 (9 biến, đánh dấu *mới 2.1*):** `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `LOCAL_CHAT_MODEL`, `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS`, `BRIEFING_TIME`, `APPROVAL_FINANCE_THRESHOLD_VND`; bỏ `MODEL_SENSITIVE_PROVIDER` (thay bằng 2 biến phân loại). Đồng bộ `.env.example` thuộc task T-014 (agent không sửa file này trong Phase 3).
 
 Thay đổi so với `.env.example` hiện tại: bỏ `JWT_SECRET`/`JWT_EXPIRES_IN` (HS256) → cặp khóa RS256 + TTL (DEC-129); bỏ `NEXT_PUBLIC_DEMO_PASSWORD_*` (lộ mật khẩu ra client — OQ-07); thêm 5 role demo mới. Cập nhật bởi task T-014.
 
@@ -652,7 +656,7 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 | OQ-09 | ✅ DEC-142 (`bge-m3`). Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
 | OQ-10 | ✅ DEC-143: stdlib + formatter JSON. Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
 | OQ-11 | Alias `auto/coding`, `auto/cheap` (OmniRoute) cho `MODEL_*` runtime trùng tên với alias build-agent (11) | Chấp nhận — hai cấu hình tách biệt (runtime env vs agent config) | 11 |
-| OQ-12 | `CONFIDENTIAL` mặc định `template` làm insight kém tự nhiên khi demo dữ liệu tài chính (mức 2 → `CONFIDENTIAL`) | Demo: ADMIN đặt `MODEL_PROVIDER_CONFIDENTIAL=omniroute` có ghi audit; production: `ollama` | 08, 03 §7.4 |
+| OQ-12 | ✅ **DEC-157** — `CONFIDENTIAL` mặc định local LLM `qwen2.5:7b-instruct`; metric tổng hợp tái phân loại `INTERNAL`; ADMIN override có audit (EP-129). Câu hỏi gốc: `CONFIDENTIAL` mặc định `template` làm insight kém tự nhiên khi demo | — | 03 §7.4, 05 §10, 10 EP-129 |
 | OQ-13 | Container Ollama + thư viện parse PDF/HEIC/DOC/XLS | Chốt trong checklist T-002 (S0), không DEC riêng (DEC-151) | 09 T-002 |
 
 ---
@@ -677,5 +681,5 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 - **Last updated:** 2026-10-20
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
-- **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-149, DEC-151..153, DEC-155):** chọn provider theo phân loại dữ liệu §6.5 (Public/Internal cloud · Confidential local/template · Secret không LLM; `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`); 8 biến môi trường mới (§7); `verify_action_outcome` 24h/7d §5.6 + bước Verification IDP (D-18); TTFT p50 ≤ 2 s / p95 ≤ 5 s (D-31); NFR-29..33 + bảng tóm tắt p95/RPO/RTO/backup/retention §11.1 (D-33); Luật BVDLCN, DPIA, thông báo vi phạm, Luật ANM §9.3 (D-34); C2 voice mock STT; dependency parse PDF/HEIC/DOC/XLS + Ollama → checklist T-002; OQ-05 đóng, OQ-12/13 mới.
+- **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-149, DEC-151..153, DEC-155):** chọn provider theo phân loại dữ liệu §6.5 (Public/Internal cloud · Confidential local/template · Secret không LLM; `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `LOCAL_CHAT_MODEL`); 9 biến môi trường mới (§7); **DEC-157:** Confidential = local LLM `qwen2.5:7b-instruct` → template, metric tổng hợp = `INTERNAL`, ADMIN override có audit (EP-129); `verify_action_outcome` 24h/7d §5.6 + bước Verification IDP (D-18); TTFT p50 ≤ 2 s / p95 ≤ 5 s (D-31); NFR-29..33 + bảng tóm tắt p95/RPO/RTO/backup/retention §11.1 (D-33); Luật BVDLCN, DPIA, thông báo vi phạm, Luật ANM §9.3 (D-34); C2 voice mock STT; dependency parse PDF/HEIC/DOC/XLS + Ollama → checklist T-002; OQ-05 đóng, OQ-12/13 mới.
 - **Change 2.0.0:** Viết lại toàn bộ theo DEC-124..137: Modular Monolith 11 module / 10 schema (DEC-125), outbox + Celery beat relay (DEC-126), RS256 (DEC-129), ModelGateway đa provider + fallback + ngân sách (DEC-131), SSE, ClamAV, cấu hình đầy đủ, NFR-01..28. Bản 1.x lưu ở nhánh `v1`.
