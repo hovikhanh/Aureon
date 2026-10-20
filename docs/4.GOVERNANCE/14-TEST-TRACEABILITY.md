@@ -124,6 +124,22 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | TC-UI-001 | e2e | Đăng nhập NextAuth → middleware guard → chuyển ngôn ngữ VI/EN | SCR-13, DEC-135 | T-015 |
 | TC-DATA-001 | integration | Script di trú/reset v1 → v2 chạy được trên DB rỗng (theo 09 OQ-01) | DEC-016 superseded | T-016 |
 
+#### 2.1.1. Bổ sung Phase 3a (05 2.1.0 — DEC-147..153, Planned)
+
+| TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
+|---|---|---|---|---|
+| TC-SYS-009 | integration | Migration tạo đủ **79 bảng** / 10 schema; mọi bảng nhóm "nghiệp vụ" (05 §2.1) có `source`, `data_classification`, `version`; bảng append-only không có `version` | 05 §1 C19, §2.1 | T-005 (Phase 3d gán task) |
+| TC-SYS-010 | integration | Optimistic locking: `PATCH` gửi `version` cũ → `409 CONFLICT_STATE`; thành công → `version + 1` | 05 §1 C19 | Phase 3d |
+| TC-EXE-003 | unit | Task 7 trạng thái: chuyển hợp lệ; `blocked` bắt buộc `blocked_reason`; METRIC-OPS-01 chỉ đếm `done` | 05 ENT-Task, DEC-147 | Phase 3d |
+| TC-EXE-004 | unit | KPI band: achievement 69/70/89/90/99/100/109/110% → đúng 5 band; `LOWER_IS_BETTER` = target/actual; trần 150% | 05 ENT-KPITarget, ENT-KPIMeasurement | Phase 3d |
+| TC-RSK-006 | integration | Rủi ro từ event tạo ở `proposed` (phát `EVT-risk.risk_proposed`), **không** tính vào METRIC-RSK-01..05; owner xác nhận → `identified` + `EVT-risk.risk_identified` | 05 ENT-Risk, DEC-148 | Phase 3d |
+| TC-FIN-007 | unit | Dòng tiền 13 tuần: đúng 13 dòng, `closing_cash` cộng dồn, `min_projected_cash`/`min_cash_week` đúng; tính lại khi `EVT-finance.invoice_created` | 05 ENT-CashFlowForecast, DEC-148 | Phase 3d |
+| TC-DASH-007 | unit | METRIC-DQ-01 seed (32 metric), `pillar = null`, không ảnh hưởng trạng thái 5 trụ | 05 ENT-Metric, DEC-148 | Phase 3d |
+| TC-AUTH-008 | integration | ApprovalRequest: người duyệt ≠ người yêu cầu; rule tài chính > ngưỡng cần 2 người khác nhau; quá `due_at` → escalation | 05 ENT-ApprovalRequest, DEC-149, DEC-153 | Phase 3d |
+| TC-IDP-014 | integration | `type_preselected` bỏ CLASSIFYING; sửa field tiền thiếu `correction_reason` → 422; bản thay thế → bản cũ `SUPERSEDED`, lineage giữ nguyên | 05 ENT-SourceDocument, ENT-ExtractedField, DEC-151 | Phase 3d |
+| TC-IDP-015 | integration | Review quá SLA → dòng `ESCALATE` trong `review_assignments` + `EVT-idp.review_escalated` (idempotent); `REASSIGN` bắt buộc lý do | 05 ENT-ReviewAssignment, DEC-151 | Phase 3d |
+| TC-AI-016 | integration | Audit/ToolCallLog/AIAction ghi `agent_profile_code`, `autonomy_level`, `why`, `confidence`; tắt agent `assistant` qua `ai.kill_switch_agents` → mọi tool ghi bị chặn | 05 ENT-AIAgentProfile, ENT-AuditLog, DEC-149 | Phase 3d |
+
 ### 2.2. S1 — Domain F, C, O
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
@@ -292,6 +308,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 |---|---|---|
 | 2026-10-17 | v1 | Danh mục TC v1 (lưu ở nhánh `v1`) |
 | 2026-10-19 | DEC-124 Phase 3 | **Reset danh mục test cho v2** theo S0–S5 (108 TC Planned); giữ 3 test tài liệu/tooling |
+| 2026-10-20 | DEC-144 Phase 3a | +11 TC Planned (§2.1.1) cho data model 2.1.0: C19, Task 7 trạng thái, KPI band, risk `proposed`, dòng tiền 13 tuần, METRIC-DQ-01, Approval, IDP DEC-151, agent profile; task gán ở Phase 3d |
 
 ---
 
