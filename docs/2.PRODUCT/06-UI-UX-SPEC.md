@@ -1,7 +1,8 @@
 # 06 — UI/UX Spec (v2)
 
-> Đặc tả trải nghiệm, kiến trúc thông tin, 28 màn hình `SCR-01..28`, bộ component AI, luồng F1–F5 và design system v2 của **Aureon v2**.
+> Đặc tả trải nghiệm, kiến trúc thông tin, 31 màn hình `SCR-01..31` (28 v2.0 gốc + SCR-29..31 mới — 00 §4), bộ component AI, luồng F1–F5 và design system v2 của **Aureon v2**.
 > Nguồn: `01-PROJECT-OVERVIEW.md` §2, §5, §6, §11; `02-PERSONAS-PERMISSIONS.md`; `03-DASHBOARD-SPEC.md`; `04-IDP-FEATURE-SPEC.md`; đề xuất UI/UX AI-EOS (hợp nhất theo DEC-124); DEC-127, DEC-128, DEC-132, DEC-133, DEC-134, DEC-135.
+> **Canonical Source (DEC-144):** `_reference/SOURCE-BRD-v1.1.md` (màn hình phê duyệt, báo cáo, dòng tiền; TTFT; WCAG). Bổ sung 2.1.0 theo DEC-148 (dòng tiền 13 tuần), DEC-151 (review IDP), DEC-152 (TTFT), DEC-153 (Approval, Report, transcript mock), DEC-155 (ngưỡng 2 người duyệt).
 > ID màn hình, role, metric theo registry `00-INDEX.md` §4. Stack UI: Next.js App Router + Tailwind + shadcn/ui (Radix) + Recharts + next-intl (07).
 
 ---
@@ -71,8 +72,10 @@ Mọi màn hình được duyệt theo 8 nguyên tắc; vi phạm phải nêu l�
 | 5 | Công việc | SCR-19 | Task, dự án, workload |
 | 6 | Họp | SCR-18 | Biên bản → quyết định → việc |
 | 7 | F.O.C.U.S | SCR-02..06, SCR-07 | Nhóm 5 trụ; chỉ hiện trụ role được xem |
-| 8 | Nghiệp vụ | SCR-22, SCR-23, SCR-24, SCR-25 | Finance / Sales / HR / Product workspace |
+| 8 | Nghiệp vụ | SCR-22, SCR-23, SCR-24, SCR-25, SCR-31 | Finance / Sales / HR / Product workspace; SCR-31 Dòng tiền 13 tuần dưới Finance |
 | 9 | Rủi ro | SCR-21 | Sổ rủi ro & What-if |
+| 10 | Phê duyệt | SCR-29 | Badge số request chờ; chỉ hiện với `platform:approve` hoặc `platform:admin` |
+| 11 | Báo cáo | SCR-30 | Ẩn với ROLE-05, 09, 10 |
 | — | Quản trị (tách riêng, cuối sidebar) | SCR-14, SCR-15, SCR-26, SCR-27 | Audit, AI Control Center, user & role, loại tài liệu |
 
 ### 2.2. Top bar
@@ -116,12 +119,14 @@ Quyền thực tế do backend enforce (02 §ma trận quyền); bảng này ch�
 | `/inbox/[documentId]/review` | SCR-10 | `/admin/audit` | SCR-14 |
 | `/inbox/imports/[batchId]` | SCR-11 | `/admin/ai` | SCR-15 |
 | `/onboarding` | SCR-12 | `/admin/users` · `/admin/document-types` | SCR-26 · SCR-27 |
+| `/approvals` · `/approvals/[id]` | SCR-29 | `/reports` | SCR-30 |
+| `/finance/cash-flow` | SCR-31 | | |
 
-SCR-28 (mobile shell) không có route riêng: là layout `< 768 px` của `/`, `/ai`, `/inbox/new`, `/inbox`.
+SCR-28 (mobile shell) không có route riêng: là layout `< 768 px` của `/`, `/ai`, `/inbox/new`, `/inbox`, `/approvals`.
 
 ---
 
-## 3. Danh sách màn hình (SCR-01..28)
+## 3. Danh sách màn hình (SCR-01..31)
 
 ### 3.1. Bảng tổng hợp
 
@@ -146,7 +151,7 @@ Ký hiệu role: số = ROLE-xx (00 §4.1). "Tất cả" = ROLE-01..10.
 | SCR-15 | AI Control Center | Autonomy, kill switch, ngân sách, provider | 01 (xem + kill switch), 10 | Ma trận autonomy, `KillSwitch`, budget meter, trạng thái provider, feedback tổng hợp | Must |
 | SCR-16 | Hỏi AI (Chat) + thanh ⌘K + Panel AI | Hỏi đáp có nguồn | Tất cả | `CommandBar`, `AIPanel`, `ChatThread`, `ThinkingState`, `SourceChip` | Must |
 | SCR-17 | Feed "AI đã làm" | Dòng thời gian hành động L3 + hoàn tác | Tất cả (phạm vi của mình); 01, 10 toàn bộ | `AIActivityItem`, bộ lọc module/người/mức | Must |
-| SCR-18 | Họp & biên bản → việc (UC-06) | Biên bản → quyết định → task | 01, 02, 03, 04, 06, 07, 08, 09 | Tóm tắt 3 khối, bảng action item sửa trực tiếp, "Giao việc" | Must |
+| SCR-18 | Họp, biên bản & transcript → việc (UC-02, UC-06) | Biên bản / transcript mock → quyết định → task (§4.15) | 01, 02, 03, 04, 06, 07, 08, 09 | Tóm tắt 3 khối, bảng action item sửa trực tiếp, "Giao việc" | Must |
 | SCR-19 | Công việc & Workload heatmap | Task, dự án, quá tải | 01, 08, 09 (task của tôi) | Bảng task, Kanban, heatmap người × tuần | Must |
 | SCR-20 | Mục tiêu OKR/KPI & check-in | Theo dõi mục tiêu, check-in ≤ 30 giây | Tất cả trừ 05, 10 | Cây mục tiêu, `CheckInCard`, thanh độ tự tin | Must |
 | SCR-21 | Sổ rủi ro & What-if | Quản lý rủi ro, mô phỏng tác động | 01, 02, 07; xem: 03, 04, 06, 08, 09 | Bảng rủi ro, heatmap L×I, form mitigation, `WhatIfPanel` | Must |
@@ -157,6 +162,11 @@ Ký hiệu role: số = ROLE-xx (00 §4.1). "Tất cả" = ROLE-01..10.
 | SCR-26 | Quản trị người dùng & vai trò | Tạo user, gán role (không self-register) | 01, 10 | Bảng user, gán role, khóa tài khoản | Must |
 | SCR-27 | Cấu hình loại tài liệu / schema / ngưỡng | Doc type, field, ngưỡng confidence, validation | 10 (sửa); 05 (xem) | Danh sách doc type, editor field, slider ngưỡng | Should |
 | SCR-28 | Mobile shell | 4 việc: Briefing, hỏi AI, chụp/gửi, duyệt | Tất cả | Tab bar dưới 4 mục + nút "+" giữa, `ApprovalCard` | Must |
+| **SCR-29** | Phê duyệt (v2.1 spec, build v2.0 — DEC-153) | Hàng chờ ApprovalRequest, duyệt/từ chối/bình luận; cấu hình ApprovalRule | 01, 02, 04, 08 (duyệt); 10 (quy tắc); người gửi (tab "Tôi gửi") | `ApprovalList`, `ApprovalDetail`, `ApprovalActions`, `ApprovalRuleEditor`, `SlaBadge` | Must |
+| **SCR-30** | Báo cáo (DEC-153) | Tạo/tải báo cáo tuần/tháng/HĐQT PDF + Excel | 01, 02, 03, 04, 06, 07, 08 | `ReportForm`, `ReportList`, `ReportPreview` | Must |
+| **SCR-31** | Dòng tiền 13 tuần (DEC-148) | Thu/chi theo tuần, tuần chạm đáy, giả định | 01, 02 | `CashFlowSummary`, `CashFlowChart`, `CashFlowTable`, `AssumptionPanel` | Must |
+
+Tổng **31 màn hình**; đặc tả SCR-29..31 ở §4.12–4.14.
 
 ### 3.2. Trạng thái chuẩn cho mọi màn hình
 
@@ -277,8 +287,13 @@ Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ
 | Ghi nhận sửa | Mỗi lần sửa ghi `ExtractionReview` (giá trị cũ/mới, thời gian) để đo accuracy theo trường |
 | Khóa | Mở review là khóa tài liệu; rời trang / hết hạn khóa → nhả |
 | Sau Duyệt | Ghi qua Action Registry → toast "Đã ghi 1 hóa đơn · Xem bản ghi · Hoàn tác"; mở tài liệu kế tiếp ngay |
+| **"Chấp nhận tất cả HIGH"** | Nút trên đầu form (FR-DC-20, GAP B-20): xác nhận mọi field band Cao **không trọng yếu** trong một lượt (EP-30); con trỏ nhảy ngay tới field Trung bình/Thấp/trọng yếu còn lại; hiện số field đã nhận ("Đã chấp nhận 9 trường") + hoàn tác trong phiên |
+| Lý do sửa trường tài chính | Sửa field tiền/trọng yếu → ô **Lý do** bắt buộc ngay dưới trường (FR-DC-05); thiếu → không lưu được field |
+| Trường mới | `checkbox` hiển thị ☑/☐; chữ ký/con dấu hiển thị "Có/Không" + vùng tô; field viết tay có nhãn "Viết tay — cần xem" |
+| Chuyển / gộp / SLA | Menu "Chuyển người duyệt" (lý do bắt buộc) và "Gộp với…" (04 §8.3); `SlaBadge` còn/quá hạn, nhãn "Đã escalate" |
+| Không có | **Sửa hàng loạt dạng lưới** (OUT — DEC-151) |
 
-**Phím tắt:** `Tab`/`Shift+Tab` trường kế/trước · `Enter` xác nhận trường · `Ctrl+Enter` Duyệt tài liệu · `Ctrl+R` Từ chối (kèm lý do) · `Ctrl+→` tài liệu kế · `[` `]` trang trước/sau · `+`/`-` zoom · `?` bảng phím tắt.
+**Phím tắt:** `Tab`/`Shift+Tab` trường kế/trước · `Enter` xác nhận trường · `Ctrl+Shift+A` Chấp nhận tất cả HIGH · `Ctrl+Enter` Duyệt tài liệu · `Ctrl+R` Từ chối (kèm lý do) · `Ctrl+→` tài liệu kế · `[` `]` trang trước/sau · `+`/`-` zoom · `?` bảng phím tắt.
 
 **Chỉ tiêu:** hóa đơn 6 trường ≤ 60 giây (01 §4).
 
@@ -286,7 +301,7 @@ Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ
 
 1. Tải Excel/CSV → AI gợi ý doc type đích và map cột (cột nguồn → field đích, kèm confidence).
 2. Người dùng sửa map bằng dropdown; lưu map làm mẫu cho lần sau theo tên cột.
-3. Xem trước 50 dòng đầu: dòng lỗi tô `danger` + lý do; dòng trùng tô `warning`.
+3. Xem trước **50 dòng** đầu (đồng bộ 04 FR-DC-18; 10 EP-23 `preview_rows` sửa ở 3d): dòng lỗi tô `danger` + lý do; dòng trùng tô `warning`.
 4. Ghi lô: chỉ dòng hợp lệ; dòng lỗi xuất lại file để sửa. Kết quả: "Đã ghi 128 / 130 dòng · 2 lỗi · Hoàn tác lô".
 
 ---
@@ -312,6 +327,16 @@ Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ
 | Trang Chat `/ai` | Phân tích dài, xem lại hội thoại | Danh sách hội thoại (xem/xóa — US-ALL), thread, gợi ý câu hỏi theo role |
 
 **Luồng một câu trả lời:** gửi → `ThinkingState` hiển thị bước thật từ SSE (`tool_call`: "Đọc dashboard tài chính · So sánh T8 · Kiểm tra pipeline") → token streaming → `SourceChip` cuối mỗi khẳng định có số → `FeedbackBar`. Có nút **Dừng**. Nếu câu trả lời bị cắt (`truncated`) → ghi chú "Trả lời một phần do giới hạn tra cứu".
+
+**Thời gian phản hồi (TTFT — DEC-152, FR-AI-03):** mục tiêu token đầu **p50 ≤ 2 s, p95 ≤ 5 s**.
+
+| Mốc từ lúc gửi | Hiển thị |
+|---|---|
+| 0–300 ms | Tin nhắn người dùng hiện ngay (optimistic) + khung trả lời dạng **skeleton** 3 dòng (không spinner) |
+| Có SSE `thinking`/`tool_call` | Thay skeleton bằng `ThinkingState` liệt kê bước thật ("Đọc dashboard tài chính…") |
+| Token đầu | Bắt đầu streaming, `ThinkingState` thu gọn thành "Đã dùng 3 nguồn ▸" |
+| > 5 s chưa có token | Dòng phụ "Đang tổng hợp nhiều nguồn — có thể mất thêm vài giây" + nút Dừng nổi bật |
+| > 30 s (giới hạn lượt) | Dừng, hiển thị phần đã có + `truncated` + "Thử lại" |
 
 **Khi AI không biết / sai:** "Tôi chưa có dữ liệu về X" + gợi ý bổ sung (gửi tài liệu, nhập tay); nguồn mâu thuẫn → hiển thị cả hai; lỗi hệ thống → `AI unavailable` (§3.2). Câu hỏi vượt quyền → "Câu này cần quyền {domain}; vai trò của bạn không xem được."
 
@@ -340,6 +365,157 @@ Trụ lỗi chỉ widget đó báo `WidgetError`. Role không xem được trụ
 - **`ApprovalCard`:** đủ thông tin để quyết không cần mở thêm (AI đã soạn gì, nguồn); hai nút lớn ≥ 44 px; vuốt để duyệt hàng loạt mục rủi ro thấp (luôn có nút thay thế cho vuốt); mục tài chính vượt ngưỡng cần xác thực lại (WebAuthn nếu thiết bị hỗ trợ, nếu không thì mật khẩu).
 - **Ngoại tuyến:** ảnh chụp và cập nhật task xếp hàng, nhãn "chưa đồng bộ", tự gửi khi có mạng.
 - Các màn khác trên mobile ở chế độ chỉ đọc; cấu hình, Review song song đầy đủ, quản trị chỉ trên desktop.
+
+### 4.12. SCR-29 — Phê duyệt (Approval queue — DEC-153, DEC-155)
+
+**Mục đích:** "Quyết định nào đang chờ tôi?" (US-CEO-006, FR-DSH-10). Hàng chờ `ENT-ApprovalRequest` của người dùng + tab cấu hình `ENT-ApprovalRule` cho ADMIN. Không phải workflow engine (01 §3 OUT).
+
+**Role:** ROLE-01, 02, 04, 08 duyệt (theo `platform:approve` và phạm vi 02 §5.3); ROLE-10 chỉ tab Quy tắc (`platform:admin`), không thấy payload nghiệp vụ; người tạo request thấy request của mình (tab "Tôi gửi").
+
+```
+Desktop ≥ 1280 px
+┌ Sidebar ┬──────────────────────────────────────────────┬────────────────────────────┐
+│         │ Phê duyệt   [Chờ tôi (5)] [Tôi gửi] [Đã xử lý] [Quy tắc*] │ Chi tiết request   │
+│         │ Lọc: loại ▾  trạng thái ▾  quá SLA ☐          │ Chi phí marketing Q4       │
+│         │ ┌──────────────────────────────────────────┐ │ 620.000.000 đ · bước 1/2   │
+│         │ │⚠ Chi phí marketing Q4  620 tr  1/2  còn 2h│◄┤ Người gửi: Trần B · 18/10  │
+│         │ │  Tuyển 3 Sales HN      —      1/1  còn 6h│ │ Thay đổi đề xuất (diff)    │
+│         │ │✦ AI soạn: gia hạn HĐ   80 tr   1/1  quá 1h│ │ Nguồn: [SourceChip]…       │
+│         │ └──────────────────────────────────────────┘ │ Lịch sử: tạo → bước 1 …    │
+│         │                                              │ Bình luận ________________ │
+│         │                                              │ [Từ chối…]   [Duyệt]       │
+└─────────┴──────────────────────────────────────────────┴────────────────────────────┘
+* tab Quy tắc chỉ hiện với platform:admin
+```
+
+| Thành phần | Chi tiết |
+|---|---|
+| `ApprovalList` | Hàng: tiêu đề, giá trị (`1,2 tỷ`), bước `1/2`, `SlaBadge` (còn/quá hạn theo `due_at`), nhãn **"AI soạn"** nếu `ai_action_id` có giá trị; sắp quá SLA trước |
+| `ApprovalDetail` | Payload dạng diff (trước/sau, mask mức 4), `SourceChip` tới bản ghi/tài liệu, dòng thời gian bước 1 → bước 2 → escalation |
+| `ApprovalActions` | **Duyệt** / **Từ chối** (lý do bắt buộc, ≥ 10 ký tự) / **Bình luận**; tài chính > `APPROVAL_FINANCE_THRESHOLD_VND` (mặc định 500.000.000 đ — DEC-155) hiện "Cần 2 người duyệt"; người đã duyệt bước 1 hoặc người gửi **không** thấy nút ở bước 2 |
+| `ApprovalRuleEditor` (tab Quy tắc) | Bảng rule: đối tượng, điều kiện đơn (field · op · giá trị), role bước 1/2, SLA giờ, escalate tới; không biểu thức tự do |
+| Xác nhận | Duyệt tài chính vượt ngưỡng: hộp thoại tóm tắt + nhập lại mật khẩu/WebAuthn (OQ-04); tool APPROVAL của AI **không** tự bấm (02 §7.3) |
+
+| Trạng thái | Hiển thị |
+|---|---|
+| Loading | Skeleton 5 hàng + khung chi tiết |
+| Empty | "Không có yêu cầu nào chờ bạn" + link tab "Đã xử lý" |
+| Error | `WidgetError` tại danh sách; duyệt lỗi `409 CONFLICT_STATE` (người khác đã xử lý) → toast + tải lại hàng |
+| Success | Toast "Đã duyệt · bước 2 chuyển cho CFO" hoặc "Đã từ chối"; hàng rời tab Chờ tôi |
+
+**Responsive:** desktop chia 60/40 danh sách–chi tiết · tablet (768–1279) danh sách toàn chiều rộng, chi tiết mở `Sheet` phải · mobile < 768 (SCR-28 tab "Duyệt") `ApprovalCard` xếp dọc, nút Duyệt/Từ chối cố định đáy, vùng chạm ≥ 44 px.
+**A11y:** danh sách là `role="list"`, SLA đọc thành chữ ("quá hạn 1 giờ"); diff có nhãn "trước/sau" không chỉ bằng màu; focus chuyển vào chi tiết khi chọn hàng; phím `J/K` hàng kế/trước, `A` duyệt, `R` từ chối (mở hộp lý do).
+**EP:** danh sách, chi tiết, duyệt, từ chối, CRUD rule — **EP mới dải EP-120..129, thêm ở 3d** (10); sự kiện `EVT-platform.approval_requested` / `EVT-platform.approval_decided` → badge sidebar + `ENT-Notification`.
+
+### 4.13. SCR-30 — Báo cáo (DEC-153)
+
+**Mục đích:** tạo, xem và tải báo cáo điều hành (US-RPT-001, US-RPT-002, US-RPT-005; FR-DSH-09). Nguồn số = `ENT-MetricValue` (snapshot `metric_snapshot`) + insight có nguồn; không BI tự do.
+
+**Role:** ROLE-01 (công ty), ROLE-02/03/04/06/07 (trụ của mình), ROLE-08 (phòng ban); nội dung lọc theo scope người yêu cầu (02 §6). ROLE-05, 09, 10 không thấy mục này.
+
+```
+Desktop ≥ 1280 px
+┌ Sidebar ┬──────────────────────────────────────────────────────────────────┐
+│         │ Báo cáo                                         [+ Tạo báo cáo]  │
+│         │ ┌ Tạo báo cáo ───────────────────────────────────────────────┐  │
+│         │ │ Mẫu:  (•) Tuần  ( ) Tháng  ( ) HĐQT (mẫu tháng mở rộng)    │  │
+│         │ │ Kỳ:   [2026-W42 ▾]   Phạm vi: [Công ty ▾]                   │  │
+│         │ │ Định dạng: ☑ PDF  ☑ Excel     Kèm tóm tắt AI ☑              │  │
+│         │ │                                              [Tạo]         │  │
+│         │ └────────────────────────────────────────────────────────────┘  │
+│         │ Lịch sử                                                         │
+│         │ Kỳ        Mẫu   Phạm vi   Định dạng  Trạng thái     Tải         │
+│         │ 2026-09   Tháng Công ty   PDF·XLSX   ● Sẵn sàng     ⬇ ⬇        │
+│         │ 2026-W42  Tuần  Sales     PDF        ◌ Đang tạo…               │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+```
+
+| Thành phần | Chi tiết |
+|---|---|
+| `ReportForm` | Mẫu **Tuần / Tháng / HĐQT**; kỳ (`period_key` `2026-W42` / `2026-09`); phạm vi `company` hoặc phòng ban; định dạng **PDF + Excel**; tùy chọn tóm tắt AI (insight có `SourceChip`) |
+| `ReportList` | Bảng lịch sử, `StatusIcon` theo `QUEUED → GENERATING → READY / FAILED`, nút tải (presigned URL ≤ 15 phút), nhãn "Tự động" cho báo cáo do job định kỳ |
+| `ReportPreview` | Xem trước trang 1 PDF; mỗi số trong bản xem trước có link về SCR-07 (P01) |
+
+Ghi chú phạm vi: **báo cáo ngày** = Briefing SCR-01 (không trùng mẫu); **HĐQT** là mẫu tháng mở rộng (thêm 5 trụ + quyết định lớn + rủi ro top), dùng cùng `report_kind = MONTHLY` — đề xuất ở OQ-08; **Word (.docx)** không có trong DEC-153 (PDF + Excel) → OQ-08.
+
+| Trạng thái | Hiển thị |
+|---|---|
+| Loading | Skeleton bảng; sau khi bấm Tạo: hàng mới `◌ Đang tạo…` cập nhật qua polling 5 giây hoặc thông báo `EVT-platform.report_generated` |
+| Empty | "Chưa có báo cáo nào · Tạo báo cáo tuần đầu tiên" |
+| Error | Hàng `FAILED` + lý do + "Thử lại"; kỳ chưa có dữ liệu → cảnh báo trước khi tạo ("Tuần 42 thiếu dữ liệu trụ U") |
+| Success | Toast "Báo cáo tháng 9 đã sẵn sàng · Tải PDF" |
+
+**Responsive:** desktop form + bảng · tablet form thu gọn thành nút mở `Sheet` · mobile < 768: chỉ xem danh sách và tải (tạo báo cáo ở desktop, theo §1.3 quyết định 6).
+**A11y:** radio mẫu/định dạng có nhãn; trạng thái tạo thông báo qua `aria-live="polite"`; link tải ghi rõ định dạng và dung lượng.
+**EP:** tạo, liệt kê, tải báo cáo — **EP mới dải EP-120..129, thêm ở 3d** (10); `TOOL-generate_report` cho phép tạo từ chat (L2 — action card).
+
+### 4.14. SCR-31 — Dòng tiền 13 tuần (DEC-148)
+
+**Mục đích:** CFO xem dòng tiền vào/ra 13 tuần tới, tuần chạm đáy và tác động của hóa đơn mới (US-FIN-003, UC-08). Nguồn `ENT-CashFlowForecast` + `ENT-CashFlowForecastLine` (05); AI đọc qua `TOOL-get_cash_flow_forecast`.
+
+**Role:** ROLE-01, ROLE-02 (đầy đủ); ROLE-08 không thấy (lương tổng hợp vẫn là dữ liệu tài chính công ty).
+
+```
+Desktop ≥ 1280 px
+┌ Sidebar ┬──────────────────────────────────────────────────────────────────┐
+│         │ Dòng tiền 13 tuần  · cập nhật 06:45 [FreshnessBadge]  [Tính lại] │
+│         │ Đầu kỳ 18,4 tỷ │ Đáy 3,1 tỷ (tuần 7) ⚠ │ Cuối kỳ 9,8 tỷ │ ◐ TB   │
+│         │ ┌ Biểu đồ: cột vào/ra theo tuần + đường số dư cuối tuần ───────┐ │
+│         │ │ ▇▇ ▇▇ ▇▇ ...                ─── ngưỡng an toàn ─ ─ ─ ─ ─   │ │
+│         │ └──────────────────────────────────────────────────────────────┘ │
+│         │ Tuần │ Thu công nợ │ Thu khác │ Trả NCC │ Lương │ Opex │ Ròng │ Số dư │
+│         │  W43 │  4,2 tỷ     │  0,3 tỷ  │ 2,1 tỷ  │ 3,0   │ 0,8  │ −1,4 │ 17,0  │
+│         │ Giả định: thu đúng hạn 85% · chi cố định … [Sửa giả định]       │
+│         │ [AI] "Tuần 7 chạm đáy do 3 hóa đơn NCC đến hạn…" [SourceChip]   │
+└─────────┴──────────────────────────────────────────────────────────────────┘
+```
+
+| Thành phần | Chi tiết |
+|---|---|
+| `CashFlowSummary` | 4 ô: tiền đầu kỳ, đáy + tuần chạm đáy, cuối kỳ, `ConfidenceBadge` (`confidence_level`); đáy dưới ngưỡng → `StatusIcon` warning/critical |
+| `CashFlowChart` (Recharts) | Cột chồng vào/ra theo tuần + đường `closing_cash`; có **bảng thay thế** cho screen reader |
+| `CashFlowTable` | 13 hàng × nhóm thu/chi; ô bấm được → danh sách hóa đơn/khoản chi nguồn (SCR-07/SCR-22); lương chỉ hiện tổng (không lương cá nhân) |
+| `AssumptionPanel` | Giả định (`assumptions`) — CFO sửa → tạo bản dự báo mới (`is_current`), bản cũ giữ lịch sử |
+| `InsightCard` | Nhận định AI L0 có nguồn; "Mô phỏng nếu khách X trả trễ 2 tuần" → mở `WhatIfPanel` |
+
+| Trạng thái | Hiển thị |
+|---|---|
+| Loading | Skeleton 4 ô + khung biểu đồ + 13 hàng |
+| Empty | "Chưa có số dư tiền mặt · Nhập số dư hoặc gửi sao kê/BCTC" (chỉ đường C1/C3) |
+| Error | `WidgetError` từng khối (biểu đồ lỗi không ảnh hưởng bảng) |
+| Stale | `FreshnessBadge` stale khi dự báo cũ hơn hóa đơn mới nhất → nút "Tính lại" nổi bật |
+| Success | Sau "Tính lại": toast "Đã cập nhật dự báo · đáy mới 3,1 tỷ (tuần 7)" |
+
+**Responsive:** desktop đầy đủ · tablet biểu đồ trên, bảng cuộn ngang trong khung (cột Tuần cố định) · mobile < 768: chỉ 4 ô tóm tắt + biểu đồ đơn giản (số dư cuối tuần), bảng chi tiết ở desktop.
+**A11y:** màu thu/chi kèm ký hiệu `+`/`−` và nhãn; số âm hiển thị dấu `−` (không chỉ màu đỏ); biểu đồ có `aria-describedby` tóm tắt đáy.
+**EP:** đọc dự báo hiện hành + dòng, tính lại, sửa giả định — **EP mới (dải EP-120..129 hoặc dải finance nếu còn), thêm ở 3d** (10); `EVT-finance.cash_flow_forecast_updated` → làm mới màn hình.
+
+### 4.15. SCR-18 — Upload transcript họp (mock — UC-02, GAP C-13)
+
+Không phải màn hình mới: luồng con của SCR-18 (00 §4: "Họp, biên bản & transcript → việc"). v2.0 không có bot Meet/Zoom/Teams (DEC-153).
+
+```
+┌ Cuộc họp: Giao ban tuần 42 ─────────────────────────────────────────────┐
+│ [Tải biên bản] [Tải transcript .txt/.vtt/.docx]                          │
+│ ☑ Tôi xác nhận đã có đồng ý ghi âm của người tham dự (NĐ 13/2023)        │
+│ ── Kết quả AI (AI soạn) ───────────────────────────────────────────────  │
+│ Tóm tắt │ Quyết định (4) │ Việc cần làm (7) │ Rủi ro/Vấn đề/Cam kết (3)  │
+│ Việc            Người        Hạn          Nguồn                          │
+│ Báo giá ABC     [Lan ▾] ✓    25/10/2026   "…Lan gửi báo giá thứ Sáu" ⧉   │
+│ Rà hợp đồng     [?  ▾]  ⚠    [cần xác nhận hạn]  "…sớm nhé…" ⧉            │
+│                                  [Giao việc (ActionCard L2)]             │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+| Bước | Hành vi |
+|---|---|
+| Upload | Checkbox consent bắt buộc trước khi nút Tải bật; file > 50 MB hoặc định dạng khác → lỗi tại chỗ |
+| Trích xuất | Hiện `ThinkingState` theo trạng thái pipeline (04 §8); kết quả 4 tab, nhãn **"AI soạn"** |
+| Gán owner | Dropdown nhân viên đã khớp danh bạ (XD-03); không khớp → `⚠` bắt buộc chọn |
+| Hạn mơ hồ | Ô hạn trống + nhãn "cần xác nhận hạn" — chặn "Giao việc" tới khi điền hoặc bỏ dòng |
+| Xác nhận | "Giao việc" → `ActionCard` L2 tóm tắt N task / M quyết định / K rủi ro `proposed` → Xác nhận → `UndoToast` |
+
+**Trạng thái:** loading (skeleton bảng + bước pipeline) · empty ("Chưa có biên bản/transcript") · error (transcript `FAILED` → "Nhập biên bản tay") · success (toast "Đã giao 7 việc · Hoàn tác"). **Responsive:** mobile chỉ xem + xác nhận từng việc (không upload). **A11y:** trích đoạn nguồn đọc được bằng screen reader; nhãn "?" có `aria-label` "chưa khớp nhân viên". **EP:** EP-20 (upload, `doc_type_hint = MEETING_MINUTES`), EP-25/EP-26 (kết quả), EP-30/EP-31 (sửa/duyệt) — đã có ở 10; trường consent trên EP-20 **thêm ở 3d**.
 
 ---
 
@@ -512,7 +688,7 @@ Người dùng đổi trong menu avatar; lưu theo tài khoản.
 | Cơ bản | Button, Input, Select, DatePicker, `CurrencyInput` (VNĐ), Tabs, Menu, Dialog, Toast, Avatar, Badge, `MaskedValue` |
 | Dữ liệu | `DataTable` (sắp xếp, lọc, sửa trực tiếp, chọn nhiều), `MetricCard`, `PillarCard`, Sparkline, `WorkloadHeatmap`, `RiskHeatmap`, Timeline/Gantt, `GoalTree`, `LineagePopover` |
 | AI | §5.1 |
-| Nhập liệu | `GlobalDropZone`, `UploadProgressCard`, `DocumentViewer` (vùng tô), `ExtractedFieldForm`, `CameraCapture`, `VoiceInput`, `NaturalInput`, `ImportMappingGrid` |
+| Nhập liệu | `GlobalDropZone`, `UploadProgressCard`, `DocumentViewer` (vùng tô), `ExtractedFieldForm`, `CameraCapture`, `VoiceInput` (ghi âm/tải WAV — v2.0 mock STT), `TranscriptUpload`, `NaturalInput`, `ImportMappingGrid` |
 | Trạng thái | `Skeleton`, `EmptyState`, `WidgetError`, `PageError`, `ForbiddenState`, `OfflineBanner` |
 | Điều hướng | Sidebar thu gọn, Breadcrumb nghiệp vụ, `MobileTabBar`, `RoleSwitcher` (demo), `LocaleSwitcher` |
 
@@ -578,7 +754,7 @@ Theo mức nhạy cảm và ma trận quyền ở 02:
 | 768–1279 px | Tablet, laptop nhỏ | Sidebar thu thành biểu tượng · Panel AI phủ lên nội dung (Sheet); SCR-10 vẫn chia đôi nếu ≥ 1024 px |
 | < 768 px | Điện thoại | SCR-28: tab bar dưới, 4 việc cốt lõi; màn khác chỉ đọc; SCR-10 chuyển tab "Tài liệu / Trường" |
 
-Màn ≥ 1280 px không cuộn ngang (NFR usability).
+Màn ≥ 1280 px không cuộn ngang (NFR usability). Ba nhóm kiểm thử chuẩn cho mọi màn hình mới: **mobile < 768 · tablet 768–1279 · desktop ≥ 1280** (SCR-29..31 theo §4.12–4.14).
 
 ### 9.2. PWA
 
@@ -592,16 +768,17 @@ Màn ≥ 1280 px không cuộn ngang (NFR usability).
 
 | Yêu cầu | Chi tiết |
 |---|---|
-| Tương phản | Chữ ≥ 4,5:1; chữ lớn và thành phần UI ≥ 3:1 — kiểm mọi token §7.2 ở cả sáng và tối |
+| Tương phản | Chữ ≥ 4,5:1; chữ lớn (≥ 18,66 px đậm / 24 px) và thành phần UI, focus ring, đường biểu đồ ≥ 3:1 — kiểm mọi token §7.2 ở cả sáng và tối; token `ai` (tím) trên nền trắng phải đạt 4,5:1 khi dùng làm chữ; CI chạy axe-core trong Playwright (không thêm dependency ngoài DEC — kiểm ở T-002) |
 | Không chỉ dựa vào màu | Trạng thái trụ/metric, confidence, trạng thái AI luôn có biểu tượng + chữ; kiểm với các dạng mù màu phổ biến |
 | Bàn phím | Mọi thao tác dùng được bằng bàn phím; focus ring rõ (`primary`); phím tắt có trang tra cứu (`?`); ⌘K/Ctrl+K toàn cục |
 | Screen reader | Radix giữ ARIA; `MetricCard` có `aria-label` đầy đủ ("Doanh thu tháng 9, 7,6 tỷ, 84,4% kế hoạch, cảnh báo"); biểu đồ có bảng thay thế |
 | Streaming AI | Câu trả lời đang truyền dần được thông báo **khi hoàn tất**, không đọc từng token (`aria-live="polite"` trên vùng kết quả cuối) |
 | Live region | Toast, tiến trình upload/UC-07, chuyển role dùng `aria-live="polite"` |
 | Thời gian | `UndoToast` 10 giây, tạm dừng khi hover/focus |
-| Chạm | Vùng chạm ≥ 44 × 44 px trên mobile; không dùng vuốt làm cách duy nhất |
+| Chạm | Vùng chạm ≥ 44 × 44 px trên mobile (WCAG 2.5.5 AAA áp làm chuẩn nội bộ; tối thiểu 24 × 24 px theo 2.5.8 ở desktop); khoảng cách giữa 2 nút ≥ 8 px; không dùng vuốt làm cách duy nhất |
 | Chuyển động | Tôn trọng `prefers-reduced-motion` |
 | Ngôn ngữ | `<html lang="vi">` / `"en"` theo locale |
+| Thông báo chờ | TTFT > 5 s và báo cáo đang tạo thông báo qua `aria-live="polite"` một lần, không lặp |
 
 ---
 
@@ -618,6 +795,9 @@ Màn ≥ 1280 px không cuộn ngang (NFR usability).
 | Tỷ lệ hoàn tác hành động L3 | ≤ 5% | Feed SCR-17 |
 | Tỷ lệ câu trả lời AI được mở nguồn | Theo dõi, không đặt ngưỡng | Log `SourceChip` |
 | Drill-down số → tài liệu gốc | ≤ 3 click | Log UI |
+| TTFT chat (DEC-152) | p50 ≤ 2 s, p95 ≤ 5 s | Đo `first_token_at − sent_at` phía client + log SSE |
+| Tải màn hình dashboard | p95 < 800 ms API (03 NFR-dashboard-1); LCP ≤ 2,5 s, INP ≤ 200 ms (desktop, mạng văn phòng) | Web Vitals + log API |
+| Tạo báo cáo (SCR-30) | READY ≤ 60 giây cho báo cáo công ty | `generated_at − created_at` |
 
 Chỉ số L2/L3 là căn cứ để nâng hoặc hạ autonomy từng loại hành động (SCR-15).
 
@@ -650,9 +830,11 @@ Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY
 | OQ-02 | Briefing và duyệt có đẩy qua Zalo/Slack/Teams không? | Không trong v2 (C7 là Phase 2); chỉ in-app + push PWA |
 | OQ-03 | AI xưng hô "anh/chị" hay "bạn" với nhân viên? | Mặc định "bạn"; "anh/chị" theo hồ sơ; Admin cấu hình |
 | OQ-04 | Xác thực lại khi duyệt tài chính vượt ngưỡng trên mobile: WebAuthn có cần DEC dependency không? | Dùng Web API chuẩn (không thêm dependency); fallback nhập lại mật khẩu |
-| OQ-05 | `VoiceInput` (C2 bằng giọng nói) dùng Web Speech API của trình duyệt hay STT phía server qua ModelGateway? | Web Speech API cho demo (VI hỗ trợ trên Chrome); STT server là Phase 2 |
+| OQ-05 | ✅ **DEC-153** — `VoiceInput` v2.0 gửi audio/WAV qua EP-22, ModelGateway `stt` chạy **mock** (fixture); STT thật v2.1. Câu hỏi gốc: Web Speech API hay STT server? | — |
 | OQ-06 | Người dùng thử cho usability test (≥ 2 người mỗi persona) là ai? | Human chỉ định trước S5 |
 | OQ-07 | SCR-27 (cấu hình doc type/schema) là Should — nếu cắt, ADMIN chỉnh ngưỡng ở đâu? | Giữ tối thiểu slider ngưỡng trong SCR-15 nếu SCR-27 bị dời |
+| OQ-08 | SCR-30: mẫu HĐQT và xuất Word (.docx) — DEC-153 chỉ có weekly/monthly PDF + Excel | HĐQT = mẫu tháng mở rộng (`MONTHLY`); Word hoãn v2.1; báo cáo ngày = Briefing SCR-01 |
+| OQ-09 | SCR-31 có cần cho ROLE-08 xem dòng tiền phòng ban? | Không ở v2.0 (chỉ CEO, CFO) |
 
 ---
 
@@ -667,7 +849,7 @@ Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY
 | IDP, review, Action Registry, autonomy | `04-IDP-FEATURE-SPEC.md` |
 | Stack FE, ModelGateway, fixture mode | `07-TECH-ARCHITECTURE.md` |
 | Tài khoản và tài liệu demo | `08-DEMO-DATA-SPEC.md` |
-| Task FE (T-142, T-143, T-224..227, T-320..323, T-410..413, T-501..506, T-520) | `09-BUILD-PLAN-TASKS.md` |
+| Task FE (T-142, T-143, T-224..227, T-320..323, T-410..413, T-501..506, T-520; task SCR-29..31 bổ sung ở 3d) | `09-BUILD-PLAN-TASKS.md` |
 | Endpoint, SSE event | `10-API-SPECIFICATION.md` |
 | Test UI/E2E | `14-TEST-TRACEABILITY.md` |
 
@@ -675,8 +857,10 @@ Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY
 
 ## 15. Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3c)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
-- **Change:** Viết lại toàn bộ theo DEC-124..137 — 28 màn hình, AI components, F1–F5, design system v2 (v1.0.0 lưu ở nhánh `v1`).
+- **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-151..153, DEC-155):** 31 màn hình — thêm **SCR-29 Phê duyệt**, **SCR-30 Báo cáo**, **SCR-31 Dòng tiền 13 tuần** (wireframe, component, 4 trạng thái, responsive 3 điểm ngắt, a11y, EP) theo đúng 00 §4 (human chọn giữ số 00, 2026-10-20); luồng con upload transcript mock trong SCR-18 (§4.15, GAP C-13); SCR-10 "Chấp nhận tất cả HIGH" (B-20), lý do sửa trường tài chính, trường checkbox/chữ ký/viết tay, chuyển/gộp/SLA, OUT bulk grid; preview 50 dòng (B-19); TTFT skeleton → thinking → stream (D-31, DEC-152); chỉ số p95/LCP/INP (D-33); touch target + tương phản chi tiết (D-34); sidebar/route mới; OQ-05 đóng, OQ-08/09 mới.
+- **Change 2.0.0:** Viết lại toàn bộ theo DEC-124..137 — 28 màn hình, AI components, F1–F5, design system v2 (v1.0.0 lưu ở nhánh `v1`).
