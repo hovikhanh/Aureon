@@ -1020,7 +1020,7 @@ Chuỗi BRD-P06: Strategy (Objective cấp `company`) → **Initiative** → Pro
 | weight_pct | numeric(7,4) | N | CK 0–100 | Trong Objective |
 | budget_amount / currency | bigint / char(3) | Y | | |
 
-Index FK/SR, `(status, planned_end_date)`. Nguồn METRIC-RSK-06 SEI = % initiative `active` đúng tiến độ (GAP C-02 — công thức ở 03, Phase 3b).
+Index FK/SR, `(status, planned_end_date)`. Nguồn METRIC-RSK-06 SEI = % initiative `active`/`at_risk` đúng tiến độ, trọng số `weight_pct` (GAP C-02 — công thức 03 §2.5).
 
 #### ENT-Milestone — `execution.milestones` (mới v2.1 — DEC-147, GAP C-10)
 
@@ -1113,7 +1113,7 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 | severity | platform.alert_severity | Y | | |
 | confidence | platform.confidence_band | N | | |
 | sources | jsonb | N | | Bắt buộc ≥ 1 nguồn (grounding) |
-| structured | jsonb | Y | | **v2.1 — insight 9 phần (DEC-149, BRD AI-R04):** `{finding, evidence, root_cause, impact, recommendation, confidence, alternatives, owner_suggestion, next_action}`; bắt buộc với `kind ∈ (anomaly, risk, recommendation)` |
+| structured | jsonb | Y | | **v2.1 — insight 9 phần (DEC-149, BRD AI-R04):** `{root_cause, risk, expected_outcome, action, evidence, confidence, alternatives, timeline, owner}` (03 §7.1; Observation = `title`/`body` — Phase 3b đổi từ `finding, impact, recommendation, owner_suggestion, next_action`); bắt buộc với `kind ∈ (anomaly, risk, recommendation)` |
 | decision_id | uuid | Y | SR → execution.decisions | Khi insight được chuyển thành quyết định (BRD-P05) |
 | trigger_event_id | uuid | Y | | Event gây sinh |
 | audience_roles | auth.role_code[] | N | | Lọc theo quyền khi hiển thị |
@@ -1141,6 +1141,7 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 | executed_at | timestamptz | Y | | |
 | undo_deadline | timestamptz | Y | | L3 = `executed_at + 24h`; IDP = `+7 ngày` (DEC-134) |
 | undone_at / undone_by | timestamptz / uuid | Y | | |
+| verification | jsonb | Y | | v2.1 (03 §7.3, AI-R10): `{expected_outcome, checks: [{at, result, actual, checked_at}]}`; `at` ∈ 24h / 7d; `result` ∈ met / partially_met / not_met / not_measurable; chỉ L2+ đã `executed` |
 
 Index: SR; `(status, undo_deadline)`. Nguồn feed SCR-17.
 
@@ -1387,7 +1388,7 @@ Index `(source_document_id, is_current)`, `(to_user_id, due_at) WHERE is_current
 | formula_ref | text | N | | Tham chiếu công thức 03 |
 | refresh_events | text[] | N | | `EVT-*` kích hoạt tính lại |
 
-Seed **32** bản ghi; không `deleted_at`. METRIC-DQ-01 (DQ Score 0–100): `unit = SCORE`, `direction = LOWER_IS_BAD`, `source_module = platform`, `scope_type` ∈ (`company`, `department`); tính từ `idp.import_batches.quality_score` + tỷ lệ bản ghi thiếu/lỗi validate (công thức ở 03, Phase 3b). Không có bảng `DQScore` riêng (DEC-148).
+Seed **32** bản ghi; không `deleted_at`. METRIC-DQ-01 (DQ Score 0–100): `unit = SCORE`, `direction = LOWER_IS_BAD`, `source_module = platform`, `scope_type` ∈ (`company`, `department`); công thức `completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`, warning < 80, critical < 60 (03 §2.6). Không có bảng `DQScore` riêng (DEC-148).
 
 #### ENT-MetricValue — `platform.metric_values`
 
@@ -1951,3 +1952,4 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 | 12 | Insight 9 phần (`structured`); audit `why`/`approval`/`agent`/`autonomy`/`confidence`; kill switch theo agent; 4 mức `data_classification` ↔ mức cột (§10) | DEC-149 |
 | 13 | Event mới: `finance.invoice_created`, `finance.cash_flow_forecast_updated`, `risk.risk_proposed`, `platform.approval_requested`, `platform.approval_decided`, `platform.report_generated`, `idp.review_escalated` (00 §4.5) | DEC-148, 151, 153 |
 | 14 | ERD tổng thể vẽ lại cho 10 schema / 79 bảng; §7 lineage và §8 metric ↔ entity cập nhật bảng mới (32 metric) | — |
+| 15 | **Phase 3b:** ENT-Insight `structured` đổi key theo 9 phần 03 §7.1; ENT-AIAction thêm `verification` (03 §7.3); trỏ công thức METRIC-DQ-01 (03 §2.6), SEI (03 §2.5) | DEC-148, DEC-149 |

@@ -1,7 +1,7 @@
 # 03 — Dashboard Spec (Executive Dashboard F.O.C.U.S & Domain modules)
 
-> Đặc tả **5 trụ F.O.C.U.S**, **31 metric**, **31 alert**, quy tắc trạng thái trụ, business rules (BR), yêu cầu chức năng của các module domain (Finance, Sales, HR, Product, Risk), dashboard, insight, Briefing CEO và thông báo.
-> Nguồn: A-EMS (`SOURCE-BRD-v1.0` §II.2–II.9, §III.3, §III.5, §IV), AI-EOS (`SOURCE-BRD-v1.1` §4.1, §4.2, §4.3), UI/UX AI-EOS; quyết định DEC-125, DEC-126, DEC-127, DEC-132.
+> Đặc tả **5 trụ F.O.C.U.S**, **32 metric** (31 metric trụ + METRIC-DQ-01), **32 alert**, quy tắc trạng thái trụ, business rules (BR), yêu cầu chức năng của các module domain (Finance, Sales, HR, Product, Risk), dashboard, insight, Briefing CEO và thông báo.
+> **Canonical Source (DEC-144):** `_reference/SOURCE-BRD-v1.1.md` §2.3 (AI-R01..R12), §7.1 (FR-STR-04 SEI), §11.7 (FR-AIQ-01 grounding), §11.8 (cấu trúc insight), §12.2 (Daily Briefing), §5.2 (FR-ADM-05 phân loại). Kế thừa A-EMS (`SOURCE-BRD-v1.0` §II.2–II.9, §III.3, §III.5, §IV), UI/UX AI-EOS. Quyết định: DEC-125, DEC-126, DEC-127, DEC-132, DEC-143, DEC-147 (Initiative), DEC-148 (DQ, risk `proposed`), DEC-149 (insight 9 phần, phân loại), DEC-152 (TTFT), DEC-154 (đổi tên cột).
 > Phụ thuộc: `01-PROJECT-OVERVIEW.md`, `02-PERSONAS-PERMISSIONS.md`. ID theo registry `00-INDEX.md` §4. Endpoint do `10-API-SPECIFICATION.md` sở hữu — file này không dùng số EP.
 
 ---
@@ -16,10 +16,12 @@
 | **PIL-O** | Operations & People | "Có đủ người và vận hành có ổn không?" | METRIC-OPS-01..03, METRIC-HR-01..04 (7) | `execution`, `hr` | CEO, HR_MANAGER |
 | **PIL-C** | Customer & Growth | "Có đang giành và giữ được khách hàng không?" | METRIC-CUS-01..06 (6) | `sales`, `finance` (hóa đơn), `product` (NPS) | CEO, VP_SALES |
 | **PIL-U** | Product & Innovation | "Sản phẩm có đang tiến lên và được dùng thật không?" | METRIC-PRD-01..05 (5) | `product` | CEO, CPO |
-| **PIL-S** | Strategy & Risk | "Điều gì có thể làm hỏng kế hoạch, và đã xử lý tới đâu?" | METRIC-RSK-01..06 (6) | `risk`, `execution` (OKR) | CEO, CFO, RISK_MANAGER |
+| **PIL-S** | Strategy & Risk | "Điều gì có thể làm hỏng kế hoạch, và đã xử lý tới đâu?" | METRIC-RSK-01..06 (6) | `risk`, `execution` (Initiative) | CEO, CFO, RISK_MANAGER |
 | | | | **31** | | |
+| *(nền tảng)* | Data Quality | "Dữ liệu có đáng tin để quyết định không?" | METRIC-DQ-01 (1) | `platform` (+ `idp`) | Mọi role có `dashboard:read` (theo scope) |
+| | | | **32** | | |
 
-Mỗi metric có đúng **một** alert cùng số (`ALERT-FIN-03` ↔ `METRIC-FIN-03`) — §3.
+Mỗi metric có đúng **một** alert cùng số (`ALERT-FIN-03` ↔ `METRIC-FIN-03`, `ALERT-DQ-01` ↔ `METRIC-DQ-01`) — §3 → **32 alert**. METRIC-DQ-01 không thuộc trụ và **không** tham gia quy tắc trạng thái trụ (§4); hiển thị ở dải "Độ tin cậy dữ liệu" trên Dashboard và trên từng metric.
 
 ### 1.2. Luồng dữ liệu vào dashboard
 
@@ -51,13 +53,14 @@ UI: thẻ trụ, chi tiết metric (SCR-07), lineage tới trang tài liệu (P0
 | Hướng | `↑` = càng cao càng tốt (vi phạm khi **thấp hơn** ngưỡng); `↓` = càng thấp càng tốt (vi phạm khi **cao hơn** ngưỡng) |
 | Trạng thái metric | `ok` / `warning` / `critical` / `no_data` (thiếu dữ liệu đầu vào hoặc mẫu số = 0) |
 | Độ tươi | Mỗi `ENT-MetricValue` có `computed_at` và `source_updated_at`; quá `FRESHNESS_STALE_DAYS` (mặc định 7 ngày cho metric tháng, 2 ngày cho metric ngày) → nhãn "dữ liệu cũ" (AI-EOS §4.1) |
-| Chất lượng dữ liệu | `data_quality_pct` = bản ghi kỳ có đủ trường bắt buộc / bản ghi kỳ vọng; < `DATA_QUALITY_WARN_PCT` (80) → nhãn chất lượng trên metric (vd. "Doanh thu T9 mới có 62% hóa đơn được nhập") |
+| Chất lượng dữ liệu | `data_quality_pct` của từng metric = thành phần **completeness** của METRIC-DQ-01 (§2.6) trên tập bản ghi cấu thành; một ngưỡng thống nhất với METRIC-DQ-01 (DEC-148): < 80 → nhãn "chất lượng thấp", < 60 → nhãn đỏ (vd. "Doanh thu T9 mới có 62% hóa đơn được nhập") |
+| Phân loại dữ liệu | Mỗi metric/insight mang `data_classification` cao nhất của bản ghi cấu thành (05 C19, §10); quyết định model AI được dùng (§7.4) |
 | "3 kỳ gần nhất" | 3 kỳ cùng loại liền trước kỳ đang xét, không gồm kỳ đang xét |
 | Biểu đồ | `kpi` (số lớn + delta), `line`, `bar`, `stacked-bar`, `gauge`, `heatmap`, `funnel`, `donut`; mặc định trend 12 kỳ |
 
 ---
 
-## 2. Đặc tả 31 metric
+## 2. Đặc tả 32 metric
 
 Ghi chú chung:
 - Theo DEC-125, module `platform` **không đọc bảng** của module khác: mỗi module domain cung cấp hàm tính (metric provider) qua service interface; `platform` lưu `ENT-Metric` (định nghĩa) và `ENT-MetricValue` (giá trị theo kỳ, kèm `source_record_refs` cho lineage `ENT-DataLineage`).
@@ -119,11 +122,30 @@ Ghi chú chung:
 | METRIC-RSK-03 | Rủi ro high > 30 ngày không có mitigation | `COUNT(Risk level ≥ high, mở > 30 ngày, không có Mitigation status=in_progress)` | số rủi ro | ENT-Risk, ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 (A-EMS) | ≥ 1 rủi ro `critical` thỏa điều kiện | `kpi` + danh sách |
 | METRIC-RSK-04 | Điểm rủi ro tổng hợp | `risk_index = SUM(risk_score của rủi ro mở) / COUNT(rủi ro mở)` (thang 1–25); trend theo tuần | điểm (1 số thập phân) | ENT-Risk, ENT-RiskAssessment | Mọi `EVT-risk.*` | ↓ | ≥ 10 (10–< 15; OK < 10 — DEC-143) | ≥ 15 | `line` + `heatmap` |
 | METRIC-RSK-05 | Biện pháp quá hạn | `COUNT(Mitigation status ∈ {planned, in_progress}, due_date < hôm nay)` | số biện pháp | ENT-Mitigation | Cập nhật Mitigation; job hằng ngày | ↓ | ≥ 1 | ≥ 5, hoặc ≥ 1 thuộc rủi ro `critical` | `kpi` + danh sách |
-| METRIC-RSK-06 | Strategy execution index | `sei_pct = Σ(Objective.weight × on_track) / Σ(Objective.weight) × 100` cho Objective của kỳ; `on_track = 1` khi `progress_pct ≥ expected_progress_pct × 0,9`, với `progress_pct` = trung bình KR (KeyResult.current/target), `expected_progress_pct` nội suy theo thời gian kỳ | % | ENT-Objective, ENT-KeyResult, ENT-CheckIn | Check-in KR; `EVT-execution.kpi_measured`; job hằng tuần | ↑ | < 70 (AI-EOS §4.3) | < 50 | `gauge` + cây Objective → KR |
+| METRIC-RSK-06 | Strategy execution index (SEI) | **Theo Initiative (BRD FR-STR-04, GAP C-02, DEC-147):** `sei_pct = Σ(Initiative.weight_pct × on_track) / Σ(Initiative.weight_pct) × 100` trên Initiative `status ∈ {active, at_risk}` có kỳ giao với kỳ xét; `on_track = 1` khi `progress_pct ≥ expected_progress_pct × 0,9` (`SEI_ON_TRACK_RATIO`), `expected_progress_pct` nội suy tuyến tính `start_date → planned_end_date`; `progress_pct` từ Milestone/Task (05 ENT-Initiative). Σ trọng số = 0 → trọng số bằng nhau. Không có Initiative → `no_data` | % | ENT-Initiative, ENT-Milestone, ENT-Task, ENT-Objective | Cập nhật Task/Milestone/Initiative; `EVT-execution.kpi_measured`; job hằng tuần | ↑ | < 70 (AI-EOS §4.3) | < 50 | `gauge` + cây Objective → Initiative |
+
+### 2.6. Nền tảng — Data Quality (1) — DEC-148
+
+| ID | Tên | Công thức | Đơn vị | Nguồn entity | Tính lại khi | Hướng | Warning (mặc định) | Critical (mặc định) | Biểu đồ |
+|---|---|---|---|---|---|---|---|---|---|
+| METRIC-DQ-01 | Data Quality Score | **Trung bình có trọng số:** `dq_score = completeness × 0,3 + accuracy × 0,4 + freshness × 0,3` (thang 0–100, 1 số thập phân), tính theo `scope_type ∈ {company, department}` cho các domain cốt lõi (finance, sales, hr, product, risk, execution) trong kỳ | điểm 0–100 | ENT-MetricValue (`data_quality_score`), ENT-ImportBatch (`quality_score`), ENT-ExtractedField, bản ghi domain | `EVT-idp.document_committed` / `document_rolled_back`; ghi bản ghi domain; job hằng ngày 01:00 | ↑ | < 80 | < 60 | `gauge` + `bar` theo domain/phòng ban |
+
+Thành phần (mỗi thành phần 0–100):
+
+| Thành phần | Trọng số | Công thức | Ghi chú |
+|---|---|---|---|
+| `completeness` | 0,3 (`DQ_WEIGHT_COMPLETENESS`) | `bản ghi trong kỳ có đủ trường bắt buộc / tổng bản ghi trong kỳ × 100` | Trường bắt buộc theo schema entity (05) và ExtractionSchema (04) |
+| `accuracy` | 0,4 (`DQ_WEIGHT_ACCURACY`) | `(1 − (bản ghi lỗi validate nghiệp vụ + field IDP bị reviewer sửa/từ chối) / tổng bản ghi và field được kiểm) × 100` | Lỗi validate theo FR-DC-14; batch import dùng `ENT-ImportBatch.quality_score` |
+| `freshness` | 0,3 (`DQ_WEIGHT_FRESHNESS`) | `nguồn dữ liệu cập nhật đúng hạn / tổng nguồn × 100`; đúng hạn = `source_updated_at` trong SLA BO-02 (tài chính ≤ 24 giờ, task/sales ≤ 1 giờ, còn lại `FRESHNESS_STALE_DAYS`) | Dùng chung nhãn "dữ liệu cũ" §1.3 |
+
+- Trọng số là cấu hình, tổng phải bằng 1 (kiểm khi lưu). Ngưỡng `THR_DQ_01_WARN = 80`, `THR_DQ_01_CRIT = 60`; mục tiêu BO-09 ≥ 90 (01 §4.1).
+- Domain không có bản ghi trong kỳ bị loại khỏi trung bình (không kéo điểm về 0); mọi domain trống → `no_data`.
+- Lineage của METRIC-DQ-01 trỏ tới danh sách bản ghi thiếu trường / lỗi / nguồn quá hạn (P01).
+
 
 ---
 
-## 3. Đặc tả 31 alert
+## 3. Đặc tả 32 alert
 
 ### 3.1. Quy tắc chung
 
@@ -137,6 +159,7 @@ Ghi chú chung:
 | 6 | Người nhận = role có quyền xem trụ (02 §5.4) + cột "Nhận thêm"; kênh in-app (FR-NTF-01), email cho `critical` khi bật FR-NTF-02 |
 | 7 | Mỗi alert có link tới SCR-07 (chi tiết metric + lineage) và nút "Hỏi AI vì sao" (Panel AI với ngữ cảnh alert) |
 | 8 | Alert `critical` luôn xuất hiện trong Briefing (§7) cho tới khi acknowledged |
+| 9 | Rủi ro ở trạng thái `proposed` (tự sinh, chờ owner xác nhận — DEC-148) **không** sinh ALERT-RSK-01..05; chỉ hiện ở hàng chờ "Rủi ro đề xuất" của RISK_MANAGER/owner |
 
 ### 3.2. Bảng alert
 
@@ -172,7 +195,8 @@ Ghi chú chung:
 | ALERT-RSK-03 | METRIC-RSK-03 | S | Rủi ro ≥ `high` mở > 30 ngày không có mitigation `in_progress` | Như trên với `critical` | Owner rủi ro | Tạo biện pháp |
 | ALERT-RSK-04 | METRIC-RSK-04 | S | Điểm rủi ro TB ≥ 10 | ≥ 15 (DEC-143) | — | Heatmap |
 | ALERT-RSK-05 | METRIC-RSK-05 | S | ≥ 1 biện pháp quá hạn | ≥ 5 hoặc thuộc rủi ro `critical` | Owner biện pháp | Cập nhật tiến độ |
-| ALERT-RSK-06 | METRIC-RSK-06 | S | Strategy execution < 70% | < 50% | — | Objective lệch tiến độ |
+| ALERT-RSK-06 | METRIC-RSK-06 | S | SEI < 70% | < 50% | Owner Initiative trễ | Xem Initiative lệch tiến độ, tạo task gỡ |
+| ALERT-DQ-01 | METRIC-DQ-01 | — (nền tảng) | DQ Score < 80 | < 60 | ADMIN; người phụ trách domain có điểm thấp nhất | Mở danh sách bản ghi thiếu/lỗi/quá hạn, nạp lại dữ liệu (UC-07) |
 
 ---
 
@@ -187,6 +211,7 @@ Ghi chú chung:
 | `unavailable` | Module nguồn lỗi/timeout — chỉ thẻ trụ đó báo "Dịch vụ tạm thời không khả dụng" (FR-DSH-07) |
 
 Quy tắc phụ:
+- METRIC-DQ-01 không thuộc trụ nào nên không vào quy tắc trên; DQ < 60 hạ `confidence` của insight trụ liên quan (§7.1 #6).
 - Metric `no_data` không làm trụ xấu đi, nhưng được đếm và hiển thị "x/y chỉ số có dữ liệu".
 - Thẻ trụ hiển thị: trạng thái (biểu tượng ● ◐ ○ kèm màu — không dùng màu đơn thuần), KPI chính (metric đầu tiên của trụ, vd. METRIC-FIN-01), 2 metric xấu nhất, số alert mở, thời điểm cập nhật.
 - Trạng thái trụ được ghi lịch sử theo ngày để vẽ dải trạng thái 30 ngày.
@@ -204,7 +229,7 @@ Quy tắc phụ:
 | BR-FIN-03 | `burn_thang ≤ 0` → `runway_months = null`, hiển thị "Không áp dụng (đang có lãi)" — **không** hiển thị vô hạn. Chưa có CashPosition → `runway_months = null`, `runway_status = no_data` | |
 | BR-FIN-04 | `burn_rate_monthly` hiển thị trên dashboard = **gross burn** = tổng chi phí của kỳ (phân biệt với net burn BR-FIN-01) | |
 | BR-FIN-05 | `budget_utilization_pct = Thực chi ÷ Ngân sách phân bổ × 100`, theo phòng ban × kỳ (quý) × hạng mục; > 100 → `EVT-finance.budget_exceeded` (1 lần/phòng ban/kỳ) | Chi 1,1 tỷ / ngân sách 1,0 tỷ → 110% |
-| BR-FIN-06 | Runway kịch bản "không có doanh thu mới" = `closing_balance ÷ AVG(tổng chi 3 kỳ tháng gần nhất)` (bỏ phần thu) — dùng cho US-CEO-04, tool AI what-if runway | Số dư 3 tỷ, chi TB 1,5 tỷ → 2,0 tháng |
+| BR-FIN-06 | Runway kịch bản "không có doanh thu mới" = `closing_balance ÷ AVG(tổng chi 3 kỳ tháng gần nhất)` (bỏ phần thu) — dùng cho US-CEO-102, tool AI what-if runway | Số dư 3 tỷ, chi TB 1,5 tỷ → 2,0 tháng |
 
 Ràng buộc dữ liệu Finance: `Revenue.amount > 0`; hạng mục doanh thu `product_sales, service, consulting, other`; hạng mục chi `cogs, salary, infrastructure, marketing, office, travel, other`; `CashPosition` duy nhất theo kỳ `YYYY-MM`, `closing_balance ≥ 0`, nguồn `bank_statement, manual, imported`; Invoice ≥ 1 dòng, VAT mặc định 10%, `due_date` > ngày lập.
 
@@ -240,13 +265,13 @@ Ràng buộc Product: `Product.code` duy nhất; trạng thái `ideation, in_dev
 | Mã | Quy tắc |
 |---|---|
 | BR-RSK-01 | **Chấm điểm**: `risk_score = likelihood × impact`, `likelihood`, `impact` ∈ 1..5 → `risk_score` ∈ 1..25. Hệ thống tự sinh `risk_score`, `level`, mã `RSK-YYYY-NNN`; người dùng không nhập trực tiếp điểm |
-| BR-RSK-02 | **Mức độ & hệ quả** (bảng dưới). Vòng đời: `identified → assessing → mitigating → monitoring → closed`; chỉ CEO (`risk:approve`) đặt `accepted` (bắt buộc người chấp nhận + lý do, ghi `ENT-Decision`). Rủi ro nhập tay có `risk_score ≥ 5` bắt buộc có owner. Không đóng rủi ro còn Mitigation `in_progress`. Mỗi lần đổi level tạo `ENT-RiskAssessment` và phát `EVT-risk.risk_level_changed`; sang `monitoring`/`closed` phát `EVT-risk.risk_mitigated`. Nhóm: `financial, operational, market, people, compliance, technology, strategic` |
-| BR-RSK-03 | **Rủi ro tự sinh từ event**: consumer của module `risk` tạo `ENT-Risk` với `source = event` khi nhận `EVT-hr.hiring_plan_delayed`, `EVT-finance.budget_exceeded`, `EVT-finance.burn_over_forecast`, `EVT-sales.deal_closed_lost` (deal ≥ `RISK_LOST_DEAL_MIN_VALUE`, mặc định 1 tỷ), `EVT-product.metric_anomaly`, `EVT-finance.forecast_updated` (khi kịch bản `base` giảm lợi nhuận > 20%). Idempotent theo `event_id` (`ENT-ProcessedEvent`) — event trùng không tạo rủi ro trùng; cùng thực thể liên quan đang có rủi ro mở cùng nhóm → cập nhật đánh giá thay vì tạo mới. Rủi ro `source = event` được phép **chưa có owner** lúc tạo (trạng thái "chờ phân công"), nhưng bắt buộc có trước khi sang `mitigating`/`closed`. `likelihood`/`impact` mặc định theo bảng ánh xạ event → điểm (cấu hình `RISK_EVENT_SCORING`) |
+| BR-RSK-02 | **Mức độ & hệ quả** (bảng dưới). Vòng đời (05 `risk.risk_status`, DEC-148): `proposed` (chỉ rủi ro tự sinh) `→ identified → assessed → mitigating → monitoring → closed`, `proposed → rejected` (owner bác bỏ, bắt buộc lý do); chỉ CEO (`risk:approve`) đặt `accepted` (bắt buộc người chấp nhận + lý do, ghi `ENT-Decision`). Rủi ro nhập tay có `risk_score ≥ 5` bắt buộc có owner. Không đóng rủi ro còn Mitigation `in_progress`. Mỗi lần đổi level tạo `ENT-RiskAssessment` và phát `EVT-risk.risk_level_changed`; sang `monitoring`/`closed` phát `EVT-risk.risk_mitigated`. Nhóm (13 danh mục BRD — DEC-148): `financial, operational, strategic, people, business, customer, product, technology, security, compliance, legal, partner_supplier, ai` |
+| BR-RSK-03 | **Rủi ro tự sinh từ event**: consumer của module `risk` tạo `ENT-Risk` ở trạng thái **`proposed`** với `risk_source = event` (DEC-154) và phát `EVT-risk.risk_proposed` khi nhận `EVT-hr.hiring_plan_delayed`, `EVT-finance.budget_exceeded`, `EVT-finance.burn_over_forecast`, `EVT-sales.deal_closed_lost` (deal ≥ `RISK_LOST_DEAL_MIN_VALUE`, mặc định 1 tỷ), `EVT-product.metric_anomaly`, `EVT-finance.forecast_updated` (khi kịch bản `base` giảm lợi nhuận > 20%). Idempotent theo `event_id` (`ENT-ProcessedEvent`) — event trùng không tạo rủi ro trùng; cùng thực thể liên quan đang có rủi ro mở cùng nhóm → cập nhật đánh giá thay vì tạo mới. Rủi ro `proposed` được phép **chưa có owner**, không tính vào METRIC-RSK-01..05; owner (hoặc RISK_MANAGER) xác nhận → `identified` (bắt buộc owner) và phát `EVT-risk.risk_identified` theo bảng level dưới. `likelihood`/`impact` mặc định theo bảng ánh xạ event → điểm (cấu hình `RISK_EVENT_SCORING`) |
 
 | `risk_score` | Level | Hệ quả |
 |---|---|---|
 | 1–4 | `low` | Chỉ lưu sổ |
-| 5–9 | `medium` | Hiển thị trên dashboard, bắt buộc có owner (trừ `source = event` lúc tạo) |
+| 5–9 | `medium` | Hiển thị trên dashboard, bắt buộc có owner (trừ khi còn `proposed`) |
 | 10–15 | `high` | Phát `EVT-risk.risk_identified`; bắt buộc ≥ 1 Mitigation trong 7 ngày |
 | 16–25 | `critical` | Phát `EVT-risk.risk_identified` và tạo alert critical cho CEO (ALERT-RSK-01) |
 
@@ -278,7 +303,7 @@ Actor ghi theo permission ở `02-PERSONAS-PERMISSIONS.md` §5.3. Mọi thao tá
 | FR-SAL-03 | Khách hàng | CRUD `ENT-Client` (tên duy nhất, MST, ngành, quy mô, người liên hệ — PII mức 3); khớp mờ tên khi nhập/IDP | `sales:write` | Must |
 | FR-SAL-04 | Pipeline | Số lượng, giá trị, giá trị có trọng số, số ngày TB ở mỗi giai đoạn | `sales:query` | Must |
 | FR-SAL-05 | Hiệu suất | Doanh thu đóng, quota, % hoàn thành theo đội và cá nhân | `sales:query` | Must |
-| FR-SAL-06 | Mục tiêu doanh thu | `ENT-SalesTarget` theo `month / quarter / year`, phạm vi `team / individual` (`owner_id` bắt buộc khi individual); CEO đặt mục tiêu team (US-CEO-08) | `sales:write` | Must |
+| FR-SAL-06 | Mục tiêu doanh thu | `ENT-SalesTarget` theo `month / quarter / year`, phạm vi `team / individual` (`owner_id` bắt buộc khi individual); CEO đặt mục tiêu team (US-CEO-106) | `sales:write` | Must |
 | FR-SAL-07 | Sales dashboard | Giá trị pipeline, số deal (thắng/thua/đang chạy), win rate, giá trị deal TB, doanh thu đóng, % quota, chu kỳ bán TB; METRIC-CUS-01..06 | `sales:query` | Must |
 
 Hợp đồng `ENT-Contract` (giá trị, kỳ hạn, ngày hết hạn, gắn Client/Deal) được ghi qua IDP (`CONTRACT`) hoặc nhập tay trong Sales workspace (SCR-23); chi tiết ở 04 và 05.
@@ -302,7 +327,7 @@ Hợp đồng `ENT-Contract` (giá trị, kỳ hạn, ngày hết hạn, gắn C
 | FR-PRD-01 | Danh mục sản phẩm | CRUD `ENT-Product` (§5.4) | `product:write` | Must |
 | FR-PRD-02 | Tính năng | CRUD `ENT-Feature`; chuyển `released` phát `EVT-product.feature_released` | `product:write` | Must |
 | FR-PRD-03 | Roadmap | `ENT-RoadmapItem` theo quý, `target_date`, trạng thái `planned / in_progress / done / dropped` | `product:write` | Must |
-| FR-PRD-04 | Release | `ENT-Release` (`version` duy nhất theo sản phẩm; `planned / in_progress / released / rolled_back`); release đầu tiên của sản phẩm phát `EVT-product.product_launched` | `product:write` | Must |
+| FR-PRD-04 | Release | `ENT-Release` (`release_version` duy nhất theo sản phẩm — DEC-154; `planned / in_progress / released / rolled_back`); release đầu tiên của sản phẩm phát `EVT-product.product_launched` | `product:write` | Must |
 | FR-PRD-05 | Chỉ số sản phẩm | `ENT-ProductMetric` snapshot theo kỳ, chỉ thêm: MAU, `adoption_pct`, `churn_rate_pct`, `retention_30d_pct`, NPS, ARPU; nhập tay, import (C5) hoặc IDP `PRODUCT_REPORT` | `product:write` | Must |
 | FR-PRD-06 | Phát hiện churn bất thường | BR-PRD-01 khi có snapshot mới | hệ thống | Must |
 | FR-PRD-07 | Product dashboard | Số sản phẩm, đang hoạt động, đang phát triển, MAU, adoption, churn, retention 30 ngày, NPS, ARPU, tính năng release trong kỳ, % roadmap đúng tiến độ; METRIC-PRD-01..05 | `product:query` | Must |
@@ -319,7 +344,7 @@ Hợp đồng `ENT-Contract` (giá trị, kỳ hạn, ngày hết hạn, gắn C
 | FR-RSK-06 | What-if | `ENT-Scenario`: 1–10 rủi ro × horizon 1–24 tháng → tác động ước lượng lên `finance` (doanh thu, chi, runway), `sales` (pipeline), `hr` (headcount), `product` (roadmap); mỗi miền gọi qua service interface với timeout 5 s; miền lỗi trả `unavailable`, không làm hỏng cả kết quả | `risk:query` | Should |
 | FR-RSK-07 | Risk dashboard | Tổng rủi ro mở, số critical/high, điểm tổng hợp, xu hướng, mở/đóng trong kỳ, biện pháp đang chạy/quá hạn, alert chưa xác nhận, heatmap 5×5; METRIC-RSK-01..06 | `risk:query` | Must |
 
-METRIC-RSK-06 (Strategy execution index) lấy dữ liệu Objective/KR từ module `execution` qua service interface; đặc tả OKR/KPI/check-in ở 04 (US-DC-005) và 05.
+METRIC-RSK-06 (SEI) lấy dữ liệu Initiative/Milestone/Task từ module `execution` qua service interface (DEC-147); đặc tả OKR/KPI/check-in ở 04 (US-DC-005) và 05.
 
 ### 6.6. Executive Dashboard — module `dashboard`
 
@@ -331,14 +356,16 @@ METRIC-RSK-06 (Strategy execution index) lấy dữ liệu Objective/KR từ mod
 | FR-DSH-04 | Insight panel | Insight AI ở đầu trang và theo từng trụ (§7.1) | `ai:query` | Must |
 | FR-DSH-05 | Bộ lọc kỳ | `current_month / current_quarter / ytd`; Finance thêm `custom` | `dashboard:read` | Must |
 | FR-DSH-06 | Tự làm mới | Tự làm mới mỗi 60 giây (`DASHBOARD_REFRESH_SEC`); dữ liệu trễ tối đa 60 giây so với nguồn (§9) | hệ thống | Should |
-| FR-DSH-07 | Cô lập lỗi | Module hoặc AI lỗi → chỉ widget liên quan báo "Dịch vụ tạm thời không khả dụng" + nút thử lại; trụ khác vẫn hiển thị (P08, US-ALL-04) | hệ thống | Must |
+| FR-DSH-07 | Cô lập lỗi | Module hoặc AI lỗi → chỉ widget liên quan báo "Dịch vụ tạm thời không khả dụng" + nút thử lại; trụ khác vẫn hiển thị (P08, US-ALL-104) | hệ thống | Must |
 | FR-DSH-08 | Giao diện chat | Trang Hỏi AI (SCR-16) với streaming, trạng thái tra cứu thật, khối "Nguồn dữ liệu"; mở từ thẻ metric/alert với ngữ cảnh đã điền sẵn | `ai:query` | Must |
+| FR-DSH-09 | Báo cáo điều hành | Báo cáo weekly/monthly PDF + Excel (`ENT-Report`) từ `ENT-MetricValue` + insight, nội dung lọc theo scope người yêu cầu; job định kỳ sinh báo cáo công ty cho CEO, phát `EVT-platform.report_generated` (US-RPT-001, US-RPT-002, US-RPT-005 — DEC-153) | `dashboard:read` | Must |
+| FR-DSH-10 | Hàng chờ phê duyệt | Danh sách `ENT-ApprovalRequest` chờ người dùng (bước 1/2, SLA `due_at`), duyệt/từ chối bắt buộc lý do; tài chính > `APPROVAL_FINANCE_THRESHOLD_VND` cần 2 người (DEC-155) (US-CEO-006) | `platform:approve` | Must |
 
 ### 6.7. Thông báo — module `platform`
 
 | ID | Tính năng | Mô tả / quy tắc | Permission | Ưu tiên |
 |---|---|---|---|---|
-| FR-NTF-01 | Thông báo trong ứng dụng | `ENT-Notification` cho alert, insight critical, action card chờ xác nhận, task được giao, kế hoạch tuyển dụng chờ duyệt; chuông + đếm chưa đọc; người nhận theo §3.1 #6 | mọi user | Must |
+| FR-NTF-01 | Thông báo trong ứng dụng | `ENT-Notification` cho alert, insight critical, action card chờ xác nhận, task được giao, kế hoạch tuyển dụng chờ duyệt, yêu cầu phê duyệt (`EVT-platform.approval_requested`), báo cáo đã sinh; thông báo nâng cao BRD D05 (quy tắc, digest) hoãn v2.1 (DEC-156); chuông + đếm chưa đọc; người nhận theo §3.1 #6 | mọi user | Must |
 | FR-NTF-02 | Email | Gửi alert `critical` qua email cho người nhận theo trụ; gom tối đa 1 email/giờ/người; tắt mặc định ở demo (`NOTIFY_EMAIL_ENABLED=false`) | hệ thống | Could |
 
 ---
@@ -349,56 +376,95 @@ METRIC-RSK-06 (Strategy execution index) lấy dữ liệu Objective/KR từ mod
 |---|---|---|---|---|
 | FR-AI-01 | Hỏi đáp ngôn ngữ tự nhiên | Câu hỏi VI/EN → câu trả lời theo ngôn ngữ câu hỏi; ngữ cảnh màn hình (SCR, metric, kỳ) từ Panel/⌘K | `ai:query` | Must |
 | FR-AI-02 | Tool calling theo quyền | Chỉ gửi model các TOOL-* mà role có permission (P06); tool chạy bằng JWT người hỏi; ≤ 8 call, 5 s/call, 30 s/lượt; tool bị từ chối → AI nói rõ không có quyền | `ai:query` + quyền domain | Must |
-| FR-AI-03 | Streaming SSE | Trạng thái `thinking`/`tool_call` theo bước thật; token đầu ≤ 5 s | `ai:query` | Must |
-| FR-AI-04 | Nguồn cho mọi con số | `sources[]` trỏ tới metric/bản ghi/tài liệu; không có số ngoài `sources` (P05); thiếu dữ liệu → nói thiếu | `ai:query` | Must |
+| FR-AI-03 | Streaming SSE | Trạng thái `thinking`/`tool_call` theo bước thật; token đầu (TTFT) **p50 ≤ 2 s, p95 ≤ 5 s** (DEC-152) | `ai:query` | Must |
+| FR-AI-04 | Nguồn cho mọi con số | `sources[]` trỏ tới metric/bản ghi/tài liệu; số không có nguồn bị **chặn** (gỡ + warning), không gắn nhãn "ước tính" (§7.1, BRD FR-AIQ-01); thiếu dữ liệu → nói thiếu | `ai:query` | Must |
 | FR-AI-05 | Lịch sử hội thoại | Lưu `ENT-Conversation`/`ENT-Message` của chính người dùng; xóa được | `ai:query` | Should |
 | FR-AI-06 | Feedback | 👍/👎 + lý do cho câu trả lời và insight (`ENT-Feedback`) | `ai:query` | Should |
-| FR-AI-07 | Insight chủ động & Briefing | Event domain → làm mới `ENT-Insight` (cấu trúc §7); Briefing theo role | hệ thống; đọc `ai:query` | Must |
-| FR-AI-08 | Hành động AI (L1–L3) | Gợi ý / Action card L2 chờ xác nhận / L3 làm và báo, ghi qua Action Registry (`ENT-AIAction`); hoàn tác L3 trong 24 h; kill switch (DEC-134) | `ai:write` + quyền domain | Must |
+| FR-AI-07 | Insight chủ động & Briefing | Event domain → làm mới `ENT-Insight` (9 phần §7.1); Briefing theo role lúc `BRIEFING_TIME` (§7.2) | hệ thống; đọc `ai:query` | Must |
+| FR-AI-08 | Hành động AI (L1–L3) | Gợi ý / Action card L2 chờ xác nhận / L3 làm và báo, ghi qua Action Registry (`ENT-AIAction`); hoàn tác L3 trong 24 h; kill switch (DEC-134, DEC-149); Verification 24h/7d cho L2+ (§7.3); vượt `ENT-ApprovalRule` → tạo `ENT-ApprovalRequest` | `ai:write` + quyền domain | Must |
 | FR-AI-09 | What-if | Runway khi doanh thu = 0 / kịch bản rủi ro, gọi tool Finance/Risk, không tự tính ngoài tool | `ai:query` + `finance:read` / `risk:read` | Should |
-| FR-AI-10 | An toàn dữ liệu | Lọc PII/lương (mức 3–4, 02 §6) trước khi gửi LLM; chống prompt injection (dữ liệu ≠ lệnh); rate limit 20 req/phút/người; ngân sách chi phí cảnh báo 80% | hệ thống | Must |
+| FR-AI-10 | An toàn dữ liệu | Chọn model theo `data_classification` (§7.4); lọc PII/lương (mức 3–4, 02 §6) trước khi gửi LLM; chống prompt injection (dữ liệu ≠ lệnh); rate limit 20 req/phút/người; ngân sách chi phí cảnh báo 80% | hệ thống | Must |
+| FR-AI-11 | Ràng buộc nhân sự | AI không chấm điểm nhân sự, không quyết định tuyển/sa thải/lương; không huấn luyện trên dữ liệu khách (02 §7.4) | hệ thống | Must |
 
 ---
 
 ## 7. Insight & Briefing CEO
 
-### 7.1. Cấu trúc insight
+### 7.1. Cấu trúc insight 9 phần (BRD §11.8, AI-R03 — DEC-149, GAP A-11)
 
-Mỗi `ENT-Insight` theo cấu trúc **Observation → Evidence → Impact → Recommendation → Confidence** (BRD gốc mục 46, AI-EOS §2.1):
+Mỗi `ENT-Insight` có **Observation** (`title` + `body`, một câu: điều gì lệch) và khối `structured` gồm **9 phần**. Bắt buộc đủ 9 phần với `kind ∈ {anomaly, risk, recommendation}`; `trend`/`briefing` chỉ bắt buộc Evidence + Confidence.
 
-| Phần | Nội dung | Bắt buộc | Ví dụ |
-|---|---|---|---|
-| Observation | Một câu: điều gì lệch | ✅ | "Doanh thu T9 đạt 82% kế hoạch." |
-| Evidence | Danh sách số liệu kèm **source chip** (metric value / bản ghi / trang tài liệu) | ✅ ≥ 1 nguồn | METRIC-FIN-01 = 82%; 3 deal lớn trượt sang T10 |
-| Impact | Tác động ước lượng lên trụ khác (nếu có), có nguồn | Tùy | "Runway giảm từ 9,1 xuống 8,4 tháng nếu kéo dài 2 tháng." |
-| Recommendation | 1–3 hành động; mỗi hành động có thể là suggestion chip (L1) hoặc action card (L2) | ✅ | "Giao VP Sales rà 3 deal; xem xét lùi chi marketing Q4." |
-| Confidence | `high / medium / low` + lý do (độ tươi, chất lượng dữ liệu) | ✅ | "Trung bình — mới có 62% hóa đơn T9." |
+| # | Phần | Key `structured` (05 ENT-Insight) | Nội dung | Ví dụ |
+|---|---|---|---|---|
+| 1 | Root cause | `root_cause` | Nguyên nhân gốc có bằng chứng; chưa xác định được → ghi rõ "chưa rõ" + dữ liệu còn thiếu | "3 deal lớn (tổng 4,2 tỷ) trượt sang T10 do khách lùi ngân sách." |
+| 2 | Risk | `risk` | Rủi ro / tác động nếu không xử lý, lên trụ khác (nếu có) — có nguồn | "Runway giảm từ 9,1 xuống 8,4 tháng nếu kéo dài 2 tháng." |
+| 3 | Expected outcome | `expected_outcome` | Kết quả kỳ vọng nếu làm theo Action, **định lượng được** (metric + giá trị + mốc) — dùng cho bước Verification §7.3 | `{metric_id: METRIC-FIN-01, target: ≥ 90, by: +7d}` |
+| 4 | Action | `action` | 1–3 hành động; mỗi hành động là suggestion chip (L1) hoặc action card (L2) gắn `TOOL-*` | "Giao VP Sales rà 3 deal (TOOL-create_task)." |
+| 5 | Evidence | `evidence` | Danh sách số liệu kèm **source chip** (`SourceRef` tới metric value / bản ghi / trang tài liệu) | METRIC-FIN-01 = 82%; 3 deal `negotiation` quá hạn |
+| 6 | Confidence | `confidence` | `high / medium / low` + lý do (độ tươi, METRIC-DQ-01, cỡ mẫu) — FR-AIQ-03 | "Trung bình — DQ tài chính 74, mới có 62% hóa đơn T9." |
+| 7 | Alternative | `alternatives` | ≥ 1 phương án thay thế kèm đánh đổi (hoặc "không làm gì" + hệ quả) | "Lùi 20% chi marketing Q4 thay vì đẩy deal." |
+| 8 | Timeline | `timeline` | Thời hạn hành động và mốc kiểm tra | "Trong 48 giờ; kiểm tra 24h/7d." |
+| 9 | Owner | `owner` | Người/role đề xuất chịu trách nhiệm (con người — AI không bao giờ là owner, 01 §5A) | ROLE-03 VP_SALES |
+
+Thứ tự hiển thị trên `InsightCard` theo BRD §11.8: Observation → Evidence → Risk → Root cause → Action → Expected outcome → Confidence (Alternative, Timeline, Owner ở phần mở rộng).
+
+**Đồng bộ 05:** key `structured` v2.0.0 của 05 (`finding, evidence, root_cause, impact, recommendation, confidence, alternatives, owner_suggestion, next_action`) được thay bằng 9 key trên (05 cập nhật cùng Phase 3b): `finding` → `title/body`; `impact` → `risk`; `recommendation` + `next_action` → `action`; `owner_suggestion` → `owner`; thêm `expected_outcome`, `timeline`.
 
 Quy tắc:
-- Insight sinh bởi `ai_core` khi nhận event hoặc alert mới (debounce 5 phút/trụ), và theo lịch 06:00 hằng ngày cho Briefing. **Mọi con số phải đến từ `ENT-MetricValue` hoặc tool call** (P05); insight không có nguồn bị loại.
+- Insight sinh bởi `ai_core` khi nhận event hoặc alert mới (debounce 5 phút/trụ), và theo lịch `BRIEFING_TIME` hằng ngày cho Briefing. **Mọi con số phải đến từ `ENT-MetricValue` hoặc tool call** (P05, FR-AIQ-01).
+- **Số không có nguồn bị CHẶN ở v2.0 (GAP D-15):** validator gỡ mọi số không khớp `SourceRef`; insight còn lại < 1 Evidence → bị loại. **Không** dùng nhãn "ước tính" để giữ số không nguồn (BRD FR-AIQ-01 cho phép nhãn — Aureon v2.0 chọn chặn; số dự báo hợp lệ khi đến từ tool dự báo, ví dụ `TOOL-get_finance_forecast`, và mang nhãn kịch bản).
 - Insight gắn trụ, mức `info / warning / critical`, `expires_at`; lọc theo quyền người xem (02 §6) — Evidence ngoài scope bị ẩn và insight đó không hiển thị nếu Observation phụ thuộc dữ liệu ngoài scope.
-- Insight là L0 (Inform); hành động trong Recommendation tuân theo `ENT-AutonomyPolicy` (02 §7).
-- Feedback 👍/👎 trên từng insight (US-ALL-03).
+- Insight là L0 (Inform); hành động trong Action tuân theo `ENT-AutonomyPolicy` (02 §7). AI không tự gọi tool APPROVAL (02 §7.3).
+- Feedback 👍/👎 trên từng insight (US-ALL-103).
 - AI lỗi → panel insight báo "Trợ lý AI tạm thời không khả dụng"; dashboard vẫn chạy (P08).
 
-### 7.2. Briefing CEO (F1)
+### 7.2. Briefing CEO (F1) — BRD §12.2, GAP D-17
 
-Briefing là trang chủ SCR-01 của ROLE-01 (biến thể theo role ở §10). Thứ tự khối (P07 — ngoại lệ trước):
+Briefing là trang chủ SCR-01 của ROLE-01 (biến thể theo role ở §10), **tính sẵn lúc `BRIEFING_TIME`** (mặc định `06:00` giờ `Asia/Ho_Chi_Minh`; BRD mặc định 07:00 — Aureon chọn 06:00 để sẵn trước giờ làm, cấu hình được qua env, đăng ký ở 07 Phase 3c). Thứ tự khối (P07 — ngoại lệ trước):
 
 | # | Khối | Nội dung | Giới hạn |
 |---|---|---|---|
 | 1 | Dòng tóm tắt | Một câu: "2 việc cần anh, 1 rủi ro mới, 3/5 trụ ổn" | 1 dòng |
 | 2 | 5 thẻ trụ | §4; trụ xấu nhất đứng đầu | 5 |
-| 3 | Cần anh quyết | Action card L2 chờ xác nhận, rủi ro chờ chấp nhận, kế hoạch/ngân sách chờ duyệt | ≤ 5, "xem thêm" |
-| 4 | Thay đổi đáng chú ý | Insight `warning/critical` mới từ Briefing trước | ≤ 5 |
-| 5 | Rủi ro | Rủi ro mới/đổi level trong 24 giờ | ≤ 3 |
-| 6 | AI đã làm | Hành động L3 trong 24 giờ, nút hoàn tác (SCR-17) | ≤ 3 |
-| 7 | 4 chỉ số ghim | Người dùng tự chọn 4 metric (`dashboard:write`) | 4 |
-| 8 | Độ tươi | Dòng "Dữ liệu cũ: …" liệt kê metric quá `FRESHNESS_STALE_DAYS` | 1 dòng |
+| 3 | Hiệu suất | **KPI công ty %** (trung bình achievement có trọng số các `ENT-KPI` cấp company) · **OKR công ty %** (trung bình `progress_pct` Objective cấp company) · SEI (METRIC-RSK-06) | 1 dòng, 3 số có nguồn |
+| 4 | Hôm nay | Cuộc họp hôm nay (`ENT-Meeting`), task đến hạn hôm nay của CEO, hạn phê duyệt (`ENT-ApprovalRequest.due_at`) trong ngày; lịch ngoài (Calendar) hoãn v2.1 (DEC-153) | ≤ 5 |
+| 5 | Cần anh quyết | `ENT-ApprovalRequest` chờ mình, action card L2 chờ xác nhận, rủi ro chờ chấp nhận, kế hoạch/ngân sách chờ duyệt (US-CEO-006) | ≤ 5, "xem thêm" |
+| 6 | Thay đổi đáng chú ý | Insight `warning/critical` mới từ Briefing trước | ≤ 5 |
+| 7 | Rủi ro | Rủi ro mới/đổi level trong 24 giờ (không gồm `proposed`) | ≤ 3 |
+| 8 | AI đã làm | Hành động L3 trong 24 giờ, nút hoàn tác (SCR-17); kết quả Verification 24h/7d (§7.3) | ≤ 3 |
+| 9 | 4 chỉ số ghim | Người dùng tự chọn 4 metric (`dashboard:write`) | 4 |
+| 10 | Độ tươi & chất lượng | "Dữ liệu cũ: …" (metric quá `FRESHNESS_STALE_DAYS`) + METRIC-DQ-01 khi < 80 | 1 dòng |
 
 - Mục "bình thường" gộp 1 dòng ("Các chỉ số khác trong ngưỡng"); không liệt kê.
 - Mục tiêu: trả lời "có gì cần tôi?" ≤ 10 giây; F1 Briefing → giao việc ≤ 2 phút, ≤ 5 chạm (01 §4).
-- Briefing được tính sẵn lúc 06:00 và cập nhật gia tăng khi có alert critical; mở trang không gọi LLM đồng bộ.
+- Briefing cập nhật gia tăng khi có alert critical; mở trang không gọi LLM đồng bộ. Kênh: in-app (+ email critical khi bật FR-NTF-02); kênh ngoài là OQ-07.
+
+### 7.3. Verification sau hành động (AI-R10 — GAP D-14)
+
+Mọi `ENT-AIAction` mức **L2 trở lên** đã `executed` có bước **Verification** sau Action:
+
+| Bước | Thời điểm | Việc | Kết quả |
+|---|---|---|---|
+| 0 | Lúc tạo action | Ghi `expected_outcome` (từ insight §7.1 #3, hoặc mặc định theo `ACT-*`: VD task tạo → task tồn tại và có assignee) | `ENT-AIAction.verification.expected_outcome` |
+| 1 | `executed_at + 24h` | Job `daily_jobs` so expected vs actual (đọc `ENT-MetricValue` / bản ghi đích qua service) | `met` / `partially_met` / `not_met` / `not_measurable` |
+| 2 | `executed_at + 7d` | Lặp lại với cùng tiêu chí | Như trên |
+
+- Kết quả hiển thị trên feed "AI đã làm" (SCR-17) và khối 8 của Briefing; `not_met` ở mốc 7d → sinh insight `recommendation` mới cho owner (không tự hành động lại).
+- Kết quả là đầu vào Evaluation Engine (BRD §11.7, v2.1) và cho số liệu "tỷ lệ khuyến nghị đạt kỳ vọng".
+- Hành động bị hoàn tác (`undone`) bỏ qua Verification. Job idempotent theo (action_id, mốc).
+- Lưu ở cột `verification` (jsonb) của 05 ENT-AIAction; không thêm event mới (dùng audit + feed).
+
+### 7.4. Phân loại dữ liệu quyết định model (BRD FR-ADM-05 — DEC-149, GAP A-15)
+
+| `data_classification` cao nhất của dữ liệu trong ngữ cảnh | Model sinh nội dung (insight, trả lời, briefing) | Embedding / RAG |
+|---|---|---|
+| `PUBLIC`, `INTERNAL` | Provider chain ModelGateway bình thường | `bge-m3` local (DEC-142) |
+| `CONFIDENTIAL` (Mật) | **Không gửi LLM cloud** trừ provider ADMIN bật rõ cho mức này; mặc định dùng **template** (insight sinh từ quy tắc + số từ tool, không câu chữ LLM) | `bge-m3` local |
+| `SECRET` (Tuyệt mật) | **Không gửi LLM** dưới mọi cấu hình; chỉ template; giá trị mức 4 bị PII filter loại | Không embed |
+
+- Phân loại lấy mức cao nhất của mọi `tool_result`/`MetricValue` trong lượt (05 §10); quyết định trước khi gọi ModelGateway, ghi vào `ENT-ModelCallLog`.
+- Hạ cấp xuống template phải báo rõ trên UI ("Tóm tắt tự động — dữ liệu Mật không gửi AI bên ngoài"); không làm mất source chip.
+- Danh mục provider và cờ cho phép theo mức ở 07 §6 (Phase 3c).
 
 ---
 
@@ -431,7 +497,7 @@ Bấm vào **bất kỳ** con số (thẻ trụ, bảng, biểu đồ, câu tr�
 |---|---|
 | Endpoint | 5 endpoint `/{domain}/dashboard` (`finance`, `hr` + `execution` cho PIL-O, `sales`, `product`, `risk`) — **không có endpoint tổng hợp chung** để đảm bảo cô lập lỗi; Briefing và metric/lineage có endpoint riêng (10) |
 | Tham số | `period` = `current_month / current_quarter / ytd` (Finance thêm `custom` với `start_date`, `end_date`) |
-| Cấu trúc | `summary` (KPI số phẳng + `status` từng metric) + ≥ 1 chuỗi `*_trend` (mảng phẳng, key ổn định, tăng dần theo thời gian) để vẽ trực tiếp; mỗi metric kèm `metric_id`, `computed_at`, `freshness`, `data_quality_pct` |
+| Cấu trúc | `summary` (KPI số phẳng + `status` từng metric) + ≥ 1 chuỗi `*_trend` (mảng phẳng, key ổn định, tăng dần theo thời gian) để vẽ trực tiếp; mỗi metric kèm `metric_id`, `computed_at`, `freshness`, `data_quality_pct`, `data_classification` |
 | Cache | `Cache-Control: private, max-age=60` + **bắt buộc `Vary: Authorization`**; cache server theo (user scope, period) TTL 60 s, xóa khi metric liên quan tính lại |
 | Frontend | Gọi song song 5 endpoint (TanStack Query, mỗi widget một query); không tự tính KPI; đổi role → xóa cache (02 §9.2 R3) |
 | NFR-dashboard-1 | Endpoint dashboard **p95 < 800 ms** |
@@ -459,7 +525,7 @@ Mã NFR chính thức (`NFR-xx`) do `07-TECH-ARCHITECTURE.md` cấp; các dòng 
 | ROLE-07 RISK_MANAGER | Briefing rủi ro: S, alert chưa xác nhận | S đầy đủ; F, O, C, U tổng hợp | |
 | ROLE-08 MANAGER | Briefing đơn vị: hàng chờ duyệt, workload, task trễ, chi tiêu vs ngân sách phòng ban | — | Số liệu đơn vị ở workspace |
 | ROLE-09 EMPLOYEE | Việc hôm nay, mục tiêu của tôi | — | |
-| ROLE-10 ADMIN | Tình trạng hệ thống, sự cố AI, ngân sách AI | — | Không xem số nghiệp vụ |
+| ROLE-10 ADMIN | Tình trạng hệ thống, sự cố AI, ngân sách AI, METRIC-DQ-01 theo domain (chỉ điểm, không bản ghi) | — | Không xem số nghiệp vụ |
 
 Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàng 2 năm thẻ trụ; hàng 3 insight panel (trái) + alert mở (phải); Panel AI trượt bên phải. Chi tiết component ở `06-UI-UX-SPEC.md`.
 
@@ -476,7 +542,10 @@ Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàn
 | OQ-05 | ✅ **Resolved — DEC-143** (CUS-01 W < 2,8 · C < 2,5; RSK-04 W ≥ 10 · C ≥ 15; HR-04 C > 45 ngày). Câu hỏi gốc: Ngưỡng warning của các metric A-EMS chỉ có 1 mức (vd. METRIC-CUS-01 < 3x là critical) — mức warning bổ sung (3,5x, Δ…) có cần human duyệt? | Dùng giá trị trong §2 làm mặc định, cấu hình được | §2, §3 |
 | OQ-06 | Rủi ro tự sinh từ `EVT-finance.forecast_updated`: điều kiện "lợi nhuận base giảm > 20%" có đúng ý không? | Giữ mặc định, cấu hình `RISK_FORECAST_DROP_PCT` | BR-RSK-03 |
 | OQ-07 | Briefing có gửi qua kênh ngoài (Zalo/Slack/email) không? | Không ở v2; chỉ in-app (+ email critical nếu bật FR-NTF-02) | FR-NTF |
-| OQ-08 | METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Trọng số bằng nhau (1) | 05 `ENT-Objective` |
+| OQ-08 | ✅ **Đóng — SEI tính theo Initiative** (`ENT-Initiative.weight_pct`, DEC-147; §2.5). Câu hỏi gốc: METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Σ trọng số = 0 → trọng số bằng nhau | 05 `ENT-Initiative` |
+| OQ-09 | `BRIEFING_TIME` mặc định 06:00 (lệch BRD 07:00) — giữ 06:00? | Giữ 06:00, env cấu hình được; đăng ký ở 07 §env (Phase 3c) | 07, 10 EP Briefing |
+| OQ-10 | Trọng số DQ Score 0,3/0,4/0,3 và SLA freshness theo domain có cần human duyệt riêng không? | Dùng mặc định §2.6 (theo yêu cầu Phase 3b), cấu hình `DQ_WEIGHT_*` | 05 ENT-Metric, 08 seed |
+| OQ-11 | Kết quả Verification (§7.3) lưu ở cột mới `ai.ai_actions.verification` (jsonb) — chấp nhận thêm cột? | Có; 05 cập nhật cùng Phase 3b, không thêm event | 05 ENT-AIAction, 10 EP-11x |
 
 Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
 
@@ -492,17 +561,19 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 | ENT-Metric, ENT-MetricValue, ENT-Alert, ENT-DataLineage, entity domain | `05-DATA-MODEL.md` |
 | SCR-01..07, thẻ trụ, Panel P01, mẫu L1/L2/L3 | `06-UI-UX-SPEC.md` |
 | Metric store, outbox, Celery beat, NFR-xx | `07-TECH-ARCHITECTURE.md` |
-| Dữ liệu demo ABC cho 31 metric | `08-DEMO-DATA-SPEC.md` |
+| Dữ liệu demo ABC cho 32 metric | `08-DEMO-DATA-SPEC.md` |
 | Endpoint dashboard, metric, alert, briefing, event | `10-API-SPECIFICATION.md` |
-| Quyết định | `13-DECISION-LOG.md` (DEC-125, DEC-126, DEC-127, DEC-132) |
+| Quyết định | `13-DECISION-LOG.md` (DEC-125, DEC-126, DEC-127, DEC-132, DEC-143, DEC-147, DEC-148, DEC-149, DEC-152, DEC-154) |
 
 ---
 
 ## 13. Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3b)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
-- **Change:** Viết lại toàn bộ theo DEC-124, DEC-127 (5 trụ F.O.C.U.S, 31 metric/alert, BR và FR domain từ A-EMS, bộ chỉ số sức khỏe AI-EOS). Bản 1.0.0 (4 trụ, 18 metric) lưu ở nhánh `v1`.
+- **Change 2.1.0 (Phase 3b — DEC-144, DEC-147..149, DEC-152, DEC-154):** BRD làm Canonical Source; **32 metric / 32 alert** — thêm METRIC-DQ-01 / ALERT-DQ-01 với công thức `completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`, < 80 warning, < 60 critical (§2.6); SEI (METRIC-RSK-06) tính theo **Initiative** (§2.5, GAP C-02); risk `proposed` + 13 danh mục, rủi ro `proposed` không sinh alert (§3.1, §5.5); insight **9 phần** + đồng bộ key 05 (§7.1, GAP A-11); chặn số không nguồn ở v2.0 (GAP D-15); Briefing `BRIEFING_TIME` 06:00 + khối "Hiệu suất" (KPI/OKR %) và "Hôm nay" (§7.2, GAP D-17); Verification 24h/7d cho L2+ (§7.3, GAP D-14); 4 mức `data_classification` quyết định model (§7.4, GAP A-15); TTFT p50 ≤ 2 s / p95 ≤ 5 s (DEC-152); FR-AI-11; FR-PRD-04 `release_version` (DEC-154); mã US mới (DEC-146); OQ-08 đóng, OQ-09..11.
+- **Change 2.0.0:** Viết lại toàn bộ theo DEC-124, DEC-127 (5 trụ F.O.C.U.S, 31 metric/alert, BR và FR domain từ A-EMS, bộ chỉ số sức khỏe AI-EOS). Bản 1.0.0 (4 trụ, 18 metric) lưu ở nhánh `v1`.
 - **Change (2026-10-19, DEC-143):** chốt ngưỡng METRIC-CUS-01 (W < 2,8x · C < 2,5x), METRIC-RSK-04 (W ≥ 10 · C ≥ 15), METRIC-HR-04 (C > 45 ngày) và ALERT tương ứng; đóng OQ-05.
