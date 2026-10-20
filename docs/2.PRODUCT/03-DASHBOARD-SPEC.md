@@ -543,9 +543,9 @@ Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàn
 | OQ-06 | Rủi ro tự sinh từ `EVT-finance.forecast_updated`: điều kiện "lợi nhuận base giảm > 20%" có đúng ý không? | Giữ mặc định, cấu hình `RISK_FORECAST_DROP_PCT` | BR-RSK-03 |
 | OQ-07 | Briefing có gửi qua kênh ngoài (Zalo/Slack/email) không? | Không ở v2; chỉ in-app (+ email critical nếu bật FR-NTF-02) | FR-NTF |
 | OQ-08 | ✅ **Đóng — SEI tính theo Initiative** (`ENT-Initiative.weight_pct`, DEC-147; §2.5). Câu hỏi gốc: METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Σ trọng số = 0 → trọng số bằng nhau | 05 `ENT-Initiative` |
-| OQ-09 | `BRIEFING_TIME` mặc định 06:00 (lệch BRD 07:00) — giữ 06:00? | Giữ 06:00, env cấu hình được; đăng ký ở 07 §env (Phase 3c) | 07, 10 EP Briefing |
-| OQ-10 | Trọng số DQ Score 0,3/0,4/0,3 và SLA freshness theo domain có cần human duyệt riêng không? | Dùng mặc định §2.6 (theo yêu cầu Phase 3b), cấu hình `DQ_WEIGHT_*` | 05 ENT-Metric, 08 seed |
-| OQ-11 | Kết quả Verification (§7.3) lưu ở cột mới `ai.ai_actions.verification` (jsonb) — chấp nhận thêm cột? | Có; 05 cập nhật cùng Phase 3b, không thêm event | 05 ENT-AIAction, 10 EP-11x |
+| OQ-09 | ✅ **Duyệt (human 2026-10-20):** BRD gợi ý 07:00; v2.1 override qua env var; default 06:00 cho demo. Câu hỏi gốc: `BRIEFING_TIME` mặc định 06:00 — giữ? | `BRIEFING_TIME=06:00`; đăng ký ở 07 §env (Phase 3c) | 07, 10 EP Briefing |
+| OQ-10 | ✅ **Trọng số duyệt (human 2026-10-20):** 0,3/0,4/0,3 qua `DQ_WEIGHT_*`. SLA freshness sẽ chốt cụ thể ở 3d khi có metric domain. Câu hỏi gốc: trọng số DQ Score và SLA freshness theo domain | Mặc định §2.6 | 05 ENT-Metric, 08 seed |
+| OQ-11 | ✅ **Duyệt (human 2026-10-20):** cột `ai.ai_actions.verification` (jsonb) — đã có ở 05 ENT-AIAction. Câu hỏi gốc: lưu kết quả Verification (§7.3) ở cột mới? | Không thêm event | 05 ENT-AIAction, 10 EP-11x |
 
 Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
 

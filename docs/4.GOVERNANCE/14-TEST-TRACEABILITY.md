@@ -154,6 +154,21 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | TC-AI-021 | integration | Định tuyến theo `data_classification`: ngữ cảnh `CONFIDENTIAL` không gọi provider cloud chưa bật (dùng template); `SECRET` không bao giờ gọi LLM; ghi lý do vào ModelCallLog | 03 §7.4, 02 §6.3, DEC-149 | Phase 3d |
 | TC-DASH-010 | integration | Briefing sinh lúc `BRIEFING_TIME` (mặc định 06:00 Asia/Ho_Chi_Minh), có khối Hiệu suất (KPI %, OKR %, SEI) và Hôm nay; rủi ro `proposed` không xuất hiện ở khối Rủi ro | 03 §7.2 | Phase 3d |
 
+#### 2.1.3. Bổ sung Phase 3c (04, 06, 07 2.1.0 — Planned)
+
+Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: bỏ phân loại, `SUPERSEDED`, `correction_reason`; TC-IDP-015: escalation/reassign) không lặp lại.
+
+| TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
+|---|---|---|---|---|
+| TC-IDP-016 | integration | C2 voice mock: tải WAV mẫu demo → ModelGateway task `stt` ở `fixture` trả transcript → Action card L2, không ghi trước khi xác nhận; WAV không có fixture → lỗi rõ, không gọi provider thật | 04 §2.1 C2, FR-DC-03, DEC-153 | Phase 3d |
+| TC-IDP-017 | integration | Upload transcript `.vtt` (SCR-18): thiếu xác nhận consent → `422`; có consent → `ENT-MeetingTranscript` `UPLOADED → PROCESSED`, decision/task/risk `proposed` có lineage `char_start/char_end`; hạn "tuần sau" → `due_date = null` + warn "cần xác nhận hạn" | 04 §12.7, §5.8, GAP C-13/C-14 | Phase 3d |
+| TC-IDP-018 | unit | Field `checkbox`/`signature_present`/`stamp_present` trích đúng kiểu; field chữ viết tay → `routing_reason = HANDWRITING`, không STP (S7) | 04 §5.2, FR-DC-11, DEC-151 | Phase 3d |
+| TC-IDP-019 | integration | "Chấp nhận tất cả HIGH" xác nhận mọi field band HIGH **không** trọng yếu trong một lượt EP-30; field trọng yếu/LOW/MEDIUM giữ nguyên chưa xác nhận | 04 FR-DC-20, 06 §4.5 | Phase 3d |
+| TC-IDP-020 | integration | Verification sau commit: số dòng `ENT-DataLineage` = số field đã commit; lệch → cờ data quality + thông báo, không tự sửa; chạy lại idempotent | 04 §3 bước 13, GAP D-18 | Phase 3d |
+| TC-IDP-021 | integration | `ACT-merge_review` gộp tài liệu cùng doc type khi tất cả `NEEDS_REVIEW`; khác trạng thái → `409 CONFLICT_STATE`; tách lại hoàn tác được | 04 §8.3, FR-DC-22 | Phase 3d |
+| TC-IDP-022 | contract | Import C5 trả `preview_rows` = 50 dòng (không phải 20) | 04 FR-DC-18, 06 §4.6, 10 EP-23 | Phase 3d |
+| TC-IDP-023 | integration | Tài liệu có dữ liệu sức khỏe (lý do nghỉ ốm) → `SECRET`: không có ModelCallLog cho field đó, field `null` chờ người nhập | 04 §14.3, GAP B-16 | Phase 3d |
+
 ### 2.2. S1 — Domain F, C, O
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
@@ -324,6 +339,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 | 2026-10-19 | DEC-124 Phase 3 | **Reset danh mục test cho v2** theo S0–S5 (108 TC Planned); giữ 3 test tài liệu/tooling |
 | 2026-10-20 | DEC-144 Phase 3a | +11 TC Planned (§2.1.1) cho data model 2.1.0: C19, Task 7 trạng thái, KPI band, risk `proposed`, dòng tiền 13 tuần, METRIC-DQ-01, Approval, IDP DEC-151, agent profile; task gán ở Phase 3d |
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
+| 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`) |
 
 ---
 

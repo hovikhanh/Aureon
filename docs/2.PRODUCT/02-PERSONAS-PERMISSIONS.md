@@ -715,7 +715,7 @@ Không mở tài liệu mức 4 (`EMPLOYEE_LIST`) trên màn chiếu khi demo.
 | OQ-05 | ADMIN có công cụ "xem như người dùng" hiển thị dữ liệu thật không? | Chỉ preview **danh sách quyền và tool** của role, không hiển thị dữ liệu nghiệp vụ; FR-ADM-08 thật hoãn v2.1 → **DEC-156** (open, non-blocking) | US-ADM-102, SCR-26 |
 | OQ-06 | Provider LLM nào được đánh dấu "trong nước / được phép nhận dữ liệu mức 2" mặc định? | Mặc định tắt cho mọi provider; ADMIN bật từng provider khi demo. `CONFIDENTIAL`+ không gửi cloud chưa duyệt (DEC-149) — chi tiết model local ở 07 Phase 3c | 07 ModelGateway, §6.3 |
 | OQ-07 | Ngưỡng khóa đăng nhập (5 lần sai) và thời hạn access/refresh token cụ thể? | Access 15 phút, refresh 7 ngày, khóa 15 phút sau 5 lần sai | 07, 10 §auth |
-| OQ-08 | Permission `platform:approve` (§5.6) có cần domain riêng `approval` không? | Không — dùng domain `platform` sẵn có (module `platform` sở hữu `ENT-ApprovalRequest`); 10 chốt `required_permission` ở Phase 3d | 10 EP-120..129, 05 |
+| OQ-08 | ✅ **Duyệt (human 2026-10-20):** dùng `platform:approve`, không thêm domain. Câu hỏi gốc: permission `platform:approve` (§5.6) có cần domain riêng `approval` không? | Không — dùng domain `platform` sẵn có (module `platform` sở hữu `ENT-ApprovalRequest`); 10 chốt `required_permission` ở Phase 3d | 10 EP-120..129, 05 |
 
 Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
 

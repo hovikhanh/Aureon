@@ -332,7 +332,7 @@ Mã `US-<AREA>-nnn`: **001–099 = mã BRD** (nội dung theo `_reference/SOURCE
 | US-ORG-003 | Admin, tôi muốn định nghĩa phạm vi truy cập của AI theo phòng ban và vai trò | P0 | v2.1 | quyền agent ∩ người — DEC-150 | — |
 | US-ORG-004 | Admin, tôi muốn dựng cơ cấu từ sơ đồ tổ chức và danh sách nhân sự có sẵn | P0 | v2.0 | UC-07 | — |
 | US-DC-001 | Employee, tôi muốn nhập dữ liệu qua form có kiểm tra tức thì | P0 | v2.0 |  | — |
-| US-DC-002 | Manager, tôi muốn nói hoặc gõ một câu để AI tạo bản ghi, chỉ ghi sau khi tôi xác nhận | P0 | v2.0 lite | gõ v2.0; nói (C2) v2.1 — DEC-153 | — |
+| US-DC-002 | Manager, tôi muốn nói hoặc gõ một câu để AI tạo bản ghi, chỉ ghi sau khi tôi xác nhận | P0 | v2.0 | gõ v2.0; nói (C2) v2.0 = mock STT, STT thật v2.1 — DEC-153 | — |
 | US-DC-003 | User, tôi muốn tải PDF, Word, ảnh để AI tự trích xuất dữ liệu | P0 | v2.0 |  | — |
 | US-DC-004 | Manager, tôi muốn tải biên bản họp để AI tạo task, giao người và đặt hạn | P0 | v2.0 |  | — |
 | US-DC-005 | Manager, tôi muốn tải file kế hoạch KPI/OKR hiện có thay vì nhập lại | P0 | v2.0 |  | — |
@@ -482,7 +482,7 @@ Mã `US-<AREA>-nnn`: **001–099 = mã BRD** (nội dung theo `_reference/SOURCE
 |---|---|---|---|
 | FR-DC-01 | Form sinh từ schema, validate tại chỗ | v2.0 | 04 |
 | FR-DC-02 | AI gợi ý giá trị, cảnh báo bản ghi có thể trùng | v2.0 | — (mới) |
-| FR-DC-03 | Nhập ngôn ngữ tự nhiên qua AI, xác nhận trước khi ghi | v2.0 lite (gõ; nói v2.1) | 03 |
+| FR-DC-03 | Nhập ngôn ngữ tự nhiên qua AI, xác nhận trước khi ghi | v2.0 (gõ + nói **mock STT**; STT thật v2.1 — DEC-153, 04 §2.1) | 03 |
 | FR-DC-04 | Lưu nháp; sửa hàng loạt dạng lưới | v2.0 lite (nháp; lưới OUT — DEC-151) | — (mới) |
 | FR-DC-05 | Audit mọi thay đổi; lý do bắt buộc với trường tài chính | v2.0 (DEC-151) | 22 (phần audit) |
 | FR-DC-06 | Nhập trên mobile cho tác vụ thường xuyên | v2.0 (PWA) | — (mới) |
