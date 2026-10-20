@@ -52,7 +52,7 @@ UI: thẻ trụ, chi tiết metric (SCR-07), lineage tới trang tài liệu (P0
 | Ngưỡng | **Biến cấu hình** (yêu cầu NFR của A-EMS) tên `THR_<METRIC_ID>_WARN` / `THR_<METRIC_ID>_CRIT` (vd. `THR_FIN_03_CRIT`) lưu ở `ENT-SystemSetting`, ADMIN sửa qua `dashboard:admin`; giá trị trong bảng là **mặc định** |
 | Hướng | `↑` = càng cao càng tốt (vi phạm khi **thấp hơn** ngưỡng); `↓` = càng thấp càng tốt (vi phạm khi **cao hơn** ngưỡng) |
 | Trạng thái metric | `ok` / `warning` / `critical` / `no_data` (thiếu dữ liệu đầu vào hoặc mẫu số = 0) |
-| Độ tươi | Mỗi `ENT-MetricValue` có `computed_at` và `source_updated_at`; quá `FRESHNESS_STALE_DAYS` (mặc định 7 ngày cho metric tháng, 2 ngày cho metric ngày) → nhãn "dữ liệu cũ" (AI-EOS §4.1) |
+| Độ tươi | Mỗi `ENT-MetricValue` có `computed_at` và `source_updated_at`; metric tính theo event quá **Operational Freshness SLA** của domain (`SLA_OPERATIONAL_<DOMAIN>_HOURS`, §2.6 — DEC-158), metric kỳ quá `FRESHNESS_STALE_DAYS` (mặc định 7 ngày cho metric tháng, 2 ngày cho metric ngày) → nhãn "dữ liệu cũ" (AI-EOS §4.1) |
 | Chất lượng dữ liệu | `data_quality_pct` của từng metric = thành phần **completeness** của METRIC-DQ-01 (§2.6) trên tập bản ghi cấu thành; một ngưỡng thống nhất với METRIC-DQ-01 (DEC-148): < 80 → nhãn "chất lượng thấp", < 60 → nhãn đỏ (vd. "Doanh thu T9 mới có 62% hóa đơn được nhập") |
 | Phân loại dữ liệu | Mỗi metric/insight mang `data_classification` cao nhất của bản ghi cấu thành (05 C19, §10); quyết định model AI được dùng (§7.4) |
 | "3 kỳ gần nhất" | 3 kỳ cùng loại liền trước kỳ đang xét, không gồm kỳ đang xét |
@@ -136,11 +136,29 @@ Thành phần (mỗi thành phần 0–100):
 |---|---|---|---|
 | `completeness` | 0,3 (`DQ_WEIGHT_COMPLETENESS`) | `bản ghi trong kỳ có đủ trường bắt buộc / tổng bản ghi trong kỳ × 100` | Trường bắt buộc theo schema entity (05) và ExtractionSchema (04) |
 | `accuracy` | 0,4 (`DQ_WEIGHT_ACCURACY`) | `(1 − (bản ghi lỗi validate nghiệp vụ + field IDP bị reviewer sửa/từ chối) / tổng bản ghi và field được kiểm) × 100` | Lỗi validate theo FR-DC-14; batch import dùng `ENT-ImportBatch.quality_score` |
-| `freshness` | 0,3 (`DQ_WEIGHT_FRESHNESS`) | `nguồn dữ liệu cập nhật đúng hạn / tổng nguồn × 100`; đúng hạn = `source_updated_at` trong SLA BO-02 (tài chính ≤ 24 giờ, task/sales ≤ 1 giờ, còn lại `FRESHNESS_STALE_DAYS`) | Dùng chung nhãn "dữ liệu cũ" §1.3 |
+| `freshness` | 0,3 (`DQ_WEIGHT_FRESHNESS`) | `nguồn dữ liệu cập nhật đúng hạn / tổng nguồn × 100`; đúng hạn = `source_updated_at` trong **Data Quality Freshness SLA** của domain (`SLA_FRESHNESS_<DOMAIN>_HOURS` — bảng dưới, DEC-158) | Khác Operational Freshness SLA (nhãn "dữ liệu cũ" §1.3) |
 
 - Trọng số là cấu hình, tổng phải bằng 1 (kiểm khi lưu). Ngưỡng `THR_DQ_01_WARN = 80`, `THR_DQ_01_CRIT = 60`; mục tiêu BO-09 ≥ 90 (01 §4.1).
 - Domain không có bản ghi trong kỳ bị loại khỏi trung bình (không kéo điểm về 0); mọi domain trống → `no_data`.
 - Lineage của METRIC-DQ-01 trỏ tới danh sách bản ghi thiếu trường / lỗi / nguồn quá hạn (P01).
+
+**Hai loại SLA độ tươi (DEC-158 — khác mục đích, không xung đột):**
+
+| Loại | Trả lời câu hỏi | Dùng ở | Env |
+|---|---|---|---|
+| **Operational Freshness SLA** | Metric điều hành được tính lại cách đây bao lâu (CEO thấy gần thời gian thực — BO-02) | `FreshnessBadge` / nhãn "dữ liệu cũ" §1.3 trên dashboard, Briefing §7.2 mục 10 | `SLA_OPERATIONAL_<DOMAIN>_HOURS` |
+| **Data Quality Freshness SLA** | Bảng dữ liệu nguồn có bị cũ không | Thành phần `freshness` của METRIC-DQ-01 (trọng số 0,3) | `SLA_FRESHNESS_<DOMAIN>_HOURS` |
+
+| Domain | Operational (giờ) | Data Quality (giờ) |
+|---|---|---|
+| execution (task) | 1 | 24 |
+| sales | 1 | 24 |
+| finance | 4 | 24 |
+| risk | 4 | 48 |
+| hr | 24 | 72 |
+| product | 24 | 72 |
+
+Operational SLA chặt hơn BO-02 (01 §4.1: tài chính ≤ 24 giờ, task/sales ≤ 1 giờ) nên đáp ứng BO-02. `FRESHNESS_STALE_DAYS` giữ cho metric kỳ tháng/quý không tính lại theo event (§1.3). Seed demo: 08 §10.3.
 
 
 ---
@@ -552,7 +570,7 @@ Layout desktop trang Dashboard: hàng 1 dòng tóm tắt + bộ lọc kỳ; hàn
 | OQ-07 | Briefing có gửi qua kênh ngoài (Zalo/Slack/email) không? | Không ở v2; chỉ in-app (+ email critical nếu bật FR-NTF-02) | FR-NTF |
 | OQ-08 | ✅ **Đóng — SEI tính theo Initiative** (`ENT-Initiative.weight_pct`, DEC-147; §2.5). Câu hỏi gốc: METRIC-RSK-06 cần `Objective.weight` — mặc định khi không nhập? | Σ trọng số = 0 → trọng số bằng nhau | 05 `ENT-Initiative` |
 | OQ-09 | ✅ **Duyệt (human 2026-10-20):** BRD gợi ý 07:00; v2.1 override qua env var; default 06:00 cho demo. Câu hỏi gốc: `BRIEFING_TIME` mặc định 06:00 — giữ? | `BRIEFING_TIME=06:00`; đăng ký ở 07 §env (Phase 3c) | 07, 10 EP Briefing |
-| OQ-10 | ✅ **Trọng số duyệt (human 2026-10-20):** 0,3/0,4/0,3 qua `DQ_WEIGHT_*`. SLA freshness sẽ chốt cụ thể ở 3d khi có metric domain. Câu hỏi gốc: trọng số DQ Score và SLA freshness theo domain | Mặc định §2.6 | 05 ENT-Metric, 08 seed |
+| OQ-10 | ✅ **Trọng số duyệt (human 2026-10-20):** 0,3/0,4/0,3 qua `DQ_WEIGHT_*`. SLA freshness ✅ **DEC-158** (2 loại: Operational vs Data Quality — §2.6). Câu hỏi gốc: trọng số DQ Score và SLA freshness theo domain | Mặc định §2.6 | 05 ENT-Metric, 08 seed |
 | OQ-11 | ✅ **Duyệt (human 2026-10-20):** cột `ai.ai_actions.verification` (jsonb) — đã có ở 05 ENT-AIAction. Câu hỏi gốc: lưu kết quả Verification (§7.3) ở cột mới? | Không thêm event | 05 ENT-AIAction, 10 EP-11x |
 
 Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đồng bộ governance.
@@ -582,6 +600,7 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 - **Last updated:** 2026-10-20
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
+- **Change 2.1.0 (DEC-158, 2026-10-20):** §2.6 tách Operational Freshness SLA (`SLA_OPERATIONAL_<DOMAIN>_HOURS`) và Data Quality Freshness SLA (`SLA_FRESHNESS_<DOMAIN>_HOURS`); đóng phần SLA của OQ-10.
 - **Change 2.1.0 (Phase 3b — DEC-144, DEC-147..149, DEC-152, DEC-154):** BRD làm Canonical Source; **32 metric / 32 alert** — thêm METRIC-DQ-01 / ALERT-DQ-01 với công thức `completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`, < 80 warning, < 60 critical (§2.6); SEI (METRIC-RSK-06) tính theo **Initiative** (§2.5, GAP C-02); risk `proposed` + 13 danh mục, rủi ro `proposed` không sinh alert (§3.1, §5.5); insight **9 phần** + đồng bộ key 05 (§7.1, GAP A-11); chặn số không nguồn ở v2.0 (GAP D-15); Briefing `BRIEFING_TIME` 06:00 + khối "Hiệu suất" (KPI/OKR %) và "Hôm nay" (§7.2, GAP D-17); Verification 24h/7d cho L2+ (§7.3, GAP D-14); 4 mức `data_classification` quyết định model (§7.4, GAP A-15); TTFT p50 ≤ 2 s / p95 ≤ 5 s (DEC-152); FR-AI-11; FR-PRD-04 `release_version` (DEC-154); mã US mới (DEC-146); OQ-08 đóng, OQ-09..11.
 - **Change 2.0.0:** Viết lại toàn bộ theo DEC-124, DEC-127 (5 trụ F.O.C.U.S, 31 metric/alert, BR và FR domain từ A-EMS, bộ chỉ số sức khỏe AI-EOS). Bản 1.0.0 (4 trụ, 18 metric) lưu ở nhánh `v1`.
 - **Change (2026-10-19, DEC-143):** chốt ngưỡng METRIC-CUS-01 (W < 2,8x · C < 2,5x), METRIC-RSK-04 (W ≥ 10 · C ≥ 15), METRIC-HR-04 (C > 45 ngày) và ALERT tương ứng; đóng OQ-05.

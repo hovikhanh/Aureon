@@ -445,6 +445,8 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_REQUIRED` | `clamav`, `3310`, `false` (demo) | |
 | | `IDP_UNDO_WINDOW_DAYS`, `REVIEW_LOCK_MINUTES` | `7`, `15` | |
 | Dashboard / ngưỡng | `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS` *(mới 2.1)* | `0.3`, `0.4`, `0.3` — Σ phải = 1,0 (fail fast); METRIC-DQ-01 (03 §2.6, duyệt 03 OQ-10) | |
+| | `SLA_OPERATIONAL_EXECUTION_HOURS`, `SLA_OPERATIONAL_SALES_HOURS`, `SLA_OPERATIONAL_FINANCE_HOURS`, `SLA_OPERATIONAL_RISK_HOURS`, `SLA_OPERATIONAL_HR_HOURS`, `SLA_OPERATIONAL_PRODUCT_HOURS` *(mới 2.1)* | `1`, `1`, `4`, `4`, `24`, `24` — **Operational Freshness SLA**: nhãn "dữ liệu cũ" / `FreshnessBadge` của metric dashboard (03 §1.3, §2.6 — DEC-158) | |
+| | `SLA_FRESHNESS_FINANCE_HOURS`, `SLA_FRESHNESS_SALES_HOURS`, `SLA_FRESHNESS_HR_HOURS`, `SLA_FRESHNESS_PRODUCT_HOURS`, `SLA_FRESHNESS_RISK_HOURS`, `SLA_FRESHNESS_EXECUTION_HOURS` *(mới 2.1)* | `24`, `24`, `72`, `72`, `48`, `24` — **Data Quality Freshness SLA**: thành phần `freshness` của METRIC-DQ-01 ở 03 §2.6 (DEC-158) | |
 | | `BRIEFING_TIME` *(mới 2.1)* | `06:00` (giờ `Asia/Ho_Chi_Minh`; BRD gợi ý 07:00 — override ở v2.1, 03 OQ-09) | |
 | | `THR_<METRIC>_WARN`, `THR_<METRIC>_CRIT`, `PILLAR_NO_DATA_RATIO`, `FRESHNESS_STALE_DAYS`, `DASHBOARD_REFRESH_SEC` | theo 03 (giá trị mặc định ở 03 §2) | |
 | Approval | `APPROVAL_FINANCE_THRESHOLD_VND` *(mới 2.1)* | `500000000` — request tài chính vượt ngưỡng cần 2 người duyệt (DEC-155; Admin override qua `ai.autonomy_policies.max_amount`) | |
@@ -453,7 +455,7 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `DEMO_<ROLE>_PASSWORD` (10 role, VD `DEMO_CEO_PASSWORD`) | `<demo-password>` | khi `DEMO_MODE` |
 | Retention | `RETENTION_AUDIT_DAYS`, `RETENTION_MODEL_LOG_DAYS`, `RETENTION_CONVERSATION_DAYS` | `3650`, `180`, `365` | |
 
-**Biến mới 2.1.0 (9 biến, đánh dấu *mới 2.1*):** `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `LOCAL_CHAT_MODEL`, `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS`, `BRIEFING_TIME`, `APPROVAL_FINANCE_THRESHOLD_VND`; bỏ `MODEL_SENSITIVE_PROVIDER` (thay bằng 2 biến phân loại). Đồng bộ `.env.example` thuộc task T-014 (agent không sửa file này trong Phase 3).
+**Biến mới 2.1.0 (21 biến, đánh dấu *mới 2.1*):** `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `LOCAL_CHAT_MODEL`, `DQ_WEIGHT_COMPLETENESS`, `DQ_WEIGHT_ACCURACY`, `DQ_WEIGHT_FRESHNESS`, `BRIEFING_TIME`, `APPROVAL_FINANCE_THRESHOLD_VND`, 6 × `SLA_OPERATIONAL_<DOMAIN>_HOURS` và 6 × `SLA_FRESHNESS_<DOMAIN>_HOURS` (12 biến SLA — DEC-158: `SLA_OPERATIONAL_*` dùng cho 03 §1.3 nhãn dữ liệu cũ, `SLA_FRESHNESS_*` dùng cho DQ Score ở 03 §2.6; `<DOMAIN>` ∈ `EXECUTION, SALES, FINANCE, RISK, HR, PRODUCT`); bỏ `MODEL_SENSITIVE_PROVIDER` (thay bằng 2 biến phân loại). Đồng bộ `.env.example` thuộc task T-014 (agent không sửa file này trong Phase 3).
 
 Thay đổi so với `.env.example` hiện tại: bỏ `JWT_SECRET`/`JWT_EXPIRES_IN` (HS256) → cặp khóa RS256 + TTL (DEC-129); bỏ `NEXT_PUBLIC_DEMO_PASSWORD_*` (lộ mật khẩu ra client — OQ-07); thêm 5 role demo mới. Cập nhật bởi task T-014.
 
@@ -681,5 +683,6 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 - **Last updated:** 2026-10-20
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
+- **Change 2.1.0 (DEC-158, 2026-10-20):** §7 thêm 12 biến SLA (`SLA_OPERATIONAL_*` × 6, `SLA_FRESHNESS_*` × 6); tổng biến mới 2.1 = 21.
 - **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-149, DEC-151..153, DEC-155):** chọn provider theo phân loại dữ liệu §6.5 (Public/Internal cloud · Confidential local/template · Secret không LLM; `MODEL_PROVIDER_CONFIDENTIAL`, `MODEL_PROVIDER_SECRET`, `OLLAMA_BASE_URL`, `LOCAL_CHAT_MODEL`); 9 biến môi trường mới (§7); **DEC-157:** Confidential = local LLM `qwen2.5:7b-instruct` → template, metric tổng hợp = `INTERNAL`, ADMIN override có audit (EP-129); `verify_action_outcome` 24h/7d §5.6 + bước Verification IDP (D-18); TTFT p50 ≤ 2 s / p95 ≤ 5 s (D-31); NFR-29..33 + bảng tóm tắt p95/RPO/RTO/backup/retention §11.1 (D-33); Luật BVDLCN, DPIA, thông báo vi phạm, Luật ANM §9.3 (D-34); C2 voice mock STT; dependency parse PDF/HEIC/DOC/XLS + Ollama → checklist T-002; OQ-05 đóng, OQ-12/13 mới.
 - **Change 2.0.0:** Viết lại toàn bộ theo DEC-124..137: Modular Monolith 11 module / 10 schema (DEC-125), outbox + Celery beat relay (DEC-126), RS256 (DEC-129), ModelGateway đa provider + fallback + ngân sách (DEC-131), SSE, ClamAV, cấu hình đầy đủ, NFR-01..28. Bản 1.x lưu ở nhánh `v1`.

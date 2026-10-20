@@ -612,18 +612,18 @@ Kịch bản demo (phút 9–11): Risk Manager xác nhận R-12 → `identified`
 
 METRIC-DQ-01 **không** tham gia trạng thái trụ (03 §4) → §6.1 giữ nguyên 2 ok · 2 warning · 1 critical. Tổng metric seed: **32** (31 trụ + DQ-01); alert mở: **16** (15 + ALERT-DQ-01 Warning).
 
-**SLA freshness theo domain (seed + cấu hình):**
+**Data Quality Freshness SLA theo domain (DEC-158 — nguồn cho thành phần `freshness` của DQ Score):**
 
-| Domain | Warning khi chưa cập nhật | Critical khi chưa cập nhật | Env |
-|---|---|---|---|
-| finance | 24 giờ | 48 giờ | `SLA_FRESHNESS_FINANCE_HOURS` (`24,48`) |
-| sales | 24 giờ | 48 giờ | `SLA_FRESHNESS_SALES_HOURS` (`24,48`) |
-| hr | 72 giờ | — | `SLA_FRESHNESS_HR_HOURS` (`72`) |
-| product | 72 giờ | — | `SLA_FRESHNESS_PRODUCT_HOURS` (`72`) |
-| risk | 48 giờ | — | `SLA_FRESHNESS_RISK_HOURS` (`48`) |
-| execution | 48 giờ | — | `SLA_FRESHNESS_EXECUTION_HOURS` (`48`) |
+| Domain | SLA (giờ) | Env |
+|---|---|---|
+| finance | 24 | `SLA_FRESHNESS_FINANCE_HOURS` |
+| sales | 24 | `SLA_FRESHNESS_SALES_HOURS` |
+| hr | 72 | `SLA_FRESHNESS_HR_HOURS` |
+| product | 72 | `SLA_FRESHNESS_PRODUCT_HOURS` |
+| risk | 48 | `SLA_FRESHNESS_RISK_HOURS` |
+| execution | 24 | `SLA_FRESHNESS_EXECUTION_HOURS` |
 
-Freshness thành phần = nguồn trong SLA warning / tổng nguồn × 100. Bảng này **lệch** 03 §2.6 (BO-02: tài chính ≤ 24 giờ, task/sales ≤ 1 giờ, còn lại `FRESHNESS_STALE_DAYS`) và 6 env `SLA_FRESHNESS_*` chưa có ở 07 §7 → OQ-11 (đề xuất DEC; seed dùng bảng này).
+Freshness thành phần = nguồn cập nhật trong SLA / tổng nguồn × 100. Đây **không** phải Operational Freshness SLA (nhãn "dữ liệu cũ" trên dashboard: execution/sales 1 giờ, finance/risk 4 giờ, hr/product 24 giờ — `SLA_OPERATIONAL_<DOMAIN>_HOURS`, 03 §2.6); hai loại khác mục đích, không xung đột (DEC-158).
 
 ### 10.4. Dòng tiền 13 tuần (`ENT-CashFlowForecast` + 13 `ENT-CashFlowForecastLine` × 3 kịch bản — DEC-148)
 
@@ -735,7 +735,7 @@ Khớp wireframe SCR-31 (06 §4.14: đầu kỳ 18,4 tỷ · đáy 3,1 tỷ tu�
 | OQ-08 | R-12 đổi sang `proposed` (DEC-148) làm METRIC-RSK-01 8 → 7, RSK-02 2 → 1, RSK-04 12,3 → 12,4 — trạng thái không đổi | Chấp nhận (đã cập nhật §6, K19/K28); demo xác nhận R-12 tại phút 9–11 | 03, 14 TC-RSK-006 |
 | OQ-09 | Task của Initiative có ảnh hưởng METRIC-OPS-01 kỳ T9 không | Không — hạn từ 05/10 (ngoài kỳ T9) | 03 |
 | OQ-10 | DQ Score theo domain: 05 `platform.scope_type` chỉ có `company, department, product` | Lưu domain trong `metric_snapshot`/lineage của bản `company`; thêm `domain` vào enum nếu cần drill-down → DEC (Phase 4) | 05, 03 §2.6 |
-| OQ-11 | SLA freshness theo domain (§10.3: finance/sales 24/48 giờ, hr/product 72 giờ, risk/execution 48 giờ; env `SLA_FRESHNESS_<DOMAIN>_HOURS`) lệch 03 §2.6 (BO-02: tài chính ≤ 24 giờ, task/sales ≤ 1 giờ) và chưa có trong 07 §7 | **Đề xuất DEC (human):** chốt bảng §10.3 cho demo, đăng ký 6 env ở 07 §7 và cập nhật 03 §2.6; trước khi chốt seed dùng §10.3 | 03, 07, `.env.example` (T-014) |
+| OQ-11 | ✅ **Resolved bằng DEC-158** (2 loại SLA khác mục đích, không xung đột): §10.3 = Data Quality Freshness SLA (`SLA_FRESHNESS_<DOMAIN>_HOURS`, execution 24 giờ); 03 §2.6 = Operational Freshness SLA (`SLA_OPERATIONAL_<DOMAIN>_HOURS`); 12 env đăng ký ở 07 §7. Câu hỏi gốc: SLA freshness theo domain lệch 03 §2.6 (BO-02) và chưa có trong 07 §7 | — | 03, 07, `.env.example` (T-014) |
 
 ---
 
@@ -747,6 +747,7 @@ Khớp wireframe SCR-31 (06 §4.14: đầu kỳ 18,4 tỷ · đáy 3,1 tỷ tu�
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo DEC-136 (ABC ~150 NV, 9 tài liệu, 31 metric, 10 tài khoản, seed sự kiện); v1.0.0 lưu ở nhánh `v1`.
+- **Change 2.1.0 (DEC-158, 2026-10-20):** §10.3 đổi thành Data Quality Freshness SLA một ngưỡng / domain (execution 48 → 24 giờ, bỏ mức critical 48 giờ của finance/sales); đóng OQ-11.
 - **Change 2.1.0 (Phase 3d — DEC-147, DEC-148, DEC-153..155, DEC-157):** §10 seed v2.1 — 5 Initiative / 13 Milestone / 15 Task (mỗi trụ một), 3 rủi ro `proposed` (R-12 event, R-13 ai, R-14 document), DQ Score 6 domain (3 ok · 2 warning · 1 critical; công ty 77,1 warning), dòng tiền 13 tuần × 3 kịch bản (base đáy 3,1 tỷ tuần 7), 4 mẫu báo cáo / 5 report, 4 approval rule / 8 request, SLA freshness theo domain, phân loại seed; R-12 → `proposed` (RSK-01 7, RSK-02 1, RSK-04 12,4); event E6/E7 + E9; kiểm tra K22–K29; OQ-08..11.
 - **Change (2026-10-19, DEC-143):** ngưỡng CUS-01/RSK-04/HR-04 mới; hiệu chỉnh seed (ngân sách SAL 3.350, pipeline 235,5 tỷ, top 5 146,7 tỷ, churn 35 → 1,79%, MAU 1.430, roadmap 9/12); §6.1 = 16 OK · 12 W · 3 C, trụ 2 ok · 2 warning · 1 critical; đóng OQ-07.
 
