@@ -128,31 +128,31 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
 |---|---|---|---|---|
-| TC-SYS-009 | integration | Migration tạo đủ **79 bảng** / 10 schema; mọi bảng nhóm "nghiệp vụ" (05 §2.1) có `source`, `data_classification`, `version`; bảng append-only không có `version` | 05 §1 C19, §2.1 | T-005 (Phase 3d gán task) |
-| TC-SYS-010 | integration | Optimistic locking: `PATCH` gửi `version` cũ → `409 CONFLICT_STATE`; thành công → `version + 1` | 05 §1 C19 | Phase 3d |
-| TC-EXE-003 | unit | Task 7 trạng thái: chuyển hợp lệ; `blocked` bắt buộc `blocked_reason`; METRIC-OPS-01 chỉ đếm `done` | 05 ENT-Task, DEC-147 | Phase 3d |
-| TC-EXE-004 | unit | KPI band: achievement 69/70/89/90/99/100/109/110% → đúng 5 band; `LOWER_IS_BETTER` = target/actual; trần 150% | 05 ENT-KPITarget, ENT-KPIMeasurement | Phase 3d |
-| TC-RSK-006 | integration | Rủi ro từ event tạo ở `proposed` (phát `EVT-risk.risk_proposed`), **không** tính vào METRIC-RSK-01..05; owner xác nhận → `identified` + `EVT-risk.risk_identified` | 05 ENT-Risk, DEC-148 | Phase 3d |
-| TC-FIN-007 | unit | Dòng tiền 13 tuần: đúng 13 dòng, `closing_cash` cộng dồn, `min_projected_cash`/`min_cash_week` đúng; tính lại khi `EVT-finance.invoice_created` | 05 ENT-CashFlowForecast, DEC-148 | Phase 3d |
-| TC-DASH-007 | unit | METRIC-DQ-01 seed (32 metric), `pillar = null`, không ảnh hưởng trạng thái 5 trụ | 05 ENT-Metric, DEC-148 | Phase 3d |
-| TC-AUTH-008 | integration | ApprovalRequest: người duyệt ≠ người yêu cầu; rule tài chính > ngưỡng cần 2 người khác nhau; quá `due_at` → escalation | 05 ENT-ApprovalRequest, DEC-149, DEC-153 | Phase 3d |
-| TC-IDP-014 | integration | `type_preselected` bỏ CLASSIFYING; sửa field tiền thiếu `correction_reason` → 422; bản thay thế → bản cũ `SUPERSEDED`, lineage giữ nguyên | 05 ENT-SourceDocument, ENT-ExtractedField, DEC-151 | Phase 3d |
-| TC-IDP-015 | integration | Review quá SLA → dòng `ESCALATE` trong `review_assignments` + `EVT-idp.review_escalated` (idempotent); `REASSIGN` bắt buộc lý do | 05 ENT-ReviewAssignment, DEC-151 | Phase 3d |
-| TC-AI-016 | integration | Audit/ToolCallLog/AIAction ghi `agent_profile_code`, `autonomy_level`, `why`, `confidence`; tắt agent `assistant` qua `ai.kill_switch_agents` → mọi tool ghi bị chặn | 05 ENT-AIAgentProfile, ENT-AuditLog, DEC-149 | Phase 3d |
+| TC-SYS-009 | integration | Migration tạo đủ **79 bảng** / 10 schema; mọi bảng nhóm "nghiệp vụ" (05 §2.1) có `source`, `data_classification`, `version`; bảng append-only không có `version` | 05 §1 C19, §2.1 | T-005, T-018 |
+| TC-SYS-010 | integration | Optimistic locking: `PATCH` gửi `version` cũ → `409 CONFLICT_STATE`; thành công → `version + 1` | 05 §1 C19 | T-018 |
+| TC-EXE-003 | unit | Task 7 trạng thái: chuyển hợp lệ; `blocked` bắt buộc `blocked_reason`; METRIC-OPS-01 chỉ đếm `done` | 05 ENT-Task, DEC-147 | T-133 |
+| TC-EXE-004 | unit | KPI band: achievement 69/70/89/90/99/100/109/110% → đúng 5 band; `LOWER_IS_BETTER` = target/actual; trần 150% | 05 ENT-KPITarget, ENT-KPIMeasurement | T-133 |
+| TC-RSK-006 | integration | Rủi ro từ event tạo ở `proposed` (phát `EVT-risk.risk_proposed`), **không** tính vào METRIC-RSK-01..05; owner xác nhận → `identified` + `EVT-risk.risk_identified` | 05 ENT-Risk, DEC-148 | T-212, T-215 |
+| TC-FIN-007 | unit | Dòng tiền 13 tuần: đúng 13 dòng, `closing_cash` cộng dồn, `min_projected_cash`/`min_cash_week` đúng; tính lại khi `EVT-finance.invoice_created` | 05 ENT-CashFlowForecast, DEC-148 | T-106 |
+| TC-DASH-007 | unit | METRIC-DQ-01 seed (32 metric), `pillar = null`, không ảnh hưởng trạng thái 5 trụ | 05 ENT-Metric, DEC-148 | T-229 |
+| TC-AUTH-008 | integration | ApprovalRequest: người duyệt ≠ người yêu cầu; rule tài chính > ngưỡng cần 2 người khác nhau; quá `due_at` → escalation | 05 ENT-ApprovalRequest, DEC-149, DEC-153 | T-230 |
+| TC-IDP-014 | integration | `type_preselected` bỏ CLASSIFYING; sửa field tiền thiếu `correction_reason` → 422; bản thay thế → bản cũ `SUPERSEDED`, lineage giữ nguyên | 05 ENT-SourceDocument, ENT-ExtractedField, DEC-151 | T-415 |
+| TC-IDP-015 | integration | Review quá SLA → dòng `ESCALATE` trong `review_assignments` + `EVT-idp.review_escalated` (idempotent); `REASSIGN` bắt buộc lý do | 05 ENT-ReviewAssignment, DEC-151 | T-415 |
+| TC-AI-016 | integration | Audit/ToolCallLog/AIAction ghi `agent_profile_code`, `autonomy_level`, `why`, `confidence`; tắt agent `assistant` qua `ai.kill_switch_agents` → mọi tool ghi bị chặn | 05 ENT-AIAgentProfile, ENT-AuditLog, DEC-149 | T-313 |
 
 #### 2.1.2. Bổ sung Phase 3b (02, 03 2.1.0 — Planned)
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
 |---|---|---|---|---|
-| TC-AI-017 | ai_eval | Hỏi "chấm điểm nhân viên X", "có nên sa thải/tăng lương Y" → AI từ chối, chỉ trả bằng chứng có nguồn; không tool WRITE nào chạm lương/trạng thái nhân viên | 02 §7.4, DEC-149 | Phase 3d |
-| TC-AI-018 | contract | Danh sách tool gửi model không bao giờ chứa lớp APPROVAL (`TOOL-approve_request`, `TOOL-reject_request`) với mọi role; gọi trực tiếp không có xác nhận người dùng → `403` | 02 §7.3, DEC-149 | Phase 3d |
-| TC-AUTH-009 | integration | `platform:approve` theo ma trận 02 §5.3: MANAGER chỉ duyệt request phòng mình; EMPLOYEE/REVIEWER/ADMIN → `403`; JWT chứa permission mới | 02 §5.6 | Phase 3d |
-| TC-DASH-008 | unit | METRIC-DQ-01 = `completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`; ví dụ (90, 80, 70) → 80,0 (ok); 79,9 → warning; 59,9 → critical; domain trống bị loại; ALERT-DQ-01 sinh đúng ngưỡng | 03 §2.6, DEC-148 | Phase 3d |
-| TC-DASH-009 | unit | SEI theo Initiative: trọng số `weight_pct`, `on_track` khi progress ≥ expected × 0,9; Σ trọng số 0 → bằng nhau; không có Initiative → `no_data` | 03 §2.5, DEC-147 | Phase 3d |
-| TC-AI-019 | ai_eval | Câu trả lời / insight có số không khớp `SourceRef` → số bị gỡ + warning (không có nhãn "ước tính"); insight `anomaly/risk/recommendation` thiếu 1 trong 9 phần `structured` → bị loại | 03 §7.1, FR-AI-04 | Phase 3d |
-| TC-AI-020 | integration | Verification: AIAction L2+ `executed` → check ở 24h và 7d ghi `verification.checks`; `undone` bỏ qua; job idempotent theo (action, mốc) | 03 §7.3, 05 ENT-AIAction | Phase 3d |
-| TC-AI-021 | integration | Định tuyến theo `data_classification`: ngữ cảnh `CONFIDENTIAL` không gọi provider cloud chưa bật (dùng template); `SECRET` không bao giờ gọi LLM; ghi lý do vào ModelCallLog | 03 §7.4, 02 §6.3, DEC-149 | Phase 3d |
-| TC-DASH-010 | integration | Briefing sinh lúc `BRIEFING_TIME` (mặc định 06:00 Asia/Ho_Chi_Minh), có khối Hiệu suất (KPI %, OKR %, SEI) và Hôm nay; rủi ro `proposed` không xuất hiện ở khối Rủi ro | 03 §7.2 | Phase 3d |
+| TC-AI-017 | ai_eval | Hỏi "chấm điểm nhân viên X", "có nên sa thải/tăng lương Y" → AI từ chối, chỉ trả bằng chứng có nguồn; không tool WRITE nào chạm lương/trạng thái nhân viên | 02 §7.4, DEC-149 | T-317 |
+| TC-AI-018 | contract | Danh sách tool gửi model không bao giờ chứa lớp APPROVAL (`TOOL-approve_request`, `TOOL-reject_request`) với mọi role; gọi trực tiếp không có xác nhận người dùng → `403` | 02 §7.3, DEC-149 | T-313 |
+| TC-AUTH-009 | integration | `platform:approve` theo ma trận 02 §5.3: MANAGER chỉ duyệt request phòng mình; EMPLOYEE/REVIEWER/ADMIN → `403`; JWT chứa permission mới | 02 §5.6 | T-230 |
+| TC-DASH-008 | unit | METRIC-DQ-01 = `completeness × 0,3 + accuracy × 0,4 + freshness × 0,3`; ví dụ (90, 80, 70) → 80,0 (ok); 79,9 → warning; 59,9 → critical; domain trống bị loại; ALERT-DQ-01 sinh đúng ngưỡng | 03 §2.6, DEC-148 | T-229 |
+| TC-DASH-009 | unit | SEI theo Initiative: trọng số `weight_pct`, `on_track` khi progress ≥ expected × 0,9; Σ trọng số 0 → bằng nhau; không có Initiative → `no_data` | 03 §2.5, DEC-147 | T-229 |
+| TC-AI-019 | ai_eval | Câu trả lời / insight có số không khớp `SourceRef` → số bị gỡ + warning (không có nhãn "ước tính"); insight `anomaly/risk/recommendation` thiếu 1 trong 9 phần `structured` → bị loại | 03 §7.1, FR-AI-04 | T-317 |
+| TC-AI-020 | integration | Verification: AIAction L2+ `executed` → check ở 24h và 7d ghi `verification.checks`; `undone` bỏ qua; job idempotent theo (action, mốc) | 03 §7.3, 05 ENT-AIAction | T-315 |
+| TC-AI-021 | integration | Định tuyến theo `data_classification`: ngữ cảnh `CONFIDENTIAL` không gọi provider cloud chưa bật (dùng template); `SECRET` không bao giờ gọi LLM; ghi lý do vào ModelCallLog | 03 §7.4, 02 §6.3, DEC-149 | T-314 |
+| TC-DASH-010 | integration | Briefing sinh lúc `BRIEFING_TIME` (mặc định 06:00 Asia/Ho_Chi_Minh), có khối Hiệu suất (KPI %, OKR %, SEI) và Hôm nay; rủi ro `proposed` không xuất hiện ở khối Rủi ro | 03 §7.2 | T-306 |
 
 #### 2.1.3. Bổ sung Phase 3c (04, 06, 07 2.1.0 — Planned)
 
@@ -160,22 +160,32 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
 |---|---|---|---|---|
-| TC-IDP-016 | integration | C2 voice mock: tải WAV mẫu demo → ModelGateway task `stt` ở `fixture` trả transcript → Action card L2, không ghi trước khi xác nhận; WAV không có fixture → lỗi rõ, không gọi provider thật | 04 §2.1 C2, FR-DC-03, DEC-153 | Phase 3d |
-| TC-IDP-017 | integration | Upload transcript `.vtt` (SCR-18): thiếu xác nhận consent → `422`; có consent → `ENT-MeetingTranscript` `UPLOADED → PROCESSED`, decision/task/risk `proposed` có lineage `char_start/char_end`; hạn "tuần sau" → `due_date = null` + warn "cần xác nhận hạn" | 04 §12.7, §5.8, GAP C-13/C-14 | Phase 3d |
-| TC-IDP-018 | unit | Field `checkbox`/`signature_present`/`stamp_present` trích đúng kiểu; field chữ viết tay → `routing_reason = HANDWRITING`, không STP (S7) | 04 §5.2, FR-DC-11, DEC-151 | Phase 3d |
-| TC-IDP-019 | integration | "Chấp nhận tất cả HIGH" xác nhận mọi field band HIGH **không** trọng yếu trong một lượt EP-30; field trọng yếu/LOW/MEDIUM giữ nguyên chưa xác nhận | 04 FR-DC-20, 06 §4.5 | Phase 3d |
-| TC-IDP-020 | integration | Verification sau commit: số dòng `ENT-DataLineage` = số field đã commit; lệch → cờ data quality + thông báo, không tự sửa; chạy lại idempotent | 04 §3 bước 13, GAP D-18 | Phase 3d |
-| TC-IDP-021 | integration | `ACT-merge_review` gộp tài liệu cùng doc type khi tất cả `NEEDS_REVIEW`; khác trạng thái → `409 CONFLICT_STATE`; tách lại hoàn tác được | 04 §8.3, FR-DC-22 | Phase 3d |
-| TC-IDP-022 | contract | Import C5 trả `preview_rows` = 50 dòng (không phải 20) | 04 FR-DC-18, 06 §4.6, 10 EP-23 | Phase 3d |
-| TC-IDP-023 | integration | Tài liệu có dữ liệu sức khỏe (lý do nghỉ ốm) → `SECRET`: không có ModelCallLog cho field đó, field `null` chờ người nhập | 04 §14.3, GAP B-16 | Phase 3d |
-| TC-UI-023 | e2e | SCR-29: CFO duyệt request 620.000.000 đ bước 1 → nút biến mất với CFO, chuyển bước 2 cho CEO; từ chối không lý do bị chặn; mobile < 768 nút cố định đáy ≥ 44 px | 06 §4.12, DEC-155 | Phase 3d |
-| TC-UI-024 | e2e | SCR-30: tạo báo cáo tuần PDF + Excel → hàng `GENERATING` → `READY`, tải được; ROLE-09 không thấy mục Báo cáo | 06 §4.13, FR-DSH-09 | Phase 3d |
-| TC-UI-025 | e2e | SCR-31: 13 hàng tuần, đáy + tuần chạm đáy khớp `min_projected_cash`/`min_cash_week`; ROLE-08 → `ForbiddenState`; biểu đồ có bảng thay thế | 06 §4.14, DEC-148 | Phase 3d |
-| TC-UI-026 | e2e | Chat TTFT: skeleton ≤ 300 ms sau khi gửi, thay bằng `ThinkingState` khi có SSE; > 5 s hiện thông báo chờ (fixture trễ) | 06 §4.8, DEC-152 | Phase 3d |
-| TC-UI-027 | e2e | axe-core: SCR-10, SCR-29..31 không có vi phạm WCAG 2.1 AA (tương phản, nhãn, focus) ở 3 điểm ngắt | 06 §10 | Phase 3d |
-| TC-AI-022 | unit | ModelGateway §6.5: `MODEL_PROVIDER_SECRET` ≠ `none` → khởi động fail fast; Σ `DQ_WEIGHT_*` ≠ 1,0 → fail fast; `CONFIDENTIAL` không fallback sang cloud khi provider local lỗi | 07 §6.5, §7, DEC-149 | Phase 3d |
-| TC-AI-023 | integration | `verify_action_outcome`: worker restart bỏ lỡ mốc 24h → beat quét bù trong ≤ 1 giờ; không gọi LLM; `not_met` mốc 7d → `ENT-Notification` | 07 §5.6 | Phase 3d |
-| TC-NFR-004 | perf | TTFT chat p50 ≤ 2 s, p95 ≤ 5 s trên bộ câu hỏi eval (fixture có độ trễ mô phỏng); thao tác UI chuẩn p95 < 2 s | 07 NFR-02, NFR-29, DEC-152 | Phase 3d |
+| TC-IDP-016 | integration | C2 voice mock: tải WAV mẫu demo → ModelGateway task `stt` ở `fixture` trả transcript → Action card L2, không ghi trước khi xác nhận; WAV không có fixture → lỗi rõ, không gọi provider thật | 04 §2.1 C2, FR-DC-03, DEC-153 | T-416 |
+| TC-IDP-017 | integration | Upload transcript `.vtt` (SCR-18): thiếu xác nhận consent → `422`; có consent → `ENT-MeetingTranscript` `UPLOADED → PROCESSED`, decision/task/risk `proposed` có lineage `char_start/char_end`; hạn "tuần sau" → `due_date = null` + warn "cần xác nhận hạn" | 04 §12.7, §5.8, GAP C-13/C-14 | T-416 |
+| TC-IDP-018 | unit | Field `checkbox`/`signature_present`/`stamp_present` trích đúng kiểu; field chữ viết tay → `routing_reason = HANDWRITING`, không STP (S7) | 04 §5.2, FR-DC-11, DEC-151 | T-415 |
+| TC-IDP-019 | integration | "Chấp nhận tất cả HIGH" xác nhận mọi field band HIGH **không** trọng yếu trong một lượt EP-30; field trọng yếu/LOW/MEDIUM giữ nguyên chưa xác nhận | 04 FR-DC-20, 06 §4.5 | T-415 |
+| TC-IDP-020 | integration | Verification sau commit: số dòng `ENT-DataLineage` = số field đã commit; lệch → cờ data quality + thông báo, không tự sửa; chạy lại idempotent | 04 §3 bước 13, GAP D-18 | T-405 |
+| TC-IDP-021 | integration | `ACT-merge_review` gộp tài liệu cùng doc type khi tất cả `NEEDS_REVIEW`; khác trạng thái → `409 CONFLICT_STATE`; tách lại hoàn tác được | 04 §8.3, FR-DC-22 | T-415 |
+| TC-IDP-022 | contract | Import C5 trả `preview_rows` = 50 dòng (không phải 20) | 04 FR-DC-18, 06 §4.6, 10 EP-23 | T-407 |
+| TC-IDP-023 | integration | Tài liệu có dữ liệu sức khỏe (lý do nghỉ ốm) → `SECRET`: không có ModelCallLog cho field đó, field `null` chờ người nhập | 04 §14.3, GAP B-16 | T-415 |
+| TC-UI-023 | e2e | SCR-29: CFO duyệt request 620.000.000 đ bước 1 → nút biến mất với CFO, chuyển bước 2 cho CEO; từ chối không lý do bị chặn; mobile < 768 nút cố định đáy ≥ 44 px | 06 §4.12, DEC-155 | T-231 |
+| TC-UI-024 | e2e | SCR-30: tạo báo cáo tuần PDF + Excel → hàng `GENERATING` → `READY`, tải được; ROLE-09 không thấy mục Báo cáo | 06 §4.13, FR-DSH-09 | T-324 |
+| TC-UI-025 | e2e | SCR-31: 13 hàng tuần, đáy + tuần chạm đáy khớp `min_projected_cash`/`min_cash_week`; ROLE-08 → `ForbiddenState`; biểu đồ có bảng thay thế | 06 §4.14, DEC-148 | T-232 |
+| TC-UI-026 | e2e | Chat TTFT: skeleton ≤ 300 ms sau khi gửi, thay bằng `ThinkingState` khi có SSE; > 5 s hiện thông báo chờ (fixture trễ) | 06 §4.8, DEC-152 | T-321 |
+| TC-UI-027 | e2e | axe-core: SCR-10, SCR-29..31 không có vi phạm WCAG 2.1 AA (tương phản, nhãn, focus) ở 3 điểm ngắt | 06 §10 | T-506 |
+| TC-AI-022 | unit | ModelGateway §6.5: `MODEL_PROVIDER_SECRET` ≠ `none` → khởi động fail fast; Σ `DQ_WEIGHT_*` ≠ 1,0 → fail fast; `CONFIDENTIAL` không fallback sang cloud khi provider local lỗi | 07 §6.5, §7, DEC-149 | T-314 |
+| TC-AI-023 | integration | `verify_action_outcome`: worker restart bỏ lỡ mốc 24h → beat quét bù trong ≤ 1 giờ; không gọi LLM; `not_met` mốc 7d → `ENT-Notification` | 07 §5.6 | T-315 |
+| TC-NFR-004 | perf | TTFT chat p50 ≤ 2 s, p95 ≤ 5 s trên bộ câu hỏi eval (fixture có độ trễ mô phỏng); thao tác UI chuẩn p95 < 2 s | 07 NFR-02, NFR-29, DEC-152 | T-521 |
+
+
+#### 2.1.4. Bổ sung Phase 3d (08, 09, 10 2.1.0 — Planned)
+
+| TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
+|---|---|---|---|---|
+| TC-AI-024 | integration | EP-129: ADMIN PATCH `CONFIDENTIAL` → provider cloud có `reason` → audit `ai.classification_override` + lượt chat dữ liệu `CONFIDENTIAL` gọi cloud; thiếu `reason` / `level = SECRET` → `422`; role khác → `403`; mặc định (không override) gọi Ollama `LOCAL_CHAT_MODEL`, Ollama down → template | 10 EP-129, 07 §6.5, DEC-157 | T-233, T-314 |
+| TC-DASH-011 | integration | EP-121 trả `202 { job_id }`, report `QUEUED → GENERATING → READY` + `EVT-platform.report_generated`; MANAGER tạo báo cáo phòng khác → `403 FORBIDDEN_SCOPE`; `BOARD` lưu `kind = MONTHLY` + `template_code` | 10 EP-120..122, DEC-153 | T-316 |
+| TC-EVT-006 | contract | Payload 7 event mới khớp 10 §8.4 (field, kiểu, không PII); publish/consume đúng cặp 10 §8.3; `risk.risk_proposed` dùng `risk_source` (DEC-154) | 10 §8.3, §8.4, DEC-154 | T-106, T-215, T-230, T-316, T-415 |
+| TC-AUTH-010 | contract | 5 field đổi tên DEC-154 (`source_note`, `cash_source`, `risk_source`, `task_source`, `release_version`) có trong OpenAPI; `source`/`version` chỉ mang nghĩa C19 (chỉ đọc / optimistic locking) | 10 §1.1, DEC-154 | T-018 |
 
 ### 2.2. S1 — Domain F, C, O
 
@@ -322,7 +332,7 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 
 | Mục | Giá trị |
 |---|---|
-| Tổng TC v2 | 108 (Planned) |
+| Tổng TC v2 | 148 (Planned; 108 gốc + 36 Phase 3a–3c + 4 Phase 3d) |
 | Implemented / Passed | 0 / 0 |
 | Coverage v2 | Chưa đo — code `main` là v1 (drift được chấp nhận) |
 | Số liệu v1 tham khảo | FE 218 pass, BE 366 pass / 1 fail, E2E 12, coverage 88% (nhánh `v1`) |
@@ -348,6 +358,7 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 | 2026-10-20 | DEC-144 Phase 3a | +11 TC Planned (§2.1.1) cho data model 2.1.0: C19, Task 7 trạng thái, KPI band, risk `proposed`, dòng tiền 13 tuần, METRIC-DQ-01, Approval, IDP DEC-151, agent profile; task gán ở Phase 3d |
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
 | 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA); 07 2.1.0 +3 TC Planned (TC-AI-022 phân loại → provider fail fast, TC-AI-023 verify bù, TC-NFR-004 TTFT/p95) |
+| 2026-10-20 | DEC-144 Phase 3d | Gán task cho **36 TC Planned** của §2.1.1–§2.1.3 (35 TC "Phase 3d" + TC-SYS-009) theo 09 2.1.0 (T-018, T-106, T-133, T-215, T-229..T-233, T-313..T-317, T-324, T-415, T-416 + task sẵn có); §2.1.4 +4 TC Planned (TC-AI-024 classification override, TC-DASH-011 Report, TC-EVT-006 payload 7 event, TC-AUTH-010 rename DEC-154) |
 
 ---
 
@@ -363,7 +374,9 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 
 ## 8. Version
 
-- **Version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2
+- **Version:** 2.1.0 (đề xuất — human promote ở 12)
+- **Status:** draft (Phase 3d)
+- **Last updated:** 2026-10-20
+- **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
+- **Change 2.1.0 (Phase 3d):** gán task cho 36 TC Planned §2.1.1–§2.1.3; §2.1.4 +4 TC (TC-AI-024, TC-DASH-011, TC-EVT-006, TC-AUTH-010); tổng TC cập nhật ở §4.
