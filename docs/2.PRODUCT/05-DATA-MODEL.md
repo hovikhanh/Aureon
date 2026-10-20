@@ -30,7 +30,7 @@
 | C17 | Audit actor | Bảng nghiệp vụ có `created_by uuid` và `updated_by uuid` (soft ref `auth.users`; null khi SYSTEM); hành động của AI ghi `created_by` = user ủy quyền và audit `actor_type = AI` |
 | C18 | Nguồn dữ liệu | Bảng nghiệp vụ nhận dữ liệu từ IDP có `source_document_id uuid NULL` (soft ref `idp.source_documents`) để lineage nhanh; lineage đầy đủ ở `platform.data_lineage` (§7) |
 
-| C19 | **Trường chung BRD §13.3 (DEC-147, GAP D-23)** | Mọi **entity nghiệp vụ** có thêm 3 cột: `source platform.record_source NOT NULL` (`MANUAL`, `IDP`, `IMPORT`, `AI`, `EVENT`, `SEED` — kênh tạo bản ghi; cột nguồn chi tiết riêng của domain như `finance.record_origin`, `risk.risk_source`, `task_source` giữ nguyên làm chi tiết) · `data_classification platform.data_classification NOT NULL DEFAULT 'INTERNAL'` (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `SECRET` — 4 mức BRD, DEC-149; quyết định provider AI được xử lý, §10) · `version integer NOT NULL DEFAULT 1` (tăng mỗi UPDATE; optimistic locking — `PATCH` gửi `version`, lệch → `409 CONFLICT_STATE`). Phạm vi áp dụng và ngoại lệ ở §2.1 |
+| C19 | **Trường chung BRD §13.3 (DEC-147, GAP D-23)** | Mọi **entity nghiệp vụ** có thêm 3 cột: `source platform.record_source NOT NULL` (`MANUAL`, `IDP`, `IMPORT`, `AI`, `EVENT`, `SEED` — kênh tạo bản ghi; cột nguồn chi tiết riêng của domain giữ làm chi tiết và **được đổi tên khi trùng**: `revenues.source_note`, `cash_positions.cash_source`, `risks.risk_source`, `tasks.task_source`, `releases.release_version`) · `data_classification platform.data_classification NOT NULL DEFAULT 'INTERNAL'` (`PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `SECRET` — 4 mức BRD, DEC-149; quyết định provider AI được xử lý, §10) · `version integer NOT NULL DEFAULT 1` (tăng mỗi UPDATE; optimistic locking — `PATCH` gửi `version`, lệch → `409 CONFLICT_STATE`). Phạm vi áp dụng và ngoại lệ ở §2.1 |
 
 **Cột chuẩn** C3, C4, C5, C17, C19 (`id`, `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`, `source`, `data_classification`, `version`) **có mặt ở mọi bảng nghiệp vụ và không lặp lại** trong bảng spec §4 trừ khi khác quy ước.
 
@@ -43,16 +43,16 @@ Ký hiệu cột trong bảng spec: **Null** `N` = NOT NULL / `Y` = nullable · 
 | Schema | Module | Entity → bảng | Số bảng |
 |---|---|---|---|
 | `auth` | auth | ENT-User → `users` · ENT-Role → `roles` · ENT-RefreshToken → `refresh_tokens` | 3 |
-| `finance` | finance | ENT-Revenue → `revenues` · ENT-Expense → `expenses` · ENT-Budget → `budgets` · ENT-Forecast → `forecasts` · ENT-ForecastLine → `forecast_lines` · ENT-Invoice → `invoices` · ENT-InvoiceLine → `invoice_lines` · ENT-CashPosition → `cash_positions` | 8 |
+| `finance` | finance | ENT-Revenue → `revenues` · ENT-Expense → `expenses` · ENT-Budget → `budgets` · ENT-Forecast → `forecasts` · ENT-ForecastLine → `forecast_lines` · ENT-Invoice → `invoices` · ENT-InvoiceLine → `invoice_lines` · ENT-CashPosition → `cash_positions` · **ENT-CashFlowForecast → `cash_flow_forecasts` · ENT-CashFlowForecastLine → `cash_flow_forecast_lines`** | 10 |
 | `sales` | sales | ENT-Client → `clients` · ENT-Deal → `deals` · ENT-DealStageHistory → `deal_stage_history` · ENT-SalesTarget → `sales_targets` · ENT-Contract → `contracts` | 5 |
-| `hr` | hr | ENT-Department → `departments` · ENT-Employee → `employees` · ENT-SalaryHistory → `salary_history` · ENT-HiringPlan → `hiring_plans` | 4 |
+| `hr` | hr | ENT-Department → `departments` · ENT-Employee → `employees` · ENT-SalaryHistory → `salary_history` · ENT-HiringPlan → `hiring_plans` · **ENT-Team → `teams` · ENT-Position → `positions` · ENT-EmployeeSkill → `employee_skills` · ENT-Leave → `leaves`** | 8 |
 | `product` | product | ENT-Product → `products` · ENT-Feature → `features` · ENT-RoadmapItem → `roadmap_items` · ENT-Release → `releases` · ENT-ProductMetric → `product_metrics` | 5 |
 | `risk` | risk | ENT-Risk → `risks` · ENT-RiskAssessment → `risk_assessments` · ENT-Mitigation → `mitigations` · ENT-Scenario → `scenarios` | 4 |
-| `execution` | execution | ENT-Meeting → `meetings` · ENT-Decision → `decisions` · ENT-Task → `tasks` · ENT-Project → `projects` · ENT-Objective → `objectives` · ENT-KeyResult → `key_results` · ENT-CheckIn → `check_ins` · ENT-KPI → `kpis` · ENT-KPIMeasurement → `kpi_measurements` | 9 |
+| `execution` | execution | ENT-Meeting → `meetings` · ENT-Decision → `decisions` · ENT-Task → `tasks` · ENT-Project → `projects` · ENT-Objective → `objectives` · ENT-KeyResult → `key_results` · ENT-CheckIn → `check_ins` · ENT-KPI → `kpis` · ENT-KPIMeasurement → `kpi_measurements` · **ENT-Initiative → `initiatives` · ENT-Milestone → `milestones` · ENT-KPITarget → `kpi_targets` · ENT-MeetingTranscript → `meeting_transcripts`** | 13 |
 | `ai` | ai_core | ENT-Conversation → `conversations` · ENT-Message → `messages` · ENT-ToolCallLog → `tool_call_logs` · ENT-Feedback → `feedback` · ENT-Insight → `insights` · ENT-AIAction → `ai_actions` · ENT-AutonomyPolicy → `autonomy_policies` · ENT-ModelCallLog → `model_call_logs` | 8 |
 | `idp` | idp | ENT-SourceDocument → `source_documents` · ENT-DocumentPage → `document_pages` · ENT-DocumentType → `document_types` · ENT-ExtractionSchema → `extraction_schemas` · ENT-ExtractionJob → `extraction_jobs` · ENT-ExtractedField → `extracted_fields` · ENT-ExtractionReview → `extraction_reviews` · ENT-ValidationRule → `validation_rules` · ENT-ImportBatch → `import_batches` | 9 |
 | `platform` | platform | ENT-Metric → `metrics` · ENT-MetricValue → `metric_values` · ENT-Alert → `alerts` · ENT-DataLineage → `data_lineage` · ENT-AuditLog → `audit_logs` · ENT-Notification → `notifications` · ENT-OutboxEvent → `outbox_events` · ENT-ProcessedEvent → `processed_events` · ENT-SystemSetting → `system_settings` · **ENT-ApprovalRule → `approval_rules` · ENT-ApprovalRequest → `approval_requests` · ENT-Report → `reports`** | 12 |
-| **Tổng** | | **67 entity / 67 bảng** (đang cập nhật Phase 3a — đích 79, 00 §4.3) | 67 |
+| **Tổng** | | **77 entity / 77 bảng** (đang cập nhật Phase 3a — đích 79, 00 §4.3) | 77 |
 
 Bảng phụ trợ **không phải entity** (không có ID `ENT-*`, xem OQ-01): `auth.user_roles` không cần (một user một role, DEC-128); `execution.task_assignees` không cần (một assignee). Vector embedding là **cột** trên bảng có sẵn (§11), không tạo bảng mới.
 
@@ -303,7 +303,7 @@ Index: `ix_refresh_tokens_user_id`, `ix_refresh_tokens_family_id`. Không `delet
 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
-| source | text | N | | Mô tả nguồn (khách, hợp đồng, BCTC) |
+| source_note | text | N | | Mô tả nguồn (khách, hợp đồng, BCTC) — **đổi tên từ `source`** (v2.1, tránh trùng C19) |
 | category | finance.revenue_category | N | | `product_sales`, `service`, `consulting`, `other` |
 | amount | bigint | N | CK ≥ 0 | Trước VAT |
 | currency | char(3) | N | | |
@@ -424,12 +424,43 @@ Index `ix_invoice_lines_invoice_id`, `ix_invoice_lines_product_id`.
 |---|---|---|---|---|
 | period_key | text | N | UQ (khi `deleted_at IS NULL`) | `YYYY-MM` |
 | closing_balance / currency | bigint / char(3) | N | | |
-| source | finance.cash_source | N | | `bank_statement`, `manual`, `imported` |
+| cash_source | finance.cash_source | N | | `bank_statement`, `manual`, `imported` — **đổi tên từ `source`** (v2.1, C19); field API EP-65 cập nhật ở 10 (Phase 3d) |
 | note | text | Y | | |
 | recorded_by | uuid | N | SR → auth.users | |
 | source_document_id | uuid | Y | SR | |
 
 Nguồn METRIC-FIN-03 (runway = closing_balance / net burn TB 3 tháng — 03).
+
+#### ENT-CashFlowForecast — `finance.cash_flow_forecasts` (mới v2.1 — DEC-148, GAP C-18)
+
+Dự báo dòng tiền **13 tuần** (CFO demo; UC-08). Khác ENT-Forecast (theo tháng, horizon 3/6/12, 3 kịch bản P&L).
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| start_week | date | N | | Thứ Hai đầu tuần 1 (ISO week) |
+| weeks | smallint | N | CK = 13 | Cố định 13 (cấu hình được về sau) |
+| opening_cash / currency | bigint / char(3) | N | | Từ `cash_positions` gần nhất |
+| min_projected_cash | bigint | N | | Đáy dự báo trong 13 tuần |
+| min_cash_week | smallint | N | CK 1..13 | Tuần chạm đáy |
+| generated_at | timestamptz | N | | |
+| generated_by | platform.actor_type | N | | `USER`/`AI`/`SYSTEM` |
+| is_current | boolean | N | | UQ `(is_current) WHERE is_current AND deleted_at IS NULL` |
+| assumptions | jsonb | N | | Tỷ lệ thu đúng hạn, chi cố định, lương… |
+
+#### ENT-CashFlowForecastLine — `finance.cash_flow_forecast_lines` (mới v2.1 — DEC-148)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| forecast_id | uuid | N | FK → cash_flow_forecasts | |
+| week_no | smallint | N | CK 1..13 | UQ `(forecast_id, week_no)` |
+| week_start | date | N | | |
+| inflow_receivables / inflow_other | bigint | N | | Từ `invoices` OUT chưa thu theo `due_date` + khác |
+| outflow_payables / outflow_payroll / outflow_opex / outflow_other | bigint | N | | `invoices` IN chưa trả, lương (tổng từ `hr` service — không lộ lương cá nhân), chi định kỳ |
+| net_flow / closing_cash | bigint | N | | Tính sẵn |
+| currency | char(3) | N | | |
+| confidence_level | platform.confidence_band | N | | |
+
+Index `ix_cash_flow_forecast_lines_forecast_id`. Tính lại khi `EVT-finance.invoice_created`, `EVT-finance.invoice_paid`, `EVT-hr.salary_updated`; phát `EVT-finance.cash_flow_forecast_updated`.
 
 ### 4.3. Schema `sales`
 
@@ -539,7 +570,8 @@ Index `ix_departments_parent_id`, `ix_departments_head_employee_id`. Mức 1 (đ
 | email | citext | Y | UQ | | 3 |
 | phone | text | Y | | | 3 |
 | department_id | uuid | N | FK → departments | | |
-| position | text | N | | | |
+| position_id | uuid | Y | FK → positions | **v2.1 (DEC-147)** — thay cột text `position`; migration map tên → ENT-Position | |
+| team_id | uuid | Y | FK → teams | v2.1 (DEC-147) | |
 | status | hr.employee_status | N | | `probation`, `active`, `on_leave`, `terminated` | |
 | hire_date | date | N | | | |
 | termination_date | date | Y | CK ≥ hire_date | Nguồn METRIC-HR-02 | |
@@ -553,6 +585,52 @@ Index `ix_departments_parent_id`, `ix_departments_head_employee_id`. Mức 1 (đ
 | source_document_id | uuid | Y | SR | | |
 
 Index: FK; GIN trigram `normalized_name`; `(department_id, status)`. Không có cột lương — lương nằm ở `salary_history` (để tách quyền mức 4).
+
+#### ENT-Team — `hr.teams` (mới v2.1 — DEC-147)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| department_id | uuid | N | FK → departments | Một team thuộc một phòng ban (không ma trận — hoãn v2.1) |
+| code / name | text / text | N | UQ code | |
+| lead_employee_id | uuid | Y | FK → employees | |
+
+Index FK. Mức 1.
+
+#### ENT-Position — `hr.positions` (mới v2.1 — DEC-147)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| department_id | uuid | N | FK → departments | |
+| code / title | text / text | N | UQ code | Chức danh |
+| level | smallint | Y | | Cấp bậc (tùy chọn) |
+| headcount_budget | smallint | N | CK ≥ 0 | Định biên — so với `employees` đang giữ vị trí → **vị trí trống** (sơ đồ tổ chức, US-HR-002) |
+| reports_to_position_id | uuid | Y | FK → positions | Reporting line theo vị trí |
+
+Index FK. Không effective-dated, không kiêm nhiệm (một nhân viên một `position_id`) — hoãn v2.1 (DEC-147).
+
+#### ENT-EmployeeSkill — `hr.employee_skills` (mới v2.1 — DEC-147, GAP C-12)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| employee_id | uuid | N | FK → employees | |
+| skill | text | N | | Danh mục tự do, chuẩn hóa lowercase |
+| level | smallint | N | CK 1..5 | |
+| verified_by | uuid | Y | SR → auth.users | |
+
+UQ `(employee_id, skill) WHERE deleted_at IS NULL`. Không AI tự chấm (DEC-149). Phân tích thiếu hụt kỹ năng = v2.1 (US-HR-005).
+
+#### ENT-Leave — `hr.leaves` (mới v2.1 — DEC-147, GAP C-12)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| employee_id | uuid | N | FK → employees | |
+| leave_type | hr.leave_type | N | | `annual`, `sick`, `unpaid`, `public_holiday`, `other` |
+| start_date / end_date | date | N | CK end ≥ start | |
+| hours | numeric(6,2) | N | | Giờ nghỉ — trừ vào capacity (METRIC-HR-03, GAP C-11) |
+| status | hr.leave_status | N | | `requested`, `approved`, `rejected`, `cancelled` |
+| reason | text | Y | | Mức 3; lý do sức khỏe = `SECRET` (DEC-149) |
+
+Index `(employee_id, start_date)`. Chỉ `approved` trừ capacity.
 
 #### ENT-SalaryHistory — `hr.salary_history` (append-only, **mức 4**)
 
@@ -630,7 +708,7 @@ Index FK.
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | product_id | uuid | N | FK → products | |
-| version | text | N | UQ `(product_id, version)` | |
+| release_version | text | N | UQ `(product_id, release_version)` | Số phiên bản phát hành (VD `2.3.0`) — **đổi tên từ `version`** (v2.1, C19) |
 | status | product.release_status | N | | `planned`, `in_progress`, `released`, `rolled_back` |
 | released_at | timestamptz | Y | | METRIC-PRD-05 |
 | release_notes | text | Y | | |
@@ -658,12 +736,13 @@ Index FK; partial UQ `(product_id, period_key) WHERE superseded_by_id IS NULL`. 
 |---|---|---|---|---|
 | code | text | N | UQ | `RSK-2026-001` (sinh tự động) |
 | title / description | text | N / Y | | |
-| category | risk.risk_category | N | | `financial`, `operational`, `strategic`, `compliance`, `people`, `product`, `market` |
+| category | risk.risk_category | N | | **13 danh mục BRD (DEC-148):** `financial`, `operational`, `strategic`, `people`, `business`, `customer`, `product`, `technology`, `security`, `compliance`, `legal`, `partner_supplier`, `ai`. Migration: `market` → `business` |
 | likelihood / impact | smallint | N | CK 1–5 | |
 | risk_score | smallint | N | GENERATED `likelihood × impact` STORED | |
 | severity | risk.risk_severity | N | | `low`, `medium`, `high`, `critical` (ngưỡng ở 03 BR-RSK) |
-| status | risk.risk_status | N | | `identified`, `assessed`, `mitigating`, `monitoring`, `accepted`, `closed` |
-| source | risk.risk_source | N | | `manual`, `event`, `ai`, `document` |
+| status | risk.risk_status | N | | **`proposed`** (v2.1, DEC-148) → `identified` → `assessed` → `mitigating` → `monitoring` → `accepted` / `closed`; `proposed` → `rejected` (owner bác bỏ) |
+| proposed_at / confirmed_by / confirmed_at | timestamptz / uuid / timestamptz | Y | SR → auth.users | v2.1: rủi ro AI/event đề xuất chờ owner xác nhận (BRD FR-RSK-05) |
+| risk_source | risk.risk_source | N | | `manual`, `event`, `ai`, `document` — **đổi tên từ `source`** (v2.1, C19) |
 | source_event_id | uuid | Y | | `event_id` gây sinh rủi ro (idempotent) |
 | owner_id | uuid | Y | SR → auth.users | Null → METRIC-RSK-02 |
 | department_id | uuid | Y | SR → hr.departments | |
@@ -674,6 +753,8 @@ Index FK; partial UQ `(product_id, period_key) WHERE superseded_by_id IS NULL`. 
 | source_document_id | uuid | Y | SR | |
 
 Index: SR; `(status, severity)`; UQ `(source_event_id) WHERE source_event_id IS NOT NULL`; GIN `linked_entities`.
+
+**Trạng thái `proposed` (DEC-148):** rủi ro `risk_source ∈ (event, ai, document)` tạo ở `proposed`, phát `EVT-risk.risk_proposed`; METRIC-RSK-01..05 **không** đếm `proposed`/`rejected`. Owner (hoặc `risk:approve`) xác nhận → `identified`, set `confirmed_*`, phát `EVT-risk.risk_identified` (nếu severity ≥ high). Rủi ro nhập tay (`manual`) vào thẳng `identified`. Story R-12 (08) giữ: rủi ro tự sinh hiện ở hàng chờ đề xuất "chờ phân công".
 
 #### ENT-RiskAssessment — `risk.risk_assessments` (append-only)
 
@@ -724,6 +805,7 @@ Index: SR; `(status, severity)`; UQ `(source_event_id) WHERE source_event_id IS 
 | department_id | uuid | Y | SR → hr.departments | |
 | summary | text | Y | | |
 | source_document_id | uuid | Y | SR | Biên bản (UC-06) |
+| transcript_id | uuid | Y | FK → meeting_transcripts | v2.1 (UC-02, DEC-153) |
 
 #### ENT-Decision — `execution.decisions` (Decision Log)
 
@@ -734,7 +816,11 @@ Index: SR; `(status, severity)`; UQ `(source_event_id) WHERE source_event_id IS 
 | rationale / alternatives_rejected / expected_outcome | text | Y | | AI-EOS §4.6 |
 | owner_id | uuid | Y | SR → auth.users | |
 | decided_at | timestamptz | N | | |
-| due_date / review_date | date | Y | | Đối chiếu 30/60/90 ngày |
+| due_date | date | Y | | |
+| review_at | date[] | N | | **v2.1 (GAP D-22):** mốc đối chiếu kết quả, mặc định `decided_at + {30,60,90} ngày` — thay `review_date`; khớp 10 EP-43 |
+| actual_outcome / outcome_verified_at | text / timestamptz | Y | | Kết quả thực tế khi đối chiếu (BRD-P11, US-CEO-008) |
+| initiative_id | uuid | Y | FK → initiatives | v2.1 |
+| source_insight_id | uuid | Y | SR → ai.insights | Quyết định đến từ khuyến nghị AI |
 | status | execution.decision_status | N | | `open`, `in_progress`, `done`, `cancelled` — METRIC-OPS-03 |
 | done_at | timestamptz | Y | | |
 | source_document_id | uuid | Y | SR | |
@@ -744,19 +830,26 @@ Index: SR; `(status, severity)`; UQ `(source_event_id) WHERE source_event_id IS 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | title / description | text | N / Y | | |
+| owner_id | uuid | Y | SR → auth.users | **v2.1 (DEC-147):** người chịu trách nhiệm (giao/duyệt); có thể khác `assignee_id` |
 | assignee_id | uuid | Y | SR → auth.users | Null = chưa có người (XD-03) |
 | department_id | uuid | Y | SR → hr.departments | |
 | project_id | uuid | Y | FK → projects | |
 | meeting_id / decision_id | uuid | Y | FK → meetings / decisions | |
 | key_result_id | uuid | Y | FK → key_results | |
+| initiative_id / milestone_id | uuid | Y | FK → initiatives / milestones | v2.1 (DEC-147) |
+| kpi_id | uuid | Y | FK → kpis | v2.1 — task khắc phục KPI (UC-03) |
 | parent_id | uuid | Y | FK → tasks | |
 | priority | execution.task_priority | N | | `low`, `medium`, `high`, `urgent` |
-| status | execution.task_status | N | | `todo`, `in_progress`, `blocked`, `done`, `cancelled` |
+| status | execution.task_status | N | | **7 trạng thái BRD (DEC-147):** `backlog`, `todo`, `in_progress`, `blocked`, `in_review`, `done`, `cancelled` |
+| start_date | date | Y | | v2.1 |
+| blocked_reason | text | Y | | Bắt buộc khi `blocked` |
 | due_date | date | Y | | |
 | done_at | timestamptz | Y | | METRIC-OPS-01 đúng hạn |
-| estimate_hours | numeric(6,2) | Y | | Workload (METRIC-HR-03) |
+| estimate_hours | numeric(6,2) | Y | | Workload (METRIC-HR-03); AI có thể gợi ý (L1) |
+| actual_hours | numeric(6,2) | Y | | **v2.1 (DEC-147)** |
+| evidence | jsonb | Y | | v2.1: `[{kind: file\|link\|note, ref}]` — bắt buộc khi cấu hình (BRD FR-TASK-04) |
 | is_critical | boolean | N | | |
-| source | execution.task_source | N | | `manual`, `meeting`, `ai`, `document`, `mitigation` |
+| task_source | execution.task_source | N | | `manual`, `meeting`, `ai`, `document`, `mitigation` — **đổi tên từ `source`** (v2.1, C19) |
 | overdue_notified_at | timestamptz | Y | | Chống phát `EVT-execution.task_overdue` lặp |
 | source_document_id | uuid | Y | SR | |
 
@@ -780,13 +873,17 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 |---|---|---|---|---|
 | title | text | N | | |
 | period_key | text | N | | `YYYY-Qn` / `YYYY` |
-| level | execution.objective_level | N | | `company`, `department`, `individual` |
+| level | execution.objective_level | N | | `company`, `department`, `team` (v2.1), `individual` |
+| okr_type | execution.okr_type | N | | **v2.1:** `committed`, `aspirational` (BRD FR-OKR-03) |
+| weight_pct | numeric(7,4) | N | CK 0–100 | **v2.1 (GAP C-03)** — trọng số trong cha; tổng anh em = 100 (kiểm ở service) |
+| team_id | uuid | Y | SR → hr.teams | |
 | parent_id | uuid | Y | FK → objectives | Cây alignment |
 | owner_id | uuid | N | SR → auth.users | |
 | department_id | uuid | Y | SR | |
 | pillar | platform.pillar | Y | | |
 | status | execution.okr_status | N | | `draft`, `active`, `closed` |
-| progress_pct | numeric(7,4) | N | | Tổng hợp từ KR — METRIC-RSK-06 |
+| progress_pct | numeric(7,4) | N | | Tổng hợp từ KR (bình quân trọng số) |
+| score | numeric(3,2) | Y | CK 0–1 | Chấm cuối kỳ 0,0–1,0 (BRD FR-OKR-03) |
 | source_document_id | uuid | Y | SR | |
 
 #### ENT-KeyResult — `execution.key_results`
@@ -801,14 +898,17 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 | owner_id | uuid | N | SR → auth.users | |
 | status | execution.okr_status | N | | |
 | confidence | platform.confidence_band | Y | | Tự đánh giá khi check-in |
+| weight_pct | numeric(7,4) | N | CK 0–100 | v2.1; 2–5 KR / Objective (kiểm ở service — BRD FR-OKR-01) |
 
 #### ENT-CheckIn — `execution.check_ins`
 
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
-| key_result_id | uuid | N | FK → key_results | |
+| key_result_id | uuid | Y | FK → key_results | CK đúng một trong `key_result_id` / `kpi_id` |
+| kpi_id | uuid | Y | FK → kpis | **v2.1 (GAP C-08)** — khớp 10 EP-48 |
 | value | numeric(20,6) | N | | |
 | note | text | Y | | |
+| blocker / support_needed / next_action | text | Y | | **v2.1 (BRD FR-OKR-04)** |
 | confidence | platform.confidence_band | N | | |
 | checked_in_at | timestamptz | N | | F4 ≤ 30 giây |
 | user_id | uuid | N | SR → auth.users | |
@@ -823,8 +923,13 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 | key_result_id | uuid | Y | FK → key_results | |
 | unit | text | N | | |
 | period_type | platform.period_type | N | | |
-| target_value | numeric(20,6) | N | | |
-| direction | platform.threshold_direction | N | | |
+| target_value | numeric(20,6) | N | | Target của kỳ hiện hành (chi tiết theo kỳ ở ENT-KPITarget) |
+| direction | execution.kpi_direction | N | | **4 hướng v2.1 (GAP C-05):** `HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `WITHIN_RANGE`, `BINARY` |
+| value_type | execution.kpi_value_type | N | | v2.1: `ratio`, `percentage`, `numeric`, `currency`, `duration`, `count` |
+| data_source_kind | execution.kpi_data_source | N | | v2.1: `manual`, `document`, `automated`, `ai_assisted` (BRD FR-KPI-02) |
+| parent_kpi_id | uuid | Y | FK → kpis | Cascade (BRD FR-KPI-06) |
+| weight_pct | numeric(7,4) | N | CK 0–100 | Tổng anh em cùng cha = 100 |
+| initiative_id | uuid | Y | FK → initiatives | v2.1 |
 | owner_id | uuid | N | SR → auth.users | |
 | department_id | uuid | Y | SR | |
 | status | execution.okr_status | N | | |
@@ -836,9 +941,74 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 | kpi_id | uuid | N | FK → kpis | |
 | period_key | text | N | | UQ `(kpi_id, period_key) WHERE deleted_at IS NULL` |
 | actual_value | numeric(20,6) | N | | |
-| achievement_pct | numeric(7,4) | N | | Ghi → `EVT-execution.kpi_measured` |
+| achievement_pct | numeric(7,4) | N | | Theo hướng KPI; `LOWER_IS_BETTER` = target/actual; **trần 150%** (cấu hình ở KPITarget) → `EVT-execution.kpi_measured` |
+| evaluation_band | execution.kpi_band | N | | v2.1: band tra từ ENT-KPITarget |
+| kpi_target_id | uuid | N | FK → kpi_targets | Target/ngưỡng dùng để đánh giá |
+| locked_at | timestamptz | Y | | Khóa khi đóng kỳ; sửa sau khóa → ApprovalRequest (BRD FR-KPI-08) |
 | measured_at | timestamptz | N | | |
 | source_document_id | uuid | Y | SR | |
+
+#### ENT-KPITarget — `execution.kpi_targets` (mới v2.1 — DEC-147, GAP C-04)
+
+Target và evaluation band theo kỳ (BRD FR-KPI-03/04/05).
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| kpi_id | uuid | N | FK → kpis | UQ `(kpi_id, period_key) WHERE deleted_at IS NULL` |
+| period_key | text | N | | |
+| baseline / minimum / target / stretch | numeric(20,6) | Y / Y / N / Y | | `WITHIN_RANGE` dùng `minimum`..`target` làm khoảng |
+| band_thresholds | jsonb | N | | Mặc định `{"CRITICAL":0,"BELOW":70,"NEAR":90,"MEETS":100,"EXCEEDS":110}` (% achievement, cận dưới) |
+| score_cap_pct | numeric(7,4) | N | | Mặc định 150 |
+| locked_at | timestamptz | Y | | Khóa kỳ |
+
+#### ENT-Initiative — `execution.initiatives` (mới v2.1 — DEC-147, GAP C-01)
+
+Chuỗi BRD-P06: Strategy (Objective cấp `company`) → **Initiative** → Project/Task. Không có entity Pillar/Vision riêng (lite).
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| code | text | N | UQ | VD `INI-2026-03` |
+| title / description | text | N / Y | | |
+| objective_id | uuid | N | FK → objectives | Mục tiêu chiến lược được phục vụ |
+| pillar | platform.pillar | Y | | |
+| owner_id | uuid | N | SR → auth.users | |
+| department_id | uuid | Y | SR → hr.departments | |
+| start_date / planned_end_date | date | N | | |
+| status | execution.initiative_status | N | | `planned`, `active`, `at_risk`, `done`, `cancelled` |
+| progress_pct | numeric(7,4) | N | | Từ milestone/task |
+| weight_pct | numeric(7,4) | N | CK 0–100 | Trong Objective |
+| budget_amount / currency | bigint / char(3) | Y | | |
+
+Index FK/SR, `(status, planned_end_date)`. Nguồn METRIC-RSK-06 SEI = % initiative `active` đúng tiến độ (GAP C-02 — công thức ở 03, Phase 3b).
+
+#### ENT-Milestone — `execution.milestones` (mới v2.1 — DEC-147, GAP C-10)
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| initiative_id | uuid | Y | FK → initiatives | CK đúng một trong `initiative_id` / `project_id` |
+| project_id | uuid | Y | FK → projects | |
+| title | text | N | | |
+| due_date | date | N | | |
+| status | execution.milestone_status | N | | `planned`, `done`, `missed` |
+| done_at | timestamptz | Y | | |
+
+Index FK. Dependency task-task/đường găng, task định kỳ, template: hoãn v2.1.
+
+#### ENT-MeetingTranscript — `execution.meeting_transcripts` (mới v2.1 — DEC-153, GAP C-13)
+
+Transcript **upload thủ công** (file `.txt`/`.vtt`/`.docx` mock) — không tích hợp Meet/Zoom/Teams.
+
+| Cột | Kiểu | Null | Ràng buộc | Mô tả |
+|---|---|---|---|---|
+| meeting_id | uuid | Y | FK → meetings | Gán khi tạo Meeting từ transcript |
+| source_document_id | uuid | N | SR → idp.source_documents | File transcript (`document_kind = TRANSCRIPT`) |
+| language | text | N | CK ∈ (`vi`,`en`) | |
+| speaker_count | smallint | Y | | |
+| text_content | text | N | | Mức theo nội dung (mặc định `CONFIDENTIAL`) |
+| status | execution.transcript_status | N | | `UPLOADED`, `PROCESSED`, `FAILED` |
+| consent_confirmed_by | uuid | N | SR → auth.users | Người upload xác nhận đã có đồng ý ghi âm (NĐ 13/2023) |
+
+AI trích summary/decision/action item qua pipeline IDP (UC-02) → Decision/Task chờ duyệt.
 
 ### 4.8. Schema `ai`
 
@@ -1350,10 +1520,13 @@ UQ `(event_id, consumer)` — consumer idempotent. Một bảng chung trong `pla
 | EVT-finance.invoice_paid | finance | sales, product, platform | → `paid` | `invoice_id`, `client_id`, `amount_paid`, `paid_at` |
 | EVT-finance.forecast_updated | finance | risk, platform, ai | Tạo/cập nhật forecast | `forecast_id`, `scenario`, `horizon_months`, `runway_months` |
 | EVT-finance.burn_over_forecast | finance | risk, platform | Net burn > dự báo (METRIC-FIN-07) | `period_key`, `actual_burn`, `forecast_burn`, `variance_pct` |
+| **EVT-finance.invoice_created** (v2.1) | finance | finance (dòng tiền), risk, platform | Tạo invoice (thủ công/IDP) | `invoice_id`, `direction`, `client_id`, `total_amount`, `currency`, `due_date` |
+| **EVT-finance.cash_flow_forecast_updated** (v2.1) | finance | risk, platform, ai | Tính lại 13 tuần | `forecast_id`, `min_projected_cash`, `min_cash_week`, `currency` |
 | EVT-product.product_launched | product | sales, finance | Release đầu | `product_id`, `launched_at` |
 | EVT-product.feature_released | product | sales | Feature → `released` | `feature_id`, `product_id`, `release_id` |
 | EVT-product.metric_anomaly | product | risk, platform, ai | Chỉ số vượt ngưỡng bất thường (BR-PRD-01) | `product_metric_id`, `product_id`, `metric`, `value`, `baseline` |
-| EVT-risk.risk_identified | risk | finance, hr, product, platform | Risk mới severity ≥ high | `risk_id`, `category`, `severity`, `source`, `linked_entities` |
+| **EVT-risk.risk_proposed** (v2.1) | risk | platform, ai, notification | Rủi ro tự sinh ở `proposed` | `risk_id`, `category`, `severity`, `risk_source`, `linked_entities` |
+| EVT-risk.risk_identified | risk | finance, hr, product, platform | Risk vào register (nhập tay hoặc owner xác nhận `proposed`) severity ≥ high | `risk_id`, `category`, `severity`, `risk_source`, `linked_entities` |
 | EVT-risk.risk_level_changed | risk | finance, hr, platform | Severity đổi | `risk_id`, `from_severity`, `to_severity` |
 | EVT-risk.risk_mitigated | risk | finance, hr, platform | → `monitoring`/`closed` | `risk_id`, `status` |
 | EVT-execution.task_overdue | execution | platform, ai | Scheduler: quá hạn chưa xong | `task_id`, `assignee_id`, `department_id`, `due_date` |
@@ -1378,7 +1551,14 @@ Mỗi event có đúng một publisher (module sở hữu bảng). AI Core consu
 | `platform.confidence_band` | `HIGH`, `MEDIUM`, `LOW` | extracted_fields, forecast_lines, insights, key_results, check_ins |
 | `platform.period_type` | `MONTH`, `QUARTER`, `YEAR`, `ROLLING_12M` | metric_values, sales_targets, kpis |
 | `platform.metric_unit` | `VND`, `PERCENT`, `DAYS`, `MONTHS`, `RATIO`, `COUNT`, `SCORE`, `INDEX`, `VND_PER_PERSON` | metrics |
-| `platform.threshold_direction` | `LOWER_IS_BAD`, `HIGHER_IS_BAD` | metrics, kpis |
+| `platform.threshold_direction` | `LOWER_IS_BAD`, `HIGHER_IS_BAD` | metrics (giữ nguyên v2.0) |
+| `execution.kpi_direction` | `HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `WITHIN_RANGE`, `BINARY` | kpis (v2.1 — tách khỏi `platform.threshold_direction`) |
+| `execution.kpi_value_type` / `kpi_data_source` | `ratio`, `percentage`, `numeric`, `currency`, `duration`, `count` / `manual`, `document`, `automated`, `ai_assisted` | kpis |
+| `execution.kpi_band` | `CRITICAL`, `BELOW`, `NEAR`, `MEETS`, `EXCEEDS` | kpi_measurements |
+| `execution.okr_type` | `committed`, `aspirational` | objectives |
+| `execution.initiative_status` / `milestone_status` | `planned`, `active`, `at_risk`, `done`, `cancelled` / `planned`, `done`, `missed` | initiatives / milestones |
+| `execution.transcript_status` | `UPLOADED`, `PROCESSED`, `FAILED` | meeting_transcripts |
+| `hr.leave_type` / `leave_status` | `annual`, `sick`, `unpaid`, `public_holiday`, `other` / `requested`, `approved`, `rejected`, `cancelled` | leaves |
 | `platform.metric_value_kind` | `ACTUAL`, `TARGET`, `FORECAST` | metric_values |
 | `platform.scope_type` | `company`, `department`, `product` | metric_values |
 | `platform.value_origin` | `COMPUTED`, `EXTRACTED`, `MANUAL`, `SEED` | metric_values |
@@ -1415,15 +1595,15 @@ Mỗi event có đúng một publisher (module sở hữu bảng). AI Core consu
 | `product.feature_status` | `planned`, `in_progress`, `released`, `deprecated` | features |
 | `product.roadmap_status` | `planned`, `in_progress`, `done`, `delayed`, `dropped` | roadmap_items |
 | `product.release_status` | `planned`, `in_progress`, `released`, `rolled_back` | releases |
-| `risk.risk_category` | `financial`, `operational`, `strategic`, `compliance`, `people`, `product`, `market` | risks |
+| `risk.risk_category` | `financial`, `operational`, `strategic`, `people`, `business`, `customer`, `product`, `technology`, `security`, `compliance`, `legal`, `partner_supplier`, `ai` (13 — DEC-148) | risks |
 | `risk.risk_severity` | `low`, `medium`, `high`, `critical` | risks, risk_assessments |
-| `risk.risk_status` | `identified`, `assessed`, `mitigating`, `monitoring`, `accepted`, `closed` | risks |
+| `risk.risk_status` | `proposed`, `identified`, `assessed`, `mitigating`, `monitoring`, `accepted`, `closed`, `rejected` | risks |
 | `risk.risk_source` | `manual`, `event`, `ai`, `document` | risks |
 | `risk.mitigation_status` | `planned`, `in_progress`, `done`, `cancelled` | mitigations |
 | `execution.decision_status` | `open`, `in_progress`, `done`, `cancelled` | decisions |
-| `execution.task_status` / `task_priority` / `task_source` | `todo`, `in_progress`, `blocked`, `done`, `cancelled` / `low`, `medium`, `high`, `urgent` / `manual`, `meeting`, `ai`, `document`, `mitigation` | tasks |
+| `execution.task_status` / `task_priority` / `task_source` | `backlog`, `todo`, `in_progress`, `blocked`, `in_review`, `done`, `cancelled` / `low`, `medium`, `high`, `urgent` / `manual`, `meeting`, `ai`, `document`, `mitigation` | tasks |
 | `execution.project_status` | `planned`, `active`, `on_hold`, `done`, `cancelled` | projects |
-| `execution.objective_level` | `company`, `department`, `individual` | objectives |
+| `execution.objective_level` | `company`, `department`, `team`, `individual` | objectives |
 | `execution.okr_status` | `draft`, `active`, `closed` | objectives, key_results, kpis |
 | `ai.message_sender` | `user`, `assistant`, `system` | messages |
 | `ai.tool_call_status` | `ok`, `error`, `forbidden`, `timeout` | tool_call_logs, model_call_logs |
@@ -1466,7 +1646,9 @@ metric_values (METRIC-FIN-01, 2026-09)
 | Metric ← field | `ACT-upsert_metric_value` (số tổng hợp từ báo cáo) | `idp` | Bỏ qua bản ghi domain |
 | Nhập tay C1 / workspace | Mọi `ACT-*` | như trên | Field của tài liệu ảo C1; bản ghi sửa trực tiếp ở workspace → lineage `RECORD_FROM_FIELD` không có, audit là nguồn |
 
-Truy vấn drill-down (SCR-07, US-DC-011) đi ngược chuỗi; mỗi bước kiểm quyền của người xem (02 §6.1 quy tắc 4). Hoàn tác đặt `revoked_at`; truy vấn mặc định `WHERE revoked_at IS NULL`. Toàn vẹn soft reference kiểm bằng test định kỳ (test case ở 14).
+**Bảng đích v2.1 (DEC-147/148/153):** `target_table` hợp lệ gồm cả `finance.cash_flow_forecast_lines`, `hr.teams`, `hr.positions`, `hr.employee_skills`, `hr.leaves`, `execution.initiatives`, `execution.milestones`, `execution.kpi_targets`, `execution.meeting_transcripts` (bản ghi tạo từ tài liệu/transcript) và `platform.reports` (`METRIC_FROM_RECORD` ngược: báo cáo → metric_value qua `metric_snapshot`). Transcript UC-02: `decisions`/`tasks` ← `extracted_fields` ← `meeting_transcripts.source_document_id`.
+
+Truy vấn drill-down (SCR-07, US-CEO-007 — mã cũ US-DC-011) đi ngược chuỗi; mỗi bước kiểm quyền của người xem (02 §6.1 quy tắc 4). Hoàn tác đặt `revoked_at`; truy vấn mặc định `WHERE revoked_at IS NULL`. Toàn vẹn soft reference kiểm bằng test định kỳ (test case ở 14).
 
 ---
 
@@ -1481,12 +1663,13 @@ Truy vấn drill-down (SCR-07, US-DC-011) đi ngược chuỗi; mỗi bước ki
 | METRIC-FIN-05 Công nợ quá hạn | `finance.invoices` (`overdue`) | #2 |
 | METRIC-FIN-06 Chênh lệch ngân sách | `finance.budgets`, `finance.expenses` | #1, #7 |
 | METRIC-FIN-07 Net burn vs dự báo | `finance.expenses`, `finance.revenues`, `finance.forecast_lines` | #1 |
-| METRIC-OPS-01 Task đúng hạn | `execution.tasks` | #5 |
+| *(không phải metric — dòng tiền 13 tuần)* | `finance.cash_flow_forecasts`, `finance.cash_flow_forecast_lines` ← `finance.invoices`, `finance.cash_positions` | #2 |
+| METRIC-OPS-01 Task đúng hạn | `execution.tasks` (`done_at` ≤ `due_date`; trạng thái `done`) | #5, transcript (UC-02) |
 | METRIC-OPS-02 Dự án trễ | `execution.projects` | C1 |
 | METRIC-OPS-03 Thực thi quyết định | `execution.decisions` | #5 |
 | METRIC-HR-01 Doanh thu/nhân sự | `finance.revenues` + `hr.employees` (`active`) | #1, #6 |
 | METRIC-HR-02 Turnover năm hóa | `hr.employees` (`termination_date`) | #6 |
-| METRIC-HR-03 Quá tải | `execution.tasks` (`estimate_hours`, assignee) + `hr.employees` | #5, #6 |
+| METRIC-HR-03 Quá tải | `execution.tasks` (`estimate_hours`, assignee) + `hr.employees` − `hr.leaves` (`approved`, GAP C-11) | #5, #6 |
 | METRIC-HR-04 Kế hoạch tuyển dụng trễ | `hr.hiring_plans` | C1 |
 | METRIC-CUS-01 Pipeline coverage | `sales.deals` (`weighted_value`) / `sales.sales_targets` | #3 |
 | METRIC-CUS-02 Win rate | `sales.deals` | #3 |
@@ -1497,9 +1680,10 @@ Truy vấn drill-down (SCR-07, US-DC-011) đi ngược chuỗi; mỗi bước ki
 | METRIC-PRD-01..03 Adoption/MAU, Churn, Retention 30 ngày | `product.product_metrics` | #8 |
 | METRIC-PRD-04 Roadmap đúng tiến độ | `product.roadmap_items` | C1 |
 | METRIC-PRD-05 Tính năng release | `product.features`, `product.releases` | #8 |
-| METRIC-RSK-01..04 Rủi ro mở, chưa chủ, > 30 ngày không mitigation, điểm tổng hợp | `risk.risks`, `risk.mitigations` | #9 |
+| METRIC-RSK-01..04 Rủi ro mở, chưa chủ, > 30 ngày không mitigation, điểm tổng hợp | `risk.risks` (loại trừ `proposed`, `rejected`), `risk.mitigations` | #9 |
 | METRIC-RSK-05 Biện pháp quá hạn | `risk.mitigations` | #9 |
-| METRIC-RSK-06 Strategy execution index | `execution.objectives`, `execution.key_results`, `execution.kpi_measurements` | #7 |
+| METRIC-RSK-06 Strategy execution index | `execution.initiatives`, `execution.milestones`, `execution.objectives`, `execution.key_results`, `execution.kpi_measurements` (+ `kpi_targets`) | #7 |
+| METRIC-DQ-01 Data Quality Score | `platform.metric_values.data_quality_score`, `idp.import_batches.quality_score`, `idp.extracted_fields` (tỷ lệ sửa/từ chối) | mọi doc type |
 
 Công thức chính xác thuộc `03-DASHBOARD-SPEC.md`; bảng này chỉ chỉ nguồn lưu trữ.
 
