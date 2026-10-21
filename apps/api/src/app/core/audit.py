@@ -38,8 +38,8 @@ MASKED_KEYS: frozenset[str] = frozenset(
     {
         "salary", "base_salary", "gross_salary", "net_salary", "salary_amount", "allowance",
         "date_of_birth", "address", "national_id", "cccd", "bank_account",
-        "bank_account_number", "password", "password_hash", "token", "refresh_token",
-        "token_hash", "access_token",
+        "bank_account_number", "emergency_contact", "password", "password_hash", "token",
+        "refresh_token", "token_hash", "access_token",
     }
 )  # fmt: skip
 

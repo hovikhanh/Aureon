@@ -55,6 +55,12 @@ class ScopeDeniedError(PermissionDeniedError):
     code = "FORBIDDEN_SCOPE"
 
 
+class SalaryDeniedError(PermissionDeniedError):
+    """403 — level-4 salary / PII data outside ROLE-01/ROLE-04 (02 §6.3)."""
+
+    code = "FORBIDDEN_SALARY"
+
+
 class NotFoundError(AppError):
     status_code, code = 404, "NOT_FOUND"
 
