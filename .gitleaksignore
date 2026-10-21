@@ -3,6 +3,8 @@
 7e5798f207b365a4bcc4cf493c3f7adca5896c59:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
 913ca8fd3c38ad05b38d96308722ba9afd292ff4:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
 dd125a4cbacb366ec702d7c508835735d34d105f:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
-# docs heading text '10-API-SPECIFICATION, 14-TEST-TRACEABILITY' matched generic-api-key:
+# docs 11 'Load (bắt buộc)' heading list of spec file names matched generic-api-key:
 913ca8fd3c38ad05b38d96308722ba9afd292ff4:docs/3.EXECUTION/11-AGENT-WORKFLOW.md:generic-api-key:266
 56f5ca57a3e562ee528fdcdf00d9eb602d65242d:docs/3.EXECUTION/11-AGENT-WORKFLOW.md:generic-api-key:266
+# this file's own first version quoted that heading in a comment (commit 1a7be13):
+1a7be13865da47da1d92043d61fb9b778a32fe84:.gitleaksignore:generic-api-key:6
