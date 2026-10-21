@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.finance.models import Revenue
 from app.modules.sales.models import Client, Deal, SalesTarget
 from app.modules.sales.services.sales_service import normalize_name
 from app.seed.ids import seed_uuid
@@ -125,10 +126,30 @@ async def seed_targets(db: AsyncSession) -> int:
     return len(TARGETS)
 
 
+async def attribute_revenue(db: AsyncSession) -> int:
+    """Link seeded revenue rows to clients → CUS-03 NRR / CUS-04 top-5 (T-236, DEC-208).
+
+    Rows of a month (3 per month, largest first) go to clients 0/1/2 of a 4-month rotation of
+    `CLIENTS[0..11]`, so consecutive months share clients (NRR ≈ 90–100%); in 2026-09 the
+    third slot moves to a new client (NRR < 100 → warning). Re-run safe: only NULL rows."""
+    rows = (await db.execute(
+        select(Revenue).where(Revenue.source == "SEED", Revenue.client_id.is_(None))
+        .order_by(Revenue.period_key, Revenue.amount.desc(), Revenue.id)
+    )).scalars().all()  # fmt: skip
+    slot: dict[str, int] = {}
+    for r in rows:
+        k = slot[r.period_key] = slot.get(r.period_key, -1) + 1
+        base = 3 * ((int(r.period_key[:4]) * 12 + int(r.period_key[5:])) // 4 % 4)
+        moved = r.period_key == "2026-09" and k == 2
+        r.client_id = client_id(12 if moved else (base + k) % 12)
+    return len(rows)
+
+
 async def seed_sales(db: AsyncSession, owner: uuid.UUID) -> dict[str, int]:
     out = {"clients": await seed_clients(db, owner)}
     await db.flush()
     out["deals"] = await seed_deals(db, owner)
     out["targets"] = await seed_targets(db)
+    out["revenue_clients"] = await attribute_revenue(db)
     await db.flush()
     return out

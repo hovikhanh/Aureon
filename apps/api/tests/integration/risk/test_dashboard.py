@@ -61,6 +61,10 @@ async def test_dashboard_counts_delta(api: ApiClient) -> None:
 async def test_dashboard_period_and_trend_far_future(
     api: ApiClient, db_session: AsyncSession
 ) -> None:
+    # seeded register (2026, T-236) would count as "identified ≤ Feb 2037" — hide it in this
+    # rolled-back transaction so the trend only sees this test's risks
+    await db_session.execute(update(Risk).where(Risk.source == "SEED")
+                             .values(deleted_at=datetime(2037, 1, 1, tzinfo=UTC)))  # fmt: skip
     r = await make_risk(api, likelihood=4, impact=4)
     c = await make_risk(api, likelihood=2, impact=2, owner_id=None)
     await set_status(api, c["id"], "closed", owner_id=OWNER)

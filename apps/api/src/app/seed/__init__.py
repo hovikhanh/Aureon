@@ -18,8 +18,11 @@ from app.modules.auth.models import User
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
 from app.seed.auth_seed import SeedReport, seed_auth
+from app.seed.execution_seed import seed_execution
 from app.seed.finance_seed import seed_finance
 from app.seed.hr_seed import seed_hr
+from app.seed.product_seed import seed_product
+from app.seed.risk_seed import seed_risk
 from app.seed.sales_seed import seed_sales
 from app.workers.consumers import load_metric_providers
 
@@ -46,6 +49,17 @@ async def run() -> SeedReport:
         if sales is not None:
             for group, n in (await seed_sales(session, sales)).items():
                 logging.info("seed sales.%s: %d", group, n)
+        ceo = await _user(session, "ceo@abc.demo")
+        cpo = await _user(session, "cpo@abc.demo") or ceo  # S0 dev DBs only have 5 users
+        risk = await _user(session, "risk@abc.demo") or ceo
+        groups = (
+            ("product", seed_product(session, cpo)),
+            ("risk", seed_risk(session, risk)),
+            ("execution", seed_execution(session, ceo)),
+        )
+        for name, job in groups:
+            for group, n in (await job).items():
+                logging.info("seed %s.%s: %d", name, group, n)
         today = business_today()
         logging.info(
             "seed hr.late_hiring: %d", len(await detect_delayed_hiring_plans(session, today))
