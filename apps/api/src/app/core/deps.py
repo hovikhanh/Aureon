@@ -13,6 +13,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import Actor, set_actor
 from app.core.db import get_sessionmaker
 from app.core.errors import PermissionDeniedError, UnauthenticatedError
 from app.core.permissions import permission_name
@@ -49,6 +50,7 @@ async def get_current_user(
     if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
         raise UnauthenticatedError("missing bearer token")
     claims = verify_access_token(creds.credentials)
+    set_actor(Actor(type="USER", user_id=claims.sub, role=claims.role))  # audit_logs.actor_*
     return Principal(
         user_id=claims.sub,
         role=claims.role,

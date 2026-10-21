@@ -2,7 +2,8 @@
 
 Refresh tokens are opaque, stored as sha256, rotated on every use; re-use of a rotated token
 revokes the whole family (CLAUDE.md §5.3, 10 EP-06). Audit rows for `auth.*` actions are
-written in T-007 (`@auditable`).
+written via `core.audit.record_audit` (T-007): `auth.login`, `auth.logout`,
+`auth.refresh_reuse` (10 §1.8).
 """
 
 import uuid
@@ -11,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import Actor, record_audit
 from app.core.config import get_config
 from app.core.errors import InvalidCredentialsError, RefreshTokenInvalidError, UnauthenticatedError
 from app.core.security import (
@@ -123,6 +125,15 @@ class AuthService:
         user.last_login_at = now
         role = await self._role_of(user)
         out = await self._issue(user, role, client)
+        await record_audit(
+            self.db,
+            action="auth.login",
+            target_schema="auth",
+            target_table="users",
+            target_id=user.id,
+            metadata={"ip_address": client.ip_address},
+            actor=Actor(type="USER", user_id=user.id, role=role.code),
+        )
         await self.db.commit()
         return out
 
@@ -136,6 +147,15 @@ class AuthService:
         if stored.revoked_at is not None:
             # Re-use of a rotated/revoked token → revoke the whole chain (10 EP-06).
             await self.tokens.revoke_family(stored.family_id, now)
+            await record_audit(
+                self.db,
+                action="auth.refresh_reuse",
+                target_schema="auth",
+                target_table="users",
+                target_id=stored.user_id,
+                metadata={"family_id": str(stored.family_id), "ip_address": client.ip_address},
+                actor=Actor(type="USER", user_id=stored.user_id),
+            )
             await self.db.commit()
             raise RefreshTokenInvalidError("refresh token reused")
         if stored.expires_at <= now:
@@ -161,6 +181,13 @@ class AuthService:
         if stored is None or stored.user_id != user_id or stored.revoked_at is not None:
             return
         await self.tokens.revoke_family(stored.family_id, self._now())
+        await record_audit(
+            self.db,
+            action="auth.logout",
+            target_schema="auth",
+            target_table="users",
+            target_id=user_id,
+        )
         await self.db.commit()
 
     # --- EP-03 me -------------------------------------------------------------------------

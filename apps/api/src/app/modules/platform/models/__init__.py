@@ -14,10 +14,11 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     Text,
+    event,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, ORMExecuteState, Session, mapped_column
 
 from app.core.base_model import BusinessModel, ConfigModel, LogModel
 from app.core.columns import currency, fk, measure, money, schema_args, sr, txt
@@ -337,3 +338,27 @@ class ProcessedEvent(LogModel):
     status: Mapped[str] = mapped_column(PROCESSING_STATUS, nullable=False)
     attempts: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("1"))
     last_error: Mapped[str | None] = txt(nullable=True)
+
+
+class AuditLogImmutableError(RuntimeError):
+    """ORM-level guard: `platform.audit_logs` is append-only (05, 10 §1.8)."""
+
+
+@event.listens_for(AuditLog, "before_update")
+def _audit_no_update(_mapper: Any, _conn: Any, target: AuditLog) -> None:
+    raise AuditLogImmutableError(f"audit log {target.id} is append-only (UPDATE blocked)")
+
+
+@event.listens_for(AuditLog, "before_delete")
+def _audit_no_delete(_mapper: Any, _conn: Any, target: AuditLog) -> None:
+    raise AuditLogImmutableError(f"audit log {target.id} is append-only (DELETE blocked)")
+
+
+@event.listens_for(Session, "do_orm_execute")
+def _audit_no_bulk(state: ORMExecuteState) -> None:
+    """Block `update(AuditLog)` / `delete(AuditLog)` statements executed through the ORM."""
+    if not (state.is_update or state.is_delete):
+        return
+    mapper = state.bind_mapper
+    if mapper is not None and mapper.class_ is AuditLog:
+        raise AuditLogImmutableError("platform.audit_logs is append-only (bulk UPDATE/DELETE)")
