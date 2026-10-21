@@ -477,9 +477,9 @@ Kịch bản phủ đủ 7 bước BRD §20.2: Ask (1) → Understand (2) → In
 
 ## 14. Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3b)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (Phase 3b — DEC-144, DEC-146..156):** BRD làm Canonical Source; tagline, vòng lặp, 4 câu hỏi (§2.3); phạm vi v2.0 theo DEC-153 + bảng hoãn v2.1 + OUT Partner/Technical/Customer 360/Public API (§3); BO-01..10, North Star, cổng qua MVP (§4); RACI 10 role (§5A); nguyên tắc BRD-P01..P11 canonical + mapping docs-P (§6); ràng buộc AI nhân sự (§7); rủi ro, giả định, change management (§11A); thuật ngữ BRD (§12); Open questions (§13A); 32 metric; D03 thay "Domain 22"; TTFT theo DEC-152.

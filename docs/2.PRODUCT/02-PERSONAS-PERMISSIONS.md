@@ -739,10 +739,11 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 
 ## 13. Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3b)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (Phase 3b — DEC-144, DEC-146, DEC-149, DEC-150, DEC-153, DEC-155, DEC-156):** BRD làm Canonical Source; ánh xạ vai trò BRD §3.2 → 10 role (§1); đổi mã 47 user story theo 00 §4.13.1 + cột Phạm vi (§3.1–3.11); thêm 94 story BRD còn lại theo role (§3.13) → đủ 141 US; ma trận 10 role × 12 domain (§5.5); permission `platform:approve` + quyền Approval/Report (§5.6); 4 mức `data_classification` quyết định model (§6.3); danh tính AI agent + nhóm QUERY/WRITE/APPROVAL/EXECUTION, "AI không tự gọi APPROVAL" (§7.3); ràng buộc AI không chấm điểm / quyết định nhân sự / huấn luyện trên dữ liệu khách (§7.4); MFA và FR-ADM-08 hoãn v2.1 (§10); OQ-08.
 - **Change 2.0.0:** Viết lại toàn bộ theo DEC-124, DEC-128 (10 role, permission string thay ma trận theo trụ v1). Bản 1.0.0 (5 role) lưu ở nhánh `v1`.
+

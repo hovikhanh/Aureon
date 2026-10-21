@@ -858,9 +858,9 @@ Kịch bản dự phòng: nếu provider AI lỗi khi demo, bật `MODEL_GATEWAY
 
 ## 15. Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3c)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (Phase 3c — DEC-144, DEC-148, DEC-151..153, DEC-155):** 31 màn hình — thêm **SCR-29 Phê duyệt**, **SCR-30 Báo cáo**, **SCR-31 Dòng tiền 13 tuần** (wireframe, component, 4 trạng thái, responsive 3 điểm ngắt, a11y, EP) theo đúng 00 §4 (human chọn giữ số 00, 2026-10-20); luồng con upload transcript mock trong SCR-18 (§4.15, GAP C-13); SCR-10 "Chấp nhận tất cả HIGH" (B-20), lý do sửa trường tài chính, trường checkbox/chữ ký/viết tay, chuyển/gộp/SLA, OUT bulk grid; preview 50 dòng (B-19); TTFT skeleton → thinking → stream (D-31, DEC-152); chỉ số p95/LCP/INP (D-33); touch target + tương phản chi tiết (D-34); sidebar/route mới; OQ-05 đóng, OQ-08/09 mới.

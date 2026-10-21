@@ -1927,9 +1927,9 @@ Thực hiện: migration v2 tạo schema mới song song `public`; script một 
 
 ## Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3a)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Supersedes:** 05 2.0.0; 05 v1.0.0 (nhánh `v1`; DEC-016 superseded)
 - **Maintainer:** @CyEyes

@@ -656,9 +656,9 @@ Fail bất kỳ gate nào → task `BLOCKED`, không code. Chi tiết ở `CLAUD
 ---
 
 ## 9. Version
-
-- **Version:** 2.1.0 (đề xuất — human bump status ở 12)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (Phase 3a, DEC-146..153):** ID registry theo scheme BRD canonical — §4.9 P ↔ BRD-P, §4.10 UC-01..08, §4.11 US 108 mã BRD + 33 mã docs (101+), §4.12 FR-DC-01..23 nghĩa BRD + FR-DC-101/102, §4.13 bảng ánh xạ cũ → mới (50 US, 23 FR-DC); §4.3 79 entity (15 mới, cột `#` chỉ để tra cứu, giữ `ENT-<Name>`); §4.2 32 metric (METRIC-DQ-01); §4.4 SCR-29..31; §4.5 28 event; §4.6 dải EP-120..129; §4.8 43 tool. "Domain 22" → D03 (GAP A-02); §7 bỏ "Không load `_reference/`" (GAP A-04).

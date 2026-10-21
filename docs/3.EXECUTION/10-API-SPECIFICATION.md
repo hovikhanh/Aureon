@@ -979,9 +979,9 @@ Test case `TC-<AREA>-xxx` cho từng EP do `14-TEST-TRACEABILITY.md` sở hữu 
 
 ## Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3d)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (Phase 3d — DEC-146..157):** **10 EP mới** EP-120..129 (§3.12, §4.11: Report ×3, Approval ×3, IDP reassign/merge, dòng tiền 13 tuần, classification override); **5 field đổi tên** theo DEC-154 (`source_note`, `cash_source`, `risk_source`, `task_source`, `release_version`) + trường chung C19 §1.1; Tool Registry 43 tool (§7.3 8 tool v2.1, §7.4 metadata 5 thuộc tính, §7.5 ánh xạ 10 tool IDP BRD); 7 event mới + payload (§8.3, §8.4); EP-20 `consent_given`, EP-23 `preview_rows` 50, EP-39 `avg_cost_micro_usd`, EP-30 `correction_reason`/`accept_all_high`, EP-42/43/44/48/78 khớp 05 (GAP C-08, C-15, C-19), EP-45 Initiative/Milestone, EP-69 tham số chi phí (D-16), EP-101/106 risk `proposed` + 13 danh mục, EP-117 xác nhận chủ domain (D-08), EP-118 per-agent, EP-119 metadata + báo cáo governance (D-13); ma trận §9 theo mã FR-DC/US BRD (DEC-146). OQ-16..19.

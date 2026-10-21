@@ -595,9 +595,9 @@ Các OQ này chưa có DEC; captain cấp số ở `13-DECISION-LOG.md` khi đ�
 
 ## 13. Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3b)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Maintainer:** @CyEyes
 - **Change 2.1.0 (DEC-158, 2026-10-20):** §2.6 tách Operational Freshness SLA (`SLA_OPERATIONAL_<DOMAIN>_HOURS`) và Data Quality Freshness SLA (`SLA_FRESHNESS_<DOMAIN>_HOURS`); đóng phần SLA của OQ-10.

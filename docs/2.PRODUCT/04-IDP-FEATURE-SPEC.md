@@ -1099,9 +1099,9 @@ Mọi FR-DC-01..23 và FR-DC-101..102 có ≥ 1 US; test case `TC-IDP-xxx` map �
 
 ## Version
 
-- **Version:** 2.1.0 (đề xuất — human promote ở 12)
-- **Status:** draft (Phase 3c)
-- **Last updated:** 2026-10-20
+- **Version:** 2.1.0
+- **Status:** current
+- **Last updated:** 2026-10-21
 - **Applies to:** Aureon v2 (v2.0 demo-ready / v2.1 production-ready)
 - **Supersedes:** 04 2.0.0; 04 v1.0.0 (nhánh `v1`)
 - **Maintainer:** @CyEyes
