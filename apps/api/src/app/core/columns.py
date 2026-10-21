@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import CHAR, BigInteger, ForeignKey, Numeric, Text, text
+from sqlalchemy import CHAR, BigInteger, DateTime, ForeignKey, Numeric, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,4 +49,9 @@ def txt(*, nullable: bool = False, unique: bool = False) -> Any:
     return mapped_column(Text, nullable=nullable, unique=unique)
 
 
-__all__ = ["currency", "fk", "measure", "money", "pct", "schema_args", "sr", "txt", "uuid"]
+def ts(*, nullable: bool = True) -> Any:
+    """timestamptz (C4)."""
+    return mapped_column(DateTime(timezone=True), nullable=nullable)
+
+
+__all__ = ["currency", "fk", "measure", "money", "pct", "schema_args", "sr", "ts", "txt", "uuid"]

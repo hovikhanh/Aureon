@@ -27,10 +27,33 @@ def _database_url() -> str:
     return get_config().database_url.get_secret_value()
 
 
+def _active_schemas() -> tuple[str, ...]:
+    """`alembic revision --autogenerate -x schemas=finance,sales` scopes a revision to those
+    schemas (module-by-module baselines). Default: all 10 module schemas."""
+    raw = context.get_x_argument(as_dictionary=True).get("schemas")
+    if not raw:
+        return SCHEMAS
+    picked = tuple(s.strip() for s in raw.split(",") if s.strip())
+    unknown = set(picked) - set(SCHEMAS)
+    if unknown:
+        raise ValueError(f"unknown schemas: {sorted(unknown)}")
+    return picked
+
+
 def include_name(name: str | None, type_: str, parent_names: dict[str, Any]) -> bool:
+    """Reflection side: only module schemas (v1 leftovers in `public` are ignored)."""
     if type_ == "schema":
-        return name in SCHEMAS
+        return name in _active_schemas()
     return True
+
+
+def include_object(
+    obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any
+) -> bool:
+    """Metadata side: keep only tables (and their children) in the active schemas."""
+    table = obj if type_ == "table" else getattr(obj, "table", None)
+    schema = getattr(table, "schema", None)
+    return schema is None or schema in _active_schemas()
 
 
 def _configure(**kwargs: Any) -> None:
@@ -38,6 +61,7 @@ def _configure(**kwargs: Any) -> None:
         target_metadata=target_metadata,
         include_schemas=True,
         include_name=include_name,
+        include_object=include_object,
         version_table_schema=VERSION_SCHEMA,
         compare_type=True,
         compare_server_default=True,
