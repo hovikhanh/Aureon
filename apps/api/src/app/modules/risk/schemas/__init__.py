@@ -183,3 +183,73 @@ class HeatCell(BaseModel):
     likelihood: int
     impact: int
     count: int
+
+
+# ---------- EP-105 what-if ----------
+DomainStatus = Literal["ok", "unavailable"]
+
+
+class ScenarioAssumptions(BaseModel):
+    """Optional overrides of the default risk → impact heuristics (DEC-219)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, max_length=200)
+    revenue_change_pct: float | None = Field(default=None, ge=-100, le=100)
+    expense_change_pct: float | None = Field(default=None, ge=-100, le=200)
+    extra_monthly_cost: int | None = Field(default=None, ge=0)
+    headcount_change_pct: float | None = Field(default=None, ge=-100, le=100)
+
+
+class ScenarioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    risk_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+    horizon_months: int = Field(ge=1, le=24)
+    assumptions: ScenarioAssumptions | None = None
+
+
+class FinanceImpact(BaseModel):
+    status: DomainStatus
+    revenue_delta: int | None = None
+    expense_delta: int | None = None
+    runway_delta_months: float | None = None
+
+
+class SalesImpact(BaseModel):
+    status: DomainStatus
+    pipeline_delta: int | None = None
+
+
+class HrImpact(BaseModel):
+    status: DomainStatus
+    headcount_delta: int | None = None
+
+
+class ProductImpact(BaseModel):
+    status: DomainStatus
+    roadmap_items_at_risk: int | None = None
+
+
+class ScenarioImpacts(BaseModel):
+    finance: FinanceImpact
+    sales: SalesImpact
+    hr: HrImpact
+    product: ProductImpact
+
+
+class SourceRef(BaseModel):
+    """10 §4.10 SourceRef."""
+
+    type: Literal["metric_value", "record", "document_page", "tool_result"]
+    id: str
+    label: str
+    period_key: str | None = None
+    value: float | int | None = None
+    lineage_url: str | None = None
+
+
+class ScenarioOut(BaseModel):
+    scenario_id: uuid.UUID
+    impacts: ScenarioImpacts
+    sources: list[SourceRef]

@@ -31,17 +31,21 @@ from app.modules.risk.schemas import (
     RiskSource,
     RiskStatus,
     RiskUpdate,
+    ScenarioIn,
+    ScenarioOut,
     StatusChange,
 )
 from app.modules.risk.services.lifecycle_service import RiskLifecycleService
 from app.modules.risk.services.mitigation_service import MitigationService
 from app.modules.risk.services.risk_service import RiskService
+from app.modules.risk.services.scenario_service import ScenarioService
 
 router = EnvelopeRouter(tags=["risk"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
 Reader = Annotated[Principal, Depends(require_permission("risk:read"))]
 Writer = Annotated[Principal, Depends(require_permission("risk:write"))]
+Querier = Annotated[Principal, Depends(require_permission("risk:query"))]
 Approver = Annotated[Principal, Depends(require_permission("risk:approve"))]
 
 
@@ -170,4 +174,15 @@ async def update_mitigation(
     exp = expected_version(if_match, body.version)
     out = await MitigationService(db).update(user, mitigation_id, body, exp)
     await db.commit()
+    return out
+
+
+# ---------- EP-105 what-if ----------
+@router.post("/risk/scenarios", response_model=ScenarioOut, status_code=201)
+async def run_scenario(body: ScenarioIn, db: Db, user: Querier, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ScenarioOut.model_validate(hit)
+    out = await ScenarioService(db).run(user, body)
+    await db.commit()
+    await idem.remember(out)
     return out
