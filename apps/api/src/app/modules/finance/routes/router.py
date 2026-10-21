@@ -4,6 +4,7 @@ Pattern for every domain module: one permission per route, `Idem` on create POST
 `IfMatch` + body `version` on PATCH, `Page` on lists, commit at the end of the request.
 """
 
+import re
 import uuid
 from typing import Annotated, Any
 
@@ -18,6 +19,10 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.finance.schemas import (
+    BudgetCreate,
+    BudgetOut,
+    BudgetStatusOut,
+    BudgetUpdate,
     CashPositionCreate,
     CashPositionOut,
     CashPositionUpdate,
@@ -25,12 +30,14 @@ from app.modules.finance.schemas import (
     ExpenseCreate,
     ExpenseOut,
     ExpenseUpdate,
+    Quarter,
     RevenueCategory,
     RevenueCreate,
     RevenueOut,
     RevenueUpdate,
     check_period,
 )
+from app.modules.finance.services.budget_service import BudgetService, budget_out
 from app.modules.finance.services.finance_service import FinanceService, expense_out, revenue_out
 
 router = EnvelopeRouter(tags=["finance"])
@@ -182,3 +189,69 @@ async def update_cash_position(
     out = await FinanceService(db).update_cash_position(user, position_id, body, exp)
     await db.commit()
     return out
+
+
+# ---------- EP-63 budgets / EP-64 status ----------
+_BUDGET_PERIOD = re.compile(r"^\d{4}(-Q[1-4]|-(0[1-9]|1[0-2]))?$")
+
+
+async def _budget_period(period: str | None = None) -> str | None:
+    if period is not None and not _BUDGET_PERIOD.match(period):
+        raise BadRequestError(
+            "period must be YYYY, YYYY-Qn or YYYY-MM", details={"param": "period"}
+        )
+    return period
+
+
+@router.get("/finance/budgets/status", response_model=list[BudgetStatusOut])
+async def budget_status(
+    db: Db, _: Annotated[Principal, Depends(require_permission("finance:query"))],
+    period: Annotated[str | None, Depends(_budget_period)] = None,
+    department_id: uuid.UUID | None = None,
+) -> Any:  # fmt: skip
+    return await BudgetService(db).statuses(period=period, department_id=department_id)
+
+
+@router.get("/finance/budgets", response_model=list[BudgetOut])
+async def list_budgets(
+    db: Db, _: Reader,
+    page: Annotated[PageParams, Depends(page_params("fiscal_year", "allocated_amount"))],
+    fiscal_year: int | None = None, quarter: Quarter | None = None,
+    department_id: uuid.UUID | None = None,
+) -> Any:  # fmt: skip
+    items, total = await BudgetService(db).list_budgets(
+        page, fiscal_year=fiscal_year, quarter=quarter, department_id=department_id
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/finance/budgets", response_model=BudgetOut, status_code=201)
+async def create_budget(body: BudgetCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return BudgetOut.model_validate(hit)
+    out = await BudgetService(db).create(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/finance/budgets/{budget_id}", response_model=BudgetOut)
+async def get_budget(budget_id: uuid.UUID, db: Db, _: Reader) -> Any:
+    return budget_out(await BudgetService(db).get(budget_id))
+
+
+@router.patch("/finance/budgets/{budget_id}", response_model=BudgetOut)
+async def update_budget(
+    budget_id: uuid.UUID, body: BudgetUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await BudgetService(db).update(user, budget_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/finance/budgets/{budget_id}", status_code=204, response_class=Response)
+async def delete_budget(budget_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await BudgetService(db).delete(user, budget_id)
+    await db.commit()
+    return Response(status_code=204)

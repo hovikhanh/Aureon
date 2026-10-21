@@ -152,3 +152,55 @@ class CashPositionOut(_Out):
     cash_source: str
     note: str | None
     recorded_by: uuid.UUID
+
+
+# ---------- EP-63 budgets / EP-64 status ----------
+Quarter = Literal["Q1", "Q2", "Q3", "Q4"]
+
+
+class BudgetCategory(BaseModel):
+    category: ExpenseCategory
+    allocated_amount: int = Field(gt=0)
+
+
+class BudgetCreate(BaseModel):
+    department_id: uuid.UUID
+    fiscal_year: int = Field(ge=2000, le=2100)
+    quarter: Quarter | None = None
+    allocated_amount: int = Field(gt=0)
+    currency: str = currency_field()
+    category: ExpenseCategory | None = None
+    categories: list[BudgetCategory] = Field(default_factory=list)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class BudgetUpdate(_Patch):
+    allocated_amount: int | None = Field(default=None, gt=0)
+    categories: list[BudgetCategory] | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class BudgetOut(_Out):
+    department_id: uuid.UUID
+    fiscal_year: int
+    quarter: str | None
+    period: str
+    allocated_amount: int
+    currency: str
+    category: str | None
+    categories: list[BudgetCategory]
+    notes: str | None
+
+
+BudgetStatus = Literal["ok", "warning", "critical"]
+
+
+class BudgetStatusOut(BaseModel):
+    budget_id: uuid.UUID
+    department_id: uuid.UUID
+    period: str
+    allocated_amount: int
+    spent_amount: int
+    budget_utilization_pct: float
+    currency: str
+    status: BudgetStatus

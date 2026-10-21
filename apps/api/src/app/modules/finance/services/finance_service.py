@@ -37,6 +37,7 @@ from app.modules.finance.schemas import (
     RevenueOut,
     RevenueUpdate,
 )
+from app.modules.finance.services.budget_service import BudgetService
 
 DEPARTMENT_SCOPED_ROLES = frozenset({"MANAGER"})
 
@@ -219,6 +220,7 @@ class FinanceService:
         await self.db.refresh(obj)
         out = expense_out(obj)
         await self._audit("finance.expense_create", "expenses", obj, after=out)
+        await BudgetService(self.db).on_expense_changed(obj.department_id, obj.period_key)
         return out
 
     async def update_expense(
@@ -240,6 +242,7 @@ class FinanceService:
         await self.db.refresh(obj)
         out = expense_out(obj)
         await self._audit("finance.expense_update", "expenses", obj, before, out)
+        await BudgetService(self.db).on_expense_changed(obj.department_id, obj.period_key)
         return out
 
     async def delete_expense(self, user: Principal, id_: uuid.UUID) -> None:

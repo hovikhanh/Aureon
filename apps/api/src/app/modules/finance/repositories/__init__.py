@@ -1,11 +1,12 @@
 """Finance repositories — only `finance` services use them (DEC-125)."""
 
-from collections.abc import Sequence
+import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from app.core.base_repository import BaseRepository
-from app.modules.finance.models import CashPosition, Expense, Revenue
+from app.core.events.envelope import OUTBOX
+from app.modules.finance.models import Budget, CashPosition, Expense, Revenue
 
 
 class RevenueRepository(BaseRepository[Revenue]):
@@ -32,11 +33,44 @@ class CashPositionRepository(BaseRepository[CashPosition]):
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    async def closing_by_period(self, keys: Sequence[str]) -> dict[str, int]:
-        """`{period_key: closing_balance}` for the given periods (live rows)."""
-        if not keys:
-            return {}
-        stmt = select(CashPosition.period_key, CashPosition.closing_balance).where(
-            CashPosition.deleted_at.is_(None), CashPosition.period_key.in_(keys)
+
+class BudgetRepository(BaseRepository[Budget]):
+    model = Budget
+
+    async def find(
+        self, department_id: uuid.UUID, fiscal_year: int, quarter: str | None
+    ) -> Budget | None:
+        q = Budget.quarter.is_(None) if quarter is None else Budget.quarter == quarter
+        stmt = self._live().where(
+            Budget.department_id == department_id, Budget.fiscal_year == fiscal_year, q
         )
-        return {k: int(v) for k, v in (await self.db.execute(stmt)).all()}
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def covering(
+        self, department_id: uuid.UUID, fiscal_year: int, quarter: str
+    ) -> list[Budget]:
+        """Quarter budget + whole-year budget of the department that include an expense."""
+        stmt = self._live().where(
+            Budget.department_id == department_id,
+            Budget.fiscal_year == fiscal_year,
+            or_(Budget.quarter == quarter, Budget.quarter.is_(None)),
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def spent(
+        self, department_id: uuid.UUID, periods: list[str], category: str | None = None
+    ) -> int:
+        stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+            Expense.deleted_at.is_(None),
+            Expense.department_id == department_id,
+            Expense.period_key.in_(periods),
+        )
+        if category is not None:
+            stmt = stmt.where(Expense.category == category)
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def event_already_published(self, event_type: str, aggregate_id: uuid.UUID) -> bool:
+        stmt = select(func.count()).where(
+            OUTBOX.c.event_type == event_type, OUTBOX.c.aggregate_id == aggregate_id
+        )
+        return int((await self.db.execute(stmt)).scalar_one()) > 0
