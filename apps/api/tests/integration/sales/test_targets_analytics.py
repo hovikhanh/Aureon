@@ -160,7 +160,11 @@ async def test_dashboard_contract(api: ApiClient, db_session: AsyncSession) -> N
     assert r.headers["cache-control"] == "private, max-age=60"
     assert r.headers["vary"] == "Authorization"
     d = r.json()["data"]
-    assert d["pillar"] == "C" and d["status"] == "no_data" and d["metrics"] == []
+    assert d["pillar"] == "C" and d["status"] in ("ok", "warning", "critical", "no_data")
+    # metrics[] come from the metric store (T-222): pillar C only, MetricValueOut shape
+    assert all(m["metric_code"].startswith("METRIC-CUS-") for m in d["metrics"])
+    assert all(m["lineage_url"].endswith(m["metric_code"]) for m in d["metrics"])
+    assert isinstance(d["open_alerts"], int)
     assert d["period"]["key"] == MONTH.key and d["period"]["type"] == "month"
     s = d["summary"]
     assert s == {

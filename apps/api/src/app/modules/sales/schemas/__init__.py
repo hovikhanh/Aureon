@@ -259,6 +259,7 @@ class SalesDashboardOut(BaseModel):
     metrics: list[dict[str, Any]]
     pipeline_trend: list[PipelineTrendPoint]
     win_rate_trend: list[WinRateTrendPoint]
+    open_alerts: int | None = None  # 10 §5; None when the metric store is unavailable
 
 
 # ---------- EP-78 contracts ----------

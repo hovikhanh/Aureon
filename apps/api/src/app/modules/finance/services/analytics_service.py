@@ -32,6 +32,7 @@ from app.modules.finance.schemas import (
     RunwayWhatIfOut,
     SourceRefOut,
 )
+from app.modules.platform.services.pillar_snapshot import pillar_snapshot
 
 EVT_BURN_OVER = "finance.burn_over_forecast"
 BURN_WARN_PCT = 10.0  # THR_FIN_07_WARN default (03 §3) — config store arrives with T-220
@@ -230,6 +231,7 @@ class FinanceAnalyticsService:
             metric("METRIC-FIN-07", burn_var, "PERCENT",
                    _status_hi_bad(burn_var, BURN_WARN_PCT, BURN_CRIT_PCT)),
         ]  # fmt: skip
+        snap = await pillar_snapshot(self.db, "F")  # open alerts of pillar F (store)
         no_data = sum(m.status == "no_data" for m in metrics)
         worst = max((m.status for m in metrics), key=lambda s: _RANK[s])
         status: Status = "no_data" if no_data * 2 >= len(metrics) else worst
@@ -247,7 +249,7 @@ class FinanceAnalyticsService:
                 RevenueTrendPoint(period_key=m, revenue=t_rev.get(m, 0), expense=t_exp.get(m, 0))
                 for m in trend_months
             ],
-            runway_trend=runway_trend, open_alerts=0,
+            runway_trend=runway_trend, open_alerts=snap.open_alerts or 0,
         )  # fmt: skip
 
     async def _budget_utilization(self, per: DashboardPeriod) -> float | None:

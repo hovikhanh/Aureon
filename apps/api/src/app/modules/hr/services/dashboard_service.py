@@ -49,6 +49,7 @@ from app.modules.hr.services.metrics import (
     worst,
 )
 from app.modules.hr.services.scope import DEPARTMENT_ROLES, sees_payroll
+from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 
 CURRENCY = "VND"
 
@@ -108,13 +109,16 @@ class HrDashboardService:
             TurnoverPoint(period_key=k, turnover_rate_pct=period_turnover_pct(rows, s, e, 1) or 0.0)
             for k, s, e in months
         ]
+        # METRIC-HR-* from the metric store — company scope only (department roles: live only)
+        snap = await pillar_snapshot(self.db, "O") if dept is None else PillarSnapshot()
         status = worst(turnover_status(turnover), delay_status(late) if rows or late else None)
         period_out = PeriodOut(
             key=period.key, type=period.type, start_date=period.start, end_date=end
         )
         return HrDashboardOut(
-            status=status, period=period_out, summary=summary, metrics=[],
-            headcount_trend=headcount_trend, turnover_trend=turnover_trend, open_alerts=None,
+            status=status, period=period_out, summary=summary, metrics=snap.metrics,
+            headcount_trend=headcount_trend, turnover_trend=turnover_trend,
+            open_alerts=snap.open_alerts,
         )  # fmt: skip
 
     async def workload(
