@@ -44,7 +44,7 @@ async def _relay(
     registry: ConsumerRegistry,
 ) -> relay_mod.RelayResult:
     async with factory() as s:
-        r = await relay_once(s, transport, registry=registry)
+        r = await relay_once(s, transport, registry=registry, honor_pause=False)
         await s.commit()
         return r
 
@@ -225,3 +225,17 @@ def test_decorator_registers_on_global_registry() -> None:
 async def test_base_consumer_abstract() -> None:
     with pytest.raises(NotImplementedError):
         await BaseConsumer().handle(None, None)  # type: ignore[arg-type]
+
+
+async def test_relay_honors_pause_lock(
+    factory: async_sessionmaker[AsyncSession],
+    transport: InMemoryTransport,
+    registry: ConsumerRegistry,
+) -> None:
+    """Session fixture holds the exclusive pause lock → a pause-honoring relay does nothing."""
+    (eid,) = await _publish(factory)
+    async with factory() as s:
+        r = await relay_once(s, transport, registry=registry)
+        await s.commit()
+    assert r == relay_mod.RelayResult()
+    assert (await _status(factory, eid))[0] == "PENDING"

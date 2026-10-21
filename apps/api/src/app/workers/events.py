@@ -36,9 +36,9 @@ async def _engine() -> AsyncIterator[AsyncEngine]:
         await engine.dispose()
 
 
-async def _relay() -> RelayResult:
+async def _relay(honor_pause: bool = True) -> RelayResult:
     async with _engine() as engine, AsyncSession(engine, expire_on_commit=False) as session:
-        result = await relay_once(session, CeleryTransport())
+        result = await relay_once(session, CeleryTransport(), honor_pause=honor_pause)
         await session.commit()
         return result
 
@@ -51,8 +51,8 @@ async def _consume(name: str, message: dict[str, Any], attempt: int) -> tuple[st
 
 
 @celery_app.task(name=RELAY_TASK, time_limit=30, soft_time_limit=25)  # type: ignore[untyped-decorator]
-def relay_outbox_events() -> dict[str, int]:
-    r = asyncio.run(_relay())
+def relay_outbox_events(honor_pause: bool = True) -> dict[str, int]:
+    r = asyncio.run(_relay(honor_pause))
     return {"published": r.published, "failed": r.failed, "messages": r.messages}
 
 

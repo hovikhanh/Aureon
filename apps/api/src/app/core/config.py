@@ -44,6 +44,8 @@ class ConfigService(BaseSettings):
     jwt_audience: str = "aureon-api"
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 604800
+    # Clock skew tolerated on `iat`/`exp` (whole-second `iat` vs float `now`; multi-host skew).
+    jwt_leeway_seconds: int = Field(default=30, ge=0, le=300)
     # 02 §4: temporary lock after N consecutive failures (configurable value).
     auth_max_failed_logins: int = 5
     auth_lockout_minutes: int = 15

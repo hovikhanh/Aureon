@@ -153,6 +153,7 @@ def verify_access_token(token: str) -> AccessClaims:
             algorithms=[ALGORITHM],
             audience=cfg.jwt_audience,
             issuer=cfg.jwt_issuer,
+            leeway=cfg.jwt_leeway_seconds,
             options={"require": ["sub", "exp", "iat", "jti", "iss", "aud"]},
         )
         dept = data.get("department_id")

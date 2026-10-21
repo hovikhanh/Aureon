@@ -146,3 +146,22 @@ def test_refresh_token_hash() -> None:
     assert len(security.hash_refresh_token(raw)) == 64
     assert security.hash_refresh_token(raw) == security.hash_refresh_token(raw)
     assert security.new_refresh_token() != raw
+
+
+def test_iat_clock_skew_within_leeway_accepted() -> None:
+    """Regression (flaky 401 in T-008 gate): whole-second `iat` vs float `now` in PyJWT
+    raised ImmatureSignatureError ~1/600 calls. `JWT_LEEWAY_SECONDS` (30) absorbs it."""
+    token = _sign(now=datetime.now(UTC) + timedelta(seconds=5))
+    assert security.verify_access_token(token).role == "CEO"
+
+
+def test_iat_beyond_leeway_rejected() -> None:
+    token = _sign(now=datetime.now(UTC) + timedelta(minutes=10))
+    with pytest.raises(UnauthenticatedError, match="invalid"):
+        security.verify_access_token(token)
+
+
+def test_exp_beyond_leeway_rejected() -> None:
+    token = _sign(now=datetime.now(UTC) - timedelta(seconds=60 + 31), ttl_seconds=60)
+    with pytest.raises(UnauthenticatedError, match="expired"):
+        security.verify_access_token(token)

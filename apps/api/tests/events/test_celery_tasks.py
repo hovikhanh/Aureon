@@ -77,7 +77,7 @@ def test_tasks_end_to_end(
     bus.REGISTRY.register(NAME, (EVT,), handler)
     try:
         eid = asyncio.run(_publish(factory))
-        summary = worker_events.relay_outbox_events.run()
+        summary = worker_events.relay_outbox_events.run(honor_pause=False)
         assert summary["published"] >= 1
         (name, msg) = next(x for x in sent if x[1]["event_id"] == str(eid))
 

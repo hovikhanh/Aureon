@@ -5,12 +5,17 @@ Runs from Celery beat (exactly one instance). `FOR UPDATE SKIP LOCKED` makes a s
 no double publish. A broker failure leaves the row `PENDING` with `attempts += 1` and
 `last_error`; after `MAX_RELAY_ATTEMPTS` it becomes `FAILED` (shown on EP-57).
 Rows with no registered consumer are marked `PUBLISHED` (nothing to deliver).
+
+Pause: every relay takes the *shared* advisory lock `RELAY_PAUSE_LOCK` (xact-scoped, so
+relays never block each other). Holding it *exclusively* pauses relaying cluster-wide —
+`SELECT pg_advisory_lock(<RELAY_PAUSE_LOCK>)` for maintenance / migrations, or the test
+suite, whose own relays pass `honor_pause=False`.
 """
 
 import logging
 from dataclasses import dataclass
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events.bus import REGISTRY, ConsumerRegistry, Transport
@@ -20,6 +25,7 @@ log = logging.getLogger("app.events.relay")
 
 BATCH_SIZE = 100
 MAX_RELAY_ATTEMPTS = 5
+RELAY_PAUSE_LOCK = 0x41555245_4F4E0001  # 'AUREON' + 1 — bigint advisory key
 
 
 @dataclass(frozen=True)
@@ -46,8 +52,14 @@ async def relay_once(
     *,
     registry: ConsumerRegistry = REGISTRY,
     batch_size: int = BATCH_SIZE,
+    honor_pause: bool = True,
 ) -> RelayResult:
     """Relay one batch inside the caller's transaction; the caller commits."""
+    if honor_pause:
+        lock = func.pg_try_advisory_xact_lock_shared(RELAY_PAUSE_LOCK)
+        if not (await session.execute(select(lock))).scalar_one():
+            log.info("relay paused (advisory lock %s held)", RELAY_PAUSE_LOCK)
+            return RelayResult()
     rows = (
         await session.execute(
             select(OUTBOX)
