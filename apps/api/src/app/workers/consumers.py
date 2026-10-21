@@ -7,7 +7,10 @@ import importlib
 import importlib.util
 import pkgutil
 
-CONSUMER_MODULES = ("app.modules.finance.events.consumers",)
+CONSUMER_MODULES = (
+    "app.modules.finance.events.consumers",
+    "app.modules.risk.events.consumers",
+)
 # Every `modules/<m>/services/metrics.py` that exists is a metric provider (DEC-205).
 _MODULES_PKG = "app.modules"
 
