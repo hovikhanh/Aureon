@@ -60,6 +60,11 @@ class TaskRepository(Repo[Task]):
         """Tasks with `due_date` in `[start, end)`."""
         return await self.where(Task.due_date >= start, Task.due_date < end, order=Task.id)
 
+    async def for_parents(self, column: Any, ids: Sequence[uuid.UUID]) -> Sequence[Task]:
+        if not ids:
+            return []
+        return await self.where(column.in_(ids), order=Task.id)
+
     async def assigned_active(
         self, since: date, until: date, department_id: uuid.UUID | None = None
     ) -> Sequence[Task]:
@@ -87,6 +92,16 @@ class DecisionRepository(Repo[Decision]):
 
 class ProjectRepository(Repo[Project]):
     model = Project
+
+    async def running(self, as_of: date) -> Sequence[Project]:
+        """`active` projects with a schedule that has started by `as_of` (METRIC-OPS-02)."""
+        return await self.where(
+            Project.status == "active",
+            Project.start_date.is_not(None),
+            Project.planned_end_date.is_not(None),
+            Project.start_date <= as_of,
+            order=Project.id,
+        )
 
 
 class ObjectiveRepository(Repo[Objective]):
@@ -128,6 +143,15 @@ class CheckInRepository(Repo[CheckIn]):
 
 class InitiativeRepository(Repo[Initiative]):
     model = Initiative
+
+    async def in_flight(self, start: date, end: date) -> Sequence[Initiative]:
+        """`active`/`at_risk` initiatives overlapping `[start, end)` (METRIC-RSK-06)."""
+        return await self.where(
+            Initiative.status.in_(("active", "at_risk")),
+            Initiative.start_date < end,
+            Initiative.planned_end_date >= start,
+            order=Initiative.id,
+        )
 
 
 class MilestoneRepository(Repo[Milestone]):
