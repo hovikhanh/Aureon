@@ -12,9 +12,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, MetaData, func, text
-from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.core.enums import DATA_CLASSIFICATION, RECORD_SOURCE
 
 # Deterministic names → stable autogenerate/downgrade; `ix_<table>_<column>` per 05 §1 C6.
 NAMING_CONVENTION: dict[str, str] = {
@@ -52,23 +53,6 @@ class RecordSource(NameEnum):
     AI = enum.auto()
     EVENT = enum.auto()
     SEED = enum.auto()
-
-
-# Shared PG enums live in schema `platform` (05 §1 C12). Migrations create them explicitly.
-data_classification_enum = SAEnum(
-    DataClassification,
-    name="data_classification",
-    schema="platform",
-    values_callable=lambda e: [m.value for m in e],
-    create_type=False,
-)
-record_source_enum = SAEnum(
-    RecordSource,
-    name="record_source",
-    schema="platform",
-    values_callable=lambda e: [m.value for m in e],
-    create_type=False,
-)
 
 
 class Base(DeclarativeBase):
@@ -121,8 +105,8 @@ class VersionMixin:
 class ClassificationMixin:
     """C19 `data_classification`."""
 
-    data_classification: Mapped[DataClassification] = mapped_column(
-        data_classification_enum,
+    data_classification: Mapped[str] = mapped_column(
+        DATA_CLASSIFICATION,
         nullable=False,
         server_default=DataClassification.INTERNAL.value,
     )
@@ -131,7 +115,7 @@ class ClassificationMixin:
 class SourceMixin:
     """C19 `source` (DEC-154: domain-specific source columns use other names)."""
 
-    source: Mapped[RecordSource] = mapped_column(record_source_enum, nullable=False)
+    source: Mapped[str] = mapped_column(RECORD_SOURCE, nullable=False)
 
 
 class CommonFieldsMixin(SourceMixin, ClassificationMixin, VersionMixin):
@@ -140,5 +124,21 @@ class CommonFieldsMixin(SourceMixin, ClassificationMixin, VersionMixin):
 
 class BusinessModel(Base, IdMixin, TimestampMixin, SoftDeleteMixin, ActorMixin, CommonFieldsMixin):
     """Abstract base for business entities (05 §2.1 group 1)."""
+
+    __abstract__ = True
+
+
+class ConfigModel(Base, IdMixin, TimestampMixin, ActorMixin, VersionMixin, ClassificationMixin):
+    """05 §2.1 group 2 — config/catalog: `version` + `data_classification`, no `source`.
+
+    No `deleted_at` by default (deactivate via `is_active`/`status`); a catalog table whose
+    05 spec lists soft delete adds `SoftDeleteMixin` explicitly.
+    """
+
+    __abstract__ = True
+
+
+class LogModel(Base, IdMixin, TimestampMixin):
+    """05 §2.1 group 3 — append-only / technical: no C19, no `deleted_at`."""
 
     __abstract__ = True
