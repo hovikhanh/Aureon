@@ -21,6 +21,7 @@ EXPECTED = {
     "daily-burn-check": ("app.jobs.daily_burn_check", "9", "0"),
     "mark-invoices-overdue": ("app.jobs.mark_invoices_overdue", "10", "0"),
     "detect-late-hiring": ("app.jobs.detect_late_hiring", "11", "0"),
+    "detect-overdue-tasks": ("app.jobs.detect_overdue_tasks", "8", "30"),
     "verify-action-outcome": ("app.jobs.verify_action_outcome", "*", "5"),
     "recompute-metrics": ("app.jobs.recompute_metrics", "1", "0"),
 }
@@ -38,7 +39,7 @@ def test_beat_schedule_registers_jobs() -> None:
         assert entry["task"] == task and task in celery_app.tasks
         assert _hours(entry["schedule"]) == hour and str(entry["schedule"]._orig_minute) == minute
     assert celery_app.conf.timezone == "Asia/Ho_Chi_Minh"
-    assert len(sched) == 6  # 5 business jobs (DEC-203 + 03 §1.3 01:00 recompute) + relay
+    assert len(sched) == 7  # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay
 
 
 @pytest.fixture
@@ -56,6 +57,7 @@ async def test_job_bodies_run(in_session: AsyncSession) -> None:
     assert isinstance(await jobs._run(jobs.burn_check), bool)
     assert await jobs._run(jobs.invoices_overdue) >= 0
     assert await jobs._run(jobs.late_hiring) >= 0
+    assert await jobs._run(jobs.overdue_tasks) >= 0
     stats = await jobs._run(jobs.recompute)
     assert stats["values"] > 0 and stats["failed_providers"] == 0
     assert await jobs._run(verify_action_outcomes) >= 0

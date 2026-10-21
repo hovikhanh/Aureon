@@ -19,7 +19,8 @@ def t(status: str = "todo", due: date | None = D, done: date | None = None, **kw
 
 
 def test_registered() -> None:
-    assert METRIC_PROVIDERS.providers["execution"] is m.compute
+    fn = METRIC_PROVIDERS.providers["execution"]  # may be a re-imported copy (arch tests)
+    assert (fn.__module__, fn.__qualname__) == (m.compute.__module__, m.compute.__qualname__)
 
 
 def test_ops01_ops03() -> None:

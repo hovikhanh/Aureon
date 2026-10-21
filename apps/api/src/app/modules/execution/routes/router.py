@@ -11,12 +11,14 @@ from typing import Annotated, Any
 from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import business_today
 from app.core.concurrency import IfMatch, expected_version
 from app.core.deps import Principal, get_db, require_permission
 from app.core.envelope import Page
-from app.core.errors import NotFoundError
+from app.core.errors import BadRequestError, NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
+from app.core.periods import resolve_period
 from app.core.routing import EnvelopeRouter
 from app.modules.execution.schemas.common import (
     DecisionStatus,
@@ -25,6 +27,7 @@ from app.modules.execution.schemas.common import (
     ProjectStatus,
     TaskStatus,
 )
+from app.modules.execution.schemas.dashboard import ExecutionDashboardOut
 from app.modules.execution.schemas.initiatives import (
     InitiativeCreate,
     InitiativeOut,
@@ -60,6 +63,7 @@ from app.modules.execution.schemas.okr import (
     ObjectiveUpdate,
 )
 from app.modules.execution.schemas.tasks import TaskCreate, TaskOut, TaskUpdate
+from app.modules.execution.services.dashboard_service import ExecutionDashboardService
 from app.modules.execution.services.initiative_service import InitiativeService, initiative_out
 from app.modules.execution.services.kpi_service import KpiService, kpi_out
 from app.modules.execution.services.meeting_service import (
@@ -77,6 +81,24 @@ router = EnvelopeRouter(tags=["execution"])
 Db = Annotated[AsyncSession, Depends(get_db)]
 Reader = Annotated[Principal, Depends(require_permission("execution:read"))]
 Writer = Annotated[Principal, Depends(require_permission("execution:write"))]
+Querier = Annotated[Principal, Depends(require_permission("execution:query"))]
+
+
+# ---------- EP-49 dashboard (10 §5, PIL-O execution half) ----------
+@router.get("/execution/dashboard", response_model=ExecutionDashboardOut)
+async def execution_dashboard(
+    db: Db, user: Querier, response: Response, period: str | None = None,
+    department_id: uuid.UUID | None = None,
+) -> Any:  # fmt: skip
+    today = business_today()
+    try:
+        p = resolve_period(period, today)
+    except ValueError as exc:
+        raise BadRequestError(str(exc), details={"param": "period"}) from exc
+    out = await ExecutionDashboardService(db).dashboard(user, p, today, department_id)
+    response.headers["Cache-Control"] = "private, max-age=60"
+    response.headers["Vary"] = "Authorization"
+    return out
 
 
 # ---------- EP-44 tasks ----------

@@ -59,7 +59,12 @@ class ProviderRegistry:
     providers: dict[str, Provider] = field(default_factory=dict)
 
     def register(self, module: str, fn: Provider) -> None:
-        if module in self.providers:
+        old = self.providers.get(module)
+        same = old is not None and (old.__module__, old.__qualname__) == (
+            fn.__module__,
+            fn.__qualname__,
+        )  # a module re-import (same function) replaces; a second provider is a bug
+        if old is not None and not same:
             raise ValueError(f"metric provider {module!r} registered twice")
         self.providers[module] = fn
 

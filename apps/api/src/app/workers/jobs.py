@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import business_today
 from app.modules.ai.services.verification import verify_action_outcomes
+from app.modules.execution.services.task_service import detect_overdue_tasks
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.invoice_service import InvoiceService
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
@@ -44,6 +45,10 @@ async def late_hiring(db: AsyncSession) -> int:
     return len(await detect_delayed_hiring_plans(db, business_today()))
 
 
+async def overdue_tasks(db: AsyncSession) -> int:
+    return len(await detect_overdue_tasks(db, business_today()))
+
+
 async def recompute(db: AsyncSession) -> dict[str, int]:
     return await MetricStore(db).recompute(business_today())
 
@@ -61,6 +66,11 @@ def mark_invoices_overdue() -> int:
 @celery_app.task(name="app.jobs.detect_late_hiring", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def detect_late_hiring() -> int:
     return int(asyncio.run(_run(late_hiring)))
+
+
+@celery_app.task(name="app.jobs.detect_overdue_tasks", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def detect_overdue_tasks_job() -> int:
+    return int(asyncio.run(_run(overdue_tasks)))
 
 
 @celery_app.task(name="app.jobs.verify_action_outcome", time_limit=60, soft_time_limit=50)  # type: ignore[untyped-decorator]

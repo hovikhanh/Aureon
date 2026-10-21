@@ -42,6 +42,10 @@ celery_app.conf.update(
             "task": "app.jobs.detect_late_hiring",
             "schedule": crontab(minute=0, hour=11),
         },
+        "detect-overdue-tasks": {  # EVT-execution.task_overdue (T-131)
+            "task": "app.jobs.detect_overdue_tasks",
+            "schedule": crontab(minute=30, hour=8),
+        },
         "verify-action-outcome": {
             "task": "app.jobs.verify_action_outcome",
             "schedule": crontab(minute=5),
