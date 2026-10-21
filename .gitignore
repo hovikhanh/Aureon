@@ -49,3 +49,6 @@ Thumbs.db
 # Internal reference & agent logs (not published)
 _reference/
 .agent-teams/
+
+# Windows ADS junk
+*:Zone.Identifier
