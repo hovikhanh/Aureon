@@ -7,10 +7,11 @@ Scope rules live in `services/scope.py` (02 §6.2); pure BR-SAL math in `calcula
 import re
 import unicodedata
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +27,7 @@ from app.core.errors import (
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
 from app.core.pii import mask_text
-from app.modules.sales.models import Client, Deal, DealStageHistory, SalesTarget
+from app.modules.sales.models import Client, Contract, Deal, DealStageHistory, SalesTarget
 from app.modules.sales.repositories import (
     ClientRepository,
     ContractRepository,
@@ -39,6 +40,9 @@ from app.modules.sales.schemas import (
     ClientOut,
     ClientUpdate,
     Contact,
+    ContractCreate,
+    ContractOut,
+    ContractUpdate,
     DealCreate,
     DealOut,
     DealUpdate,
@@ -97,6 +101,17 @@ def target_out(t: SalesTarget) -> TargetOut:
         id=t.id, version=t.version, created_at=t.created_at, updated_at=t.updated_at,
         period_type=t.period_type.lower(), period_key=t.period_key, scope=t.scope,
         owner_id=t.owner_id, target_amount=t.target_amount, currency=t.currency,
+    )  # fmt: skip
+
+
+def contract_out(c: Contract) -> ContractOut:
+    return ContractOut(
+        id=c.id, version=c.version, created_at=c.created_at, updated_at=c.updated_at,
+        contract_number=c.contract_number, client_id=c.client_id, deal_id=c.deal_id,
+        contract_value=c.contract_value, currency=c.currency, signed_at=c.signed_at,
+        effective_date=c.effective_date, expiry_date=c.expiry_date,
+        renewal_notice_days=c.renewal_notice_days, payment_terms=c.payment_terms,
+        status=c.status, is_recurring=c.is_recurring, source_document_id=c.source_document_id,
     )  # fmt: skip
 
 
@@ -489,3 +504,122 @@ class SalesService:
         obj.updated_by = user.user_id
         await self.targets.soft_delete(obj)
         await self._audit("sales.target_delete", "sales_targets", obj, before=before)
+
+    # ---------- EP-78 contracts ----------
+    async def list_contracts(
+        self, user: Principal, page: PageParams, *, client_id: uuid.UUID | None,
+        status: str | None, expiring_within_days: int | None,
+    ) -> tuple[list[ContractOut], int]:  # fmt: skip
+        filters: dict[str, Any] = {}
+        if client_id:
+            filters["client_id"] = client_id
+        if status:
+            filters["status"] = status
+        where: list[Any] = []
+        if scope.is_department_scoped(user):
+            mine = select(Deal.id).where(Deal.department_id == user.department_id)
+            where.append(Contract.deal_id.in_(mine))
+        if expiring_within_days is not None:
+            today = now_utc().date()
+            where.append(Contract.expiry_date.between(
+                today, today + timedelta(days=expiring_within_days)
+            ))  # fmt: skip
+        items, total = await self.contracts.list_page(
+            limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
+            filters=filters, where=where,
+        )  # fmt: skip
+        return [contract_out(c) for c in items], total
+
+    async def _check_contract_deal(self, user: Principal, deal_id: uuid.UUID | None) -> None:
+        """MANAGER reaches contracts only through a deal of their department (DEC-193)."""
+        if deal_id is None:
+            if scope.is_department_scoped(user):
+                scope.check_department(user, None)
+            return
+        deal = await self.deals.get(deal_id)
+        if deal is None:
+            raise BusinessRuleError(
+                "deal does not exist", details={"field": "deal_id", "rule": "ENT-Contract"}
+            )
+        scope.check_department(user, deal.department_id)
+
+    async def get_contract(self, user: Principal, id_: uuid.UUID) -> Contract:
+        obj = await self.contracts.get(id_)
+        if obj is None:
+            raise NotFoundError("contract not found")
+        await self._check_contract_deal(user, obj.deal_id)
+        return obj
+
+    @staticmethod
+    def _contract_rules(value: int | None, effective: date, expiry: date | None) -> None:
+        _positive(value, "contract_value", "ENT-Contract")
+        if expiry is not None and expiry < effective:
+            raise BusinessRuleError(
+                "expiry_date must be >= effective_date",
+                details={"field": "expiry_date", "rule": "ENT-Contract"},
+            )
+
+    async def _check_number(self, number: str, exclude: uuid.UUID | None = None) -> None:
+        dup = await self.contracts.by_number(number)
+        if dup is not None and dup.id != exclude:
+            raise DuplicateResourceError(
+                "contract_number already exists", details={"field": "contract_number"}
+            )
+
+    async def create_contract(self, user: Principal, body: ContractCreate) -> ContractOut:
+        scope.require_record_writer(user)
+        self._contract_rules(body.contract_value, body.effective_date, body.expiry_date)
+        await self._check_contract_deal(user, body.deal_id)
+        await self._require_client(body.client_id)
+        await self._check_number(body.contract_number)
+        data = body.model_dump(mode="json", include={"payment_terms"})
+        obj = Contract(
+            contract_number=body.contract_number, client_id=body.client_id,
+            deal_id=body.deal_id, contract_value=body.contract_value, currency=body.currency,
+            signed_at=body.signed_at, effective_date=body.effective_date,
+            expiry_date=body.expiry_date, renewal_notice_days=body.renewal_notice_days,
+            payment_terms=data["payment_terms"], status=body.status,
+            is_recurring=body.is_recurring, source_document_id=body.source_document_id,
+            source="MANUAL", created_by=user.user_id,
+        )  # fmt: skip
+        self.db.add(obj)
+        await self._flush_unique("contract_number")
+        await self.db.refresh(obj)
+        out = contract_out(obj)
+        await self._audit("sales.contract_create", "contracts", obj, after=out)
+        return out
+
+    async def update_contract(
+        self, user: Principal, id_: uuid.UUID, body: ContractUpdate, expected: int
+    ) -> ContractOut:
+        scope.require_record_writer(user)
+        obj = await self.get_contract(user, id_)
+        before = contract_out(obj)
+        data = body.model_dump(exclude_unset=True, exclude={"version", "payment_terms"})
+        if "payment_terms" in body.model_fields_set:  # JSONB → JSON-safe (dates as ISO)
+            data.update(body.model_dump(mode="json", include={"payment_terms"}))
+        self._contract_rules(
+            data.get("contract_value"), data.get("effective_date", obj.effective_date),
+            data.get("expiry_date", obj.expiry_date),
+        )  # fmt: skip
+        if "deal_id" in data:
+            await self._check_contract_deal(user, data["deal_id"])
+        if data.get("client_id"):
+            await self._require_client(data["client_id"])
+        if data.get("contract_number"):
+            await self._check_number(data["contract_number"], obj.id)
+        data["updated_by"] = user.user_id
+        await self.contracts.update(obj, expected_version=expected, **data)
+        await self._flush_unique("contract_number")
+        await self.db.refresh(obj)
+        out = contract_out(obj)
+        await self._audit("sales.contract_update", "contracts", obj, before, out)
+        return out
+
+    async def delete_contract(self, user: Principal, id_: uuid.UUID) -> None:
+        scope.require_record_writer(user)
+        obj = await self.get_contract(user, id_)
+        before = contract_out(obj)
+        obj.updated_by = user.user_id
+        await self.contracts.soft_delete(obj)
+        await self._audit("sales.contract_delete", "contracts", obj, before=before)

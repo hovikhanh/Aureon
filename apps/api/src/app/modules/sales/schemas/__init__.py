@@ -259,3 +259,61 @@ class SalesDashboardOut(BaseModel):
     metrics: list[dict[str, Any]]
     pipeline_trend: list[PipelineTrendPoint]
     win_rate_trend: list[WinRateTrendPoint]
+
+
+# ---------- EP-78 contracts ----------
+ContractStatus = Literal["draft", "active", "expired", "terminated"]
+
+
+class PaymentTerm(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    due_date: date
+    amount: int = Field(gt=0)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ContractCreate(BaseModel):
+    contract_number: str = Field(min_length=1, max_length=100)
+    client_id: uuid.UUID
+    deal_id: uuid.UUID | None = None
+    contract_value: int
+    currency: str = currency_field()
+    signed_at: date
+    effective_date: date
+    expiry_date: date | None = None
+    renewal_notice_days: int | None = Field(default=None, ge=0, le=3650)
+    payment_terms: list[PaymentTerm] | None = None
+    status: ContractStatus = "draft"
+    is_recurring: bool = False
+    source_document_id: uuid.UUID | None = None
+
+
+class ContractUpdate(_Patch):
+    contract_number: str | None = Field(default=None, min_length=1, max_length=100)
+    client_id: uuid.UUID | None = None
+    deal_id: uuid.UUID | None = None
+    contract_value: int | None = None
+    signed_at: date | None = None
+    effective_date: date | None = None
+    expiry_date: date | None = None
+    renewal_notice_days: int | None = Field(default=None, ge=0, le=3650)
+    payment_terms: list[PaymentTerm] | None = None
+    status: ContractStatus | None = None
+    is_recurring: bool | None = None
+
+
+class ContractOut(_Out):
+    contract_number: str
+    client_id: uuid.UUID
+    deal_id: uuid.UUID | None
+    contract_value: int
+    currency: str
+    signed_at: date
+    effective_date: date
+    expiry_date: date | None
+    renewal_notice_days: int | None
+    payment_terms: list[PaymentTerm] | None
+    status: str
+    is_recurring: bool
+    source_document_id: uuid.UUID | None

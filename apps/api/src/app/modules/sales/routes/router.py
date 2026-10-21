@@ -22,6 +22,10 @@ from app.modules.sales.schemas import (
     ClientCreate,
     ClientOut,
     ClientUpdate,
+    ContractCreate,
+    ContractOut,
+    ContractStatus,
+    ContractUpdate,
     DealCreate,
     DealOut,
     DealStage,
@@ -42,6 +46,7 @@ from app.modules.sales.services.analytics import SalesAnalytics
 from app.modules.sales.services.sales_service import (
     SalesService,
     client_out,
+    contract_out,
     deal_out,
     target_out,
 )
@@ -246,3 +251,52 @@ async def performance(
 async def dashboard(db: Db, user: Querier, response: Response, period: Period = None) -> Any:
     response.headers.update(DASHBOARD_CACHE)
     return await SalesAnalytics(db).dashboard(user, period)
+
+
+# ---------- EP-78 contracts ----------
+@router.get("/sales/contracts", response_model=list[ContractOut])
+async def list_contracts(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(
+        page_params("signed_at", "effective_date", "expiry_date", "contract_value")
+    )],
+    client_id: uuid.UUID | None = None, status: ContractStatus | None = None,
+    expiring_within_days: Annotated[int | None, Query(ge=0, le=3650)] = None,
+) -> Any:  # fmt: skip
+    items, total = await SalesService(db).list_contracts(
+        user, page, client_id=client_id, status=status,
+        expiring_within_days=expiring_within_days,
+    )  # fmt: skip
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/sales/contracts", response_model=ContractOut, status_code=201)
+async def create_contract(body: ContractCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ContractOut.model_validate(hit)
+    out = await SalesService(db).create_contract(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/sales/contracts/{contract_id}", response_model=ContractOut)
+async def get_contract(contract_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return contract_out(await SalesService(db).get_contract(user, contract_id))
+
+
+@router.patch("/sales/contracts/{contract_id}", response_model=ContractOut)
+async def update_contract(
+    contract_id: uuid.UUID, body: ContractUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await SalesService(db).update_contract(user, contract_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/sales/contracts/{contract_id}", status_code=204, response_class=Response)
+async def delete_contract(contract_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await SalesService(db).delete_contract(user, contract_id)
+    await db.commit()
+    return Response(status_code=204)
