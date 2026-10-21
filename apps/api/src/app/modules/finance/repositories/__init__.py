@@ -1,8 +1,9 @@
 """Finance repositories — only `finance` services use them (DEC-125)."""
 
 import uuid
+from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 
 from app.core.base_repository import BaseRepository
 from app.core.events.envelope import OUTBOX
@@ -12,6 +13,8 @@ from app.modules.finance.models import (
     Expense,
     Forecast,
     ForecastLine,
+    Invoice,
+    InvoiceLine,
     Revenue,
 )
 
@@ -106,3 +109,59 @@ class ForecastRepository(BaseRepository[Forecast]):
             .limit(1)
         )
         return int((await self.db.execute(stmt)).scalar_one_or_none() or 0)
+
+
+OPEN_STATUSES = ("sent", "partial", "overdue")
+
+
+class InvoiceRepository(BaseRepository[Invoice]):
+    model = Invoice
+
+    async def lines(self, invoice_id: uuid.UUID) -> list[InvoiceLine]:
+        stmt = (
+            select(InvoiceLine)
+            .where(InvoiceLine.invoice_id == invoice_id, InvoiceLine.deleted_at.is_(None))
+            .order_by(InvoiceLine.line_no)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def number_taken(
+        self, direction: str, tax_code: str | None, series: str | None, number: str
+    ) -> bool:
+        stmt = select(func.count()).where(
+            Invoice.deleted_at.is_(None),
+            Invoice.direction == direction,
+            func.coalesce(Invoice.counterparty_tax_code, "") == (tax_code or ""),
+            func.coalesce(Invoice.series, "") == (series or ""),
+            Invoice.number == number,
+        )
+        return int((await self.db.execute(stmt)).scalar_one()) > 0
+
+    async def mark_overdue(self, as_of: date) -> list[uuid.UUID]:
+        stmt = (
+            update(Invoice)
+            .where(
+                Invoice.deleted_at.is_(None),
+                Invoice.status.in_(("sent", "partial")),
+                Invoice.due_date < as_of,
+                Invoice.total_amount > Invoice.paid_amount,
+            )
+            .values(status="overdue", version=Invoice.version + 1)
+            .returning(Invoice.id)
+        )
+        return [r[0] for r in (await self.db.execute(stmt)).all()]
+
+    async def receivables(self, as_of: date) -> tuple[int, int]:
+        """(open AR, overdue AR) for OUT invoices at `as_of` (METRIC-FIN-04/05)."""
+        due = Invoice.total_amount - Invoice.paid_amount
+        stmt = select(
+            func.coalesce(func.sum(due), 0),
+            func.coalesce(func.sum(due).filter(Invoice.due_date < as_of), 0),
+        ).where(
+            Invoice.deleted_at.is_(None),
+            Invoice.direction == "OUT",
+            Invoice.status.in_(OPEN_STATUSES),
+            Invoice.issue_date <= as_of,
+        )
+        total, overdue = (await self.db.execute(stmt)).one()
+        return int(total), int(overdue)

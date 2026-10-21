@@ -6,7 +6,7 @@ Pattern for every domain module: one permission per route, `Idem` on create POST
 
 import re
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,11 @@ from app.modules.finance.schemas import (
     ForecastOut,
     ForecastUpdate,
     Horizon,
+    InvoiceCreate,
+    InvoiceOut,
+    InvoicePay,
+    InvoiceStatus,
+    InvoiceUpdate,
     Quarter,
     RevenueCategory,
     RevenueCreate,
@@ -45,6 +50,7 @@ from app.modules.finance.schemas import (
 from app.modules.finance.services.budget_service import BudgetService, budget_out
 from app.modules.finance.services.finance_service import FinanceService, expense_out, revenue_out
 from app.modules.finance.services.forecast_service import ForecastService
+from app.modules.finance.services.invoice_service import InvoiceService
 
 router = EnvelopeRouter(tags=["finance"])
 
@@ -300,4 +306,65 @@ async def update_forecast(
     exp = expected_version(if_match, body.version)
     out = await ForecastService(db).update(user, forecast_id, body, exp)
     await db.commit()
+    return out
+
+
+# ---------- EP-67 invoices (+ lines) / EP-68 pay ----------
+@router.get("/finance/invoices", response_model=list[InvoiceOut])
+async def list_invoices(
+    db: Db, _: Reader,
+    page: Annotated[PageParams, Depends(page_params("issued_on", "due_date", "total_amount"))],
+    status: InvoiceStatus | None = None, client_id: uuid.UUID | None = None,
+    overdue: bool | None = None, period: Period = None,
+    direction: Literal["OUT", "IN"] | None = None,
+) -> Any:  # fmt: skip
+    items, total = await InvoiceService(db).list_invoices(
+        page, status=status, client_id=client_id, overdue=overdue, period=period,
+        direction=direction,
+    )  # fmt: skip
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/finance/invoices", response_model=InvoiceOut, status_code=201)
+async def create_invoice(body: InvoiceCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return InvoiceOut.model_validate(hit)
+    out = await InvoiceService(db).create(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/finance/invoices/{invoice_id}", response_model=InvoiceOut)
+async def get_invoice(invoice_id: uuid.UUID, db: Db, _: Reader) -> Any:
+    svc = InvoiceService(db)
+    return await svc.out(await svc.get(invoice_id))
+
+
+@router.patch("/finance/invoices/{invoice_id}", response_model=InvoiceOut)
+async def update_invoice(
+    invoice_id: uuid.UUID, body: InvoiceUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await InvoiceService(db).update(user, invoice_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/finance/invoices/{invoice_id}", status_code=204, response_class=Response)
+async def delete_invoice(invoice_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await InvoiceService(db).delete(user, invoice_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/finance/invoices/{invoice_id}/pay", response_model=InvoiceOut)
+async def pay_invoice(
+    invoice_id: uuid.UUID, body: InvoicePay, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return InvoiceOut.model_validate(hit)
+    out = await InvoiceService(db).pay(user, invoice_id, body)
+    await db.commit()
+    await idem.remember(out)
     return out

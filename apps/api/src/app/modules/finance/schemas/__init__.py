@@ -254,3 +254,79 @@ class ForecastOut(_Out):
     confidence_pct: float | None
     assumptions: dict[str, Any]
     lines: list[ForecastLineOut]
+
+
+# ---------- EP-67 invoices (+ lines) / EP-68 pay ----------
+InvoiceStatus = Literal["draft", "sent", "partial", "paid", "overdue", "cancelled"]
+VatPct = Literal[0, 5, 8, 10]
+
+
+class InvoiceLineIn(BaseModel):
+    description: str = Field(min_length=1, max_length=500)
+    quantity: float = Field(gt=0)
+    unit_price: int = Field(ge=0)
+    vat_pct: VatPct = 10
+    product_id: uuid.UUID | None = None
+
+
+class InvoiceCreate(BaseModel):
+    direction: Literal["OUT", "IN"] = "OUT"
+    client_id: uuid.UUID | None = None
+    client_name: str | None = Field(default=None, max_length=300)
+    counterparty_name: str | None = Field(default=None, max_length=300)
+    counterparty_tax_code: str | None = Field(default=None, max_length=20)
+    series: str | None = Field(default=None, max_length=20)
+    number: str = Field(min_length=1, max_length=50)
+    issued_on: date
+    due_date: date
+    currency: str = currency_field()
+    status: Literal["draft", "sent"] = "sent"
+    lines: list[InvoiceLineIn] = Field(min_length=1, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class InvoiceUpdate(_Patch):
+    due_date: date | None = None
+    status: Literal["draft", "sent", "cancelled"] | None = None
+    lines: list[InvoiceLineIn] | None = Field(default=None, min_length=1, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class InvoiceLineOut(BaseModel):
+    line_no: int
+    description: str
+    quantity: float
+    unit_price: int
+    amount: int
+    vat_pct: float
+    product_id: uuid.UUID | None
+
+
+class InvoiceOut(_Out):
+    direction: str
+    client_id: uuid.UUID | None
+    client_name: str | None
+    counterparty_name: str | None
+    series: str | None
+    number: str
+    issued_on: date
+    due_date: date | None
+    subtotal: int
+    vat_pct: float
+    vat_amount: int
+    total_amount: int
+    paid_amount: int
+    amount_due: int
+    currency: str
+    status: str
+    overdue: bool
+    days_overdue: int
+    paid_at: datetime | None
+    notes: str | None
+    lines: list[InvoiceLineOut]
+
+
+class InvoicePay(BaseModel):
+    amount_paid: int = Field(gt=0)
+    paid_at: datetime
+    method: Literal["bank_transfer", "cash", "card", "other"] | None = None
