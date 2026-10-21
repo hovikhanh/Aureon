@@ -67,6 +67,10 @@ class DuplicateResourceError(AppError):
     status_code, code = 409, "DUPLICATE_RESOURCE"
 
 
+class IdempotencyConflictError(AppError):
+    status_code, code = 409, "IDEMPOTENCY_CONFLICT"
+
+
 class ValidationError(AppError):
     status_code, code = 422, "VALIDATION_ERROR"
 

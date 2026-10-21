@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_model import Base
@@ -57,8 +57,10 @@ class BaseRepository[ModelT: Base]:
         sort_by: str = "created_at",
         order: str = "desc",
         filters: Mapping[str, Any] | None = None,
+        where: Sequence[ColumnElement[bool]] = (),
     ) -> tuple[Sequence[ModelT], int]:
-        """`(items, total)` for 10 §1.5. `filters` = exact-match on model columns (AND).
+        """`(items, total)` for 10 §1.5. `filters` = exact-match on model columns (AND);
+        `where` = extra SQL predicates (ranges, IN, …) built by the module repository.
 
         `sort_by` must already be whitelisted by the route (`core.pagination.page_params`).
         """
@@ -67,6 +69,8 @@ class BaseRepository[ModelT: Base]:
             if not self._has(name):
                 raise ValueError(f"{self.model.__name__} has no column {name!r}")
             stmt = stmt.where(self._col(name) == value)
+        for clause in where:
+            stmt = stmt.where(clause)
         total_stmt = select(func.count()).select_from(stmt.subquery())
         total = int((await self.db.execute(total_stmt)).scalar_one())
         if not self._has(sort_by):

@@ -128,6 +128,13 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19), trừ các TC
 | TC-SYS-010 (T-017) | Implemented — CI pipeline enforces `ruff`, `mypy`, pytest coverage ≥ 70% (configured 75%), contract tests, and full-history gitleaks; GitHub Actions run completed green | `.github/workflows/ci.yml`, `.gitleaksignore` | T-017 | DEC-177 |
 | TC-SYS-011 (T-018) | Passed — `BaseRepository.update(obj, expected_version=…)`: `SELECT … FOR UPDATE` đọc lại `version`, lệch → `409 CONFLICT_STATE` `details {current_version, expected_version}`, bản thua không đổi gì; khớp → `version + 1`. `core/concurrency.py`: `If-Match: 3` / `"3"` / `W/"3"` hoặc body `version` (10 §1.1); thiếu cả hai, sai định dạng, hai giá trị lệch nhau → `422 VALIDATION_ERROR`. Hai kết nối thật cùng đọc v1 → đúng 1 thắng, 1 nhận 409. Chưa có PATCH nghiệp vụ (domain từ S1) → test qua router test-only với error handler thật; mọi PATCH S1+ dùng `IfMatch` + `expected_version` | `apps/api/tests/integration/test_optimistic_lock.py`, `apps/api/tests/unit/test_base_repository.py` | T-018 | 05 §1 C19 |
 
+### 2.0.1. Trạng thái hiện thực S1 (auto-pilot, từ 2026-10-22)
+
+| TC | Trạng thái | Test | Task (09) |
+|---|---|---|---|
+| TC-FIN-001 | Passed — EP-61/62/65 L C R U (D cho 61/62): tiền BIGINT + `currency`; `amount ≤ 0` → `422 BUSINESS_RULE_VIOLATION`; kỳ `YYYY-MM`, UQ kỳ cash → `409 DUPLICATE_RESOURCE`; `opening_balance` dẫn xuất (DEC-185); MANAGER chỉ phòng mình → `403 FORBIDDEN_SCOPE`; PATCH `If-Match`/`version` → 409; audit `finance.*` mỗi mutation; phân trang + bộ lọc | `apps/api/tests/integration/finance/test_revenues_expenses_cash.py` | T-101 |
+| TC-SYS-012 | Passed — `Idempotency-Key` (10 §1.6, DEC-186): cùng key + body → replay, không ghi lần 2; body khác → `409 IDEMPOTENCY_CONFLICT`; thiếu/sai → `400`; theo user; Redis lỗi → `503` | `apps/api/tests/integration/test_idempotency.py` | T-101 (hạ tầng dùng chung) |
+
 ### 2.1. S0 — Nền tảng v2
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
