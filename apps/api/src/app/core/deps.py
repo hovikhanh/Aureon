@@ -1,7 +1,7 @@
-"""Shared FastAPI dependencies.
+"""Shared FastAPI dependencies: DB session, current principal (RS256), permission guards.
 
-`get_current_user`, `require_permission` are wired to RS256 in T-004; until then they
-fail closed (default deny — 02 §5) so no endpoint can be accidentally public.
+RBAC layer (b) of 10 §2.2: every endpoint declares exactly one `require_permission(...)`.
+Identity comes only from the verified JWT — never from body/query (CLAUDE.md §5.3).
 """
 
 from collections.abc import AsyncIterator, Callable, Coroutine
@@ -9,20 +9,30 @@ from dataclasses import dataclass, field
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_sessionmaker
+from app.core.errors import PermissionDeniedError, UnauthenticatedError
+from app.core.permissions import permission_name
+from app.core.security import verify_access_token
 
 
 @dataclass(frozen=True)
 class Principal:
-    """Caller identity built from the JWT — never from body/query (CLAUDE.md §5.3)."""
+    """Caller identity built from the JWT."""
 
     user_id: UUID
     role: str
     permissions: frozenset[str] = field(default_factory=frozenset)
     department_id: UUID | None = None
+    email: str = ""
+    role_id: str = ""
+    jti: str = ""
+
+    def has(self, permission: str) -> bool:
+        return permission in self.permissions
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
@@ -30,31 +40,53 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-async def get_current_user() -> Principal:
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHENTICATED")
+_bearer = HTTPBearer(auto_error=False)
+
+
+async def get_current_user(
+    creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> Principal:
+    if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
+        raise UnauthenticatedError("missing bearer token")
+    claims = verify_access_token(creds.credentials)
+    return Principal(
+        user_id=claims.sub,
+        role=claims.role,
+        permissions=frozenset(claims.permissions),
+        department_id=claims.department_id,
+        email=claims.email,
+        role_id=claims.role_id,
+        jti=claims.jti,
+    )
 
 
 CurrentUser = Annotated[Principal, Depends(get_current_user)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
+Guard = Callable[..., Coroutine[Any, Any, Principal]]
 
-def require_permission(permission: str) -> Callable[..., Coroutine[Any, Any, Principal]]:
-    """`Depends(require_permission("finance:read"))` — exactly one per endpoint."""
+
+def require_permission(domain: str, action: str | None = None) -> Guard:
+    """`require_permission("finance:read")` or `require_permission("finance", "read")`.
+
+    Unknown permissions fail at import time (02 §5.2); missing → `403 FORBIDDEN_ROLE`.
+    """
+    perm = permission_name(domain, action)
 
     async def _check(user: CurrentUser) -> Principal:
-        if permission not in user.permissions:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="FORBIDDEN_ROLE")
+        if not user.has(perm):
+            raise PermissionDeniedError(f"missing permission {perm}", details={"required": perm})
         return user
 
     return _check
 
 
-def require_role(*roles: str) -> Callable[..., Coroutine[Any, Any, Principal]]:
+def require_role(*roles: str) -> Guard:
     """v1 compatibility alias only (CLAUDE.md §5.2) — prefer `require_permission`."""
 
     async def _check(user: CurrentUser) -> Principal:
         if user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="FORBIDDEN_ROLE")
+            raise PermissionDeniedError(f"role {user.role} not allowed")
         return user
 
     return _check

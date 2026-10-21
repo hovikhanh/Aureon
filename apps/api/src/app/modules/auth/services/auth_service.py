@@ -1,8 +1,172 @@
-"""Public service interface of `auth` — the only entry point for other modules."""
+"""Public service interface of `auth` — login, refresh rotation, logout, me (FR-AUTH-01..03).
+
+Refresh tokens are opaque, stored as sha256, rotated on every use; re-use of a rotated token
+revokes the whole family (CLAUDE.md §5.3, 10 EP-06). Audit rows for `auth.*` actions are
+written in T-007 (`@auditable`).
+"""
+
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import get_config
+from app.core.errors import InvalidCredentialsError, RefreshTokenInvalidError, UnauthenticatedError
+from app.core.security import (
+    burn_password_check,
+    hash_refresh_token,
+    new_refresh_token,
+    sign_access_token,
+    verify_password,
+)
+from app.modules.auth.models import RefreshToken, Role, User
+from app.modules.auth.repositories import RefreshTokenRepository, RoleRepository, UserRepository
+from app.modules.auth.schemas import TokenOut, UserOut
+
+
+@dataclass(frozen=True)
+class ClientInfo:
+    user_agent: str | None = None
+    ip_address: str | None = None
 
 
 class AuthService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+        self.users = UserRepository(db)
+        self.roles = RoleRepository(db)
+        self.tokens = RefreshTokenRepository(db)
+
+    # --- helpers --------------------------------------------------------------------------
+
+    @staticmethod
+    def _now() -> datetime:
+        return datetime.now(UTC)
+
+    @staticmethod
+    def user_out(user: User, role: Role) -> UserOut:
+        return UserOut(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            role_code=role.code,
+            role_id=role.id,
+            permissions=sorted(role.permissions),
+            department_id=user.department_id,
+            locale=user.locale,
+            is_active=user.is_active,
+            last_login_at=user.last_login_at,
+        )
+
+    async def _role_of(self, user: User) -> Role:
+        role = await self.roles.get(user.role_id)
+        if role is None:  # FK RESTRICT makes this unreachable; fail closed anyway
+            raise UnauthenticatedError("user has no role")
+        return role
+
+    async def _issue(
+        self, user: User, role: Role, client: ClientInfo, family_id: uuid.UUID | None = None
+    ) -> TokenOut:
+        cfg = get_config()
+        now = self._now()
+        access, expires_in = sign_access_token(
+            user_id=user.id,
+            email=user.email,
+            role=role.code,
+            role_id=str(role.id),
+            permissions=role.permissions,
+            department_id=user.department_id,
+            now=now,
+        )
+        raw = new_refresh_token()
+        await self.tokens.add(
+            RefreshToken(
+                user_id=user.id,
+                token_hash=hash_refresh_token(raw),
+                family_id=family_id or uuid.uuid4(),
+                expires_at=now + timedelta(seconds=cfg.jwt_refresh_ttl_seconds),
+                user_agent=client.user_agent,
+                ip_address=client.ip_address,
+            )
+        )
+        return TokenOut(
+            access_token=access,
+            expires_in=expires_in,
+            refresh_token=raw,
+            user=self.user_out(user, role),
+        )
+
+    # --- EP-02 login ----------------------------------------------------------------------
+
+    async def login(self, email: str, password: str, client: ClientInfo) -> TokenOut:
+        """Same 401 for unknown email / wrong password / inactive / locked (no enumeration)."""
+        cfg = get_config()
+        now = self._now()
+        user = await self.users.by_email(email)
+        if user is None:
+            burn_password_check(password)
+            raise InvalidCredentialsError("invalid credentials")
+        if user.locked_until is not None and user.locked_until > now:
+            burn_password_check(password)
+            raise InvalidCredentialsError("invalid credentials")
+        if not user.is_active or not verify_password(user.password_hash, password):
+            user.failed_login_count = (user.failed_login_count or 0) + 1
+            if user.failed_login_count >= cfg.auth_max_failed_logins:
+                user.locked_until = now + timedelta(minutes=cfg.auth_lockout_minutes)
+                user.failed_login_count = 0
+            await self.db.commit()
+            raise InvalidCredentialsError("invalid credentials")
+
+        user.failed_login_count = 0
+        user.locked_until = None
+        user.last_login_at = now
+        role = await self._role_of(user)
+        out = await self._issue(user, role, client)
+        await self.db.commit()
+        return out
+
+    # --- EP-06 refresh (rotation + reuse detection) ---------------------------------------
+
+    async def refresh(self, raw_token: str, client: ClientInfo) -> TokenOut:
+        now = self._now()
+        stored = await self.tokens.by_hash(hash_refresh_token(raw_token))
+        if stored is None:
+            raise RefreshTokenInvalidError("unknown refresh token")
+        if stored.revoked_at is not None:
+            # Re-use of a rotated/revoked token → revoke the whole chain (10 EP-06).
+            await self.tokens.revoke_family(stored.family_id, now)
+            await self.db.commit()
+            raise RefreshTokenInvalidError("refresh token reused")
+        if stored.expires_at <= now:
+            raise RefreshTokenInvalidError("refresh token expired")
+
+        user = await self.users.get(stored.user_id)
+        if user is None or not user.is_active:
+            await self.tokens.revoke_family(stored.family_id, now)
+            await self.db.commit()
+            raise RefreshTokenInvalidError("user inactive")
+
+        await self.tokens.revoke(stored, now)
+        role = await self._role_of(user)  # permissions re-derived from current role (02 §4)
+        out = await self._issue(user, role, client, family_id=stored.family_id)
+        await self.db.commit()
+        return out
+
+    # --- EP-07 logout ---------------------------------------------------------------------
+
+    async def logout(self, raw_token: str, user_id: uuid.UUID) -> None:
+        """Idempotent: unknown / foreign / already-revoked tokens are a silent no-op (204)."""
+        stored = await self.tokens.by_hash(hash_refresh_token(raw_token))
+        if stored is None or stored.user_id != user_id or stored.revoked_at is not None:
+            return
+        await self.tokens.revoke_family(stored.family_id, self._now())
+        await self.db.commit()
+
+    # --- EP-03 me -------------------------------------------------------------------------
+
+    async def me(self, user_id: uuid.UUID) -> UserOut:
+        user = await self.users.get(user_id)
+        if user is None or not user.is_active:
+            raise UnauthenticatedError("user not found or inactive")
+        return self.user_out(user, await self._role_of(user))

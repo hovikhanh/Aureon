@@ -50,6 +50,8 @@ markers = [
 [tool.coverage.run]
 source = ["app"]
 branch = true
+# SQLAlchemy async runs ORM code in greenlets — without this, lines after `await` look uncovered.
+concurrency = ["greenlet", "thread"]
 
 [tool.ruff]
 line-length = 100

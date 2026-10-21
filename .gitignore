@@ -11,6 +11,8 @@ __pycache__/
 !.env.example
 *.pem
 *.key
+secrets/
+keys/
 
 # Build output
 dist/

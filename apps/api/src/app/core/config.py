@@ -31,7 +31,8 @@ class ConfigService(BaseSettings):
     celery_broker_url: SecretStr = SecretStr("redis://localhost:6379/1")
     celery_result_backend: SecretStr = SecretStr("redis://localhost:6379/2")
 
-    # --- Auth / JWT RS256 (DEC-129) — keys loaded in T-004 ---
+    # --- Auth / JWT RS256 (DEC-129) ---
+    jwt_algorithm: Literal["RS256"] = "RS256"
     jwt_private_key_path: Path = REPO_ROOT / "secrets" / "jwt_private.pem"
     jwt_public_key_path: Path = REPO_ROOT / "secrets" / "jwt_public.pem"
     jwt_private_key: SecretStr | None = None
@@ -41,6 +42,9 @@ class ConfigService(BaseSettings):
     jwt_audience: str = "aureon-api"
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 604800
+    # 02 §4: temporary lock after N consecutive failures (configurable value).
+    auth_max_failed_logins: int = 5
+    auth_lockout_minutes: int = 15
 
     # --- ModelGateway / AI routing (DEC-131, DEC-157) ---
     model_gateway_mode: Literal["fixture", "live", "record"] = "fixture"
@@ -79,6 +83,15 @@ class ConfigService(BaseSettings):
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
     demo_password: SecretStr | None = None
+
+    @model_validator(mode="after")
+    def _resolve_key_paths(self) -> "ConfigService":
+        # Relative paths in .env (`./secrets/...`) are relative to the repo root, not the cwd.
+        if not self.jwt_private_key_path.is_absolute():
+            self.jwt_private_key_path = REPO_ROOT / self.jwt_private_key_path
+        if not self.jwt_public_key_path.is_absolute():
+            self.jwt_public_key_path = REPO_ROOT / self.jwt_public_key_path
+        return self
 
     @model_validator(mode="after")
     def _dq_weights_sum_to_one(self) -> "ConfigService":
