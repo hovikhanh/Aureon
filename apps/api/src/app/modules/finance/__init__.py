@@ -1,0 +1,1 @@
+"""Module `finance` (schema `finance`)."""

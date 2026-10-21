@@ -1,0 +1,1 @@
+"""Module `sales` (schema `sales`)."""

@@ -94,7 +94,15 @@ Agent được phép sửa file này (CLAUDE.md § Quy tắc an toàn, mục 2).
 
 ## 2. Danh mục test case (theo mốc S0–S5)
 
-Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19).
+Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19), trừ các TC ghi trạng thái ở §2.0.
+
+### 2.0. Trạng thái hiện thực S0a (2026-10-21)
+
+Đợt S0a do human giao (brief "S0a T-001..T-009") đánh số task khác 09; ánh xạ: brief T-001 ↔ 09 T-003 · T-002 ↔ T-002 + T-014 · T-003 ↔ T-005 · T-004 ↔ T-007/T-008 · T-005 ↔ T-006 · T-006 ↔ T-010/T-011 · T-007 ↔ T-012 · T-008 ↔ T-008 (seed) · T-009 ↔ T-017. Cột "Task" ghi mã 09.
+
+| TC | Trạng thái | Test | Task (09) | Commit |
+|---|---|---|---|---|
+| TC-SYS-001 | Implemented (một phần — scaffold 11 module; test import-boundary ở T-004) | `apps/api/tests/unit/test_scaffold.py` | T-003 | brief T-001 |
 
 ### 2.1. S0 — Nền tảng v2
 

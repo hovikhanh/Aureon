@@ -38,6 +38,7 @@ aureon-api = { workspace = true }
 testpaths = ["apps/api/tests"]
 # Exclude live external-service tests by default so `uv run pytest` is reproducible offline/CI.
 # Run them explicitly with `RUN_LIVE_TESTS=true uv run pytest -m live`.
+asyncio_mode = "auto"
 addopts = "-ra --strict-markers -m 'not live'"
 markers = [
     "contract: API contract checks against docs/3.EXECUTION/10-API-SPECIFICATION.md (pnpm contract:validate)",
@@ -53,7 +54,7 @@ branch = true
 line-length = 100
 target-version = "py312"
 src = ["apps/api/src", "apps/api/tests"]
-extend-exclude = ["node_modules", ".venv", "apps/web"]
+extend-exclude = ["node_modules", ".venv", "apps/web", "_reference", "docs", "scripts/gen_demo_docs.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
@@ -70,3 +71,8 @@ mypy_path = "apps/api/src"
 files = ["apps/api/src/app"]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
+
+# Celery ships no type stubs / py.typed.
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true

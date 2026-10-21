@@ -1,0 +1,1 @@
+"""Module `platform` (schema `platform`)."""
