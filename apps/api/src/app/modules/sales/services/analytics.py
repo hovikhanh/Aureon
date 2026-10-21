@@ -18,6 +18,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
+from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 from app.modules.sales.models import Deal, SalesTarget
 from app.modules.sales.repositories import (
     DealRepository,
@@ -202,10 +203,16 @@ class SalesAnalytics:
                 q_open, await self._quota(user, quarter.key, None)
             ),
         )  # fmt: skip
-        metrics: list[dict[str, Any]] = []  # METRIC-CUS-* from the metric store — S2
+        # METRIC-CUS-* from the metric store (company scope only — MANAGER keeps live summary)
+        snap = (
+            await pillar_snapshot(self.db, "C")
+            if not scope.is_department_scoped(user)
+            else PillarSnapshot(open_alerts=None)
+        )
+        metrics: list[dict[str, Any]] = snap.metrics
         return SalesDashboardOut(
             status=calc.pillar_status(m["status"] for m in metrics),
-            period=period_out(p), summary=summary, metrics=metrics,
+            period=period_out(p), summary=summary, metrics=metrics, open_alerts=snap.open_alerts,
             pipeline_trend=self._pipeline_trend(deals, p.end),
             win_rate_trend=self._win_rate_trend(deals, p.end),
         )  # fmt: skip

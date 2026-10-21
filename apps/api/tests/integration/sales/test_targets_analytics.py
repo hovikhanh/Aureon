@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.sales.models import Deal
+from app.modules.sales.models import Deal, SalesTarget
 from app.modules.sales.services import calculations as calc
 from tests.conftest import ApiClient
 from tests.integration.sales.helpers import audit_actions, make_client, make_deal, stage
@@ -69,7 +69,13 @@ async def test_target_crud_and_rules(api: ApiClient, db_session: AsyncSession) -
 
 # ---------- analytics fixtures ----------
 async def _book(api: ApiClient, db: AsyncSession) -> dict[str, Any]:
-    """2 open deals closing this quarter, 1 won + 1 lost this month, 1 won in an old month."""
+    """2 open deals closing this quarter, 1 won + 1 lost this month, 1 won in an old month.
+
+    Seed data (T-236) is soft-deleted inside the rolled-back test transaction so the
+    aggregates below see only this book."""
+    gone = {"deleted_at": datetime.now(UTC)}
+    await db.execute(update(Deal).where(Deal.deleted_at.is_(None)).values(**gone))
+    await db.execute(update(SalesTarget).where(SalesTarget.deleted_at.is_(None)).values(**gone))
     c = await make_client(api)
     alice, bob = str(uuid.uuid4()), str(uuid.uuid4())
     o1 = await make_deal(api, c["id"], owner_id=alice, deal_value=2_000_000_000,
@@ -154,7 +160,11 @@ async def test_dashboard_contract(api: ApiClient, db_session: AsyncSession) -> N
     assert r.headers["cache-control"] == "private, max-age=60"
     assert r.headers["vary"] == "Authorization"
     d = r.json()["data"]
-    assert d["pillar"] == "C" and d["status"] == "no_data" and d["metrics"] == []
+    assert d["pillar"] == "C" and d["status"] in ("ok", "warning", "critical", "no_data")
+    # metrics[] come from the metric store (T-222): pillar C only, MetricValueOut shape
+    assert all(m["metric_code"].startswith("METRIC-CUS-") for m in d["metrics"])
+    assert all(m["lineage_url"].endswith(m["metric_code"]) for m in d["metrics"])
+    assert isinstance(d["open_alerts"], int)
     assert d["period"]["key"] == MONTH.key and d["period"]["type"] == "month"
     s = d["summary"]
     assert s == {

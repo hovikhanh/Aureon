@@ -5,11 +5,16 @@ same rolled-back transaction; department-scoped (MANAGER) numbers are asserted e
 """
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.execution.models import Task
 from tests.conftest import ApiClient
+from tests.integration.execution.helpers import make_task
 from tests.integration.hr.helpers import make_department, make_employee
 
 pytestmark = pytest.mark.integration
@@ -102,10 +107,29 @@ async def test_dashboard_permissions_and_params(api: ApiClient) -> None:
     assert default.json()["data"]["period"]["type"] == "current_month"
 
 
-async def test_workload_empty_until_execution(api: ApiClient) -> None:
+async def test_workload_from_execution(api: ApiClient, db_session: AsyncSession) -> None:
+    """EP-87 reads execution workload via its public service (T-133 merge)."""
+    dept, busy, calm = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    ids = [await make_task(api, assignee_id=str(busy), department_id=str(dept),
+                           estimate_hours="30") for _ in range(2)]  # fmt: skip
+    ids.append(await make_task(api, assignee_id=str(calm), department_id=str(dept)))
+    back = datetime(2026, 9, 1, tzinfo=UTC)  # open across both weeks before 30/09
+    await db_session.execute(update(Task).where(Task.id.in_([uuid.UUID(t["id"]) for t in ids]))
+                             .values(created_at=back))  # fmt: skip
+    r = await api.call("GET", "/hr/workload", "MANAGER", department_id=dept,
+                       params={"period": "2026-09", "department_id": str(dept)})  # fmt: skip
+    assert r.status_code == 200, r.text
+    rows = r.json()["data"]
+    assert rows[0] == {"employee_ref": str(busy), "open_tasks": 2, "load_pct": 150.0,
+                       "overloaded": True}  # fmt: skip
+    assert rows[1] == {"employee_ref": str(calm), "open_tasks": 1, "load_pct": 10.0,
+                       "overloaded": False}  # fmt: skip
+
+
+async def test_workload_scope(api: ApiClient) -> None:
     dept = uuid.uuid4()
     r = await api.call("GET", "/hr/workload", "HR_MANAGER", params={"period": "2026-09"})
-    assert r.status_code == 200 and r.json()["data"] == []
+    assert r.status_code == 200 and isinstance(r.json()["data"], list)
     assert r.headers.get("cache-control") != "private, max-age=60"
     own = await api.call("GET", "/hr/workload", "MANAGER", department_id=dept,
                          params={"department_id": str(dept)})  # fmt: skip

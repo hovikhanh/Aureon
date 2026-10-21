@@ -79,7 +79,7 @@ def test_tasks_end_to_end(
         eid = asyncio.run(_publish(factory))
         summary = worker_events.relay_outbox_events.run(honor_pause=False)
         assert summary["published"] >= 1
-        (name, msg) = next(x for x in sent if x[1]["event_id"] == str(eid))
+        (name, msg) = next(x for x in sent if x[1]["event_id"] == str(eid) and x[0] == NAME)
 
         requeued: list[dict[str, Any]] = []
         monkeypatch.setattr(

@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BusinessModel, LogModel
 from app.core.columns import currency, fk, money, schema_args, sr, ts, txt
+from app.core.crypto_columns import EncryptedBigInt, EncryptedText
 from app.core.enums import pg_enum
 
 S = "hr"
@@ -123,8 +124,9 @@ class Employee(BusinessModel):
     manager_id: Mapped[uuid.UUID | None] = fk(f"{S}.employees.id", nullable=True)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     address: Mapped[str | None] = txt(nullable=True)
-    national_id: Mapped[str | None] = txt(nullable=True)  # pgcrypto column encryption (service)
-    bank_account: Mapped[str | None] = txt(nullable=True)  # pgcrypto column encryption (service)
+    # level 4 — pgcrypto `bytea` (migration 0008, T-234, DEC-207); plaintext in Python
+    national_id: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
+    bank_account: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
     emergency_contact: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     source_document_id: Mapped[uuid.UUID | None] = sr()
 
@@ -204,13 +206,13 @@ class SalaryHistory(LogModel):
 
     __tablename__ = "salary_history"
     __table_args__ = (
-        CheckConstraint("base_salary > 0", name="base_salary_positive"),
+        # `base_salary > 0` is enforced in the service: the column is ciphertext (DEC-207)
         UniqueConstraint("employee_id", "effective_date"),
         {"schema": S},
     )
 
     employee_id: Mapped[uuid.UUID] = fk(f"{S}.employees.id")
-    base_salary: Mapped[int] = money()
+    base_salary: Mapped[int] = mapped_column(EncryptedBigInt, nullable=False)  # level 4, pgcrypto
     currency: Mapped[str] = currency()
     effective_date: Mapped[date] = mapped_column(Date, nullable=False)
     reason: Mapped[str | None] = txt(nullable=True)

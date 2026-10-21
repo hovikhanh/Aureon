@@ -621,8 +621,8 @@ Index `ix_departments_parent_id`, `ix_departments_head_employee_id`. Mức 1 (đ
 | manager_id | uuid | Y | FK → employees | Không tạo vòng (check ở service) | |
 | date_of_birth | date | Y | | | **4** |
 | address | text | Y | | | **4** |
-| national_id | text | Y | | CCCD — mã hóa cột (pgcrypto) | **4** |
-| bank_account | text | Y | | Mã hóa cột | **4** |
+| national_id | bytea | Y | | CCCD — `pgp_sym_encrypt` (pgcrypto, DEC-207); ứng dụng đọc text | **4** |
+| bank_account | bytea | Y | | `pgp_sym_encrypt` (pgcrypto, DEC-207); ứng dụng đọc text | **4** |
 | emergency_contact | jsonb | Y | | | **4** |
 | source_document_id | uuid | Y | SR | | |
 
@@ -679,7 +679,7 @@ Index `(employee_id, start_date)`. Chỉ `approved` trừ capacity.
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | employee_id | uuid | N | FK → employees | |
-| base_salary | bigint | N | CK > 0 | **Mức 4** |
+| base_salary | bytea | N | > 0 kiểm ở service (CK không đọc được ciphertext — DEC-207) | **Mức 4** — `pgp_sym_encrypt(bigint::text)`; ứng dụng đọc bigint |
 | currency | char(3) | N | | |
 | effective_date | date | N | | UQ `(employee_id, effective_date)` |
 | reason | text | Y | | |

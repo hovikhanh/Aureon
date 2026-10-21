@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
 from app.core.errors import ScopeDeniedError
+from app.modules.execution.services.workload import workload as execution_workload
 from app.modules.hr.models import Employee, HiringPlan
 from app.modules.hr.repositories import (
     EmployeeRepository,
@@ -49,6 +50,7 @@ from app.modules.hr.services.metrics import (
     worst,
 )
 from app.modules.hr.services.scope import DEPARTMENT_ROLES, sees_payroll
+from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 
 CURRENCY = "VND"
 
@@ -108,24 +110,30 @@ class HrDashboardService:
             TurnoverPoint(period_key=k, turnover_rate_pct=period_turnover_pct(rows, s, e, 1) or 0.0)
             for k, s, e in months
         ]
+        # METRIC-HR-* from the metric store — company scope only (department roles: live only)
+        snap = await pillar_snapshot(self.db, "O") if dept is None else PillarSnapshot()
         status = worst(turnover_status(turnover), delay_status(late) if rows or late else None)
         period_out = PeriodOut(
             key=period.key, type=period.type, start_date=period.start, end_date=end
         )
         return HrDashboardOut(
-            status=status, period=period_out, summary=summary, metrics=[],
-            headcount_trend=headcount_trend, turnover_trend=turnover_trend, open_alerts=None,
+            status=status, period=period_out, summary=summary, metrics=snap.metrics,
+            headcount_trend=headcount_trend, turnover_trend=turnover_trend,
+            open_alerts=snap.open_alerts,
         )  # fmt: skip
 
     async def workload(
-        self, user: Principal, *, department_id: uuid.UUID | None
+        self, user: Principal, *, department_id: uuid.UUID | None, as_of: date
     ) -> list[WorkloadOut]:
         """EP-87 `[{ employee_ref, open_tasks, load_pct, overloaded }]` (METRIC-HR-03).
 
-        Workload needs `execution.tasks` (estimate_hours / assignee), read only through the
-        `execution` public service, which exposes no task API yet (execution tasks module not
-        built, T-13x). Until then the endpoint enforces scope and returns an empty list — the
-        documented "no data" state, not a fabricated value (BRD-P05).
+        Reads `execution.tasks` only through the execution public `workload` service (DEC-125);
+        `employee_ref` is the assignee id (no name — level-3 data stays out of the response).
         """
-        self._department(user, department_id)
-        return []
+        dept = self._department(user, department_id)
+        rows = await execution_workload(self.db, dept, as_of)
+        return [
+            WorkloadOut(employee_ref=str(r.employee_id), open_tasks=r.open_tasks,
+                        load_pct=r.load_pct, overloaded=r.overloaded)
+            for r in rows
+        ]  # fmt: skip

@@ -116,6 +116,12 @@ class ConfigService(BaseSettings):
     # --- Demo ---
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
+    # pgcrypto key for level-4 PII columns (T-234, DEC-207); 05 OQ-08 name accepted as alias
+    db_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("DB_ENCRYPTION_KEY", "PII_ENCRYPTION_KEY")
+    )
+    # METRIC-HR-01 plan, VND / person / year (08 §6 HR_REVENUE_PER_HEAD_PLAN = 2,0 tỷ)
+    hr_revenue_per_head_plan: int = 2_000_000_000
     demo_password: SecretStr | None = None  # fallback for every role below (dev convenience)
     # 08 §2 — one password per demo account; v1 names accepted as aliases.
     demo_ceo_password: SecretStr | None = None

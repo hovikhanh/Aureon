@@ -3,16 +3,25 @@
 Kept free of DB access so they are unit-tested exactly and reused by the metric store (T-220).
 """
 
-import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
-PeriodType = Literal["current_month", "current_quarter", "ytd", "month", "quarter"]
+from app.core.periods import (
+    MONTH_RE,
+    QUARTER_RE,
+    Period,
+    PeriodType,
+    add_months,
+    month_end,
+    resolve_period,
+)
+
+__all__ = ["MONTH_RE", "QUARTER_RE", "Period", "PeriodType", "add_months", "month_end",
+           "resolve_period"]  # fmt: skip
+
 Status = Literal["ok", "warning", "critical"]
-MONTH_RE = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
-QUARTER_RE = re.compile(r"^(\d{4})-Q([1-4])$")
 
 # 03 §2 METRIC-HR-02 / METRIC-HR-04 default bands (DEC-143); metric store (T-220) owns config.
 TURNOVER_WARNING_PCT = 15.0
@@ -52,50 +61,6 @@ def average_tenure_months(hires: list[date], as_of: date) -> float | None:
         return None
     total = sum(tenure_months(h, as_of) for h in hires)
     return _round1(Decimal(total) / len(hires))
-
-
-def month_end(year: int, month: int) -> date:
-    nxt = date(year + month // 12, month % 12 + 1, 1)
-    return nxt - timedelta(days=1)
-
-
-def add_months(year: int, month: int, delta: int) -> tuple[int, int]:
-    idx = year * 12 + (month - 1) + delta
-    return idx // 12, idx % 12 + 1
-
-
-@dataclass(frozen=True)
-class Period:
-    key: str
-    type: PeriodType
-    start: date
-    end: date
-
-    @property
-    def months(self) -> int:
-        return (self.end.year - self.start.year) * 12 + self.end.month - self.start.month + 1
-
-
-def resolve_period(spec: str | None, today: date) -> Period:
-    """10 §1.5 `period`: `current_month` (default) / `current_quarter` / `ytd` / `YYYY-MM` /
-    `YYYY-Qn`. `custom` is EP-60 only → `ValueError` (route maps to `400`)."""
-    spec = spec or "current_month"
-    y, m = today.year, today.month
-    if spec == "current_month":
-        return Period(f"{y:04d}-{m:02d}", "current_month", date(y, m, 1), month_end(y, m))
-    if spec == "current_quarter":
-        q = (m - 1) // 3 + 1
-        return Period(f"{y:04d}-Q{q}", "current_quarter", date(y, 3 * q - 2, 1),
-                      month_end(y, 3 * q))  # fmt: skip
-    if spec == "ytd":
-        return Period(f"{y:04d}-YTD", "ytd", date(y, 1, 1), month_end(y, m))
-    if mm := MONTH_RE.match(spec):
-        yy, mo = int(mm.group(1)), int(mm.group(2))
-        return Period(spec, "month", date(yy, mo, 1), month_end(yy, mo))
-    if qm := QUARTER_RE.match(spec):
-        yy, q = int(qm.group(1)), int(qm.group(2))
-        return Period(spec, "quarter", date(yy, 3 * q - 2, 1), month_end(yy, 3 * q))
-    raise ValueError("period must be current_month|current_quarter|ytd|YYYY-MM|YYYY-Qn")
 
 
 def trend_months(end: date, count: int = 12) -> list[tuple[str, date, date]]:

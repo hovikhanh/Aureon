@@ -71,9 +71,10 @@ async def hr_dashboard(db: Db, user: Querier, period: PeriodQ, response: Respons
 # ---------- EP-87 workload (METRIC-HR-03) ----------
 @router.get("/hr/workload", response_model=list[WorkloadOut])
 async def hr_workload(
-    db: Db, user: Querier, _period: PeriodQ, department_id: uuid.UUID | None = None
+    db: Db, user: Querier, period: PeriodQ, department_id: uuid.UUID | None = None
 ) -> Any:
-    return await HrDashboardService(db).workload(user, department_id=department_id)
+    as_of = min(period.end, today())
+    return await HrDashboardService(db).workload(user, department_id=department_id, as_of=as_of)
 
 
 # ---------- EP-81 departments (L C R U) ----------

@@ -7,6 +7,7 @@ from datetime import date
 from sqlalchemy import ColumnElement, and_, func, or_, select
 
 from app.core.base_repository import BaseRepository
+from app.core.crypto_columns import decrypted_bigint
 from app.modules.hr.models import Department, Employee, HiringPlan, Position, SalaryHistory
 
 OPEN_PLAN_STATUSES = ("approved", "in_progress")
@@ -93,7 +94,7 @@ class SalaryRepository(BaseRepository[SalaryHistory]):
             .subquery()
         )
         stmt = (
-            select(func.coalesce(func.sum(SalaryHistory.base_salary), 0))
+            select(func.coalesce(func.sum(decrypted_bigint(SalaryHistory.base_salary)), 0))
             .join(
                 latest,
                 and_(
