@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from sqlalchemy import ColumnElement
@@ -60,19 +60,21 @@ class TaskRepository(Repo[Task]):
         """Tasks with `due_date` in `[start, end)`."""
         return await self.where(Task.due_date >= start, Task.due_date < end, order=Task.id)
 
-    async def open_assigned(self, department_id: uuid.UUID | None = None) -> Sequence[Task]:
+    async def assigned_active(
+        self, since: date, until: date, department_id: uuid.UUID | None = None
+    ) -> Sequence[Task]:
+        """Assigned, non-cancelled tasks created before `until` and not done before `since`."""
+        since_ts = datetime.combine(since, time.min, tzinfo=UTC)
+        until_ts = datetime.combine(until, time.min, tzinfo=UTC)
         clauses: list[ColumnElement[bool]] = [
-            Task.status.in_(OPEN_TASK_STATUSES),
             Task.assignee_id.is_not(None),
+            Task.status != "cancelled",
+            Task.created_at < until_ts,
+            Task.done_at.is_(None) | (Task.done_at >= since_ts),
         ]
         if department_id is not None:
             clauses.append(Task.department_id == department_id)
         return await self.where(*clauses, order=Task.id)
-
-    async def for_parents(self, column: Any, ids: Sequence[uuid.UUID]) -> Sequence[Task]:
-        if not ids:
-            return []
-        return await self.where(column.in_(ids), order=Task.id)
 
 
 class MeetingRepository(Repo[Meeting]):
