@@ -802,6 +802,7 @@ Mọi tool khai báo 5 thuộc tính trong registry code (`ai_core/tools/registr
 | `version` | Phiên bản payload (bắt đầu 1); thêm field optional không tăng |
 | `correlation_id`, `producer` | Bổ sung cho quan sát (OQ-07) — không bắt buộc consumer đọc |
 | `payload` | Chỉ id + số tổng hợp; **không** chứa dữ liệu mức 3–4 (PII, lương) |
+| Kiểm PII (DEC-176) | Outbox chặn PII cả ở **tên field** (danh sách mức 3–4) và **nội dung chuỗi** (regex CCCD 12 số, SĐT `0` + 9–10 số, email, số tài khoản 10–16 số) → lỗi lập trình, thông báo không chứa giá trị. Audit log (§1.8) **mask** thay vì chặn: key mức 3–4 → `••••`, PII trong chuỗi → `••••` + 4 ký tự cuối (email: `••••@domain`) |
 
 ### 8.2. Vận chuyển & xử lý
 

@@ -13,9 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events.envelope import OUTBOX, EventEnvelope, utcnow
 from app.core.events.registry import is_registered
+from app.core.pii import PIIHit, scan_payload
 from app.core.request_context import current_request_id
 
 # 10 §8.1: payload carries ids + aggregates only — never level 3–4 data (02 §6.3).
+# Key names below + content patterns in `core.pii` (DEC-176).
 FORBIDDEN_PAYLOAD_KEYS: frozenset[str] = frozenset(
     {
         "salary", "base_salary", "gross_salary", "net_salary", "salary_amount",
@@ -30,15 +32,19 @@ class EventContractError(ValueError):
     """Programming error: unknown event type or a payload that breaks 10 §8.1."""
 
 
-def _check_payload(payload: Any, path: str = "payload") -> None:
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            if str(key).lower() in FORBIDDEN_PAYLOAD_KEYS:
-                raise EventContractError(f"{path}.{key}: PII / level 3-4 data not allowed")
-            _check_payload(value, f"{path}.{key}")
-    elif isinstance(payload, list):
-        for i, item in enumerate(payload):
-            _check_payload(item, f"{path}[{i}]")
+class PIIDetectedError(EventContractError):
+    """Payload carries PII by field name or content (DEC-176). Message never holds the value."""
+
+    def __init__(self, hits: list[PIIHit]) -> None:
+        self.hits = hits
+        where = ", ".join(f"{h.path} ({h.type})" for h in hits[:5])
+        super().__init__(f"payload contains PII at {where}: PII / level 3-4 data not allowed")
+
+
+def _check_payload(payload: Any) -> None:
+    hits = scan_payload(payload, forbidden_keys=FORBIDDEN_PAYLOAD_KEYS)
+    if hits:
+        raise PIIDetectedError(hits)
 
 
 async def publish_in_tx(

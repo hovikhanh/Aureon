@@ -24,10 +24,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import TableClause
 
 from app.core.enums import ACTOR_TYPE, ROLE_CODE
+from app.core.pii import MASK, mask_payload
 from app.core.request_context import current_request_id
 
+__all__ = [
+    "MASK", "SYSTEM", "Actor", "auditable", "current_actor", "mask", "record_audit", "set_actor",
+]  # fmt: skip
+
 ActorType = Literal["USER", "AI", "SYSTEM"]
-MASK = "••••"
 
 # Level 3–4 fields masked in before/after (10 §1.8, 02 §6.3).
 MASKED_KEYS: frozenset[str] = frozenset(
@@ -82,11 +86,11 @@ def current_actor() -> Actor:
 
 
 def mask(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {k: (MASK if str(k).lower() in MASKED_KEYS else mask(v)) for k, v in value.items()}
-    if isinstance(value, list | tuple):
-        return [mask(v) for v in value]
-    return value
+    """Level 3–4 keys → `••••`; PII inside strings (CCCD, phone, e-mail, account) masked.
+
+    Never raises — an audit row must always be writable (DEC-176).
+    """
+    return mask_payload(value, masked_keys=MASKED_KEYS)
 
 
 def _validate_action(action: str) -> None:
