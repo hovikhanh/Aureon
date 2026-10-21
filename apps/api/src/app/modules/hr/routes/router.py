@@ -17,6 +17,7 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.hr.schemas import (
+    ApprovalIn,
     DepartmentCreate,
     DepartmentOut,
     DepartmentUpdate,
@@ -24,16 +25,22 @@ from app.modules.hr.schemas import (
     EmployeeOut,
     EmployeeStatus,
     EmployeeUpdate,
+    HiringPlanCreate,
+    HiringPlanOut,
+    HiringPlanUpdate,
+    HiringStatus,
     SalaryCreate,
     SalaryOut,
 )
-from app.modules.hr.services.hr_service import HrService, department_out
+from app.modules.hr.services.hiring_service import HiringPlanService, plan_out
+from app.modules.hr.services.hr_service import HrService, department_out, today
 
 router = EnvelopeRouter(tags=["hr"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
 Reader = Annotated[Principal, Depends(require_permission("hr:read"))]
 Writer = Annotated[Principal, Depends(require_permission("hr:write"))]
+Approver = Annotated[Principal, Depends(require_permission("hr:approve"))]
 
 
 # ---------- EP-81 departments (L C R U) ----------
@@ -138,6 +145,76 @@ async def add_salary_history(
     if (hit := await idem.replay(body)) is not None:
         return SalaryOut.model_validate(hit)
     out = await HrService(db).add_salary(user, employee_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+# ---------- EP-84 hiring plans (L C R U D) ----------
+@router.get("/hr/hiring-plans", response_model=list[HiringPlanOut])
+async def list_hiring_plans(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("target_date", "priority", "status"))],
+    department_id: uuid.UUID | None = None, status: HiringStatus | None = None,
+    delayed: bool | None = None,
+) -> Any:  # fmt: skip
+    items, total = await HiringPlanService(db).list_plans(
+        user, page, department_id=department_id, status=status, delayed=delayed, today=today()
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/hr/hiring-plans", response_model=HiringPlanOut, status_code=201)
+async def create_hiring_plan(body: HiringPlanCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return HiringPlanOut.model_validate(hit)
+    out = await HiringPlanService(db).create(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/hr/hiring-plans/{plan_id}", response_model=HiringPlanOut)
+async def get_hiring_plan(plan_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return plan_out(await HiringPlanService(db).get(user, plan_id))
+
+
+@router.patch("/hr/hiring-plans/{plan_id}", response_model=HiringPlanOut)
+async def update_hiring_plan(
+    plan_id: uuid.UUID, body: HiringPlanUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await HiringPlanService(db).update(user, plan_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/hr/hiring-plans/{plan_id}", status_code=204, response_class=Response)
+async def delete_hiring_plan(plan_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await HiringPlanService(db).delete(user, plan_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+# ---------- EP-85 submit ----------
+@router.post("/hr/hiring-plans/{plan_id}/submit", response_model=HiringPlanOut)
+async def submit_hiring_plan(plan_id: uuid.UUID, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay({"plan_id": str(plan_id)})) is not None:
+        return HiringPlanOut.model_validate(hit)
+    out = await HiringPlanService(db).submit(user, plan_id)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+# ---------- EP-86 approve / reject ----------
+@router.post("/hr/hiring-plans/{plan_id}/approve", response_model=HiringPlanOut)
+async def approve_hiring_plan(
+    plan_id: uuid.UUID, body: ApprovalIn, db: Db, user: Approver, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return HiringPlanOut.model_validate(hit)
+    out = await HiringPlanService(db).decide(user, plan_id, body)
     await db.commit()
     await idem.remember(out)
     return out

@@ -9,7 +9,7 @@ FR-HR-02). The route commits.
 import re
 import unicodedata
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any, cast
 
 from sqlalchemy import ColumnElement, func, or_
@@ -67,6 +67,11 @@ CONTRACT_FROM_DB: dict[str, ContractType] = {
 LEVEL4_FIELDS = ("date_of_birth", "address", "national_id", "bank_account", "emergency_contact")
 ONBOARD_FROM = frozenset({None, "probation", "terminated"})
 MAX_TREE_DEPTH = 256
+
+
+def today() -> date:
+    """Business "today" (UTC date) — single clock for delay filters and the dashboard."""
+    return datetime.now(UTC).date()
 
 
 def normalize_name(name: str) -> str:
