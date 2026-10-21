@@ -3,7 +3,7 @@
 Route files register on the shared `deps.router`; importing them here wires every endpoint.
 """
 
-from app.modules.product.routes import catalog
+from app.modules.product.routes import catalog, planning
 from app.modules.product.routes.deps import router
 
-__all__ = ["catalog", "router"]
+__all__ = ["catalog", "planning", "router"]

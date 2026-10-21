@@ -60,12 +60,6 @@ class ReleaseRepository(BaseRepository[Release]):
         )
         return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
 
-    async def released_count(self, product_id: uuid.UUID, exclude: uuid.UUID) -> int:
-        stmt = self._live().where(
-            Release.product_id == product_id, Release.status == "released", Release.id != exclude
-        )
-        return len((await self.db.execute(stmt)).scalars().all())
-
     async def all_live(self) -> Sequence[Release]:
         return (await self.db.execute(self._live())).scalars().all()
 
