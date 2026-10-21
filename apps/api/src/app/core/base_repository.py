@@ -1,7 +1,7 @@
 """Generic async CRUD repository. Only the owning module uses its repositories (DEC-125)."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,6 +47,36 @@ class BaseRepository[ModelT: Base]:
     async def count(self) -> int:
         stmt = select(func.count()).select_from(self._live().subquery())
         return int((await self.db.execute(stmt)).scalar_one())
+
+    async def list_page(
+        self,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        order: str = "desc",
+        filters: Mapping[str, Any] | None = None,
+    ) -> tuple[Sequence[ModelT], int]:
+        """`(items, total)` for 10 §1.5. `filters` = exact-match on model columns (AND).
+
+        `sort_by` must already be whitelisted by the route (`core.pagination.page_params`).
+        """
+        stmt = self._live()
+        for name, value in (filters or {}).items():
+            if not self._has(name):
+                raise ValueError(f"{self.model.__name__} has no column {name!r}")
+            stmt = stmt.where(self._col(name) == value)
+        total_stmt = select(func.count()).select_from(stmt.subquery())
+        total = int((await self.db.execute(total_stmt)).scalar_one())
+        if not self._has(sort_by):
+            raise ValueError(f"{self.model.__name__} has no column {sort_by!r}")
+        col = self._col(sort_by)
+        stmt = stmt.order_by(col.asc() if order == "asc" else col.desc())
+        if sort_by != "id" and self._has("id"):
+            stmt = stmt.order_by(self._col("id"))  # deterministic tie-break
+        stmt = stmt.limit(max(1, min(limit, MAX_LIMIT))).offset(max(0, offset))
+        items = (await self.db.execute(stmt)).scalars().all()
+        return items, total
 
     async def create(self, **values: Any) -> ModelT:
         obj = self.model(**values)

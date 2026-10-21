@@ -6,14 +6,14 @@ token (`authenticated`). PATCH EP-03, EP-04/05 (demo) and EP-08 come with later 
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import Depends, Request, Response, status
 
 from app.core.deps import CurrentUser, DbSession
-from app.core.envelope import Envelope, ok
+from app.core.routing import EnvelopeRouter
 from app.modules.auth.schemas import LoginIn, RefreshIn, TokenOut, UserOut
 from app.modules.auth.services.auth_service import AuthService, ClientInfo
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = EnvelopeRouter(prefix="/auth", tags=["auth"])
 
 
 def get_auth_service(db: DbSession) -> AuthService:
@@ -30,14 +30,14 @@ def _client(request: Request) -> ClientInfo:
     )
 
 
-@router.post("/login", response_model=Envelope[TokenOut], summary="EP-02 Login")
-async def login(body: LoginIn, request: Request, svc: Service) -> Envelope[TokenOut]:
-    return ok(await svc.login(body.email, body.password, _client(request)))
+@router.post("/login", response_model=TokenOut, summary="EP-02 Login")
+async def login(body: LoginIn, request: Request, svc: Service) -> TokenOut:
+    return await svc.login(body.email, body.password, _client(request))
 
 
-@router.post("/refresh", response_model=Envelope[TokenOut], summary="EP-06 Refresh")
-async def refresh(body: RefreshIn, request: Request, svc: Service) -> Envelope[TokenOut]:
-    return ok(await svc.refresh(body.refresh_token, _client(request)))
+@router.post("/refresh", response_model=TokenOut, summary="EP-06 Refresh")
+async def refresh(body: RefreshIn, request: Request, svc: Service) -> TokenOut:
+    return await svc.refresh(body.refresh_token, _client(request))
 
 
 @router.post(
@@ -51,6 +51,6 @@ async def logout(body: RefreshIn, user: CurrentUser, svc: Service) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/me", response_model=Envelope[UserOut], summary="EP-03 Current session")
-async def me(user: CurrentUser, svc: Service) -> Envelope[UserOut]:
-    return ok(await svc.me(user.user_id))
+@router.get("/me", response_model=UserOut, summary="EP-03 Current session")
+async def me(user: CurrentUser, svc: Service) -> UserOut:
+    return await svc.me(user.user_id)

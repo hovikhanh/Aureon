@@ -1,5 +1,5 @@
 """HTTP routes for `risk` — endpoints added by their T-xxx tasks (10-API-SPECIFICATION)."""
 
-from fastapi import APIRouter
+from app.core.routing import EnvelopeRouter
 
-router = APIRouter(tags=["risk"])
+router = EnvelopeRouter(tags=["risk"])

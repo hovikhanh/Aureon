@@ -4,6 +4,7 @@ from fastapi import APIRouter, FastAPI
 
 from app import __version__
 from app.core.handlers import install_error_handlers
+from app.core.request_context import RequestIdMiddleware
 from app.modules.ai.routes.router import router as ai_router
 from app.modules.auth.routes.router import router as auth_router
 from app.modules.dashboard.routes.router import router as dashboard_router
@@ -36,6 +37,7 @@ MODULE_ROUTERS: tuple[APIRouter, ...] = (
 def create_app() -> FastAPI:
     application = FastAPI(title="Aureon API", version=__version__)
     install_error_handlers(application)
+    application.add_middleware(RequestIdMiddleware)
     for router in MODULE_ROUTERS:
         application.include_router(router, prefix=API_PREFIX)
     return application
