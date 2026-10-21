@@ -137,3 +137,49 @@ class StatusChange(BaseModel):
     to_status: RiskStatus
     reason: str | None = Field(default=None, max_length=2000)
     owner_id: uuid.UUID | None = None
+
+
+# ---------- EP-103 mitigations ----------
+MitigationStatus = Literal["planned", "in_progress", "done", "cancelled"]
+
+
+class MitigationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    risk_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=300)
+    owner_id: uuid.UUID
+    due_date: date
+    progress_pct: float = Field(default=0, ge=0, le=100)
+    status: MitigationStatus = "planned"
+    task_id: uuid.UUID | None = None
+
+
+class MitigationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: int | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    owner_id: uuid.UUID | None = None
+    due_date: date | None = None
+    progress_pct: float | None = Field(default=None, ge=0, le=100)
+    status: MitigationStatus | None = None
+    task_id: uuid.UUID | None = None
+
+
+class MitigationOut(_Out):
+    risk_id: uuid.UUID
+    title: str
+    owner_id: uuid.UUID
+    due_date: date
+    progress_pct: float
+    status: MitigationStatus
+    completed_at: datetime | None
+    task_id: uuid.UUID | None
+    overdue: bool
+
+
+class HeatCell(BaseModel):
+    likelihood: int
+    impact: int
+    count: int

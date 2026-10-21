@@ -93,3 +93,15 @@ def pillar_status(metric_statuses: list[str]) -> str:
         if s in metric_statuses:
             return s
     return "ok"
+
+
+def heatmap(cells: list[tuple[int, int]]) -> list[dict[str, int]]:
+    """5×5 likelihood × impact grid (25 cells, zero-filled, likelihood then impact asc)."""
+    counts: dict[tuple[int, int], int] = {}
+    for cell in cells:
+        counts[cell] = counts.get(cell, 0) + 1
+    return [
+        {"likelihood": li, "impact": im, "count": counts.get((li, im), 0)}
+        for li in range(1, 6)
+        for im in range(1, 6)
+    ]

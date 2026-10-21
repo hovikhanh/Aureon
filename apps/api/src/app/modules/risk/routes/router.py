@@ -7,7 +7,7 @@ PATCH, `Page` on lists, commit at the end of the request (same pattern as sales/
 import uuid
 from typing import Annotated, Any
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
@@ -22,6 +22,10 @@ from app.modules.risk.schemas import (
     AssessmentOut,
     Category,
     Level,
+    MitigationCreate,
+    MitigationOut,
+    MitigationStatus,
+    MitigationUpdate,
     RiskCreate,
     RiskOut,
     RiskSource,
@@ -30,6 +34,7 @@ from app.modules.risk.schemas import (
     StatusChange,
 )
 from app.modules.risk.services.lifecycle_service import RiskLifecycleService
+from app.modules.risk.services.mitigation_service import MitigationService
 from app.modules.risk.services.risk_service import RiskService
 
 router = EnvelopeRouter(tags=["risk"])
@@ -125,4 +130,44 @@ async def change_status(
     out = await RiskLifecycleService(db).change_status(user, risk_id, body)
     await db.commit()
     await idem.remember(out)
+    return out
+
+
+# ---------- EP-103 mitigations ----------
+@router.get("/risk/mitigations", response_model=list[MitigationOut])
+async def list_mitigations(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("due_date", "progress_pct", "updated_at"))],
+    risk_id: uuid.UUID | None = None, status: MitigationStatus | None = None,
+    owner_id: uuid.UUID | None = None, overdue: Annotated[bool | None, Query()] = None,
+) -> Any:  # fmt: skip
+    items, total = await MitigationService(db).list_mitigations(
+        user, page, risk_id=risk_id, status=status, owner_id=owner_id, overdue=overdue
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/risk/mitigations", response_model=MitigationOut, status_code=201)
+async def create_mitigation(body: MitigationCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return MitigationOut.model_validate(hit)
+    out = await MitigationService(db).create(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/risk/mitigations/{mitigation_id}", response_model=MitigationOut)
+async def get_mitigation(mitigation_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return await MitigationService(db).get(user, mitigation_id)
+
+
+@router.patch("/risk/mitigations/{mitigation_id}", response_model=MitigationOut)
+async def update_mitigation(
+    mitigation_id: uuid.UUID, body: MitigationUpdate, db: Db, user: Writer,
+    if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await MitigationService(db).update(user, mitigation_id, body, exp)
+    await db.commit()
     return out

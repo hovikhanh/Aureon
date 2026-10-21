@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, Select, func, select
 
 from app.core.base_repository import BaseRepository
 from app.modules.risk.models import Mitigation, Risk, RiskAssessment, Scenario
@@ -23,6 +23,14 @@ class RiskRepository(BaseRepository[Risk]):
             .limit(1)
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    def ids_stmt(*where: ColumnElement[bool]) -> Select[uuid.UUID]:
+        """Ids of live risks matching `where` (scope subquery for mitigation lists)."""
+        stmt = select(Risk.id).where(Risk.deleted_at.is_(None))
+        for clause in where:
+            stmt = stmt.where(clause)
+        return stmt
 
     async def lock_codes(self) -> None:
         """Serialise `RSK-YYYY-NNN` generation inside the transaction (advisory xact lock)."""
