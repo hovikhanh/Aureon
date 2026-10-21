@@ -14,6 +14,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, month_range
+from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
 from app.modules.execution.models import Initiative, Project, Task
 from app.modules.execution.repositories import (
@@ -137,3 +138,13 @@ async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
         hr03(await load_tasks(db, None, as_of), as_of, key),
         rsk06(await InitiativeRepository(db).in_flight(start, end), as_of, key),
     ]
+
+
+# METRIC-DQ-01 sources (03 §2.6, DEC-209): required business fields + validation failures.
+register_dq(
+    "execution",
+    DqSource(Task, ("assignee_id", "due_date", "department_id"),
+             (lambda m: (m.status == "done") & m.done_at.is_(None),
+              lambda m: (m.status == "blocked") & m.blocked_reason.is_(None))),
+    DqSource(Project, ("start_date", "planned_end_date", "department_id")),
+)  # fmt: skip

@@ -13,8 +13,10 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, month_range, shift_month
+from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
 from app.modules.finance import rules
+from app.modules.finance.models import Expense, Invoice, Revenue
 from app.modules.finance.repositories import AnalyticsRepository, InvoiceRepository
 from app.modules.finance.rules import quarter_periods
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
@@ -102,3 +104,13 @@ class FinanceMetrics:
 @metric_provider("finance")
 async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
     return await FinanceMetrics(db).compute(as_of)
+
+
+# METRIC-DQ-01 sources (03 §2.6, DEC-209): required business fields + validation failures.
+register_dq(
+    "finance",
+    DqSource(Invoice, ("due_date",), (lambda m: m.paid_amount > m.total_amount,
+                                      lambda m: (m.status == "paid") & m.paid_at.is_(None))),
+    DqSource(Expense, ("department_id",), (lambda m: m.amount <= 0,)),
+    DqSource(Revenue, ("client_id",)),
+)  # fmt: skip

@@ -13,9 +13,11 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, shift_month
+from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
 from app.modules.finance.services.revenue_query import revenue_by_client, revenue_total
 from app.modules.sales import models as m
+from app.modules.sales.models import Client, Deal
 from app.modules.sales.repositories import DealRepository, TargetRepository
 from app.modules.sales.services import calculations as calc
 from app.modules.sales.services.analytics import _closed_in, _open_closing_in, _team_target
@@ -101,3 +103,13 @@ def calc_pct(num: int, den: int) -> float | None:
 @metric_provider("sales")
 async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
     return await compute_sales(db, as_of)
+
+
+# METRIC-DQ-01 sources (03 §2.6, DEC-209): required business fields + validation failures.
+register_dq(
+    "sales",
+    DqSource(Client, ("tax_code", "industry", "account_owner_id")),
+    DqSource(Deal, ("expected_close_date", "department_id"),
+             (lambda m: (m.stage == "closed_lost") & m.lost_reason.is_(None),
+              lambda m: m.stage.in_(("closed_won", "closed_lost")) & m.closed_at.is_(None))),
+)  # fmt: skip

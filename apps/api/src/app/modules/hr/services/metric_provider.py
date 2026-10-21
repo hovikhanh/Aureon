@@ -12,8 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, shift_month
 from app.core.config import get_config
+from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, metric_provider
 from app.modules.finance.services.revenue_query import revenue_total
+from app.modules.hr.models import Employee, HiringPlan
 from app.modules.hr.repositories import EmployeeRepository, HiringPlanRepository
 from app.modules.hr.services.metrics import (
     Tenure,
@@ -60,3 +62,13 @@ async def compute_hr(db: AsyncSession, as_of: date) -> list[MetricReading]:
 @metric_provider("hr")
 async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
     return await compute_hr(db, as_of)
+
+
+# METRIC-DQ-01 sources (03 §2.6, DEC-209): required business fields + validation failures.
+register_dq(
+    "hr",
+    DqSource(Employee, ("email", "position_id", "contract_type"),
+             (lambda m: (m.status == "terminated") & m.termination_date.is_(None),
+              lambda m: m.termination_date < m.hire_date)),
+    DqSource(HiringPlan, ("requirements",)),
+)  # fmt: skip

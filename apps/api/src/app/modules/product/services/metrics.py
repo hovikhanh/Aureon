@@ -21,8 +21,9 @@ from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, month_range, shift_month
+from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
-from app.modules.product.models import Feature, ProductMetric, RoadmapItem
+from app.modules.product.models import Feature, Product, ProductMetric, RoadmapItem
 from app.modules.product.repositories import (
     FeatureRepository,
     MetricRepository,
@@ -128,3 +129,12 @@ async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
     attainment = calc.pct(len(released), len(planned))
     out.append(_reading("METRIC-PRD-05", attainment, last, _refs(planned, "features")))
     return out
+
+
+# METRIC-DQ-01 sources (03 §2.6, DEC-209): required business fields + validation failures.
+register_dq(
+    "product",
+    DqSource(Product, ("description", "target_launch_date")),
+    DqSource(ProductMetric, ("dau", "retention_30d_pct", "nps"),
+             (lambda m: m.dau > m.mau, lambda m: m.churn_rate_pct > 100)),
+)  # fmt: skip
