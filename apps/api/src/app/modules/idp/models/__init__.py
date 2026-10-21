@@ -128,22 +128,23 @@ class DocumentType(ConfigModel):
 
 
 class ExtractionSchema(ConfigModel):
-    """ENT-ExtractionSchema — config. The spec's `version` column (schema version, immutable
-    after publish) IS the inherited C19 `version`; UQ `(document_type_id, version)` uses it.
+    """ENT-ExtractionSchema — config. `schema_version` is the business version (immutable after
+    publish, DEC-162); the inherited `version` is the C19 optimistic lock.
     """
 
     __tablename__ = "extraction_schemas"
     __table_args__ = (
         Index(
-            "uq_extraction_schemas_document_type_id_version",
+            "uq_extraction_schemas_document_type_id_schema_version",
             "document_type_id",
-            "version",
+            "schema_version",
             unique=True,
         ),
         {"schema": S},
     )
 
     document_type_id: Mapped[uuid.UUID] = fk(f"{S}.document_types.id")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     fields: Mapped[Any] = mapped_column(JSONB, nullable=False)
     thresholds: Mapped[Any] = mapped_column(JSONB, nullable=False)
     action_names: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)

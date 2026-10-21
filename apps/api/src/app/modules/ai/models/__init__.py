@@ -161,11 +161,11 @@ class ToolCallLog(LogModel):
 
 
 class Feedback(LogModel):
-    """ENT-Feedback — append-only; CK "một trong hai bắt buộc" = at least one target."""
+    """ENT-Feedback — append-only; exactly one target (DEC-165)."""
 
     __tablename__ = "feedback"
     __table_args__ = (
-        CheckConstraint("num_nonnulls(message_id, insight_id) >= 1", name="has_target"),
+        CheckConstraint("num_nonnulls(message_id, insight_id) = 1", name="one_target"),
         {"schema": S},
     )
 
