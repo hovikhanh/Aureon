@@ -2,7 +2,7 @@
 
 > **Hợp đồng vận hành** giữa AI Agent và dự án. Đọc file này TRƯỚC mọi task. Vi phạm = task bị từ chối.
 > Áp dụng cho **Aureon v2** (DEC-124 → DEC-137). Bản v1 (4 trụ, 5 role, HS256) lưu ở nhánh git `v1`.
-> **Thứ tự ưu tiên khi mâu thuẫn:** quy tắc vận hành / an toàn ở file này luôn thắng. Về nội dung sản phẩm và kỹ thuật, spec `current` trong `docs/` cộng với DEC `resolved` là nguồn chuẩn. Phát hiện mâu thuẫn → raise `DEC-xxx` blocking, không tự chọn bên.
+> **Thứ tự ưu tiên khi mâu thuẫn:** quy tắc vận hành / an toàn ở file này luôn thắng. Về nội dung sản phẩm và kỹ thuật, `_reference/` là Canonical Source chính thức (DEC-144). `docs/` là living spec version 2.1.0 phản ánh implementation. Mọi mâu thuẫn giữa `docs/` và `_reference/` → ưu tiên `_reference/`, cập nhật `docs/` tương ứng.
 
 ---
 
@@ -27,6 +27,20 @@
 **Modular Monolith** (DEC-125): một app FastAPI + Celery worker/beat, **11 module**, **một schema PostgreSQL cho mỗi module** (10 schema; `dashboard` không có schema riêng). Liên module chỉ qua `services` public hoặc **domain event qua Transactional Outbox + Celery/Redis** (DEC-126). Mọi LLM call qua **ModelGateway đa provider** (DEC-131). JWT **RS256** (DEC-129).
 
 ### 1.3. Phạm vi
+
+Phạm vi v2.0 (Aureon v2.1 docs):
+- 5 trụ F.O.C.U.S: Finance, Operations, Customer, Product, Strategy/Risk
+- 10 vai trò: CEO, CFO, VP_SALES, HR_MANAGER, CPO, RISK_MANAGER, MANAGER, EMPLOYEE, REVIEWER, ADMIN
+- IDP v2.0: 5 kênh C1-C5 (voice C2 = mock STT), review song song, reassign/merge
+- Approval cơ bản (rule theo giá trị ≥500M cần 2 người, SLA, escalate)
+- Reporting tối thiểu (PDF + Excel, mẫu ngày/tuần/tháng/HĐQT)
+- Meeting transcript mock (upload thủ công, không tích hợp Meet/Zoom/Teams)
+- Dòng tiền 13 tuần, DQ Score (metric 32), 13 risk categories
+
+Hoãn sang v2.1 (ghi rõ trong DEC-150):
+- Knowledge RAG, MFA, Calendar sync, Voice C2 STT thật
+- Multi-agent orchestrator (6 agent profiles), prompt versioning
+- Word export, effective-dated org, bulk edit grid
 
 **Trong phạm vi (IN):** 5 trụ / 31 metric / 31 alert · 6 domain module · IDP 5 kênh C1–C5, 9 doc type, UC-06/07/08 · Trợ lý AI (chat SSE, tool theo quyền, source chip, insight, what-if) · Autonomy L0–L3 + undo + kill switch · **10 vai trò** (DEC-128) · ModelGateway 6 provider + fallback · VI mặc định + EN (DEC-135) · web responsive + PWA mobile · seed công ty ABC ~150 NV (DEC-136).
 
@@ -87,7 +101,7 @@
 | Backend | Python 3.12+, FastAPI, Pydantic v2, pydantic-settings | | DEC-001 |
 | Tooling BE | uv (workspace root + `apps/api`), ruff, mypy (strict), pytest + pytest-asyncio + pytest-cov | | DEC-001 |
 | ORM / migration | SQLAlchemy 2.0 async + Alembic đa schema | Driver `psycopg[binary]` 3 (`postgresql+psycopg://`) | DEC-001 |
-| DB | PostgreSQL 16+ + pgvector 0.7+ | 10 schema | DEC-001, DEC-125 |
+| DB | DB | PostgreSQL 16 + pgvector, 11 schema module (auth, finance, sales, hr, product, risk, execution, ai, idp, platform, dashboard) | 10 schema | DEC-001, DEC-125 |
 | Queue / event | Celery + Redis; Transactional Outbox; DLQ | Celery beat **đúng 1 instance** | DEC-002, DEC-126 |
 | Storage | MinIO (dev) / S3 (prod) | Bucket private + `quarantine` | DEC-001 |
 | JWT | PyJWT + `cryptography` — **RS256** | Không còn HS256 | DEC-129 (DEC-073 superseded một phần) |
@@ -97,6 +111,8 @@
 | RAG | LlamaIndex + pgvector | Model embedding chờ DEC-069 — RAG tắt khi `MODEL_EMBED` trống | DEC-001 |
 | Container | Docker Compose 24+ | | DEC-001 |
 | Tài liệu demo | `openpyxl`, `python-docx`, `reportlab`, `pillow` (dependency group `demo`) | Chỉ dùng cho `scripts/gen_demo_docs.py` | DEC-120 |
+
+Classification: Public/Internal → cloud; Confidential → local LLM; Secret → không LLM.
 
 ### 2.3. Dependency chưa có DEC — KHÔNG cài / merge trước khi resolve (task T-002)
 
@@ -110,6 +126,15 @@
 | `structlog` | Log JSON | Mặc định dùng `logging` stdlib + formatter JSON |
 | Model embedding | RAG | DEC-069 |
 | `sse-starlette` | SSE | **Không dùng** — `StreamingResponse` thuần |
+
+Dependencies đã có DEC:
+- DEC-138: ClamAV (malware scan)
+- DEC-139: respx (test mock)
+- DEC-140: httpx (async HTTP)
+- DEC-141: argon2-cffi (hash password)
+- DEC-142: bge-m3 (embedding), qwen2.5:7b-instruct (local chat LLM)
+ 
+Dependencies chưa có DEC: (trống — tất cả đã chốt)
 
 **Nguyên tắc:** không đổi stack, không thêm dependency (kể cả dev-only) nếu chưa có `DEC-xxx` resolved trong `docs/4.GOVERNANCE/13-DECISION-LOG.md`.
 
@@ -330,9 +355,12 @@ secrets/                                       # jwt_private.pem, jwt_public.pem
 
 ### 5.9. ID references (bắt buộc — registry `00` §4)
 
-Dùng đúng prefix và dải: `ROLE-xx` · `US-<AREA>-xx[x]` · `UC-xx` · `F1..F5` · `FR-<AREA>-xx` · `BR-<AREA>-xx` · `NFR-xx` · `PIL-<F|O|C|U|S>` · `METRIC-<FIN|OPS|HR|CUS|PRD|RSK>-xx` · `ALERT-…` (cùng số với metric) · `ENT-<Name>` · `EVT-<domain>.<name>` · `TOOL-<name>` · `ACT-<name>` · `SCR-xx` (01..28) · `EP-xx` (dải `00` §4.6) · `T-xxx` (`T-0xx` = S0 … `T-5xx` = S5) · `TC-<NHÓM>-nnn` · `DEC-xxx`.
-
-**Không tự tạo ID / prefix mới** — thêm ID phải sửa `00` §4 qua DEC trước.
+Khi reference spec, dùng đúng ID theo `00-INDEX §4` (BRD canonical):
+- `BRD-P01..P11` (11 nguyên tắc sản phẩm)
+- `US-<AREA>-xxx` (3 chữ số, 141 US tổng)
+- `FR-DC-xx` (23 mã BRD + FR-DC-101, FR-DC-102)
+- `ENT-xxx` (79 entity), `METRIC-<DOMAIN>-xx` (32), `SCR-xx` (31), `EVT-xx` (28), `EP-xx`, `TOOL-xxx` (43)
+- Mapping cũ → mới: `00-INDEX §4.13.2`
 
 ### 5.10. Commit
 
@@ -356,6 +384,15 @@ Check theo thứ tự A → B → C. Fail bất kỳ gate nào → trả về `B
 **Ngưỡng coverage (`14` §1.3):** service mỗi module ≥ 80% · backend ≥ 75% · bảo mật (auth, RBAC, scoping, PII filter, Action Registry, autonomy, kill switch) ≥ 90% · FE `features/` + `lib/` ≥ 70%.
 
 **Sau khi làm task:** cập nhật `14-TEST-TRACEABILITY.md` (`Planned → Implemented → Passed/Failed`).
+
+🚨 v2.1 specific:
+- bge-m3 là embedding, KHÔNG chat. Local chat: qwen2.5:7b-instruct (env LOCAL_CHAT_MODEL).
+- Classified data: Confidential → không fallback cloud; Secret → không LLM.
+- AI hallucination khi tool call → luôn yêu cầu evidence + verification 24h/7d.
+- Event outbox duplicate → idempotency qua processed_events.
+- RS256 key rotation → 90 ngày, không leak private key.
+- DEC-154: field `source`/`version` đã đổi (`risk_source`, `release_version`, `data_source`, `cash_source`, `config_source`, `task_source`). Không dùng `source` trần.
+- SLA: 2 tập khác nhau — `SLA_OPERATIONAL_*` (03) vs `SLA_FRESHNESS_*` (08/DQ Score). Không lẫn lộn.
 
 ### 6.2. ⛔ Cấm đọc
 
@@ -463,12 +500,17 @@ Agent **KHÔNG ĐƯỢC** tự:
 | Cần đổi API (endpoint, field, mã lỗi, tool, event) | Raise `DEC-xxx` blocking; hoặc human cập nhật 10 trước |
 | Cần đổi schema | Raise `DEC-xxx` blocking; cập nhật 05 trước |
 | Cần dependency mới | Raise `DEC-xxx` (gom vào T-002); không cài trước khi resolve |
+| Cần thêm provider LLM | DEC blocking |
+| Cần đổi SLA freshness | DEC non-blocking |
+| Cần đổi classification data | DEC blocking |
 | Spec mâu thuẫn (giữa 02–10, hoặc với file này) | Raise `DEC-xxx` blocking + tag human; không tự chọn |
 | Model build fail 3 lần cùng task | Raise `DEC-xxx` non-blocking, ghi Model Routing Log (13 §6) |
 | Chi phí build > budget sprint | Raise `DEC-xxx` blocking |
 | Chi phí AI runtime khi test > `AI_MONTHLY_BUDGET_USD` | Dừng test live, chuyển fixture, báo human |
 | Phát hiện credential lộ | Dừng task ngay, raise `DEC-xxx` blocking, báo human |
 | Không hiểu task | Hỏi human, không tự diễn giải |
+
+
 
 Số `DEC-xxx` do người duy trì 13 cấp; agent chỉ đề xuất nội dung.
 
@@ -556,6 +598,9 @@ Prompt template chi tiết cho từng loại (gồm thêm tool AI `TOOL-*` và e
 
 **Nguồn gốc chính thức:** `_reference/` (Canonical Source — DEC-144, DEC-145; xem §6.2). **Không đọc:** file `archived`, nhánh `v1` khi build v2.
 
+Thêm: docs/4.GOVERNANCE/GAP-ANALYSIS-v2.1.md — Gap analysis BRD v1.1 ↔ docs v2.0.
+Đảm bảo danh sách 12 file docs v2.1.0 đầy đủ.
+
 ---
 
 ## 10. Documentation Generation & Governance Rules
@@ -600,11 +645,15 @@ Không được chuyển sang bước tiếp theo nếu gate tương ứng chưa
 
 ## 12. Version
 
-- **CLAUDE.md version:** 2.0.0
-- **Last updated:** 2026-10-19
-- **Applies to:** Aureon v2 (DEC-124 → DEC-137, DEC-144, DEC-145)
+- **CLAUDE.md version:** 2.2.0
+- **Last updated:** 2026-10-21
+- **Applies to:** Aureon v2.1
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo spec v2 (00–14 `current` 2.0.0): 5 trụ F.O.C.U.S / 31 metric, 10 role, Modular Monolith 11 module, outbox + event, RS256, ModelGateway đa provider, `require_permission`, phân trang `limit/offset`, IDP v2, loading matrix đầy đủ, `_reference/` hết ngoại lệ, sửa lệnh `uv run mypy`, gỡ `pnpm db:seed` (DEC-062). Xử lý nội dung của 13 §5.2 (nợ đồng bộ CLAUDE.md), 07 OQ-04, 11 OQ-01/03/05, 12 OQ-02 — trạng thái các mục đó trong 07/11/12/13 cần human cập nhật riêng. Bản 1.1.0 lưu ở nhánh `v1`.
 - **Change (DEC-145, 2026-10-19):** gỡ `_reference/` khỏi §6.2 "Cấm đọc" và §9; `_reference/` là Canonical Source (DEC-144). Agent sửa theo ủy quyền ngoại lệ duy nhất của human.
+**Change log (2026-10-21):**
+- 2.2.0 (2026-10-20): Reclassify _reference as canonical, adopt BRD ID scheme (DEC-144/146), scope v2.0/v2.1 split (DEC-153), 12 deps resolved (DEC-138..142), SLA split (DEC-158).
+- 2.1.0 (2026-10-19): v2.1 architecture after AI-EOS merge.
+- 2.0.0 (2026-10-18): v2 rewrite based on AI-EOS canonical.
 
 Mọi thay đổi file này phải qua review của human. Agent **không tự sửa** `CLAUDE.md`.
