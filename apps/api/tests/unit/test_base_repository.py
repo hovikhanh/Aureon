@@ -118,3 +118,13 @@ def test_base_service_holds_session_and_repo() -> None:
     repo = _repo(s)
     svc = BaseService(s, repo)  # type: ignore[arg-type]
     assert svc.db is s and svc.repo is repo
+
+
+class Plain(_IsolatedBase, IdMixin, TimestampMixin):
+    __tablename__ = "plain_test"
+
+
+async def test_expected_version_on_unversioned_model_is_rejected() -> None:
+    repo = BaseRepository(FakeSession(), Plain)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="no version column"):
+        await repo.update(Plain(), expected_version=1)

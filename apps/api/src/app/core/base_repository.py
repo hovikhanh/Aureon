@@ -9,6 +9,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_model import Base
+from app.core.errors import ConflictStateError
 
 MAX_LIMIT = 100  # DEC-130
 
@@ -84,9 +85,28 @@ class BaseRepository[ModelT: Base]:
         await self.db.flush()
         return obj
 
-    async def update(self, obj: ModelT, **values: Any) -> ModelT:
+    async def update(
+        self, obj: ModelT, *, expected_version: int | None = None, **values: Any
+    ) -> ModelT:
+        """Apply `values`; C19 `version` += 1 (10 §1.1).
+
+        `expected_version` (from `If-Match` / body `version`) → the row is re-read under
+        `SELECT … FOR UPDATE` and compared, so two concurrent PATCHes with the same version
+        cannot both win: the second waits for the lock, sees the bumped version → 409.
+        """
         if self._has("version"):
+            if expected_version is not None:
+                await self.db.refresh(obj, attribute_names=["version"], with_for_update=True)
+                current = getattr(obj, "version", None)
+                if current != expected_version:
+                    raise ConflictStateError(
+                        f"{self.model.__name__} was modified (version {current}, "
+                        f"expected {expected_version})",
+                        details={"current_version": current, "expected_version": expected_version},
+                    )
             values["version"] = (getattr(obj, "version", None) or 0) + 1
+        elif expected_version is not None:
+            raise TypeError(f"{self.model.__name__} has no version column (C19)")
         for key, value in values.items():
             setattr(obj, key, value)
         await self.db.flush()

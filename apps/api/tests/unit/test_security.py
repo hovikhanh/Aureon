@@ -162,6 +162,7 @@ def test_iat_beyond_leeway_rejected() -> None:
 
 
 def test_exp_beyond_leeway_rejected() -> None:
-    token = _sign(now=datetime.now(UTC) - timedelta(seconds=60 + 31), ttl_seconds=60)
+    # Expired 10 min ago (≫ 30 s leeway) — a 1 s margin was flaky under host clock steps (WSL).
+    token = _sign(now=datetime.now(UTC) - timedelta(seconds=60 + 600), ttl_seconds=60)
     with pytest.raises(UnauthenticatedError, match="expired"):
         security.verify_access_token(token)
