@@ -2,46 +2,60 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 03:10 (Asia/Saigon) |
-| Last commit | `ed1836a` Merge branch 's1/hr' into s1/finance (on `main`, pushed) |
-| Sub-sprint | S1 — CHECKPOINT #1 done (S1a Finance · S1b Sales · S1c HR) |
-| Test count | 423 passed, 2 deselected (`-m "not live"`) |
-| Coverage | 98% overall (`--cov=app`); finance 94–99%, sales 99%, hr 99% |
-| Gates | A ✅ (docs current) · B ✅ (0 DEC open+blocking) · C ✅ (TC-FIN-001..007, TC-SEED-FIN-01, TC-SAL-001..003, TC-HR-001..004 Passed) |
+| Last updated | 2026-10-22 06:25 (Asia/Saigon) |
+| Last commit | `a0fd762` merge(s2) on `main` (pushed; branch `s2` pushed too) |
+| Sub-sprint | S2 — CHECKPOINT #2 done (metric store, alerts, 5 pillar dashboards, product/risk/execution, seed) |
+| Test count | 585 passed, 2 deselected (`-m "not live"`) |
+| Coverage | 98% overall (`--cov=app`) |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-DASH-*, TC-EXE-007, TC-DQ-001, TC-SEED-002/003, TC-EVT-007 Passed) |
 | Open blocking DECs | none |
 
 ## Done
-- S0, S0b (`8fe22a6`).
-- S1a Finance T-101..T-106 + ABC seed: EP-60..69, EP-128, events `budget_exceeded`, `forecast_updated`, `invoice_created`, `invoice_paid`, `burn_over_forecast`, `cash_flow_forecast_updated`; consumers `finance.on_invoice_created/on_invoice_paid/on_salary_updated`. DEC-185..189, DEC-200..202.
-- S1b Sales T-111..T-113 (EP-70..78), DEC-190..193.
-- S1c HR T-121..T-123 (EP-80..87), DEC-195..198.
-- Seed `uv run python -m app.seed`: roles/users + finance ABC (48 revenues, expenses for 7 departments, 16 cash positions, 7 Q3 budgets, 48 invoices, 3 forecasts, 3×13-week cash flows). Idempotent. Emits budget_exceeded ×6, burn_over_forecast, cash_flow_forecast_updated.
+- S0, S0b, S1 (Finance/Sales/HR) — see git history (`ed1836a`).
+- S2 (`a0fd762`):
+  - T-220 metric store (`platform.services.metric_store.MetricStore.recompute`, providers `@metric_provider` per module), METRIC-DQ-01 (`core/data_quality.py` + `register_dq` per domain, DEC-209).
+  - T-221 alert engine; budget_exceeded → alert < 60 s test.
+  - T-222 pillar dashboards EP-60/70/80/90/100 + EP-49 from store (`pillar_snapshot`), partial-failure isolation.
+  - T-131..133 execution, T-201/202 product, T-211..216 risk (merged worktrees `/home/vika/aureon-wt/{exec,prdrisk,risk}`).
+  - T-234 pgcrypto level-4 PII, migration `0008_pgcrypto`; T-235 Celery beat (7 entries incl. outbox relay, detect-overdue-tasks 08:30).
+  - T-236 seed: auth + finance + hr + sales + product + risk + execution (reduced, DEC-208). Dev DB: 32/32 metrics valued, 25 OPEN alerts, all dashboards 200.
+- Shared: `core/periods.py` (period resolution, breaks hr↔execution cycle); metric provider registry tolerates re-import of same function.
+
+## S2 exit criteria
+| Criterion | Result |
+|---|---|
+| 5 pillar endpoints 200 | ✅ (+EP-49) |
+| ≥ 10 alerts from seed | ✅ 25 OPEN |
+| revenue → budget_exceeded → alert ≤ 60 s | ✅ `tests/events/test_alert_sla.py` |
+| beat jobs registered | ✅ 7 entries |
+| 3 pgcrypto tests | ✅ |
+| Sales/HR dashboards non-zero | ✅ |
+| 32 metrics populated | ✅ |
+| Coverage ≥ 95 %, gates A/B/C | ✅ 98 % |
 
 ## In progress
 - none
 
 ## Remaining (in order)
-1. S1 leftovers in 09: T-131..133 Execution, T-141 event integration test, T-142/143 FE workspaces.
-2. S2: T-201/202 Product, T-211..215 Risk, T-220 metric store (replaces live calculation in EP-60/70/80, DEC-200/197), T-221 alerts, T-222 pillar dashboards, T-223 lineage, T-229 DQ, T-230 approval, T-233; FE T-224..227, T-231, T-232.
-3. S3 AI Core (T-3xx), S4 IDP v2.1 (T-4xx), S5 FE/UX/Release (Next.js login → dashboard → upload → review).
-4. Sales/HR seeds (client ids = `seed_uuid("client", MST)`, dept = `seed_uuid("department", code)` in `app/seed/ids.py`).
+1. S3 AI Core (T-3xx per 09): ModelGateway already exists from S0 — check 09 for T-301.. (chat SSE EP-110.., Tool Registry, insight, autonomy L0–L3, kill switch, cost log).
+2. S4 IDP v2.1 (T-4xx).
+3. S5 FE/UX/Release (Next.js login → dashboard → upload → review); S2 FE tasks T-224..227, T-231/232, T-142/143 still open.
+4. S2 leftovers not in exit criteria: T-223 lineage drill-down, T-230 approval, T-233.
 
 ## Next task
-T-131 Execution (meetings, decisions, tasks, projects; `EVT-execution.task_overdue`) — or jump to T-220 metric store if S2 is prioritised.
+S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07, 10), then start T-301.
 
 ## Key files
-- `apps/api/src/app/modules/{finance,sales,hr}/` (routes/schemas/services/repositories)
-- `apps/api/src/app/core/{idempotency,clock}.py`, `core/base_repository.py`
-- `apps/api/src/app/seed/{finance_seed,finance_data,ids}.py`
-- `apps/api/src/app/workers/consumers.py` (consumer modules list)
-- `apps/api/tests/conftest.py` (`api` fixture / `ApiClient`)
-- Worktrees: `/home/vika/aureon-wt/{fin,sales,hr}` (merged; may be removed)
+- `apps/api/src/app/modules/platform/services/{metric_store,pillar_snapshot,metrics}.py`, `core/{metrics,data_quality,periods}.py`
+- `apps/api/src/app/seed/{__init__,finance_seed,hr_seed,sales_seed,product_seed,risk_seed,execution_seed,ids}.py`
+- `apps/api/src/app/workers/{consumers,jobs}.py`, `apps/api/src/app/worker.py`
+- Env: `export PYTHONPATH=$PWD/apps/api/src:$PWD/apps/api PATH=$PWD/.venv/bin:$PATH` (never `uv sync`).
 
 ## Known issues / gaps
-- Dashboards EP-60/70/80: `metrics[]` computed live or empty, `open_alerts=0` until T-220/221.
-- Celery beat has no daily jobs yet (FR-FIN-08 `check_burn_over_forecast`, invoice `mark_overdue`, HR `detect_delayed_hiring_plans`).
-- `hr.employees.national_id/bank_account` stored as plain text (05 asks for pgcrypto) — needs DEC on key management.
-- EP-74 `changed_by` null (DEC-191, schema gap).
-- EP-87 workload returns [] until execution tasks exist.
+- EP-74 `changed_by` null (DEC-191); MANAGER quota null; no log-redaction filter yet.
+- Dev DB has only 5 S0 users (CPO/RISK_MANAGER passwords not set) → product/risk seed owner falls back to CEO.
+- Risk: EP-104 doesn't create ENT-Decision; what-if product unavailable; `hr.employee_terminated` not consumed.
+- Product BR-PRD-01 thresholds constants; execution constants not in config (DEC-226).
+- METRIC-DQ-01 accuracy = validation proxy; IDP-correction component comes with S4.
 - 09 task checkboxes not ticked (docs edit outside 14).
-- Worktree `uv sync` fails on pillow-heif → use main `.venv` with `PYTHONPATH`.
+- Celery worker/beat restarted after S2 merge (2026-10-22 06:25).
