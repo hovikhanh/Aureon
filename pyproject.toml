@@ -15,6 +15,7 @@ dev = [
     "pytest-cov==7.1.0",
     "ruff==0.17.1",
     "mypy==2.4.0",
+    "respx>=0.23.1",  # DEC-139 (dev-only)
 ]
 # DEC-120 (resolved, user-approved 2026-10-19): document-generation libraries for the
 # 7 demo sample documents (T-401). Used only by scripts/gen_demo_docs.py, not by API runtime.

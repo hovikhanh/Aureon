@@ -59,6 +59,19 @@ class ConfigService(BaseSettings):
     dq_weight_completeness: float = 0.3
     dq_weight_accuracy: float = 0.4
     dq_weight_freshness: float = 0.3
+    # Operational Freshness SLA (dashboard "stale" badge) vs DQ Freshness SLA — DEC-158.
+    sla_operational_execution_hours: int = 1
+    sla_operational_sales_hours: int = 1
+    sla_operational_finance_hours: int = 4
+    sla_operational_risk_hours: int = 4
+    sla_operational_hr_hours: int = 24
+    sla_operational_product_hours: int = 24
+    sla_freshness_finance_hours: int = 24
+    sla_freshness_sales_hours: int = 24
+    sla_freshness_hr_hours: int = 72
+    sla_freshness_product_hours: int = 72
+    sla_freshness_risk_hours: int = 48
+    sla_freshness_execution_hours: int = 24
     briefing_time: str = "06:00"
     approval_finance_threshold_vnd: int = 500_000_000
 

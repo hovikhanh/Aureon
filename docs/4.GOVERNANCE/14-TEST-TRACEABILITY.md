@@ -103,6 +103,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19), trừ các TC
 | TC | Trạng thái | Test | Task (09) | Commit |
 |---|---|---|---|---|
 | TC-SYS-001 | Implemented (một phần — scaffold 11 module; test import-boundary ở T-004) | `apps/api/tests/unit/test_scaffold.py` | T-003 | brief T-001 |
+| TC-SYS-006 | Implemented (một phần — compose healthcheck postgres/redis/minio/ollama/clamav/worker/beat; `web`/`api` chưa có service) · env v2.1 kiểm bằng `test_env_example.py` | `docker compose ps`, `apps/api/tests/unit/test_env_example.py` | T-002, T-014 | brief T-002 |
 
 ### 2.1. S0 — Nền tảng v2
 

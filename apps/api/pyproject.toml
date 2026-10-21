@@ -13,10 +13,16 @@ dependencies = [
     "psycopg[binary]==3.3.6",
     "redis==8.1.0",
     "celery==5.6.3",
-    "httpx==0.28.1",
+    "httpx==0.28.1",  # DEC-140
     "pyjwt[crypto]==2.15.1",
-    "argon2-cffi==25.1.0",
+    "argon2-cffi==25.1.0",  # DEC-141
     "python-multipart>=0.0.18",
+    # Document parsing for IDP (DEC-151 → T-002)
+    "pypdf>=5.0",
+    "pillow-heif>=0.22.0",
+    "python-docx==1.1.2",
+    "openpyxl==3.1.5",
+    "clamd>=1.0.2",  # DEC-138 ClamAV client
 ]
 
 [build-system]
