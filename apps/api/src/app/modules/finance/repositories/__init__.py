@@ -6,7 +6,14 @@ from sqlalchemy import func, or_, select
 
 from app.core.base_repository import BaseRepository
 from app.core.events.envelope import OUTBOX
-from app.modules.finance.models import Budget, CashPosition, Expense, Revenue
+from app.modules.finance.models import (
+    Budget,
+    CashPosition,
+    Expense,
+    Forecast,
+    ForecastLine,
+    Revenue,
+)
 
 
 class RevenueRepository(BaseRepository[Revenue]):
@@ -74,3 +81,28 @@ class BudgetRepository(BaseRepository[Budget]):
             OUTBOX.c.event_type == event_type, OUTBOX.c.aggregate_id == aggregate_id
         )
         return int((await self.db.execute(stmt)).scalar_one()) > 0
+
+
+class ForecastRepository(BaseRepository[Forecast]):
+    model = Forecast
+
+    async def current(self, scenario: str) -> Forecast | None:
+        stmt = self._live().where(Forecast.scenario == scenario, Forecast.is_current.is_(True))
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def lines(self, forecast_id: uuid.UUID) -> list[ForecastLine]:
+        stmt = (
+            select(ForecastLine)
+            .where(ForecastLine.forecast_id == forecast_id, ForecastLine.deleted_at.is_(None))
+            .order_by(ForecastLine.period_key)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def latest_closing(self) -> int:
+        stmt = (
+            select(CashPosition.closing_balance)
+            .where(CashPosition.deleted_at.is_(None))
+            .order_by(CashPosition.period_key.desc())
+            .limit(1)
+        )
+        return int((await self.db.execute(stmt)).scalar_one_or_none() or 0)

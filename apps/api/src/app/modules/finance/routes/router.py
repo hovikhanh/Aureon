@@ -30,15 +30,21 @@ from app.modules.finance.schemas import (
     ExpenseCreate,
     ExpenseOut,
     ExpenseUpdate,
+    ForecastCreate,
+    ForecastOut,
+    ForecastUpdate,
+    Horizon,
     Quarter,
     RevenueCategory,
     RevenueCreate,
     RevenueOut,
     RevenueUpdate,
+    Scenario,
     check_period,
 )
 from app.modules.finance.services.budget_service import BudgetService, budget_out
 from app.modules.finance.services.finance_service import FinanceService, expense_out, revenue_out
+from app.modules.finance.services.forecast_service import ForecastService
 
 router = EnvelopeRouter(tags=["finance"])
 
@@ -255,3 +261,43 @@ async def delete_budget(budget_id: uuid.UUID, db: Db, user: Writer) -> Response:
     await BudgetService(db).delete(user, budget_id)
     await db.commit()
     return Response(status_code=204)
+
+
+# ---------- EP-66 forecasts (+ lines; L C R U — history kept, no delete) ----------
+@router.get("/finance/forecasts", response_model=list[ForecastOut])
+async def list_forecasts(
+    db: Db, _: Reader,
+    page: Annotated[PageParams, Depends(page_params("generated_at", "scenario"))],
+    scenario: Scenario | None = None, horizon: Horizon | None = None,
+    is_current: bool = False,
+) -> Any:  # fmt: skip
+    items, total = await ForecastService(db).list_forecasts(
+        page, scenario=scenario, horizon=horizon, current_only=is_current
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/finance/forecasts", response_model=ForecastOut, status_code=201)
+async def create_forecast(body: ForecastCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ForecastOut.model_validate(hit)
+    out = await ForecastService(db).create(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/finance/forecasts/{forecast_id}", response_model=ForecastOut)
+async def get_forecast(forecast_id: uuid.UUID, db: Db, _: Reader) -> Any:
+    svc = ForecastService(db)
+    return await svc.out(await svc.get(forecast_id))
+
+
+@router.patch("/finance/forecasts/{forecast_id}", response_model=ForecastOut)
+async def update_forecast(
+    forecast_id: uuid.UUID, body: ForecastUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await ForecastService(db).update(user, forecast_id, body, exp)
+    await db.commit()
+    return out

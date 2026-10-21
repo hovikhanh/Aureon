@@ -204,3 +204,53 @@ class BudgetStatusOut(BaseModel):
     budget_utilization_pct: float
     currency: str
     status: BudgetStatus
+
+
+# ---------- EP-66 forecasts (+ lines) ----------
+Scenario = Literal["optimistic", "base", "pessimistic"]
+Horizon = Literal["1m", "3m", "6m", "1y"]
+HORIZON_MONTHS: dict[str, int] = {"3m": 3, "6m": 6, "1y": 12}
+
+
+class ForecastLineIn(BaseModel):
+    period_key: str
+    revenue: int = Field(ge=0)
+    expense: int = Field(ge=0)
+
+    _p = field_validator("period_key")(check_period)
+
+
+class ForecastCreate(BaseModel):
+    scenario: Scenario
+    horizon: Horizon
+    lines: list[ForecastLineIn] = Field(min_length=1, max_length=12)
+    confidence_pct: float = Field(ge=0, le=100)
+    assumptions: dict[str, Any] = Field(default_factory=dict)
+
+
+class ForecastUpdate(_Patch):
+    lines: list[ForecastLineIn] | None = Field(default=None, min_length=1, max_length=12)
+    confidence_pct: float | None = Field(default=None, ge=0, le=100)
+    assumptions: dict[str, Any] | None = None
+
+
+class ForecastLineOut(BaseModel):
+    period_key: str
+    revenue: int
+    expense: int
+    net_profit: int
+    closing_cash: int
+    currency: str
+    confidence_level: str
+
+
+class ForecastOut(_Out):
+    scenario: str
+    horizon: str
+    horizon_months: int
+    is_current: bool
+    generated_at: datetime
+    generated_by: str
+    confidence_pct: float | None
+    assumptions: dict[str, Any]
+    lines: list[ForecastLineOut]

@@ -136,6 +136,7 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19), trừ các TC
 | TC-SYS-012 | Passed — `Idempotency-Key` (10 §1.6, DEC-186): cùng key + body → replay, không ghi lần 2; body khác → `409 IDEMPOTENCY_CONFLICT`; thiếu/sai → `400`; theo user; Redis lỗi → `503` | `apps/api/tests/integration/test_idempotency.py` | T-101 (hạ tầng dùng chung) |
 | TC-FIN-002 | Passed — EP-63 CRUD (UQ phòng ban × kỳ → 409), EP-64 `budget_utilization_pct`/`status`; chi vượt 100% → đúng 1 `EVT-finance.budget_exceeded` / phòng ban / kỳ (chi thêm không phát lại; giảm ngân sách dưới mức chi cũng phát); payload không PII | `apps/api/tests/integration/finance/test_budgets.py` | T-102 |
 | TC-FIN-005 (một phần) | Passed — BR-FIN-05 utilization + ngưỡng trạng thái (phần BR-FIN-01..04/06 ở T-105) | `apps/api/tests/unit/test_finance_rules.py` | T-102, T-105 |
+| TC-FIN-003 | Passed — EP-66 3 kịch bản cùng tồn tại, bản mới thay `is_current`; dòng sắp theo kỳ, `net_profit`/`closing_cash` lũy kế; PATCH thay dòng/độ tin cậy (optimistic lock); mỗi C/U → `EVT-finance.forecast_updated`; `1m`/trùng kỳ/vượt horizon → 422 (DEC-188) | `apps/api/tests/integration/finance/test_forecasts.py` | T-103 |
 
 ### 2.1. S0 — Nền tảng v2
 
