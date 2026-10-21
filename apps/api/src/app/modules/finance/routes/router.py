@@ -24,6 +24,8 @@ from app.modules.finance.schemas import (
     BudgetOut,
     BudgetStatusOut,
     BudgetUpdate,
+    CashFlowForecastOut,
+    CashFlowRecompute,
     CashPositionCreate,
     CashPositionOut,
     CashPositionUpdate,
@@ -41,6 +43,7 @@ from app.modules.finance.schemas import (
     InvoicePay,
     InvoiceStatus,
     InvoiceUpdate,
+    JobAccepted,
     Quarter,
     RevenueCategory,
     RevenueCreate,
@@ -52,6 +55,7 @@ from app.modules.finance.schemas import (
 )
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.budget_service import BudgetService, budget_out
+from app.modules.finance.services.cash_flow_service import CashFlowService
 from app.modules.finance.services.finance_service import FinanceService, expense_out, revenue_out
 from app.modules.finance.services.forecast_service import ForecastService
 from app.modules.finance.services.invoice_service import InvoiceService
@@ -398,3 +402,25 @@ async def what_if_runway(
         as_of=as_of, revenue_change_pct=revenue_change_pct,
         expense_change_pct=expense_change_pct, extra_monthly_cost=extra_monthly_cost,
     )  # fmt: skip
+
+
+# ---------- EP-128 13-week cash flow ----------
+@router.get("/finance/cash-flow-forecast", response_model=CashFlowForecastOut)
+async def cash_flow_forecast(db: Db, _: Reader, as_of: date | None = None) -> Any:
+    return await CashFlowService(db).current(as_of)
+
+
+@router.post("/finance/cash-flow-forecast/recompute", response_model=JobAccepted, status_code=202)
+async def recompute_cash_flow(
+    db: Db, _: Writer, idem: Idem, body: CashFlowRecompute | None = None
+) -> Any:
+    """Computed inline (13 rows, sub-second) inside the request; `job_id` = new forecast id,
+    so the client polls GET for the result (DEC-201)."""
+    req = body or CashFlowRecompute()
+    if (hit := await idem.replay(req)) is not None:
+        return JobAccepted.model_validate(hit)
+    out = await CashFlowService(db).recompute(req.assumptions)
+    await db.commit()
+    accepted = JobAccepted(job_id=str(out.id))
+    await idem.remember(accepted)
+    return accepted

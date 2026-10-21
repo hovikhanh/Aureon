@@ -23,6 +23,9 @@ from app.core.events.bus import CONSUME_TASK, CeleryTransport
 from app.core.events.consumer import Outcome, consume
 from app.core.events.relay import RelayResult, relay_once
 from app.worker import celery_app
+from app.workers.consumers import load_consumers
+
+load_consumers()
 
 RELAY_TASK = "app.events.relay_outbox_events"
 

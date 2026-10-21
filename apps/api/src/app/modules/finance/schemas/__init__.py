@@ -417,3 +417,49 @@ class FinanceDashboardOut(BaseModel):
     revenue_trend: list[RevenueTrendPoint]
     runway_trend: list[RunwayTrendPoint]
     open_alerts: int
+
+
+# ---------- EP-128 13-week cash flow ----------
+class CashFlowAssumptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    collection_on_time_pct: float = Field(default=85, ge=0, le=100)
+    fixed_opex_weekly: int | None = Field(default=None, ge=0)
+    payroll_monthly_override: int | None = Field(default=None, ge=0)
+
+
+class CashFlowRecompute(BaseModel):
+    assumptions: CashFlowAssumptions | None = None
+
+
+class CashFlowLineOut(BaseModel):
+    week_no: int
+    week_start: date
+    inflow_receivables: int
+    inflow_other: int
+    outflow_payables: int
+    outflow_payroll: int
+    outflow_opex: int
+    outflow_other: int
+    net_flow: int
+    closing_cash: int
+
+
+class CashFlowForecastOut(BaseModel):
+    id: uuid.UUID
+    start_week: date
+    weeks: int
+    opening_cash: int
+    currency: str
+    min_projected_cash: int
+    min_cash_week: int
+    confidence_level: str
+    generated_at: datetime
+    generated_by: str
+    assumptions: dict[str, Any]
+    lines: list[CashFlowLineOut]
+    stale: bool
+
+
+class JobAccepted(BaseModel):
+    job_id: str

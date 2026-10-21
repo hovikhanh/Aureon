@@ -10,6 +10,8 @@ from app.core.base_repository import BaseRepository
 from app.core.events.envelope import OUTBOX
 from app.modules.finance.models import (
     Budget,
+    CashFlowForecast,
+    CashFlowForecastLine,
     CashPosition,
     Expense,
     Forecast,
@@ -239,3 +241,41 @@ class AnalyticsRepository:
             OUTBOX.c.payload["as_of"].astext == day.isoformat(),
         )
         return int((await self.db.execute(stmt)).scalar_one()) > 0
+
+
+class CashFlowRepository(BaseRepository[CashFlowForecast]):
+    model = CashFlowForecast
+
+    async def current(self) -> CashFlowForecast | None:
+        stmt = self._live().where(CashFlowForecast.is_current.is_(True))
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def lines(self, forecast_id: uuid.UUID) -> list[CashFlowForecastLine]:
+        stmt = (
+            select(CashFlowForecastLine)
+            .where(CashFlowForecastLine.forecast_id == forecast_id)
+            .order_by(CashFlowForecastLine.week_no)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def open_invoices(self, direction: str) -> list[tuple[date | None, int]]:
+        """(due_date, amount_due) of open invoices of a direction."""
+        stmt = select(Invoice.due_date, Invoice.total_amount - Invoice.paid_amount).where(
+            Invoice.deleted_at.is_(None),
+            Invoice.direction == direction,
+            Invoice.status.in_(OPEN_STATUSES),
+            Invoice.total_amount > Invoice.paid_amount,
+        )
+        return [(d, int(a)) for d, a in (await self.db.execute(stmt)).all()]
+
+    async def inputs_fingerprint(self) -> str:
+        """Changes on any input (invoice, expense, cash position — incl. soft delete) change
+        this value; compared with the one stored at compute time → `stale`."""
+        parts = []
+        for model in (Invoice, Expense, CashPosition):
+            stmt = select(
+                func.count(), func.coalesce(func.sum(model.version), 0), func.max(model.updated_at)
+            )
+            n, versions, latest = (await self.db.execute(stmt)).one()
+            parts.append(f"{n}:{versions}:{latest.isoformat() if latest else '-'}")
+        return "|".join(parts)
