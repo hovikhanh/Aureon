@@ -22,6 +22,8 @@
 | A10 | **Vendor-agnostic, event-driven** (P09) | Provider LLM đổi bằng env; storage S3-compatible; broker sau interface `EventBus` (Redis hôm nay, đổi được) |
 | A11 | **Demo-grade nhưng đúng bản chất** | Một máy (Docker Compose), một tenant; không HA/multi-region; bảo mật, quyền, audit làm thật |
 
+**Ràng buộc nghiệp vụ (DEC-167):** DB chỉ mang ràng buộc mà 05 đánh dấu `CK`/`UQ`/`FK`. Rule chỉ mô tả bằng lời trong 05 (VD `approved_by ≠ created_by`, lý do bắt buộc khi reject/reassign, `insights.sources ≥ 1`) kiểm ở **service layer** + unit test, không dùng CHECK constraint.
+
 ---
 
 ## 2. Tech stack
@@ -59,6 +61,7 @@
 | Parse PDF / HEIC / DOC / XLS (thư viện chuyển đổi định dạng cũ, HEIC → JPEG) | FR-DC-07 (04 §6.2) | ❗ **Checklist T-002 (S0)** — DEC-151 gom vào T-002, **không** phải DEC riêng; chưa chọn thư viện thì chưa cài |
 | Ollama (container chạy `bge-m3` embed + `qwen2.5:7b-instruct` chat cho dữ liệu `CONFIDENTIAL` — DEC-157) | Embedding (DEC-142), provider local §6.5 | DEC-142 cho embedding; dùng Ollama làm provider sinh nội dung → **checklist T-002** |
 | `argon2-cffi` | Hash mật khẩu | ✅ DEC-141 |
+| `pgvector` (package Python) | Truy vấn vector (`Vector` type, toán tử khoảng cách) | **Hoãn S4** — S0 dùng `UserDefinedType` tối thiểu chỉ để tạo DDL `vector(1024)` + HNSW; **cài trước T-4xx** (DEC-166 follow-up) |
 | `sse-starlette` | SSE | **Không dùng** — dùng `StreamingResponse` thuần (10 OQ-13) |
 
 Mọi dependency ❗ phải có DEC resolved trước khi merge (`CLAUDE.md` § Cấm tự quyết #4; task T-002).
@@ -353,7 +356,7 @@ Adapter dùng `httpx.AsyncClient` (timeout connect 5 s, read theo task), không 
 | `classify` | `MODEL_CLASSIFY` | idp phân loại | Model nhỏ/rẻ, JSON |
 | `extract` | `MODEL_EXTRACT` | idp trích xuất, C2, mapping C5 | JSON schema, context dài |
 | `insight` | `MODEL_INSIGHT` | ai_core insight, briefing | Batch, chạy nền |
-| `embed` | `MODEL_EMBED` | RAG | DEC-142: `bge-m3` (Ollama / `sentence-transformers` local); fallback OpenAI `text-embedding-3-small`; trống → tắt RAG |
+| `embed` | `EMBEDDING_MODEL` (DEC-159 L4; trước đây `MODEL_EMBED`) | RAG | DEC-142: `bge-m3` (Ollama / `sentence-transformers` local); fallback OpenAI `text-embedding-3-small`; trống → tắt RAG |
 | `stt` | `MODEL_STT` | C2 voice — **v2.0 mock** (fixture) | DEC-153; STT thật v2.1 (DEC-050) |
 
 - Chuỗi provider: `MODEL_PROVIDER_PRIMARY` rồi lần lượt `MODEL_PROVIDER_FALLBACKS` (CSV). Model mỗi provider: `MODEL_<TASK>` mặc định, ghi đè `MODEL_<TASK>__<PROVIDER>` (VD `MODEL_CHAT__ANTHROPIC`) khi alias khác nhau.
@@ -431,12 +434,13 @@ Quy tắc: mọi cấu hình đọc qua `ConfigService` (`core/config.py`, pydan
 | | `DEEPSEEK_BASE_URL`, `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1`, `<deepseek-key>` | khi dùng |
 | | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | `https://api.openai.com/v1`, `<openai-key>` | khi dùng |
 | | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` | `https://api.anthropic.com`, `<anthropic-key>` | khi dùng |
-| | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_EMBED`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `bge-m3`, `fixture` (v2.0 mock) | ✅ (live) |
+| | `MODEL_CHAT`, `MODEL_CLASSIFY`, `MODEL_EXTRACT`, `MODEL_INSIGHT`, `MODEL_STT` | `auto/coding`, `auto/cheap`, `auto/coding`, `auto/cheap`, `fixture` (v2.0 mock) — embedding dùng `EMBEDDING_MODEL` (DEC-159 L4) | ✅ (live) |
 | | `MODEL_<TASK>__<PROVIDER>` | `MODEL_CHAT__ANTHROPIC=<model-id>` | |
 | | `MODEL_PROVIDER_CONFIDENTIAL` *(mới 2.1)* | `ollama` (hoặc `template`, provider id) — §6.5, DEC-157 | ✅ |
 | | `LOCAL_CHAT_MODEL` *(mới 2.1)* | `qwen2.5:7b-instruct` (hoặc `llama3.1:8b`) — chat local cho `CONFIDENTIAL`; **không** dùng `bge-m3` | khi `ollama` |
 | | `MODEL_PROVIDER_SECRET` *(mới 2.1)* | `none` (giá trị duy nhất hợp lệ) — §6.5 | ✅ |
-| | `OLLAMA_BASE_URL` *(mới 2.1)* | `http://localhost:11434/v1` | khi dùng `ollama` |
+| | `OLLAMA_BASE_URL` *(mới 2.1)* | `http://localhost:11434` (gốc server, **không** `/v1` — adapter tự nối path; DEC-159 L4) | khi dùng `ollama` |
+| | `EMBEDDING_MODEL` *(mới 2.1)* | `bge-m3` — model embedding (DEC-142, DEC-159 L4); thay `MODEL_EMBED` | khi bật RAG |
 | | `MODEL_TEMPERATURE`, `MODEL_MAX_OUTPUT_TOKENS`, `MODEL_PRICING_JSON` | `0.2`, `2048`, `./config/model-pricing.json` | |
 | AI Core | `AI_RATE_LIMIT_PER_MIN`, `AI_MAX_TOOL_CALLS`, `AI_TOOL_TIMEOUT_SEC`, `AI_TURN_TIMEOUT_SEC` | `20`, `8`, `5`, `30` | |
 | | `AI_MONTHLY_BUDGET_USD`, `AI_BUDGET_ALERT_PCT`, `AI_UNDO_WINDOW_HOURS` | `50`, `80`, `24` | |
@@ -655,7 +659,7 @@ NFR-01..NFR-20 giữ đúng số A-EMS (§NFR); NFR-21..NFR-28 bổ sung từ AI
 | OQ-06 | Giới hạn upload v1 (`MAX_FILE_SIZE_MB=20`, `MAX_PAGES=50`) khác v2 (50 MB / 300 trang / 100 file) | Theo 04 §15.1 | `.env.example` |
 | OQ-07 | `.env.example` hiện có `NEXT_PUBLIC_DEMO_PASSWORD_*` (mật khẩu demo lộ ra bundle client) | Bỏ; dùng EP-04/EP-05 role switch | `.env.example`, 06 |
 | OQ-08 | Pre-commit secret scan (gitleaks) là dependency dev mới | Raise DEC hoặc dùng script grep đơn giản | CI |
-| OQ-09 | ✅ DEC-142 (`bge-m3`). Model embedding (DEC-069 open) | RAG tắt mặc định khi `MODEL_EMBED` trống; `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
+| OQ-09 | ✅ DEC-142 (`bge-m3`). Model embedding (DEC-069 open) | RAG tắt mặc định khi `EMBEDDING_MODEL` trống (DEC-159 L4); `TOOL-search_documents` chỉ tìm metadata | `ai_core` |
 | OQ-10 | ✅ DEC-143: stdlib + formatter JSON. Logging JSON: `structlog` (dependency mới) hay `logging` stdlib | Stdlib + formatter JSON | — |
 | OQ-11 | Alias `auto/coding`, `auto/cheap` (OmniRoute) cho `MODEL_*` runtime trùng tên với alias build-agent (11) | Chấp nhận — hai cấu hình tách biệt (runtime env vs agent config) | 11 |
 | OQ-12 | ✅ **DEC-157** — `CONFIDENTIAL` mặc định local LLM `qwen2.5:7b-instruct`; metric tổng hợp tái phân loại `INTERNAL`; ADMIN override có audit (EP-129). Câu hỏi gốc: `CONFIDENTIAL` mặc định `template` làm insight kém tự nhiên khi demo | — | 03 §7.4, 05 §10, 10 EP-129 |

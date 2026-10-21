@@ -455,6 +455,7 @@ UQ nghiệp vụ (XD-05): `(direction, COALESCE(counterparty_tax_code,''), COALE
 | description | text | N | | |
 | quantity | numeric(20,6) | N | CK > 0 | |
 | unit_price / amount | bigint | N | | `amount ≈ quantity × unit_price` |
+| currency | char(3) | N | | Mặc định `'VND'` (C8 — DEC-164) |
 | product_id | uuid | Y | SR → product.products | |
 
 Index `ix_invoice_lines_invoice_id`, `ix_invoice_lines_product_id`.
@@ -980,7 +981,7 @@ Index: FK/SR; `(assignee_id, status, due_date)`.
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | kpi_id | uuid | N | FK → kpis | |
-| period_key | text | N | | UQ `(kpi_id, period_key) WHERE deleted_at IS NULL` |
+| period_key | text | N | | UQ `(kpi_id, period_key)` (append-only, không `deleted_at` — DEC-163) |
 | actual_value | numeric(20,6) | N | | |
 | achievement_pct | numeric(7,4) | N | | Theo hướng KPI; `LOWER_IS_BETTER` = target/actual; **trần 150%** (cấu hình ở KPITarget) → `EVT-execution.kpi_measured` |
 | evaluation_band | execution.kpi_band | N | | v2.1: band tra từ ENT-KPITarget |
@@ -1098,7 +1099,7 @@ Không `deleted_at` (xóa hội thoại = xóa mềm ở `conversations`).
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | message_id | uuid | Y | FK → messages | |
-| insight_id | uuid | Y | FK → insights | Một trong hai bắt buộc (CK) |
+| insight_id | uuid | Y | FK → insights | Đúng một trong hai: CK `num_nonnulls(message_id, insight_id) = 1` (DEC-165) |
 | user_id | uuid | N | SR → auth.users | |
 | rating | ai.feedback_rating | N | | `up`, `down` |
 | reason / comment | text | Y | | |
@@ -1156,7 +1157,7 @@ Index: SR; `(status, undo_deadline)`. Nguồn feed SCR-17.
 | max_level | ai.autonomy_level | N | | Trần (04 §9.1) |
 | is_active | boolean | N | | |
 
-UQ `(action_name, COALESCE(role_code::text,'*'), COALESCE(max_amount,-1)) WHERE deleted_at IS NULL`. Kill switch lưu ở `platform.system_settings` (`ai.kill_switch` toàn hệ thống; `ai.kill_switch_agents` theo agent — DEC-149).
+`UNIQUE NULLS NOT DISTINCT (action_name, role_code, max_amount) WHERE deleted_at IS NULL` — NULL `role_code` (mọi role) / NULL `max_amount` mỗi loại tính là một giá trị (DEC-161; biểu thức `COALESCE(role_code::text,…)` không IMMUTABLE nên PG không cho dùng trong index). Kill switch lưu ở `platform.system_settings` (`ai.kill_switch` toàn hệ thống; `ai.kill_switch_agents` theo agent — DEC-149).
 
 #### ENT-AIAgentProfile — `ai.agent_profiles` (mới v2.1 — DEC-149, DEC-150)
 
@@ -1213,7 +1214,7 @@ Không lưu prompt/response thô (chỉ hash `prompt_sha256 char(64)`); bật l�
 | Cột | Kiểu | Null | Ràng buộc | Mô tả |
 |---|---|---|---|---|
 | document_type_id | uuid | N | FK → document_types | |
-| version | integer | N | UQ `(document_type_id, version)` | Bất biến sau khi publish |
+| schema_version | integer | N | UQ `(document_type_id, schema_version)` | Bất biến sau khi publish (DEC-162 — tách khỏi `version` C19) |
 | fields | jsonb | N | | `[{name, type, required, is_critical, sensitivity_level, target, table_of}]` (04 §5) |
 | thresholds | jsonb | N | | `{high: 0.90, medium: 0.60, classification_stp: 0.95, per_field: {...}}` (DEC-133) |
 | action_names | text[] | N | | `ACT-*` sinh ra |
@@ -1860,7 +1861,7 @@ Cột `embedding` bổ sung cho `idp.document_pages` (thêm vào spec §4.9):
 
 | # | Quy tắc |
 |---|---|
-| G1 | Một Alembic environment, **một nhánh version (`version_locations`) cho mỗi schema**: `alembic/versions/<schema>/`; `version_table_schema` = schema đó (mỗi schema có `alembic_version` riêng) |
+| G1 | Một Alembic environment, **một chuỗi revision tuyến tính duy nhất** `0001..000X` trong `apps/api/alembic/versions/`; `version_table_schema = platform` (một bảng `platform.alembic_version`). `0001` tạo extension + 10 schema + enum chung; mỗi revision baseline sau phủ một cặp schema theo thứ tự G2 (DEC-159) |
 | G2 | Thứ tự `upgrade head`: `platform` (extension `pgcrypto`, `vector`, `pg_trgm`, `citext`, enum chung) → `auth` → `hr` → `finance` → `sales` → `product` → `risk` → `execution` → `idp` → `ai`. Không phụ thuộc thứ tự giữa module vì không có FK xuyên schema |
 | G3 | Mọi migration có `upgrade()` + `downgrade()`; review autogenerate (partial index, enum, generated column, HNSW hay bị bỏ sót) |
 | G4 | Quyền DB: mỗi module có DB role `aureon_<schema>` chỉ `USAGE` + DML trên schema của mình; app runtime dùng role tổng hợp nhưng test kiến trúc (import-linter) chặn truy cập chéo; `audit_logs` chỉ `INSERT, SELECT` |
