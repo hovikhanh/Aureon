@@ -23,8 +23,10 @@ async def test_dashboard_shape_and_headers(api: ApiClient) -> None:
     assert res.headers["cache-control"] == "private, max-age=60"
     assert "Authorization" in res.headers["vary"]
     d = res.json()["data"]
-    assert d["pillar"] == "S" and d["metrics"] == [] and d["open_alerts"] == 0
-    assert d["summary"]["strategy_execution_index"] is None
+    assert d["pillar"] == "S" and isinstance(d["open_alerts"], int)  # metric store (T-222)
+    assert all(m["metric_code"].startswith("METRIC-RSK-") for m in d["metrics"])
+    sei = {m["metric_code"]: m["value"] for m in d["metrics"]}.get("METRIC-RSK-06")
+    assert d["summary"]["strategy_execution_index"] == sei
     assert len(d["heatmap"]) == 25 and len(d["risk_score_trend"]) == 6
     keys = [p["period_key"] for p in d["risk_score_trend"]]
     assert keys == sorted(keys) and keys[-1] == d["period"]["key"]

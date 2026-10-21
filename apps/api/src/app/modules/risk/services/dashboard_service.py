@@ -1,8 +1,8 @@
 """EP-100 `/risk/dashboard` (FR-RSK-07, 10 §5): summary + heatmap 5×5 + `risk_score_trend`.
 
-`metrics: []`, `open_alerts`/`unacknowledged_alerts` = 0 and `strategy_execution_index` = null
-until the platform metric store / alert engine and execution are wired (DEC-219). Pillar
-status is derived from METRIC-RSK-01..05 computed on the fly (same code as the provider).
+`metrics[]`, `open_alerts` and `strategy_execution_index` (METRIC-RSK-06, execution provider)
+come from the metric store via `platform.pillar_snapshot` (T-222, isolated: store down →
+`metrics=[]`, 0 alerts). Pillar status stays derived from METRIC-RSK-01..05 computed live.
 """
 
 from datetime import date, timedelta
@@ -14,6 +14,7 @@ from app.core.clock import business_today, month_range, shift_month
 from app.core.deps import Principal
 from app.core.errors import BadRequestError
 from app.modules.hr.services.metrics import resolve_period
+from app.modules.platform.services.pillar_snapshot import pillar_snapshot
 from app.modules.risk.repositories import MitigationRepository, RiskRepository
 from app.modules.risk.schemas import (
     HeatCell,
@@ -56,6 +57,8 @@ class RiskDashboardService:
         opened = [
             r for r in risks if r.status != "proposed" and _between(r.identified_at, p.start, p.end)
         ]
+        store = await pillar_snapshot(self.db, "S")
+        sei = next((m["value"] for m in store.metrics if m["metric_code"] == "METRIC-RSK-06"), None)
         summary = RiskSummary(
             open_risks=len(live),
             critical_count=sum(r.severity == "critical" for r in live),
@@ -66,7 +69,7 @@ class RiskDashboardService:
             mitigations_active=sum(m.status in rules.ACTIVE_MITIGATION for m in mits),
             mitigations_overdue=len(analytics.overdue(mits, as_of)),
             unacknowledged_alerts=0,
-            strategy_execution_index=None,
+            strategy_execution_index=sei,
         )
         heat = rules.heatmap([(r.likelihood, r.impact) for r in live])
         trend: list[RiskScorePoint] = []
@@ -81,6 +84,6 @@ class RiskDashboardService:
         return RiskDashboardOut(
             status=rules.pillar_status(readings.statuses()),
             period=PeriodOut(key=p.key, type=p.type, start_date=p.start, end_date=p.end),
-            summary=summary, heatmap=[HeatCell(**c) for c in heat], metrics=[],
-            risk_score_trend=trend, open_alerts=0,
+            summary=summary, heatmap=[HeatCell(**c) for c in heat], metrics=store.metrics,
+            risk_score_trend=trend, open_alerts=store.open_alerts or 0,
         )  # fmt: skip

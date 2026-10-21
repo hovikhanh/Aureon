@@ -15,14 +15,16 @@ from tests.conftest import ApiClient
 AS_OF = date(2036, 2, 10)
 P = "2036-01"
 ENDPOINTS = (("F", "/finance/dashboard", "CFO"), ("C", "/sales/dashboard", "VP_SALES"),
-             ("O", "/hr/dashboard", "HR_MANAGER"), ("U", "/product/dashboard", "CPO"))  # fmt: skip
+             ("O", "/hr/dashboard", "HR_MANAGER"), ("U", "/product/dashboard", "CPO"),
+             ("S", "/risk/dashboard", "RISK_MANAGER"))  # fmt: skip
 
 
 async def _store(db: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     async def provider(_db: AsyncSession, _as_of: date) -> list[MetricReading]:
         return [MetricReading("METRIC-CUS-03", 80.0, P), MetricReading("METRIC-HR-02", 30.0, P),
                 MetricReading("METRIC-FIN-05", 40.0, P),
-                MetricReading("METRIC-PRD-03", 10.0, P)]  # fmt: skip
+                MetricReading("METRIC-PRD-03", 10.0, P),
+                MetricReading("METRIC-RSK-04", 20.0, P)]  # fmt: skip
 
     monkeypatch.setattr(METRIC_PROVIDERS, "providers", {"fake": provider})
     await MetricStore(db).recompute(AS_OF)
@@ -42,7 +44,7 @@ async def test_pillar_endpoints_read_store(
     assert d["pillar"] == pillar and d["open_alerts"] >= 1
     if pillar != "F":  # finance keeps its live metric list (FIN-01..07)
         codes = {m["metric_code"] for m in d["metrics"]}
-        assert {"METRIC-CUS-03", "METRIC-HR-02", "METRIC-PRD-03"} & codes
+        assert {"METRIC-CUS-03", "METRIC-HR-02", "METRIC-PRD-03", "METRIC-RSK-04"} & codes
         assert all(
             m["lineage_url"] == f"/dashboard/metrics/{m['metric_code']}" for m in d["metrics"]
         )
@@ -60,10 +62,8 @@ async def test_store_failure_is_isolated(
     assert r.status_code == 200, r.text  # domain summary still served
     d = r.json()["data"]
     assert d["pillar"] == pillar and "summary" in d
-    if pillar != "F":
-        assert d["metrics"] == [] and d["open_alerts"] is None
-    else:
-        assert d["open_alerts"] == 0
+    assert d["metrics"] == [] or pillar == "F"
+    assert d["open_alerts"] == (0 if pillar in ("F", "S") else None)
 
 
 async def test_snapshot_helpers(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
