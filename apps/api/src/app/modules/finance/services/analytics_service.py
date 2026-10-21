@@ -104,12 +104,27 @@ class FinanceAnalyticsService:
     async def burn_and_runway(self, as_of_month: str) -> tuple[int, int | None, float | None]:
         """(net burn over the 3 closed months before `as_of_month`, closing balance, runway)."""
         months = last_months(shift_month(as_of_month, -1), 3)
-        exp = await self.repo.monthly_expense(months)
-        rev = await self.repo.monthly_revenue(months)
-        burn = rules.net_burn([exp.get(m, 0) for m in months], [rev.get(m, 0) for m in months])
+        burn = await self.monthly_burn(months)
         cash = await self.repo.cash_on_or_before(shift_month(as_of_month, -1))
         balance = cash.closing_balance if cash else None
         return burn, balance, rules.runway_months(balance, burn)
+
+    async def monthly_burn(self, months: list[str]) -> int:
+        """BR-FIN-01 on cash "chi − thu" (DEC-202): a month whose opening and closing
+        CashPosition both exist uses `opening − closing`; otherwise `expense − revenue`."""
+        exp = await self.repo.monthly_expense(months)
+        rev = await self.repo.monthly_revenue(months)
+        cash = await self.repo.cash_by_period([shift_month(months[0], -1), *months])
+        outflow, inflow = [], []
+        for m in months:
+            prev = cash.get(shift_month(m, -1))
+            if prev is not None and m in cash:
+                outflow.append(prev)
+                inflow.append(cash[m])
+            else:
+                outflow.append(exp.get(m, 0))
+                inflow.append(rev.get(m, 0))
+        return rules.net_burn(outflow, inflow)
 
     # ---------- EP-69 ----------
     async def what_if_runway(
@@ -174,7 +189,9 @@ class FinanceAnalyticsService:
         prev_months = [shift_month(m, -12) for m in months]
         prev_rev = sum((await self.repo.monthly_revenue(prev_months)).values())
 
-        burn, balance, runway = await self.burn_and_runway(shift_month(last, 1))
+        # BR-FIN-01 uses closed months only: never include the month in progress
+        basis = min(shift_month(last, 1), month_key(today))
+        burn, balance, runway = await self.burn_and_runway(basis)
         ar_total, overdue = await InvoiceRepository(self.db).receivables(per.end_date)
         days = (per.end_date - per.start_date).days + 1
         margin = rules.gross_margin_pct(total_rev, sum(cogs.values()))

@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
 from app.core.events.envelope import OUTBOX
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from tests.conftest import ApiClient
@@ -71,7 +72,10 @@ async def test_what_if_without_cash_position(api: ApiClient) -> None:
     assert d["status_reason"] == "NO_CASH_POSITION" and d["runway_months_no_new_revenue"] is None
 
 
-async def test_dashboard_contract(api: ApiClient) -> None:
+async def test_dashboard_contract(api: ApiClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    cfg = get_config()
+    monkeypatch.setattr(cfg, "demo_mode", True)
+    monkeypatch.setattr(cfg, "demo_reference_date", "2035-04-15")
     await _seed_q1(api)
     dept_budget = {"department_id": "00000000-0000-4000-8000-000000000035", "fiscal_year": 2035,
                    "quarter": "Q1", "allocated_amount": 100 * B}  # fmt: skip
@@ -140,3 +144,16 @@ async def test_burn_over_forecast_daily_job(api: ApiClient, db_session: AsyncSes
     assert ev[0]["actual_burn"] == 400 * B and ev[0]["forecast_burn"] == 300 * B
     assert ev[0]["severity"] == "critical"
     assert await svc.check_burn_over_forecast(date(2035, 7, 1)) is False  # no forecast line
+
+
+async def test_burn_uses_cash_deltas_when_available(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    """DEC-202 / 08 DOC-01: cash 28,05 → 25,95 → 23,4 → 20,4 tỷ → burn 2,55 tỷ → 8,0 tháng."""
+    for period, bal in (("2034-06", 28_050), ("2034-07", 25_950), ("2034-08", 23_400),
+                        ("2034-09", 20_400)):  # fmt: skip
+        await _cash(api, period, bal * B)
+    await _month(api, "2034-09", 25_500 * B, 23_000 * B)  # P&L profitable, cash still burns
+    svc = FinanceAnalyticsService(db_session)
+    burn, balance, runway = await svc.burn_and_runway("2034-10")
+    assert burn == 2_550 * B and balance == 20_400 * B and runway == 8.0

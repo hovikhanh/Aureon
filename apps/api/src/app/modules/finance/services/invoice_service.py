@@ -7,7 +7,7 @@ Events (same transaction): create → `invoice_created`; fully paid → `invoice
 """
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import (
     BusinessRuleError,
@@ -40,7 +41,8 @@ EVT_PAID = "finance.invoice_paid"
 
 
 def today() -> date:
-    return datetime.now(UTC).date()
+    """Business today (08 §1 `DEMO_REFERENCE_DATE` in demo mode)."""
+    return business_today()
 
 
 def _round(value: Decimal) -> int:
