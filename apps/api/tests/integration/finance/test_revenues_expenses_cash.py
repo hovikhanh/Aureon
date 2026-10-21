@@ -4,10 +4,11 @@ import uuid
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import AUDIT_LOGS
+from app.modules.finance.models import CashPosition
 from tests.conftest import ApiClient
 
 pytestmark = pytest.mark.integration
@@ -169,6 +170,10 @@ async def test_manager_scoped_to_own_department(api: ApiClient) -> None:
 
 # ---------- cash positions ----------
 async def test_cash_position_lifecycle(api: ApiClient, db_session: AsyncSession) -> None:
+    # isolate from seeded / earlier positions (rolled back with the test transaction)
+    await db_session.execute(
+        update(CashPosition).where(CashPosition.deleted_at.is_(None)).values(deleted_at=func.now())
+    )
     base = {"cash_source": "bank_statement"}
     a = await api.call(
         "POST", "/finance/cash-positions", json={**base, "period": "2031-08", "closing_balance": 10}

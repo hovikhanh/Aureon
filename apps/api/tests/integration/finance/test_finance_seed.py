@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
@@ -39,6 +39,7 @@ async def seeded(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> A
             update(model).where(model.deleted_at.is_(None)).values(deleted_at=func.now(),
                                                                      source="MANUAL")
         )  # fmt: skip
+    await db_session.execute(delete(OUTBOX).where(OUTBOX.c.event_type.like("finance.%")))
     await db_session.execute(update(Forecast).values(is_current=False))
     await db_session.execute(update(CashFlowForecast).values(is_current=False))
     report = await seed_finance(db_session, uuid.uuid4())
