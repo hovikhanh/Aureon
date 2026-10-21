@@ -10,6 +10,7 @@ import pkgutil
 CONSUMER_MODULES = (
     "app.modules.finance.events.consumers",
     "app.modules.platform.events.consumers",
+    "app.modules.risk.events.consumers",
 )
 # `modules/<m>/services/{metrics,metric_provider}.py` hold `@metric_provider`s (DEC-205).
 _MODULES_PKG = "app.modules"
