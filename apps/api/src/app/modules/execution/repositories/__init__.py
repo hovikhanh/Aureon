@@ -9,7 +9,7 @@ from sqlalchemy import ColumnElement
 
 from app.core.base_model import Base
 from app.core.base_repository import BaseRepository
-from app.modules.execution.models import Task
+from app.modules.execution.models import Decision, Meeting, Project, Task
 
 OPEN_TASK_STATUSES = ("backlog", "todo", "in_progress", "blocked", "in_review")
 
@@ -60,3 +60,15 @@ class TaskRepository(Repo[Task]):
         if not ids:
             return []
         return await self.where(column.in_(ids), order=Task.id)
+
+
+class MeetingRepository(Repo[Meeting]):
+    model = Meeting
+
+
+class DecisionRepository(Repo[Decision]):
+    model = Decision
+
+
+class ProjectRepository(Repo[Project]):
+    model = Project
