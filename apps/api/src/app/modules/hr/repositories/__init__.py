@@ -65,27 +65,14 @@ class EmployeeRepository(BaseRepository[Employee]):
         stmt = select(Employee.manager_id).where(Employee.id == id_)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    async def headcount_on(self, day: date, where: Sequence[ColumnElement[bool]] = ()) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(Employee)
-            .where(Employee.deleted_at.is_(None), employed_on(day), *where)
+    async def roster(
+        self, where: Sequence[ColumnElement[bool]] = ()
+    ) -> list[tuple[date, date | None, str]]:
+        """(hire_date, termination_date, status) of live employees — no PII columns."""
+        stmt = select(Employee.hire_date, Employee.termination_date, Employee.status).where(
+            Employee.deleted_at.is_(None), *where
         )
-        return int((await self.db.execute(stmt)).scalar_one())
-
-    async def count_where(self, *where: ColumnElement[bool]) -> int:
-        stmt = (
-            select(func.count()).select_from(Employee).where(Employee.deleted_at.is_(None), *where)
-        )
-        return int((await self.db.execute(stmt)).scalar_one())
-
-    async def hire_dates_on(
-        self, day: date, where: Sequence[ColumnElement[bool]] = ()
-    ) -> list[date]:
-        stmt = select(Employee.hire_date).where(
-            Employee.deleted_at.is_(None), employed_on(day), *where
-        )
-        return [d for (d,) in (await self.db.execute(stmt)).all()]
+        return [(h, t, s) for h, t, s in (await self.db.execute(stmt)).all()]
 
 
 class SalaryRepository(BaseRepository[SalaryHistory]):
@@ -135,6 +122,14 @@ class HiringPlanRepository(BaseRepository[HiringPlan]):
             .with_for_update(skip_locked=True)
         )
         return (await self.db.execute(stmt)).scalars().all()
+
+    async def late_days(self, today: date, where: Sequence[ColumnElement[bool]] = ()) -> list[int]:
+        """Days late of open, unfilled plans past `target_fill_date` (METRIC-HR-04)."""
+        stmt = select(HiringPlan.target_fill_date).where(
+            HiringPlan.deleted_at.is_(None), HiringPlan.status.in_(OPEN_PLAN_STATUSES),
+            HiringPlan.filled < HiringPlan.headcount, HiringPlan.target_fill_date < today, *where,
+        )  # fmt: skip
+        return [(today - d).days for (d,) in (await self.db.execute(stmt)).all()]
 
     async def open_positions(self, where: Sequence[ColumnElement[bool]] = ()) -> int:
         stmt = select(func.coalesce(func.sum(HiringPlan.headcount - HiringPlan.filled), 0)).where(

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.concurrency import IfMatch, expected_version
 from app.core.deps import Principal, get_db, require_permission
 from app.core.envelope import Page
+from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
@@ -29,11 +30,15 @@ from app.modules.hr.schemas import (
     HiringPlanOut,
     HiringPlanUpdate,
     HiringStatus,
+    HrDashboardOut,
     SalaryCreate,
     SalaryOut,
+    WorkloadOut,
 )
+from app.modules.hr.services.dashboard_service import HrDashboardService
 from app.modules.hr.services.hiring_service import HiringPlanService, plan_out
 from app.modules.hr.services.hr_service import HrService, department_out, today
+from app.modules.hr.services.metrics import Period, resolve_period
 
 router = EnvelopeRouter(tags=["hr"])
 
@@ -41,6 +46,34 @@ Db = Annotated[AsyncSession, Depends(get_db)]
 Reader = Annotated[Principal, Depends(require_permission("hr:read"))]
 Writer = Annotated[Principal, Depends(require_permission("hr:write"))]
 Approver = Annotated[Principal, Depends(require_permission("hr:approve"))]
+Querier = Annotated[Principal, Depends(require_permission("hr:query"))]
+
+
+async def period_dep(period: str | None = None) -> Period:
+    try:
+        return resolve_period(period, today())
+    except ValueError as exc:
+        raise BadRequestError(str(exc), details={"param": "period"}) from exc
+
+
+PeriodQ = Annotated[Period, Depends(period_dep)]
+
+
+# ---------- EP-80 dashboard (10 §5) ----------
+@router.get("/hr/dashboard", response_model=HrDashboardOut)
+async def hr_dashboard(db: Db, user: Querier, period: PeriodQ, response: Response) -> Any:
+    out = await HrDashboardService(db).dashboard(user, period, today())
+    response.headers["Cache-Control"] = "private, max-age=60"
+    response.headers["Vary"] = "Authorization"
+    return out
+
+
+# ---------- EP-87 workload (METRIC-HR-03) ----------
+@router.get("/hr/workload", response_model=list[WorkloadOut])
+async def hr_workload(
+    db: Db, user: Querier, _period: PeriodQ, department_id: uuid.UUID | None = None
+) -> Any:
+    return await HrDashboardService(db).workload(user, department_id=department_id)
 
 
 # ---------- EP-81 departments (L C R U) ----------
