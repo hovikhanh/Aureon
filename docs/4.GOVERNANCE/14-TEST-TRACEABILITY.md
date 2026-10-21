@@ -104,6 +104,8 @@ Mọi TC dưới đây ở trạng thái **Planned** (2026-10-19), trừ các TC
 |---|---|---|---|---|
 | TC-SYS-001 | Implemented (một phần — scaffold 11 module; test import-boundary ở T-004) | `apps/api/tests/unit/test_scaffold.py` | T-003 | brief T-001 |
 | TC-SYS-006 | Implemented (một phần — compose healthcheck postgres/redis/minio/ollama/clamav/worker/beat; `web`/`api` chưa có service) · env v2.1 kiểm bằng `test_env_example.py` | `docker compose ps`, `apps/api/tests/unit/test_env_example.py` | T-002, T-014 | brief T-002 |
+| TC-SYS-002 | Passed — `alembic upgrade head` tạo 10 schema; `downgrade base` sạch (0 bảng/enum module, `public` v1 không đổi); `alembic check` không drift. Chuỗi đơn 0001…0005, version table `platform.alembic_version` | `apps/api/tests/integration/test_migrations.py` + CLI round-trip | T-005 | brief T-003a..e |
+| TC-SYS-009 | Passed — 79 bảng / 10 schema khớp metadata; nhóm nghiệp vụ/cấu hình có `version` + `data_classification`; append-only không `source`/`version`/`deleted_at` (ngoại lệ ghi trong test: `outbox_events.version` = version payload, `ai.conversations` xóa mềm); FK cùng schema + index (C6), không FK xuyên schema (C7); `audit_logs` chặn UPDATE | `apps/api/tests/integration/test_migrations.py` | T-005, T-018 | brief T-003a..e |
 
 ### 2.1. S0 — Nền tảng v2
 

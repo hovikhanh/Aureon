@@ -55,13 +55,15 @@ def test_db_tables_match_metadata(engine: Engine) -> None:
 
 # Columns named like C19 but with a different meaning in 05 (not optimistic locking).
 NON_C19_VERSION = {"platform.outbox_events"}  # 05 §5.1: payload schema version
+# Log tables that 05 explicitly soft-deletes (05 §4.8: "xóa hội thoại = xóa mềm ở conversations").
+SOFT_DELETED_LOGS = {"ai.conversations"}
 
 
 def test_c19_columns_by_group() -> None:
     for name, table in metadata.tables.items():
         cols = set(table.c.keys())
         if name in APPEND_ONLY:
-            forbidden = {"source", "deleted_at"}
+            forbidden = {"source"} | (set() if name in SOFT_DELETED_LOGS else {"deleted_at"})
             if name not in NON_C19_VERSION:
                 forbidden.add("version")
             assert not forbidden & cols, name
