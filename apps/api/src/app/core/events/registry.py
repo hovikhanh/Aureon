@@ -1,0 +1,42 @@
+"""Event type registry — 00 §4.5 (28 `EVT-*`), names without the `EVT-` prefix (10 §8.1).
+
+Only these types may be published (CLAUDE.md §5.4). S0a publishes none; the registry exists so
+`publish_in_tx` rejects unknown names from day one.
+"""
+
+EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "execution.kpi_measured",
+        "execution.task_overdue",
+        "finance.budget_exceeded",
+        "finance.burn_over_forecast",
+        "finance.cash_flow_forecast_updated",
+        "finance.forecast_updated",
+        "finance.invoice_created",
+        "finance.invoice_paid",
+        "hr.employee_onboarded",
+        "hr.employee_terminated",
+        "hr.hiring_plan_delayed",
+        "hr.salary_updated",
+        "idp.document_committed",
+        "idp.document_rolled_back",
+        "idp.review_escalated",
+        "platform.alert_raised",
+        "platform.approval_decided",
+        "platform.approval_requested",
+        "platform.report_generated",
+        "product.feature_released",
+        "product.metric_anomaly",
+        "product.product_launched",
+        "risk.risk_identified",
+        "risk.risk_level_changed",
+        "risk.risk_mitigated",
+        "risk.risk_proposed",
+        "sales.deal_closed_lost",
+        "sales.deal_closed_won",
+    }
+)
+
+
+def is_registered(event_type: str) -> bool:
+    return event_type in EVENT_TYPES

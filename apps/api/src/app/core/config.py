@@ -30,6 +30,8 @@ class ConfigService(BaseSettings):
     redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
     celery_broker_url: SecretStr = SecretStr("redis://localhost:6379/1")
     celery_result_backend: SecretStr = SecretStr("redis://localhost:6379/2")
+    # Outbox relay tick (07 §3 `beat`: every 2 s). Beat runs exactly one instance.
+    outbox_relay_interval_seconds: float = Field(default=2.0, gt=0)
 
     # --- Auth / JWT RS256 (DEC-129) ---
     jwt_algorithm: Literal["RS256"] = "RS256"
