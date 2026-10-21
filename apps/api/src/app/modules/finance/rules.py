@@ -3,6 +3,7 @@
 Money in BIGINT smallest unit; ratios via `Decimal` then rounded (CLAUDE.md §6.5).
 """
 
+from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
@@ -46,3 +47,65 @@ def budget_status(pct: float) -> BudgetStatus:
     if p > BUDGET_WARN_PCT:
         return "warning"
     return "ok"
+
+
+# ---------- BR-FIN-01..04, 06, METRIC-FIN-02/04/07 ----------
+def net_burn(expenses: Sequence[int], incomes: Sequence[int]) -> int:
+    """BR-FIN-01: mean of positive (expense − income) over the given months; none → 0."""
+    positive = [e - i for e, i in zip(expenses, incomes, strict=True) if e - i > 0]
+    if not positive:
+        return 0
+    return int((Decimal(sum(positive)) / len(positive)).quantize(Decimal(1), ROUND_HALF_UP))
+
+
+def runway_months(closing_balance: int | None, burn: int) -> float | None:
+    """BR-FIN-02/03: balance ÷ burn (1 decimal); burn ≤ 0 or no balance → None."""
+    if closing_balance is None or burn <= 0:
+        return None
+    return _round(Decimal(closing_balance) / Decimal(burn), 1)
+
+
+def runway_no_new_revenue(closing_balance: int | None, expenses: Sequence[int]) -> float | None:
+    """BR-FIN-06: balance ÷ AVG(total expense of the last months)."""
+    if closing_balance is None or not expenses or sum(expenses) <= 0:
+        return None
+    return _round(Decimal(closing_balance) * len(expenses) / Decimal(sum(expenses)), 1)
+
+
+def pct(numerator: int, denominator: int, places: int = 1) -> float | None:
+    if denominator == 0:
+        return None
+    return _round(Decimal(numerator) * 100 / Decimal(denominator), places)
+
+
+def gross_margin_pct(revenue: int, cogs: int) -> float | None:
+    """METRIC-FIN-02: (revenue − COGS) ÷ revenue × 100."""
+    return pct(revenue - cogs, revenue)
+
+
+def growth_pct(current: int, previous: int) -> float | None:
+    return pct(current - previous, previous)
+
+
+def dso_days(receivables: int, revenue: int, days_in_period: int) -> float | None:
+    """METRIC-FIN-04: AR ÷ revenue × days."""
+    if revenue <= 0:
+        return None
+    return _round(Decimal(receivables) * days_in_period / Decimal(revenue), 1)
+
+
+def projected_month_burn(
+    expense_mtd: int, income_mtd: int, days_in_month: int, days_elapsed: int
+) -> int:
+    """METRIC-FIN-07: (expense MTD − income MTD) × days in month ÷ elapsed days."""
+    if days_elapsed <= 0:
+        return 0
+    value = Decimal(expense_mtd - income_mtd) * days_in_month / days_elapsed
+    return int(value.quantize(Decimal(1), ROUND_HALF_UP))
+
+
+def burn_variance_pct(projected: int, forecast: int) -> float | None:
+    """METRIC-FIN-07: (projected − forecast) ÷ |forecast| × 100."""
+    if forecast == 0:
+        return None
+    return _round(Decimal(projected - forecast) * 100 / abs(Decimal(forecast)), 1)

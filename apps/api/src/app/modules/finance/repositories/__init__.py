@@ -4,6 +4,7 @@ import uuid
 from datetime import date
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
 from app.core.events.envelope import OUTBOX
@@ -165,3 +166,76 @@ class InvoiceRepository(BaseRepository[Invoice]):
         )
         total, overdue = (await self.db.execute(stmt)).one()
         return int(total), int(overdue)
+
+
+class AnalyticsRepository:
+    """Read-only aggregates for BR-FIN / dashboard (one GROUP BY per source, no N+1)."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def monthly_revenue(self, periods: list[str]) -> dict[str, int]:
+        stmt = (
+            select(Revenue.period_key, func.sum(Revenue.amount))
+            .where(Revenue.deleted_at.is_(None), Revenue.period_key.in_(periods))
+            .group_by(Revenue.period_key)
+        )
+        return {p: int(v) for p, v in (await self.db.execute(stmt)).all()}
+
+    async def monthly_expense(
+        self, periods: list[str], category: str | None = None
+    ) -> dict[str, int]:
+        stmt = (
+            select(Expense.period_key, func.sum(Expense.amount))
+            .where(Expense.deleted_at.is_(None), Expense.period_key.in_(periods))
+            .group_by(Expense.period_key)
+        )
+        if category is not None:
+            stmt = stmt.where(Expense.category == category)
+        return {p: int(v) for p, v in (await self.db.execute(stmt)).all()}
+
+    async def sum_between(
+        self, model: type[Revenue] | type[Expense], start: date, end: date
+    ) -> int:
+        col = Revenue.revenue_date if model is Revenue else Expense.expense_date
+        stmt = select(func.coalesce(func.sum(model.amount), 0)).where(
+            model.deleted_at.is_(None), col >= start, col < end
+        )
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def cash_on_or_before(self, period_key: str) -> CashPosition | None:
+        stmt = (
+            select(CashPosition)
+            .where(CashPosition.deleted_at.is_(None), CashPosition.period_key <= period_key)
+            .order_by(CashPosition.period_key.desc())
+            .limit(1)
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def cash_by_period(self, periods: list[str]) -> dict[str, int]:
+        stmt = select(CashPosition.period_key, CashPosition.closing_balance).where(
+            CashPosition.deleted_at.is_(None), CashPosition.period_key.in_(periods)
+        )
+        return {p: int(v) for p, v in (await self.db.execute(stmt)).all()}
+
+    async def forecast_line(self, scenario: str, period_key: str) -> ForecastLine | None:
+        """Line of the earliest-generated forecast of `scenario` covering `period_key`
+        (= "bản đầu tháng", METRIC-FIN-07)."""
+        stmt = (
+            select(ForecastLine)
+            .join(Forecast, Forecast.id == ForecastLine.forecast_id)
+            .where(
+                Forecast.deleted_at.is_(None), ForecastLine.deleted_at.is_(None),
+                Forecast.scenario == scenario, ForecastLine.period_key == period_key,
+            )
+            .order_by(Forecast.generated_at.asc())
+            .limit(1)
+        )  # fmt: skip
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def burn_event_published(self, day: date) -> bool:
+        stmt = select(func.count()).where(
+            OUTBOX.c.event_type == "finance.burn_over_forecast",
+            OUTBOX.c.payload["as_of"].astext == day.isoformat(),
+        )
+        return int((await self.db.execute(stmt)).scalar_one()) > 0

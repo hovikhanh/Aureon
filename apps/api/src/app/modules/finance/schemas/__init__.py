@@ -330,3 +330,90 @@ class InvoicePay(BaseModel):
     amount_paid: int = Field(gt=0)
     paid_at: datetime
     method: Literal["bank_transfer", "cash", "card", "other"] | None = None
+
+
+# ---------- EP-69 what-if runway ----------
+class SourceRefOut(BaseModel):
+    """10 §4.10 SourceRef (subset used by finance computations)."""
+
+    type: Literal["metric_value", "record", "document_page", "tool_result"]
+    id: str
+    label: str
+    period_key: str | None = None
+    value: float | int | None = None
+    lineage_url: str | None = None
+
+
+class RunwayWhatIfOut(BaseModel):
+    as_of: date
+    runway_months_no_new_revenue: float | None
+    runway_months: float | None
+    closing_balance: int | None
+    avg_expense_3m: int | None
+    avg_revenue_3m: int | None
+    net_burn: int | None
+    revenue_change_pct: float
+    expense_change_pct: float
+    extra_monthly_cost: int
+    currency: str = "VND"
+    status_reason: str | None = None
+    sources: list[SourceRefOut]
+
+
+# ---------- EP-60 dashboard (10 §5) ----------
+PillarStatus = Literal["ok", "warning", "critical", "no_data"]
+
+
+class DashboardPeriod(BaseModel):
+    key: str
+    type: str
+    start_date: date
+    end_date: date
+
+
+class FinanceSummary(BaseModel):
+    total_revenue: int
+    total_expense: int
+    net_profit: int
+    gross_margin_pct: float | None
+    gross_burn: int
+    net_burn: int
+    runway_months: float | None
+    revenue_growth_pct: float | None
+    budget_utilization_pct: float | None
+    overdue_ar: int
+    dso_days: float | None
+    currency: str = "VND"
+
+
+class FinanceMetricOut(BaseModel):
+    metric_code: str
+    value: float | None
+    unit: str
+    status: PillarStatus
+    computed_at: datetime
+    freshness: Literal["fresh", "stale", "no_data"]
+    data_quality_pct: float | None = None
+    lineage_url: str
+
+
+class RevenueTrendPoint(BaseModel):
+    period_key: str
+    revenue: int
+    expense: int
+
+
+class RunwayTrendPoint(BaseModel):
+    period_key: str
+    runway_months: float | None
+
+
+class FinanceDashboardOut(BaseModel):
+    pillar: Literal["F"] = "F"
+    status: PillarStatus
+    period: DashboardPeriod
+    summary: FinanceSummary
+    metrics: list[FinanceMetricOut]
+    revenue_trend: list[RevenueTrendPoint]
+    runway_trend: list[RunwayTrendPoint]
+    open_alerts: int

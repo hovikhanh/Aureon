@@ -6,6 +6,7 @@ Pattern for every domain module: one permission per route, `Idem` on create POST
 
 import re
 import uuid
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Query, Response
@@ -30,6 +31,7 @@ from app.modules.finance.schemas import (
     ExpenseCreate,
     ExpenseOut,
     ExpenseUpdate,
+    FinanceDashboardOut,
     ForecastCreate,
     ForecastOut,
     ForecastUpdate,
@@ -44,9 +46,11 @@ from app.modules.finance.schemas import (
     RevenueCreate,
     RevenueOut,
     RevenueUpdate,
+    RunwayWhatIfOut,
     Scenario,
     check_period,
 )
+from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.budget_service import BudgetService, budget_out
 from app.modules.finance.services.finance_service import FinanceService, expense_out, revenue_out
 from app.modules.finance.services.forecast_service import ForecastService
@@ -368,3 +372,29 @@ async def pay_invoice(
     await db.commit()
     await idem.remember(out)
     return out
+
+
+# ---------- EP-60 dashboard / EP-69 what-if ----------
+Querier = Annotated[Principal, Depends(require_permission("finance:query"))]
+
+
+@router.get("/finance/dashboard", response_model=FinanceDashboardOut)
+async def finance_dashboard(
+    db: Db, _: Querier, response: Response, period: str | None = None
+) -> Any:
+    response.headers["Cache-Control"] = "private, max-age=60"
+    response.headers["Vary"] = "Authorization"
+    return await FinanceAnalyticsService(db).dashboard(period)
+
+
+@router.get("/finance/what-if/runway", response_model=RunwayWhatIfOut)
+async def what_if_runway(
+    db: Db, _: Querier, as_of: date | None = None,
+    revenue_change_pct: Annotated[float, Query(ge=-100, le=100)] = -100,
+    expense_change_pct: Annotated[float, Query(ge=-100, le=100)] = 0,
+    extra_monthly_cost: Annotated[int, Query(ge=0)] = 0,
+) -> Any:  # fmt: skip
+    return await FinanceAnalyticsService(db).what_if_runway(
+        as_of=as_of, revenue_change_pct=revenue_change_pct,
+        expense_change_pct=expense_change_pct, extra_monthly_cost=extra_monthly_cost,
+    )  # fmt: skip
