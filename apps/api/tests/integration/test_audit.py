@@ -18,7 +18,6 @@ from app.core.deps import get_db
 from app.core.security import hash_password
 from app.main import create_app
 from app.modules.auth.models import Role, User
-from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 from app.modules.platform.models import AuditLog, AuditLogImmutableError
 from app.modules.platform.repositories import AuditRepository
 
@@ -196,19 +195,9 @@ async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
 
 
 async def test_login_logout_reuse_are_audited(
-    db_session: AsyncSession, client: httpx.AsyncClient
+    db_session: AsyncSession, client: httpx.AsyncClient, roles: dict[str, Role]
 ) -> None:
-    role = Role(
-        code="CFO",
-        role_ref="ROLE-02",
-        name_vi="GĐ tài chính",
-        name_en="CFO",
-        permissions=list(ROLE_PERMISSIONS["CFO"]),
-        scope_rules={},
-        pillars=["F", "S"],
-    )
-    db_session.add(role)
-    await db_session.flush()
+    role = roles["CFO"]
     user = User(
         email=f"cfo-{uuid.uuid4().hex[:6]}@abc.test",
         password_hash=hash_password("pw-123456"),

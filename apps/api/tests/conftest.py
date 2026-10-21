@@ -10,6 +10,7 @@
 
 import os
 from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -69,3 +70,11 @@ async def db_session() -> AsyncIterator[AsyncSession]:
             await session.close()
             await outer.rollback()
     await engine.dispose()
+
+
+@pytest.fixture
+async def roles(db_session: AsyncSession) -> dict[str, Any]:
+    """The 10 seeded roles (T-008) — upserted inside the rolled-back test transaction."""
+    from app.seed.auth_seed import SeedReport, seed_roles
+
+    return await seed_roles(db_session, SeedReport())

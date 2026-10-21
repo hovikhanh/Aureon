@@ -13,18 +13,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-async def users(db_session: AsyncSession) -> tuple[Role, list[User]]:
-    role = Role(
-        code="EMPLOYEE",
-        role_ref="ROLE-09",
-        name_vi="Nhân viên",
-        name_en="Employee",
-        permissions=["execution:read"],
-        scope_rules={},
-        pillars=[],
-    )
-    db_session.add(role)
-    await db_session.flush()
+async def users(db_session: AsyncSession, roles: dict[str, Role]) -> tuple[Role, list[User]]:
+    role = roles["EMPLOYEE"]
     tag = uuid.uuid4().hex[:6]
     pw = hash_password("x")
     rows = [

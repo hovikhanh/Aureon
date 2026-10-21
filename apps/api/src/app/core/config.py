@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # apps/api/src/app/core/config.py -> repo root is 5 levels up.
@@ -84,7 +84,26 @@ class ConfigService(BaseSettings):
     # --- Demo ---
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
-    demo_password: SecretStr | None = None
+    demo_password: SecretStr | None = None  # fallback for every role below (dev convenience)
+    # 08 §2 — one password per demo account; v1 names accepted as aliases.
+    demo_ceo_password: SecretStr | None = None
+    demo_cfo_password: SecretStr | None = None
+    demo_vp_sales_password: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("DEMO_VP_SALES_PASSWORD", "DEMO_SALES_PASSWORD")
+    )
+    demo_hr_manager_password: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("DEMO_HR_MANAGER_PASSWORD", "DEMO_HR_PASSWORD")
+    )
+    demo_reviewer_password: SecretStr | None = None
+    demo_cpo_password: SecretStr | None = None
+    demo_risk_manager_password: SecretStr | None = None
+    demo_manager_password: SecretStr | None = None
+    demo_employee_password: SecretStr | None = None
+    demo_admin_password: SecretStr | None = None
+
+    def demo_password_for(self, role: str) -> SecretStr | None:
+        value: SecretStr | None = getattr(self, f"demo_{role.lower()}_password", None)
+        return value or self.demo_password
 
     @model_validator(mode="after")
     def _resolve_key_paths(self) -> "ConfigService":

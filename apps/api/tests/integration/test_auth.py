@@ -24,18 +24,8 @@ PASSWORD = "Demo!Pass123"
 
 
 @pytest.fixture
-async def ceo(db_session: AsyncSession) -> User:
-    role = Role(
-        code="CEO",
-        role_ref="ROLE-01",
-        name_vi="Tổng giám đốc",
-        name_en="Chief Executive Officer",
-        permissions=list(ROLE_PERMISSIONS["CEO"]),
-        scope_rules={},
-        pillars=["F", "O", "C", "U", "S"],
-    )
-    db_session.add(role)
-    await db_session.flush()
+async def ceo(db_session: AsyncSession, roles: dict[str, Role]) -> User:
+    role = roles["CEO"]
     user = User(
         email=f"ceo-{uuid.uuid4().hex[:8]}@abc.test",
         password_hash=hash_password(PASSWORD),
