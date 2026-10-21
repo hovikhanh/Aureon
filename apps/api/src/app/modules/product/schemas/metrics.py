@@ -90,3 +90,4 @@ class ProductDashboardOut(BaseModel):
     metrics: list[dict[str, Any]]
     mau_trend: list[MauPoint]
     churn_trend: list[ChurnPoint]
+    open_alerts: int | None = None  # 10 §5; None when the metric store is unavailable

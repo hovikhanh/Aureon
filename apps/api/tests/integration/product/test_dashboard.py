@@ -71,7 +71,8 @@ async def test_dashboard_summary_and_trends(api: ApiClient, db_session: AsyncSes
 
     d = await dash(api)
     s = d["summary"]
-    assert d["pillar"] == "U" and d["status"] == "no_data" and d["metrics"] == []
+    assert d["pillar"] == "U" and isinstance(d["open_alerts"], int)
+    assert all(m["metric_code"].startswith("METRIC-PRD-") for m in d["metrics"])  # store, T-222
     assert d["period"] == {
         "key": "2037-05",
         "type": "month",

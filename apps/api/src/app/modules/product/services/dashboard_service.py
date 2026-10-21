@@ -1,5 +1,5 @@
 """EP-90 product dashboard (FR-PRD-07, 10 §5) — computed on read until the metric store wires
-`metrics[]` (DEC-200 pattern; `metrics: []` → pillar `no_data` for now).
+`metrics[]` + `open_alerts` from the metric store (`platform.pillar_snapshot`, T-222).
 
 Mapping (DEC-214): snapshot figures use each launched product's latest current snapshot with
 `period_key ≤` the period's last month; `features_released` counts released features whose
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import business_today
 from app.core.deps import Principal
+from app.modules.platform.services.pillar_snapshot import pillar_snapshot
 from app.modules.product.models import Feature, Product, ProductMetric, Release
 from app.modules.product.repositories import (
     FeatureRepository,
@@ -119,9 +120,11 @@ class ProductDashboardService:
             ]
             mau_trend.append(MauPoint(period_key=key, mau=calc.total_mau(month)))
             churn_trend.append(ChurnPoint(period_key=key, churn_rate_pct=calc.worst_churn(month)))
-        metrics: list[dict[str, object]] = []  # METRIC-PRD-* from the metric store (T-220)
+        snap = await pillar_snapshot(self.db, "U")  # METRIC-PRD-* of pillar U
+        metrics: list[dict[str, object]] = list(snap.metrics)
         return ProductDashboardOut(
             status=calc.pillar_status(str(m["status"]) for m in metrics),
             period=PeriodOut(key=p.key, type=p.type, start_date=p.start, end_date=p.end),
             summary=summary, metrics=metrics, mau_trend=mau_trend, churn_trend=churn_trend,
+            open_alerts=snap.open_alerts,
         )  # fmt: skip
