@@ -28,6 +28,7 @@ from app.modules.risk.services.common import (
     now_utc,
     publish,
     publish_identified,
+    publish_proposed,
     risk_out,
 )
 
@@ -159,3 +160,37 @@ class RiskService:
             await publish(self.db, "risk.risk_level_changed", obj,
                           {"from_severity": old_level, "to_severity": new_level})  # fmt: skip
         return out
+
+    # ---------- T-215 / BR-RSK-03: proposed risks (event / ai / document) ----------
+    async def propose(
+        self, *, title: str, category: str, likelihood: int, impact: int, risk_source: str,
+        linked_entities: dict[str, str], department_id: uuid.UUID | None = None,
+        description: str | None = None, source_event_id: uuid.UUID | None = None,
+        source_document_id: uuid.UUID | None = None, actor: uuid.UUID | None = None,
+    ) -> Risk:  # fmt: skip
+        """Create a `proposed` risk (no owner needed) + `EVT-risk.risk_proposed` (DEC-148).
+
+        Used by the event consumers (T-212) and later by `ACT-upsert_risk` (IDP / AI).
+        """
+        if risk_source == "manual" or category not in rules.CATEGORIES:
+            raise BusinessRuleError(
+                "proposed risks need a non-manual risk_source and one of the 13 categories",
+                details={"rule": "BR-RSK-03"},
+            )
+        score = rules.risk_score(likelihood, impact)
+        now = now_utc()
+        record_source = {"event": "EVENT", "ai": "AI", "document": "IDP"}[risk_source]
+        obj = Risk(
+            code=await self.new_code(), title=title, description=description,
+            category=category, likelihood=likelihood, impact=impact,
+            severity=rules.level_for(score), status="proposed", risk_source=risk_source,
+            department_id=department_id, linked_entities=linked_entities, identified_at=now,
+            proposed_at=now, source_event_id=source_event_id,
+            source_document_id=source_document_id, source=record_source, created_by=actor,
+        )  # fmt: skip
+        self.db.add(obj)
+        await self.db.flush()
+        await self.db.refresh(obj)
+        await audit(self.db, "risk.risk_propose", "risks", obj, after=risk_out(obj))
+        await publish_proposed(self.db, obj)
+        return obj
