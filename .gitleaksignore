@@ -1,0 +1,8 @@
+# gitleaks false positives, reviewed 2026-10-21 (DEC-177). One fingerprint per line.
+# v1 test fixture fake key "sk-test…" (file removed from HEAD; history kept — no force push):
+7e5798f207b365a4bcc4cf493c3f7adca5896c59:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
+913ca8fd3c38ad05b38d96308722ba9afd292ff4:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
+dd125a4cbacb366ec702d7c508835735d34d105f:apps/api/tests/model_gateway/conftest.py:generic-api-key:14
+# docs heading text '10-API-SPECIFICATION, 14-TEST-TRACEABILITY' matched generic-api-key:
+913ca8fd3c38ad05b38d96308722ba9afd292ff4:docs/3.EXECUTION/11-AGENT-WORKFLOW.md:generic-api-key:266
+56f5ca57a3e562ee528fdcdf00d9eb602d65242d:docs/3.EXECUTION/11-AGENT-WORKFLOW.md:generic-api-key:266
