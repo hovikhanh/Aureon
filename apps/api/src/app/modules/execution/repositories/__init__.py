@@ -9,7 +9,18 @@ from sqlalchemy import ColumnElement
 
 from app.core.base_model import Base
 from app.core.base_repository import BaseRepository
-from app.modules.execution.models import Decision, Meeting, Project, Task
+from app.modules.execution.models import (
+    CheckIn,
+    Decision,
+    KeyResult,
+    Kpi,
+    KpiMeasurement,
+    KpiTarget,
+    Meeting,
+    Objective,
+    Project,
+    Task,
+)
 
 OPEN_TASK_STATUSES = ("backlog", "todo", "in_progress", "blocked", "in_review")
 
@@ -72,3 +83,40 @@ class DecisionRepository(Repo[Decision]):
 
 class ProjectRepository(Repo[Project]):
     model = Project
+
+
+class ObjectiveRepository(Repo[Objective]):
+    model = Objective
+
+
+class KeyResultRepository(Repo[KeyResult]):
+    model = KeyResult
+
+
+class KpiRepository(Repo[Kpi]):
+    model = Kpi
+
+
+class KpiTargetRepository(Repo[KpiTarget]):
+    model = KpiTarget
+
+    async def find(self, kpi_id: uuid.UUID, period_key: str) -> KpiTarget | None:
+        rows = await self.where(KpiTarget.kpi_id == kpi_id, KpiTarget.period_key == period_key)
+        return rows[0] if rows else None
+
+
+class MeasurementRepository(Repo[KpiMeasurement]):
+    model = KpiMeasurement
+
+    async def find(self, kpi_id: uuid.UUID, period_key: str) -> KpiMeasurement | None:
+        """Row lock so two concurrent measurements of one period serialise."""
+        stmt = (
+            self._live()
+            .where(KpiMeasurement.kpi_id == kpi_id, KpiMeasurement.period_key == period_key)
+            .with_for_update()
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+
+class CheckInRepository(Repo[CheckIn]):
+    model = CheckIn

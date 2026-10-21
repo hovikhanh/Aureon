@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.concurrency import IfMatch, expected_version
 from app.core.deps import Principal, get_db, require_permission
 from app.core.envelope import Page
+from app.core.errors import NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
@@ -29,7 +30,23 @@ from app.modules.execution.schemas.meetings import (
     ProjectOut,
     ProjectUpdate,
 )
+from app.modules.execution.schemas.okr import (
+    CheckInCreate,
+    CheckInOut,
+    KeyResultCreate,
+    KeyResultOut,
+    KeyResultUpdate,
+    KpiCreate,
+    KpiOut,
+    KpiUpdate,
+    MeasurementCreate,
+    MeasurementOut,
+    ObjectiveCreate,
+    ObjectiveOut,
+    ObjectiveUpdate,
+)
 from app.modules.execution.schemas.tasks import TaskCreate, TaskOut, TaskUpdate
+from app.modules.execution.services.kpi_service import KpiService, kpi_out
 from app.modules.execution.services.meeting_service import (
     MeetingService,
     ProjectService,
@@ -37,6 +54,7 @@ from app.modules.execution.services.meeting_service import (
     meeting_out,
     project_out,
 )
+from app.modules.execution.services.okr_service import OkrService, kr_out, objective_out
 from app.modules.execution.services.task_service import TaskService, task_out
 
 router = EnvelopeRouter(tags=["execution"])
@@ -227,3 +245,198 @@ async def delete_project(project_id: uuid.UUID, db: Db, user: Writer) -> Respons
     await ProjectService(db).delete_project(user, project_id)
     await db.commit()
     return Response(status_code=204)
+
+
+def _page(items: Any, total: int, page: PageParams) -> Page[Any]:
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+# ---------- EP-46 objectives + key results ----------
+@router.get("/execution/objectives", response_model=list[ObjectiveOut])
+async def list_objectives(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("period_key", "title", "updated_at"))],
+    period_key: str | None = None, owner_id: uuid.UUID | None = None,
+) -> Any:  # fmt: skip
+    items, total = await OkrService(db).list_objectives(
+        user, page, period_key=period_key, owner_id=owner_id
+    )
+    return _page(items, total, page)
+
+
+@router.post("/execution/objectives", response_model=ObjectiveOut, status_code=201)
+async def create_objective(body: ObjectiveCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ObjectiveOut.model_validate(hit)
+    out = await OkrService(db).create_objective(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/execution/objectives/{objective_id}", response_model=ObjectiveOut)
+async def get_objective(objective_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return objective_out(await OkrService(db).get_objective(user, objective_id))
+
+
+@router.patch("/execution/objectives/{objective_id}", response_model=ObjectiveOut)
+async def update_objective(
+    objective_id: uuid.UUID, body: ObjectiveUpdate, db: Db, user: Writer,
+    if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await OkrService(db).update_objective(user, objective_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/execution/objectives/{objective_id}", status_code=204, response_class=Response)
+async def delete_objective(objective_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await OkrService(db).delete_objective(user, objective_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+KR_PATH = "/execution/objectives/{objective_id}/key-results"
+
+
+@router.get(KR_PATH, response_model=list[KeyResultOut])
+async def list_key_results(
+    objective_id: uuid.UUID, db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("title", "updated_at"))],
+) -> Any:  # fmt: skip
+    items, total = await OkrService(db).list_krs(user, objective_id, page)
+    return _page(items, total, page)
+
+
+@router.post(KR_PATH, response_model=KeyResultOut, status_code=201)
+async def create_key_result(
+    objective_id: uuid.UUID, body: KeyResultCreate, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return KeyResultOut.model_validate(hit)
+    out = await OkrService(db).create_kr(user, objective_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get(KR_PATH + "/{kr_id}", response_model=KeyResultOut)
+async def get_key_result(objective_id: uuid.UUID, kr_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    kr = await OkrService(db).get_kr(user, kr_id)
+    if kr.objective_id != objective_id:
+        raise NotFoundError("key result not found")
+    return kr_out(kr)
+
+
+@router.patch(KR_PATH + "/{kr_id}", response_model=KeyResultOut)
+async def update_key_result(
+    objective_id: uuid.UUID, kr_id: uuid.UUID, body: KeyResultUpdate, db: Db, user: Writer,
+    if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await OkrService(db).update_kr(user, objective_id, kr_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete(KR_PATH + "/{kr_id}", status_code=204, response_class=Response)
+async def delete_key_result(
+    objective_id: uuid.UUID, kr_id: uuid.UUID, db: Db, user: Writer
+) -> Response:
+    await OkrService(db).delete_kr(user, objective_id, kr_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+# ---------- EP-47 KPIs + measurements ----------
+@router.get("/execution/kpis", response_model=list[KpiOut])
+async def list_kpis(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("code", "name", "updated_at"))],
+    owner_id: uuid.UUID | None = None, metric_code: str | None = None,
+) -> Any:  # fmt: skip
+    items, total = await KpiService(db).list_kpis(
+        user, page, owner_id=owner_id, metric_code=metric_code
+    )
+    return _page(items, total, page)
+
+
+@router.post("/execution/kpis", response_model=KpiOut, status_code=201)
+async def create_kpi(body: KpiCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return KpiOut.model_validate(hit)
+    out = await KpiService(db).create_kpi(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/execution/kpis/{kpi_id}", response_model=KpiOut)
+async def get_kpi(kpi_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return kpi_out(await KpiService(db).get_kpi(user, kpi_id))
+
+
+@router.patch("/execution/kpis/{kpi_id}", response_model=KpiOut)
+async def update_kpi(
+    kpi_id: uuid.UUID, body: KpiUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await KpiService(db).update_kpi(user, kpi_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/execution/kpis/{kpi_id}", status_code=204, response_class=Response)
+async def delete_kpi(kpi_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await KpiService(db).delete_kpi(user, kpi_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/execution/kpis/{kpi_id}/measurements", response_model=list[MeasurementOut])
+async def list_measurements(
+    kpi_id: uuid.UUID, db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("period_key", "measured_at"))],
+) -> Any:  # fmt: skip
+    items, total = await KpiService(db).list_measurements(user, kpi_id, page)
+    return _page(items, total, page)
+
+
+@router.post(
+    "/execution/kpis/{kpi_id}/measurements", response_model=MeasurementOut, status_code=201
+)
+async def create_measurement(
+    kpi_id: uuid.UUID, body: MeasurementCreate, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return MeasurementOut.model_validate(hit)
+    out = await KpiService(db).measure(user, kpi_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+# ---------- EP-48 check-ins ----------
+@router.get("/execution/check-ins", response_model=list[CheckInOut])
+async def list_check_ins(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("checked_in_at"))],
+    owner_id: uuid.UUID | None = None, period_key: str | None = None,
+    kpi_id: uuid.UUID | None = None, key_result_id: uuid.UUID | None = None,
+) -> Any:  # fmt: skip
+    items, total = await KpiService(db).list_check_ins(
+        user, page, owner_id=owner_id, period_key=period_key, kpi_id=kpi_id,
+        key_result_id=key_result_id,
+    )  # fmt: skip
+    return _page(items, total, page)
+
+
+@router.post("/execution/check-ins", response_model=CheckInOut, status_code=201)
+async def create_check_in(body: CheckInCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return CheckInOut.model_validate(hit)
+    out = await KpiService(db).check_in(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
