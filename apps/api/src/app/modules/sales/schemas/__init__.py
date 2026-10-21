@@ -158,3 +158,104 @@ class StageHistoryOut(BaseModel):
     to_stage: str
     changed_by: uuid.UUID | None
     changed_at: datetime
+
+
+# ---------- EP-77 targets ----------
+TargetPeriodType = Literal["month", "quarter", "year"]
+TargetScope = Literal["team", "individual"]
+
+
+class TargetCreate(BaseModel):
+    period_type: TargetPeriodType
+    period_key: str = Field(max_length=7)
+    scope: TargetScope
+    owner_id: uuid.UUID | None = None
+    target_amount: int
+    currency: str = currency_field()
+
+
+class TargetUpdate(_Patch):
+    target_amount: int | None = None
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+
+
+class TargetOut(_Out):
+    period_type: str
+    period_key: str
+    scope: str
+    owner_id: uuid.UUID | None
+    target_amount: int
+    currency: str
+
+
+# ---------- EP-75 pipeline / EP-76 performance ----------
+class PeriodOut(BaseModel):
+    key: str
+    type: str
+    start_date: date
+    end_date: date
+
+
+class PipelineStage(BaseModel):
+    stage: str
+    count: int
+    value: int
+    weighted_value: int
+    avg_days_in_stage: float | None
+
+
+class PipelineOut(BaseModel):
+    period: PeriodOut | None
+    stages: list[PipelineStage]
+    coverage_ratio: float | None
+    currency: str = "VND"
+
+
+GroupBy = Literal["team", "owner"]
+
+
+class PerformanceRow(BaseModel):
+    owner_ref: str
+    closed_value: int
+    quota: int | None
+    attainment_pct: float | None
+    win_rate_pct: float | None
+
+
+# ---------- EP-70 dashboard (10 §5) ----------
+class SalesSummary(BaseModel):
+    pipeline_value: int
+    weighted_pipeline: int
+    deals_open: int
+    deals_won: int
+    deals_lost: int
+    win_rate_pct: float | None
+    avg_deal_value: int | None
+    closed_revenue: int
+    quota_attainment_pct: float | None
+    avg_sales_cycle_days: float | None
+    pipeline_coverage: float | None
+    currency: str = "VND"
+
+
+class PipelineTrendPoint(BaseModel):
+    period_key: str
+    pipeline_value: int
+    weighted_pipeline: int
+
+
+class WinRateTrendPoint(BaseModel):
+    period_key: str
+    won: int
+    lost: int
+    win_rate_pct: float | None
+
+
+class SalesDashboardOut(BaseModel):
+    pillar: Literal["C"] = "C"
+    status: Literal["ok", "warning", "critical", "no_data"]
+    period: PeriodOut
+    summary: SalesSummary
+    metrics: list[dict[str, Any]]
+    pipeline_trend: list[PipelineTrendPoint]
+    win_rate_trend: list[WinRateTrendPoint]

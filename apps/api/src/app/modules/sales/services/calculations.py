@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Literal
 
 OPEN_STAGES: tuple[str, ...] = ("lead", "qualified", "proposal", "negotiation")
 CLOSED_STAGES: tuple[str, ...] = ("closed_won", "closed_lost")
@@ -108,14 +109,18 @@ def stage_durations(
 
 
 # ---------- pillar status (03 §4) ----------
-def pillar_status(metric_statuses: Iterable[str]) -> str:
+PillarStatus = Literal["ok", "warning", "critical", "no_data"]
+
+
+def pillar_status(metric_statuses: Iterable[str]) -> PillarStatus:
     """Worst metric wins; ≥ 50% `no_data` (or no metric at all) → `no_data` (03 §4)."""
     items = list(metric_statuses)
     if not items or items.count("no_data") * 2 >= len(items):
         return "no_data"
-    for level in ("critical", "warning"):
-        if level in items:
-            return level
+    if "critical" in items:
+        return "critical"
+    if "warning" in items:
+        return "warning"
     return "ok"
 
 

@@ -26,7 +26,7 @@ from app.core.errors import (
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
 from app.core.pii import mask_text
-from app.modules.sales.models import Client, Deal, DealStageHistory
+from app.modules.sales.models import Client, Deal, DealStageHistory, SalesTarget
 from app.modules.sales.repositories import (
     ClientRepository,
     ContractRepository,
@@ -45,6 +45,9 @@ from app.modules.sales.schemas import (
     SimilarClient,
     StageChange,
     StageHistoryOut,
+    TargetCreate,
+    TargetOut,
+    TargetUpdate,
 )
 from app.modules.sales.services import calculations as calc
 from app.modules.sales.services import scope
@@ -86,6 +89,14 @@ def deal_out(d: Deal) -> DealOut:
         expected_close_date=d.expected_close_date, closed_at=d.closed_at,
         lost_reason=d.lost_reason, owner_id=d.assigned_to, department_id=d.department_id,
         product_id=d.product_id, tags=list(d.tags), description=d.description,
+    )  # fmt: skip
+
+
+def target_out(t: SalesTarget) -> TargetOut:
+    return TargetOut(
+        id=t.id, version=t.version, created_at=t.created_at, updated_at=t.updated_at,
+        period_type=t.period_type.lower(), period_key=t.period_key, scope=t.scope,
+        owner_id=t.owner_id, target_amount=t.target_amount, currency=t.currency,
     )  # fmt: skip
 
 
@@ -404,3 +415,77 @@ class SalesService:
         if page.order == "desc":
             out.reverse()
         return out[page.offset : page.offset + page.limit], len(out)
+
+    # ---------- EP-77 targets ----------
+    async def list_targets(
+        self, page: PageParams, *, period_key: str | None, scope_: str | None
+    ) -> tuple[list[TargetOut], int]:
+        filters: dict[str, Any] = {}
+        if period_key:
+            filters["period_key"] = period_key
+        if scope_:
+            filters["scope"] = scope_
+        items, total = await self.targets.list_page(
+            limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
+            filters=filters,
+        )  # fmt: skip
+        return [target_out(t) for t in items], total
+
+    async def get_target(self, id_: uuid.UUID) -> SalesTarget:
+        obj = await self.targets.get(id_)
+        if obj is None:
+            raise NotFoundError("sales target not found")
+        return obj
+
+    async def create_target(self, user: Principal, body: TargetCreate) -> TargetOut:
+        scope.require_target_writer(user)
+        _positive(body.target_amount, "target_amount", "FR-SAL-06")
+        if not calc.target_period_key_ok(body.period_type, body.period_key):
+            raise BusinessRuleError(
+                "period_key does not match period_type",
+                details={"field": "period_key", "rule": "FR-SAL-06"},
+            )
+        if (body.scope == "individual") != (body.owner_id is not None):
+            raise BusinessRuleError(
+                "owner_id is required for individual targets and forbidden for team targets",
+                details={"field": "owner_id", "rule": "FR-SAL-06"},
+            )
+        if await self.targets.find(body.period_key, body.scope, body.owner_id) is not None:
+            raise DuplicateResourceError(
+                "target already exists for this period / scope / owner",
+                details={"period_key": body.period_key, "scope": body.scope},
+            )
+        obj = SalesTarget(
+            period_type=body.period_type.upper(), period_key=body.period_key, scope=body.scope,
+            owner_id=body.owner_id, target_amount=body.target_amount, currency=body.currency,
+            source="MANUAL", created_by=user.user_id,
+        )  # fmt: skip
+        self.db.add(obj)
+        await self._flush_unique("sales target")
+        await self.db.refresh(obj)
+        out = target_out(obj)
+        await self._audit("sales.target_create", "sales_targets", obj, after=out)
+        return out
+
+    async def update_target(
+        self, user: Principal, id_: uuid.UUID, body: TargetUpdate, expected: int
+    ) -> TargetOut:
+        scope.require_target_writer(user)
+        obj = await self.get_target(id_)
+        before = target_out(obj)
+        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        _positive(data.get("target_amount"), "target_amount", "FR-SAL-06")
+        data["updated_by"] = user.user_id
+        await self.targets.update(obj, expected_version=expected, **data)
+        await self.db.refresh(obj)
+        out = target_out(obj)
+        await self._audit("sales.target_update", "sales_targets", obj, before, out)
+        return out
+
+    async def delete_target(self, user: Principal, id_: uuid.UUID) -> None:
+        scope.require_target_writer(user)
+        obj = await self.get_target(id_)
+        before = target_out(obj)
+        obj.updated_by = user.user_id
+        await self.targets.soft_delete(obj)
+        await self._audit("sales.target_delete", "sales_targets", obj, before=before)

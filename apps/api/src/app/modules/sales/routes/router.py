@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.concurrency import IfMatch, expected_version
 from app.core.deps import Principal, get_db, require_permission
 from app.core.envelope import Page
+from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
@@ -25,10 +26,25 @@ from app.modules.sales.schemas import (
     DealOut,
     DealStage,
     DealUpdate,
+    GroupBy,
+    PerformanceRow,
+    PipelineOut,
+    SalesDashboardOut,
     StageChange,
     StageHistoryOut,
+    TargetCreate,
+    TargetOut,
+    TargetScope,
+    TargetUpdate,
 )
-from app.modules.sales.services.sales_service import SalesService, client_out, deal_out
+from app.modules.sales.services import calculations as calc
+from app.modules.sales.services.analytics import SalesAnalytics
+from app.modules.sales.services.sales_service import (
+    SalesService,
+    client_out,
+    deal_out,
+    target_out,
+)
 
 router = EnvelopeRouter(tags=["sales"])
 
@@ -36,6 +52,20 @@ Db = Annotated[AsyncSession, Depends(get_db)]
 Reader = Annotated[Principal, Depends(require_permission("sales:read"))]
 Writer = Annotated[Principal, Depends(require_permission("sales:write"))]
 Querier = Annotated[Principal, Depends(require_permission("sales:query"))]
+DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}
+
+
+async def _period(period: Annotated[str | None, Query(max_length=20)] = None) -> str | None:
+    """10 §1.5 `period` — validated up front so a bad value is `400 BAD_REQUEST`."""
+    if period is not None:
+        try:
+            calc.resolve_period(period, SalesAnalytics.today())
+        except ValueError as exc:
+            raise BadRequestError(str(exc), details={"param": "period"}) from exc
+    return period
+
+
+Period = Annotated[str | None, Depends(_period)]
 
 
 # ---------- EP-71 clients ----------
@@ -151,3 +181,68 @@ async def stage_history(
 ) -> Any:  # fmt: skip
     items, total = await SalesService(db).stage_history(user, deal_id, page)
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+# ---------- EP-77 targets ----------
+@router.get("/sales/targets", response_model=list[TargetOut])
+async def list_targets(
+    db: Db, _: Reader,
+    page: Annotated[PageParams, Depends(page_params("period_key", "target_amount"))],
+    period_key: Annotated[str | None, Query(max_length=7)] = None,
+    scope: TargetScope | None = None,
+) -> Any:  # fmt: skip
+    items, total = await SalesService(db).list_targets(page, period_key=period_key, scope_=scope)
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
+
+
+@router.post("/sales/targets", response_model=TargetOut, status_code=201)
+async def create_target(body: TargetCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return TargetOut.model_validate(hit)
+    out = await SalesService(db).create_target(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/sales/targets/{target_id}", response_model=TargetOut)
+async def get_target(target_id: uuid.UUID, db: Db, _: Reader) -> Any:
+    return target_out(await SalesService(db).get_target(target_id))
+
+
+@router.patch("/sales/targets/{target_id}", response_model=TargetOut)
+async def update_target(
+    target_id: uuid.UUID, body: TargetUpdate, db: Db, user: Writer, if_match: IfMatch = None
+) -> Any:
+    exp = expected_version(if_match, body.version)
+    out = await SalesService(db).update_target(user, target_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/sales/targets/{target_id}", status_code=204, response_class=Response)
+async def delete_target(target_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await SalesService(db).delete_target(user, target_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+# ---------- EP-75 / EP-76 / EP-70 ----------
+@router.get("/sales/pipeline", response_model=PipelineOut)
+async def pipeline(
+    db: Db, user: Querier, period: Period = None, owner_id: uuid.UUID | None = None
+) -> Any:
+    return await SalesAnalytics(db).pipeline(user, period, owner_id)
+
+
+@router.get("/sales/performance", response_model=list[PerformanceRow])
+async def performance(
+    db: Db, user: Querier, period: Period = None, group_by: GroupBy = "team"
+) -> Any:
+    return await SalesAnalytics(db).performance(user, period, group_by)
+
+
+@router.get("/sales/dashboard", response_model=SalesDashboardOut)
+async def dashboard(db: Db, user: Querier, response: Response, period: Period = None) -> Any:
+    response.headers.update(DASHBOARD_CACHE)
+    return await SalesAnalytics(db).dashboard(user, period)
