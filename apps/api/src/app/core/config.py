@@ -3,10 +3,13 @@
 No `os.environ` reads anywhere else. Secrets are `SecretStr` so they never print in logs/reprs.
 """
 
+import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from dotenv import dotenv_values
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -57,6 +60,33 @@ class ConfigService(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     local_chat_model: str = "qwen2.5:7b-instruct"
     embedding_model: str = "bge-m3"
+    # 07 §6.1–6.3. Chain = primary → fallbacks (CSV); a cloud provider with no key is skipped.
+    model_provider_primary: str = "omniroute"
+    model_provider_fallbacks: str = ""
+    omniroute_base_url: str = "http://localhost:20128/v1"
+    omniroute_api_key: SecretStr | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_api_key: SecretStr | None = None
+    ninerouter_base_url: str = "http://localhost:20129/v1"
+    ninerouter_api_key: SecretStr | None = None
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
+    deepseek_api_key: SecretStr | None = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_api_key: SecretStr | None = None
+    anthropic_base_url: str = "https://api.anthropic.com"
+    anthropic_api_key: SecretStr | None = None
+    model_chat: str = "auto/coding"
+    model_classify: str = "auto/cheap"
+    model_extract: str = "auto/coding"
+    model_mapping: str = "auto/cheap"
+    model_insight: str = "auto/cheap"
+    model_stt: str = "fixture/stt"
+    model_temperature: float = Field(default=0.2, ge=0, le=2)
+    model_max_output_tokens: int = Field(default=2048, gt=0)
+    model_pricing_json: str = "{}"  # {"provider:model": {"in": usd_per_1m, "out": usd_per_1m}}
+    ai_turn_timeout_sec: float = Field(default=30, gt=0)
+    ai_monthly_budget_usd: float = Field(default=50, ge=0)
+    ai_budget_alert_pct: int = Field(default=80, ge=1, le=100)
 
     # --- IDP / ClamAV (DEC-138) ---
     clamav_host: str = "localhost"
@@ -117,11 +147,38 @@ class ConfigService(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _model_routing_valid(self) -> "ConfigService":
+        from app.core.model_gateway.routing import validate_routing_config
+
+        validate_routing_config(self)
+        return self
+
+    def model_overrides(self) -> dict[tuple[str, str], str]:
+        """`MODEL_<TASK>__<PROVIDER>` (07 §6.2) from the process env and `.env` (env wins)."""
+        return _model_overrides(self.model_config.get("env_file"))
+
+    @model_validator(mode="after")
     def _dq_weights_sum_to_one(self) -> "ConfigService":
         total = self.dq_weight_completeness + self.dq_weight_accuracy + self.dq_weight_freshness
         if abs(total - 1.0) > 1e-9:
             raise ValueError(f"DQ_WEIGHT_* must sum to 1.0 (got {total})")
         return self
+
+
+_OVERRIDE = re.compile(r"^MODEL_([A-Z]+)__([A-Z0-9]+)$")
+
+
+def _model_overrides(env_file: object) -> dict[tuple[str, str], str]:
+    raw: dict[str, str | None] = {}
+    if isinstance(env_file, Path) and env_file.is_file():
+        raw.update(dotenv_values(env_file))
+    raw.update(os.environ)
+    out: dict[tuple[str, str], str] = {}
+    for key, value in raw.items():
+        m = _OVERRIDE.match(key.upper())
+        if m and value:
+            out[(m.group(1).lower(), m.group(2).lower())] = value
+    return out
 
 
 @lru_cache
