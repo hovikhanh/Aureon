@@ -75,25 +75,16 @@ class AssessmentRepository(BaseRepository[RiskAssessment]):
         )
         return (await self.db.execute(stmt)).scalars().all()
 
-    async def for_risks(self, risk_ids: Sequence[uuid.UUID]) -> Sequence[RiskAssessment]:
-        if not risk_ids:
-            return []
-        stmt = (
-            select(RiskAssessment)
-            .where(RiskAssessment.risk_id.in_(risk_ids))
-            .order_by(RiskAssessment.assessed_at)
-        )
-        return (await self.db.execute(stmt)).scalars().all()
-
 
 class MitigationRepository(BaseRepository[Mitigation]):
     model = Mitigation
 
     async def for_risks(self, risk_ids: Sequence[uuid.UUID]) -> Sequence[Mitigation]:
-        if not risk_ids:
-            return []
         stmt = self._live().where(Mitigation.risk_id.in_(risk_ids))
         return (await self.db.execute(stmt)).scalars().all()
+
+    async def live_all(self) -> Sequence[Mitigation]:
+        return (await self.db.execute(self._live())).scalars().all()
 
     async def count_status(self, risk_id: uuid.UUID, status: str) -> int:
         stmt = select(func.count()).select_from(

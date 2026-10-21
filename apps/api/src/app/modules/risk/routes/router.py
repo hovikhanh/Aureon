@@ -7,7 +7,7 @@ PATCH, `Page` on lists, commit at the end of the request (same pattern as sales/
 import uuid
 from typing import Annotated, Any
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
@@ -27,6 +27,7 @@ from app.modules.risk.schemas import (
     MitigationStatus,
     MitigationUpdate,
     RiskCreate,
+    RiskDashboardOut,
     RiskOut,
     RiskSource,
     RiskStatus,
@@ -35,6 +36,7 @@ from app.modules.risk.schemas import (
     ScenarioOut,
     StatusChange,
 )
+from app.modules.risk.services.dashboard_service import RiskDashboardService
 from app.modules.risk.services.lifecycle_service import RiskLifecycleService
 from app.modules.risk.services.mitigation_service import MitigationService
 from app.modules.risk.services.risk_service import RiskService
@@ -47,6 +49,17 @@ Reader = Annotated[Principal, Depends(require_permission("risk:read"))]
 Writer = Annotated[Principal, Depends(require_permission("risk:write"))]
 Querier = Annotated[Principal, Depends(require_permission("risk:query"))]
 Approver = Annotated[Principal, Depends(require_permission("risk:approve"))]
+DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}
+
+
+# ---------- EP-100 dashboard ----------
+@router.get("/risk/dashboard", response_model=RiskDashboardOut)
+async def dashboard(
+    db: Db, user: Querier, response: Response,
+    period: Annotated[str | None, Query(max_length=20)] = None,
+) -> Any:  # fmt: skip
+    response.headers.update(DASHBOARD_CACHE)
+    return await RiskDashboardService(db).dashboard(user, period)
 
 
 # ---------- EP-101 risks ----------

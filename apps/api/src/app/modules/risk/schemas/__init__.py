@@ -253,3 +253,41 @@ class ScenarioOut(BaseModel):
     scenario_id: uuid.UUID
     impacts: ScenarioImpacts
     sources: list[SourceRef]
+
+
+# ---------- EP-100 dashboard (10 §5) ----------
+class PeriodOut(BaseModel):
+    key: str
+    type: str
+    start_date: date
+    end_date: date
+
+
+class RiskSummary(BaseModel):
+    open_risks: int
+    critical_count: int
+    high_count: int
+    aggregate_risk_score: float | None
+    opened_in_period: int
+    closed_in_period: int
+    mitigations_active: int
+    mitigations_overdue: int
+    unacknowledged_alerts: int
+    strategy_execution_index: float | None
+
+
+class RiskScorePoint(BaseModel):
+    period_key: str
+    aggregate_risk_score: float | None
+    open_risks: int
+
+
+class RiskDashboardOut(BaseModel):
+    pillar: Literal["S"] = "S"
+    status: Literal["ok", "warning", "critical", "no_data"]
+    period: PeriodOut
+    summary: RiskSummary
+    heatmap: list[HeatCell]
+    metrics: list[dict[str, Any]]
+    risk_score_trend: list[RiskScorePoint]
+    open_alerts: int

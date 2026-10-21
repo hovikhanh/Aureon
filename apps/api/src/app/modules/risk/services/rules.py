@@ -85,14 +85,16 @@ def aggregate_score(scores: list[int]) -> float | None:
     return round(sum(scores) / len(scores), 1)
 
 
-def pillar_status(metric_statuses: list[str]) -> str:
+PillarStatus = Literal["ok", "warning", "critical", "no_data"]
+
+
+def pillar_status(metric_statuses: list[str]) -> PillarStatus:
     """10 §5: worst metric wins; ≥ 50% `no_data` (or none) → `no_data`."""
     if not metric_statuses or metric_statuses.count("no_data") * 2 >= len(metric_statuses):
         return "no_data"
-    for s in ("critical", "warning"):
-        if s in metric_statuses:
-            return s
-    return "ok"
+    if "critical" in metric_statuses:
+        return "critical"
+    return "warning" if "warning" in metric_statuses else "ok"
 
 
 def heatmap(cells: list[tuple[int, int]]) -> list[dict[str, int]]:
