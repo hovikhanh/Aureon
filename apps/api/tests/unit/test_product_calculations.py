@@ -1,5 +1,7 @@
 """TC-PRD-002 — pure BR-PRD-01 / METRIC-PRD math (03 §2.4, §5.4)."""
 
+from datetime import date
+
 import pytest
 
 from app.modules.product.services import calculations as calc
@@ -58,3 +60,36 @@ def test_pillar_status() -> None:
     assert calc.pillar_status(["ok", "warning", "critical"]) == "critical"
     assert calc.pillar_status(["ok", "warning", "ok"]) == "warning"
     assert calc.pillar_status(["ok"]) == "ok"
+
+
+def test_resolve_period() -> None:
+    today = date(2037, 5, 20)
+    assert calc.resolve_period(None, today).key == "2037-05"
+    q = calc.resolve_period("current_quarter", today)
+    assert (q.key, q.type, q.start, q.end) == (
+        "2037-Q2",
+        "quarter",
+        date(2037, 4, 1),
+        date(2037, 6, 30),
+    )
+    ytd = calc.resolve_period("ytd", today)
+    assert (ytd.key, ytd.end, ytd.last_month) == ("2037", date(2037, 5, 31), "2037-05")
+    assert calc.resolve_period("2036-12", today).end == date(2036, 12, 31)
+    for bad in ("custom", "2037-00", "2037-Q5"):
+        with pytest.raises(ValueError, match="period"):
+            calc.resolve_period(bad, today)
+    assert calc.trend_keys("2037-02", 3) == ["2036-12", "2037-01", "2037-02"]
+
+
+def test_roadmap_on_time() -> None:
+    today = date(2037, 5, 20)
+    d = date(2037, 5, 1)
+    assert not calc.roadmap_late("planned", None, None, today)
+    assert calc.roadmap_late("planned", d, None, today)
+    assert not calc.roadmap_late("in_progress", date(2037, 6, 1), None, today)
+    assert calc.roadmap_late("done", d, date(2037, 5, 2), today)
+    assert not calc.roadmap_late("done", d, d, today)
+    assert not calc.roadmap_late("done", d, None, today)
+    items = [("done", d, d), ("planned", d, None), ("dropped", d, None)]
+    assert calc.roadmap_on_time_pct(items, today) == 50.0
+    assert calc.roadmap_on_time_pct([], today) is None
