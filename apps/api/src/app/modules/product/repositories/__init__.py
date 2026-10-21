@@ -46,6 +46,9 @@ class FeatureRepository(BaseRepository[Feature]):
 class RoadmapRepository(BaseRepository[RoadmapItem]):
     model = RoadmapItem
 
+    async def all_live(self) -> Sequence[RoadmapItem]:
+        return (await self.db.execute(self._live())).scalars().all()
+
     async def by_quarter(self, quarter: str) -> Sequence[RoadmapItem]:
         stmt = self._live().where(RoadmapItem.quarter == quarter)
         return (await self.db.execute(stmt)).scalars().all()

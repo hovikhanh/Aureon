@@ -52,9 +52,6 @@ class ProductService:
             raise NotFoundError("product not found")
         return obj
 
-    async def exists(self, id_: uuid.UUID) -> bool:
-        return await self.products.get(id_) is not None
-
     async def _check_code(self, code: str, exclude: uuid.UUID | None = None) -> None:
         dup = await self.products.by_code(code)
         if dup is not None and dup.id != exclude:

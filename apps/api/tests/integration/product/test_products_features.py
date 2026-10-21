@@ -143,3 +143,27 @@ async def test_product_delete_blocked_by_open_work(api: ApiClient) -> None:
         "PATCH", f"/product/features/{f['id']}", "CPO", json={"status": "deprecated", "version": 1}
     )
     assert (await api.call("DELETE", f"/product/products/{p['id']}", "CPO")).status_code == 204
+
+
+async def test_idempotent_replay_on_creates(api: ApiClient, db_session: AsyncSession) -> None:
+    """10 §1.6: same `Idempotency-Key` + body → same response, one row (DEC-186)."""
+    p = await make_product(api)
+    bodies = {
+        "products": {"code": code(), "name": "x", "owner_id": str(uuid.uuid4())},
+        "features": {"product_id": p["id"], "name": "x"},
+        "roadmap-items": {"product_id": p["id"], "title": "x", "quarter": "2037-Q3"},
+        "releases": {"product_id": p["id"], "release_version": "9.9"},
+        f"products/{p['id']}/metrics": {"period_key": "2037-07", "mau": 1, "churn_rate_pct": 1},
+    }
+    me = uuid.uuid4()
+    for path, body in bodies.items():
+        h = {**api.headers("CPO", user_id=me), "Idempotency-Key": str(uuid.uuid4())}
+        url = f"/api/v1/product/{path}"
+        first = await api.http.post(url, json=body, headers=h)
+        again = await api.http.post(url, json=body, headers=h)
+        assert first.status_code == 201 and again.status_code == 201, path
+        assert again.json()["data"]["id"] == first.json()["data"]["id"], path
+    missing = await api.http.post(
+        "/api/v1/product/features", json=bodies["features"], headers=api.headers("CPO")
+    )
+    assert missing.status_code == 400
