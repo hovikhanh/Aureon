@@ -1,5 +1,9 @@
-"""HTTP routes for `product` — endpoints added by their T-xxx tasks (10-API-SPECIFICATION)."""
+"""HTTP routes for `product` — EP-90..95 (10 §3.9, §4.9, §5).
 
-from app.core.routing import EnvelopeRouter
+Route files register on the shared `deps.router`; importing them here wires every endpoint.
+"""
 
-router = EnvelopeRouter(tags=["product"])
+from app.modules.product.routes import catalog
+from app.modules.product.routes.deps import router
+
+__all__ = ["catalog", "router"]
