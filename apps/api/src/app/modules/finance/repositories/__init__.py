@@ -184,6 +184,17 @@ class AnalyticsRepository:
         )
         return {p: int(v) for p, v in (await self.db.execute(stmt)).all()}
 
+    async def revenue_by_client(self, periods: list[str]) -> dict[uuid.UUID, int]:
+        stmt = (
+            select(Revenue.client_id, func.sum(Revenue.amount))
+            .where(
+                Revenue.deleted_at.is_(None), Revenue.period_key.in_(periods),
+                Revenue.client_id.is_not(None),
+            )
+            .group_by(Revenue.client_id)
+        )  # fmt: skip
+        return {c: int(v) for c, v in (await self.db.execute(stmt)).all() if c is not None}
+
     async def monthly_expense(
         self, periods: list[str], category: str | None = None
     ) -> dict[str, int]:

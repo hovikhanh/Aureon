@@ -180,7 +180,11 @@ async def test_refresh_unknown_and_expired(
     r = await client.post("/auth/refresh", json={"refresh_token": "x" * 40})
     assert r.status_code == 401
     raw = (await _login(client, ceo.email)).json()["data"]["refresh_token"]
-    token = (await db_session.execute(select(RefreshToken))).scalars().first()
+    token = (
+        (await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == ceo.id)))
+        .scalars()
+        .first()
+    )
     assert token is not None
     token.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     await db_session.flush()
