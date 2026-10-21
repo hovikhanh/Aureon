@@ -126,6 +126,9 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (kèm commit).
 | [ ] | T-231 | FE | SCR-29 Phê duyệt: hộp chờ/đã gửi/đã xử lý, chi tiết diff, duyệt/từ chối (lý do), bước 2, badge sidebar, mobile | SCR-29, EP-123..125 | T-230, T-224 | M |
 | [ ] | T-232 | FE | SCR-31 Dòng tiền 13 tuần: summary, chart + bảng thay thế, giả định → recompute, stale | SCR-31, EP-128 | T-106, T-224 | M |
 | [ ] | T-233 | BE | Classification override: EP-129 (`ai:admin`, lý do bắt buộc, `SECRET` → 422), `ai.classification_overrides`, audit + thông báo CEO; FE dòng "Phân loại → provider" + băng vàng SCR-15 | EP-129, 07 §6.5, 06 §4.7, DEC-157 | T-012, T-013 | S |
+| [ ] | T-234 | BE | HR: mã hóa pgcrypto trường nhạy cảm (`national_id`, `bank_account`, `salary_history` số tiền) — migration `0008_pgcrypto`, `DB_ENCRYPTION_KEY`, TypeDecorator trong suốt với service; test round-trip, dump thấy ciphertext, service đọc plaintext (DEC-203) | 05 §4 hr, NĐ 13/2023, 02 §7 | T-121 | M |
+| [ ] | T-235 | BE | Celery beat: `daily_burn_check` 09:00, `mark_invoices_overdue` 10:00, `detect_late_hiring` 11:00, `verify_action_outcome` mỗi giờ, `relay_outbox_events` (DEC-203) | FR-FIN-08, METRIC-FIN-05, EVT-hr.hiring_plan_delayed | T-105, T-104, T-122 | S |
+| [ ] | T-236 | SEED | Seed Sales/HR công ty ABC (client, deal đủ giai đoạn, target Q4; phòng ban, nhân sự, kế hoạch tuyển trễ, lịch sử lương mã hóa) (DEC-203) | 08 §3, §5 | T-111, T-121, T-234 | M |
 
 ### S3 — Trợ lý AI + Autonomy (Tuần 7–8)
 
