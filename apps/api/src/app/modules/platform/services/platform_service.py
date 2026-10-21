@@ -1,6 +1,7 @@
 """Public service interface of `platform` — the only entry point for other modules."""
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,7 +66,10 @@ class PlatformService:
         await self.db.commit()  # marker gone before the message can be consumed
         self.transport.send(processed.consumer, env.to_message())
         return ReplayOut(
-            id=processed.id, event_id=env.event_id, consumer=processed.consumer, status="QUEUED"
+            id=processed.id,
+            event_id=env.event_id,
+            replay_status="queued",
+            queued_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         )
 
     async def dlq_count(self) -> int:

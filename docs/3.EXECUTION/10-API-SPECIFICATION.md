@@ -487,7 +487,7 @@ Quy ước chung cho mọi endpoint: lỗi `401 UNAUTHENTICATED`, `403 FORBIDDEN
 | EP-53 | L `unread?`; U `{ read: true }` hoặc `POST /platform/notifications/read-all` | `[NotificationOut { id, kind, title_key, params, link, severity?, read_at }]` | FR-NTF-01; chỉ của tôi |
 | EP-54 | PATCH `{ key, value }` (whitelist: retention, `REVIEW_SLA_HOURS`, `NOTIFY_EMAIL_ENABLED`, …) | `[{ key, value, updated_by, updated_at }]` | `ai.kill_switch` **không** sửa ở đây (EP-118) |
 | EP-55 | U `{ warning, critical, enabled }` theo `metric_code` | `[MetricConfigOut]` | Đổi ngưỡng → tính lại status; NFR-19 |
-| EP-56 | L `consumer?`, `event_type?`; `POST /platform/dead-letters/{id}/replay` | `[{ event_id, event_type, consumer, attempts, last_error }]` | Replay idempotent theo `(event_id, consumer)` |
+| EP-56 | L `consumer?`, `event_type?`; `POST /platform/dead-letters/{id}/replay` | List `[{ id, event_id, event_type, consumer, attempts, last_error }]`; replay `202 { id, event_id, replay_status: queued\|processing\|done, queued_at }` (`id` = replay request/job id; hiện ánh xạ tới `processed_events.id`) | Replay idempotent theo `(event_id, consumer)` |
 | EP-57 | — | `{ services: [{ name, status }], outbox_pending, dlq_count, ai: { mode, primary, budget_used_pct, kill_switch } }` | Trang chủ ADMIN (03 §10) |
 | EP-58 | `role_code` | `{ permissions[], pillars: [{ pillar, access: full\|aggregate\|none }], tools: [TOOL-*] }` | Không trả dữ liệu nghiệp vụ (US-ADM-102) |
 | EP-59 | — | `[{ role_id, role_code, name_key, permissions[] }]` | Nguồn: 02 §5.3 |

@@ -172,7 +172,12 @@ async def test_ep56_list_and_replay_reprocesses(
         f"/platform/dead-letters/{mine[0]['id']}/replay", headers=_auth("ADMIN")
     )
     assert r.status_code == 202, r.text
-    assert r.json()["data"]["status"] == "QUEUED"
+    replay = r.json()["data"]
+    assert replay["id"] == mine[0]["id"]  # EP-56 replay request identifier
+    assert replay["event_id"] == eid
+    assert replay["replay_status"] == "queued"
+    assert replay["queued_at"].endswith("Z")
+    assert "status" not in replay
     assert await _processed(factory, uuid.UUID(eid)) == []  # DLQ marker cleared
     (name, replayed, _) = next(x for x in transport.sent if x[1]["event_id"] == eid)
     assert name == NAME

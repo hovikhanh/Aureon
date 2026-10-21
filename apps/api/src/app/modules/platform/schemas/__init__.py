@@ -21,7 +21,7 @@ class DeadLetterOut(BaseModel):
 
 
 class ReplayOut(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID  # replay job identifier (currently processed_events.id)
     event_id: uuid.UUID
-    consumer: str
-    status: str  # `QUEUED`
+    replay_status: str  # `queued` | `processing` | `done`
+    queued_at: str  # ISO 8601 UTC
