@@ -18,7 +18,21 @@ from app.core.errors import NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.modules.execution.schemas.common import DecisionStatus, ProjectStatus, TaskStatus
+from app.modules.execution.schemas.common import (
+    DecisionStatus,
+    InitiativeStatus,
+    Pillar,
+    ProjectStatus,
+    TaskStatus,
+)
+from app.modules.execution.schemas.initiatives import (
+    InitiativeCreate,
+    InitiativeOut,
+    InitiativeUpdate,
+    MilestoneCreate,
+    MilestoneOut,
+    MilestoneUpdate,
+)
 from app.modules.execution.schemas.meetings import (
     DecisionCreate,
     DecisionOut,
@@ -46,6 +60,7 @@ from app.modules.execution.schemas.okr import (
     ObjectiveUpdate,
 )
 from app.modules.execution.schemas.tasks import TaskCreate, TaskOut, TaskUpdate
+from app.modules.execution.services.initiative_service import InitiativeService, initiative_out
 from app.modules.execution.services.kpi_service import KpiService, kpi_out
 from app.modules.execution.services.meeting_service import (
     MeetingService,
@@ -440,3 +455,103 @@ async def create_check_in(body: CheckInCreate, db: Db, user: Writer, idem: Idem)
     await db.commit()
     await idem.remember(out)
     return out
+
+
+# ---------- EP-45 initiatives + milestones ----------
+@router.get("/execution/initiatives", response_model=list[InitiativeOut])
+async def list_initiatives(
+    db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(
+        page_params("planned_end_date", "start_date", "code", "progress_pct")
+    )],
+    objective_id: uuid.UUID | None = None, status: InitiativeStatus | None = None,
+    pillar: Pillar | None = None,
+) -> Any:  # fmt: skip
+    items, total = await InitiativeService(db).list_initiatives(
+        user, page, objective_id=objective_id, status=status, pillar=pillar
+    )
+    return _page(items, total, page)
+
+
+@router.post("/execution/initiatives", response_model=InitiativeOut, status_code=201)
+async def create_initiative(body: InitiativeCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return InitiativeOut.model_validate(hit)
+    out = await InitiativeService(db).create_initiative(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get("/execution/initiatives/{initiative_id}", response_model=InitiativeOut)
+async def get_initiative(initiative_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return initiative_out(await InitiativeService(db).get_initiative(user, initiative_id))
+
+
+@router.patch("/execution/initiatives/{initiative_id}", response_model=InitiativeOut)
+async def update_initiative(
+    initiative_id: uuid.UUID, body: InitiativeUpdate, db: Db, user: Writer,
+    if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await InitiativeService(db).update_initiative(user, initiative_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete("/execution/initiatives/{initiative_id}", status_code=204, response_class=Response)
+async def delete_initiative(initiative_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await InitiativeService(db).delete_initiative(user, initiative_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+MS_PATH = "/execution/initiatives/{initiative_id}/milestones"
+
+
+@router.get(MS_PATH, response_model=list[MilestoneOut])
+async def list_milestones(
+    initiative_id: uuid.UUID, db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("due_date", "title"))],
+) -> Any:  # fmt: skip
+    items, total = await InitiativeService(db).list_milestones(user, initiative_id, page)
+    return _page(items, total, page)
+
+
+@router.post(MS_PATH, response_model=MilestoneOut, status_code=201)
+async def create_milestone(
+    initiative_id: uuid.UUID, body: MilestoneCreate, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return MilestoneOut.model_validate(hit)
+    out = await InitiativeService(db).create_milestone(user, initiative_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+@router.get(MS_PATH + "/{milestone_id}", response_model=MilestoneOut)
+async def get_milestone(
+    initiative_id: uuid.UUID, milestone_id: uuid.UUID, db: Db, user: Reader
+) -> Any:
+    return await InitiativeService(db).get_milestone(user, initiative_id, milestone_id)
+
+
+@router.patch(MS_PATH + "/{milestone_id}", response_model=MilestoneOut)
+async def update_milestone(
+    initiative_id: uuid.UUID, milestone_id: uuid.UUID, body: MilestoneUpdate, db: Db,
+    user: Writer, if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await InitiativeService(db).update_milestone(user, initiative_id, milestone_id, body, exp)
+    await db.commit()
+    return out
+
+
+@router.delete(MS_PATH + "/{milestone_id}", status_code=204, response_class=Response)
+async def delete_milestone(
+    initiative_id: uuid.UUID, milestone_id: uuid.UUID, db: Db, user: Writer
+) -> Response:
+    await InitiativeService(db).delete_milestone(user, initiative_id, milestone_id)
+    await db.commit()
+    return Response(status_code=204)

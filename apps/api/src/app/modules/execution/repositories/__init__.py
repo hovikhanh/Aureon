@@ -12,11 +12,13 @@ from app.core.base_repository import BaseRepository
 from app.modules.execution.models import (
     CheckIn,
     Decision,
+    Initiative,
     KeyResult,
     Kpi,
     KpiMeasurement,
     KpiTarget,
     Meeting,
+    Milestone,
     Objective,
     Project,
     Task,
@@ -120,3 +122,11 @@ class MeasurementRepository(Repo[KpiMeasurement]):
 
 class CheckInRepository(Repo[CheckIn]):
     model = CheckIn
+
+
+class InitiativeRepository(Repo[Initiative]):
+    model = Initiative
+
+
+class MilestoneRepository(Repo[Milestone]):
+    model = Milestone

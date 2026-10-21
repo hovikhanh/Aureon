@@ -22,6 +22,7 @@ from app.modules.execution.repositories import OPEN_TASK_STATUSES, TaskRepositor
 from app.modules.execution.schemas.tasks import TaskCreate, TaskOut, TaskUpdate
 from app.modules.execution.services import scope
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
+from app.modules.execution.services.initiative_service import InitiativeService
 from app.modules.execution.services.task_rules import can_transition, is_overdue
 
 RULE = "FR-TASK-01"
@@ -102,6 +103,7 @@ class TaskService(ExecBase):
         if data["evidence"] is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
         t = await self.tasks.create(**data, source="MANUAL", created_by=user.user_id)
+        await self._progress(t.initiative_id)
         await self.db.refresh(t)
         out = task_out(t)
         await self.audit("task_create", "tasks", t.id, after=out)
@@ -150,7 +152,9 @@ class TaskService(ExecBase):
         if "due_date" in data and data["due_date"] != t.due_date:
             data["overdue_notified_at"] = None  # re-arm EVT-execution.task_overdue
         data = {k: v for k, v in data.items() if k not in NOT_NULL or v is not None}
+        old_initiative = t.initiative_id
         await self.tasks.update(t, expected_version=expected, updated_by=user.user_id, **data)
+        await self._progress(old_initiative, t.initiative_id)
         await self.db.refresh(t)
         out = task_out(t)
         await self.audit("task_update", "tasks", t.id, before, out)
@@ -161,7 +165,14 @@ class TaskService(ExecBase):
         before = task_out(t)
         t.updated_by = user.user_id
         await self.tasks.soft_delete(t)
+        await self._progress(t.initiative_id)
         await self.audit("task_delete", "tasks", t.id, before=before)
+
+    async def _progress(self, *initiative_ids: uuid.UUID | None) -> None:
+        """Initiative `progress_pct` falls back to task completion (DEC-225)."""
+        svc = InitiativeService(self.db)
+        for iid in dict.fromkeys(initiative_ids):
+            await svc.recompute_progress(iid)
 
     async def detect_overdue(self, as_of: date) -> list[uuid.UUID]:
         found: list[uuid.UUID] = []
