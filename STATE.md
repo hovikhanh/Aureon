@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Last updated | 2026-10-22 14:52 (Asia/Saigon) |
-| Last commit | (pending) `feat(idp): S4b review workflow (EP-28..35, EP-126/127)` — not yet committed |
+| Last commit | `69995b5` feat(idp): S4b review workflow (EP-28..35, EP-126/127) on `main` |
 | Sub-sprint | **S4b — IDP review workflow DONE** (queue/detail/open/fields/approve→commit/reject/reassign/merge/SLA); S4a DONE; S4c/S4d pending |
 | Test count | 741 passed, 2 deselected (`-m "not live"`) |
 | Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
