@@ -1,17 +1,25 @@
 # 10 — API & Tool Registry Spec (AI-EOS, nhánh `ai-eos`)
 
-> **Nguồn chuẩn:** `_reference/SOURCE-BRD-v1.1.md` §11.2 (Tool Registry + metadata), §11.3 (phân loại tool), §11.4 (agent), §6.10 (tool IDP); §16 NFR-INT-01, §13 FR-DATA-05 (event).
+> **Nguồn chuẩn:** `_reference/SOURCE-BRD-v1.1.md` §11 (AI Platform: §11.1 thành phần, §11.2 Tool Registry + 13 metadata, §11.3 phân loại tool, §11.4 agent, §11.5 luồng + quyền, §11.6 Autonomy, §11.7 chất lượng/grounding), §6.10 (tool IDP, D03), §12 (D27 CEO Assistant, D28 Reporting), §13.1 FR-DATA-04/05 (lineage + event backbone), §16 NFR-INT-01. Bổ sung: `SOURCE-BRD-v1.1-Bổ sung.md` §3.9 (tool/entity/agent), grounding. UI: `SOURCE-UIUX.md`.
 > **Phụ thuộc:** 00, 01, 02, 05, 07. **Trạng thái:** 🟡 draft (Phase R2). **Ngày:** 2026-10-22 · **Maintainer:** @CyEyes
+> **Phạm vi:** đặc tả **CHIỀU CONTRACT MỨC KHÁI NIỆM** cho P0 — tool (13 metadata), 4 phân loại + quy tắc quyền/approval, danh mục tool theo domain P0, envelope + danh mục event P0, grounding contract (SourceRef). **Không** sinh EP-*/endpoint path cụ thể, **không** field-level DB, **không** T-*/TC-* — hoãn sang đợt code (R-DEC-09); EP-* cụ thể gán theo domain P0 ở đợt sau (R-DEC-10).
 
 ---
 
 ## 1. Nguyên tắc API (P02 API First)
 
-Mọi năng lực nghiệp vụ expose qua **API + tool**; UI dùng chính các API này. API **có phiên bản** + webhook cho event (NFR-INT-01). AI gọi nghiệp vụ **chỉ qua tool đã đăng ký** (AI-R02) — không truy cập DB trực tiếp (07 §1).
+Mọi năng lực nghiệp vụ expose qua **API + tool**; UI dùng chính các API này (P02). API **có phiên bản** (`/api/v1/...`) + **webhook cho event** (NFR-INT-01). AI gọi nghiệp vụ **chỉ qua tool đã đăng ký** (AI-R02), **không** truy cập DB trực tiếp (07 §1); mọi tool call được authorize trước khi chạy (AI-R08) và ghi audit (AI-R07).
+
+Bốn ràng buộc nền tảng áp cho toàn bộ contract P0:
+
+- **P06 Traceability:** mọi response ghi `X-Request-Id`; giá trị này đi theo log, audit, và `correlation_id` của event phát ra trong cùng request.
+- **P04 Human in the Loop:** tool WRITE/APPROVAL/EXECUTION tuân Autonomy Level (§5) + Approval Matrix (02); AI không vượt quyền người được phục vụ (§4.4).
+- **P05 Everything Actionable + grounding:** mọi con số AI trả về phải truy nguyên một `tool_result`/`MetricValue` qua `SourceRef` (§8); không có nguồn → chặn hoặc gắn nhãn "ước tính" (FR-AIQ-01).
+- **P08 Security by Design:** default deny; permission `<domain>:<action>`; dữ liệu nhạy cảm (lương, số tài khoản, CCCD, MST) lọc trước khi vào model (06.9 BRD, 02).
 
 ## 2. Tool Registry (BRD §11.2)
 
-Mọi năng lực expose dưới dạng **tool**. Ví dụ danh mục (BRD §11.2):
+Tool Registry là danh mục trung tâm: mọi năng lực nghiệp vụ (đọc, ghi, phê duyệt, tác động ngoài) đều được expose dưới dạng **tool** có schema, quyền và risk level. AI chỉ "nhìn thấy" và gọi được tool trong registry; không có tool ngoài registry nào được thực thi (AI-R02). Danh mục mẫu từ BRD §11.2:
 
 ```text
 get_financial_summary()      get_sales_pipeline()        get_employee_workload()
@@ -24,56 +32,192 @@ upload_document()            extract_document()          commit_extraction()
 generate_report()            request_approval()          log_decision()
 ```
 
+> **Đặt tên (R-DEC-10):** dùng tên BRD snake_case (vd. `get_kpi_status`) + giữ **bảng ánh xạ** sang `TOOL-*` registry của `main` (43 tool) để truy nguyên. `TOOL-*` cụ thể gán ở đợt code; registry này chốt **tên + mục đích + loại + quyền + autonomy** mức khái niệm.
+
 ### 2.1. Metadata bắt buộc mỗi tool (13 thuộc tính)
-`name, description, input_schema, output_schema, permission, risk_level, data_scope, data_classification, autonomy_level mặc định, approval_required, reversible, audit_required, cost_estimate, owner`.
 
-## 3. Phân loại tool (BRD §11.3)
+Mọi tool trong registry phải khai đủ 13 thuộc tính sau (BRD §11.2); thiếu bất kỳ thuộc tính nào → tool không được đăng ký:
 
-| Loại | Ý nghĩa | Ví dụ |
+| # | Thuộc tính | Ý nghĩa (mức contract) |
 |---|---|---|
-| READ | Không thay đổi dữ liệu | get_sales_pipeline, get_kpi_status, extract_document |
-| WRITE | Thay đổi dữ liệu nội bộ | create_task, update_task, commit_extraction |
-| APPROVAL | Thực hiện quyền phê duyệt | approve_budget, approve_hiring (**AI không được tự gọi**) |
-| EXECUTION | Tác động ra ngoài | send_email, send_customer_message, create_calendar_event (khách ngoài) |
+| 1 | `name` | Định danh snake_case, duy nhất trong registry; AI tham chiếu qua tên này. |
+| 2 | `description` | Mô tả ngắn mục đích + khi nào dùng; Orchestrator dựa vào đây để chọn tool theo ý định (§4). |
+| 3 | `input_schema` | JSON schema tham số đầu vào; validate trước khi gọi, sai schema → từ chối (không gọi). |
+| 4 | `output_schema` | JSON schema kết quả; dùng để validate `tool_result` và nối `SourceRef` (§8). |
+| 5 | `permission` | Permission `<domain>:<action>` cần có; kiểm theo quyền **hiệu lực = agent ∩ người** (§4.4). |
+| 6 | `risk_level` | Mức rủi ro (thấp/trung bình/cao) — quyết định ngưỡng approval + Autonomy mặc định. |
+| 7 | `data_scope` | Phạm vi dữ liệu tool chạm (cá nhân / team / phòng ban / toàn DN); lọc theo scope người gọi. |
+| 8 | `data_classification` | Mức phân loại dữ liệu (Public/Internal/Confidential/Mật) → chọn nơi xử lý model (07). |
+| 9 | `autonomy_level` mặc định | L0–L3 mặc định cho tool (L4 khóa ở MVP); có thể hạ theo kill switch (§5). |
+| 10 | `approval_required` | Có cần phê duyệt trước khi thực thi không, theo Approval Matrix (02). |
+| 11 | `reversible` | Hành động có hoàn tác được không → quyết định undo window (≥24h) và được phép L3 hay không. |
+| 12 | `audit_required` | Luôn `true` cho WRITE/APPROVAL/EXECUTION; ghi `AIToolCall`/audit trong cùng transaction. |
+| 13 | `cost_estimate` | Ước tính chi phí AI/hạ tầng mỗi lần gọi; vào ngân sách AI (FR-AIQ-05) + báo cáo chi phí/quyết định. |
+| — | `owner` | (thuộc tính thứ 13 theo BRD — chủ domain chịu trách nhiệm tool; duyệt khi nâng Autonomy §5). |
 
-Quyền + Autonomy + approval theo Approval Matrix (02 §7). Tool ghi kiểm **cả quyền agent ∩ người** (07 §3).
+> BRD liệt kê 13 thuộc tính: `name, description, input_schema, output_schema, permission, risk_level, data_scope, data_classification, autonomy_level, approval_required, reversible, audit_required, cost_estimate, owner` — bảng trên giữ nguyên danh sách này (`owner` là thuộc tính cuối). Kiểu/định dạng từng thuộc tính chi tiết hóa ở đợt code (R-DEC-09).
 
-## 4. Agent (BRD §11.4)
+## 3. Phân loại tool + quy tắc quyền/approval (BRD §11.3)
 
-| Agent | Ưu tiên |
-|---|---|
-| CEO, Data Capture, Performance, Task, Meeting, Reporting | P0 |
-| Finance, Sales | P0 Lite / P1 |
-| HR, Product, Engineering, Procurement | P1 |
-| Strategy, Risk, Governance | P1/P2 |
+Mỗi tool thuộc đúng một trong 4 loại; loại quyết định quy tắc quyền, Autonomy mặc định và approval:
 
-AI Orchestrator chọn agent theo ý định; agent có Identity/Role/Permission/Scope/Tools/Policies/Budget/Audit (ROLE-AI, 02 §2).
+| Loại | Ý nghĩa | Ví dụ | Autonomy mặc định | Quy tắc quyền / approval |
+|---|---|---|---|---|
+| READ | Không thay đổi dữ liệu | `get_sales_pipeline`, `get_kpi_status`, `extract_document` | L0 | Cần `<domain>:read`; không approval; trả theo data_scope + che dữ liệu nhạy cảm; luôn qua quyền người hỏi. |
+| WRITE | Thay đổi dữ liệu nội bộ | `create_task`, `update_task`, `commit_extraction`, `record_kpi_measurement` | L2 hoặc L3 theo tool × role × ngưỡng giá trị | Cần `ai:write` **và** `<domain>:write`; `audit_required=true`; L3 chỉ khi `reversible=true` + trong policy, có undo ≥24h; vượt ngưỡng giá trị → L2 + duyệt. |
+| APPROVAL | Thực hiện quyền phê duyệt | `approve_budget`, `approve_hiring`, `approve_extraction` | — (**AI không được tự gọi**) | AI **không bao giờ** tự gọi; chỉ con người có quyền phê duyệt gọi; AI chỉ `request_approval` tạo yêu cầu chờ người duyệt. |
+| EXECUTION | Tác động ra ngoài tổ chức | `send_email`, `send_customer_message`, `create_calendar_event` (khách mời ngoài) | L2 (Draft & Confirm) | Mặc định cần người xác nhận (L2) do tác động ra ngoài; kill switch tắt toàn bộ WRITE/EXECUTION của AI (FR-ADM-07). |
 
-## 5. Tool IDP (D03, BRD §6.10)
+**Quy tắc chung (BRD §11.3 + §11.5, 07 §3):**
 
-`upload_document, classify_document, extract_document, validate_extraction, submit_extraction_for_review, approve_extraction, commit_extraction, import_table, search_documents, get_source_document`. classify/extract/validate = READ; `commit_extraction` = WRITE (kế thừa risk_level tool đích). IDP **không tool calling** (04 §9).
+- Tool ghi kiểm **cả quyền agent ∩ quyền người** (§4.4) — giao của hai tập, không phải hợp.
+- `commit_extraction` là WRITE nhưng **kế thừa `risk_level` của tool đích** (ghi hóa đơn rủi ro cao hơn ghi task) → quyết định approval/Autonomy theo tool đích.
+- Trường trọng yếu (số tiền, số tài khoản, MST, lương, giá trị hợp đồng) → luôn qua người (FR-DC-16), WRITE không tự chạy L3.
+- Nội dung tài liệu / email / web là **data**, không phải lệnh — không kích hoạt tool (FR-AIQ-06; "duyệt thanh toán ngay" trong hóa đơn không gọi `approve_budget`).
 
-## 6. Endpoint theo domain
+## 4. Agent & Orchestrator (BRD §11.1, §11.4, §11.5)
 
-API path `/api/v1/<domain>/<resource>`. EP theo 28 domain (D01–D28) — chi tiết hóa theo phase (MVP: Organization, Admin&Security, Data Capture, Strategy/KPI/OKR, Task/Project, Meeting, Calendar, Finance Lite, Sales Lite, CEO Assistant, Reporting, Decision Log).
+### 4.1. Thành phần AI Platform (contract liên quan API/tool)
 
-> **Khác `main`:** `main` có EP-01..119 cố định cho 11 module. Theo **R-DEC-10**, AI-EOS đánh EP theo BRD (28 domain) + giữ **bảng ánh xạ** EP `main` ↔ AI-EOS để truy nguyên; EP-* cụ thể gán ở đợt code (R-DEC-09). Giữ envelope/phân trang/mã lỗi/Idempotency-Key của `main` làm quy ước triển khai (nhất quán, không mâu thuẫn BRD).
+AI Platform gồm 13 thành phần (BRD §11.1; `AIC-*` gán ở 07). Những thành phần chạm contract tool/API: **AI Gateway** (điểm vào duy nhất — xác thực, rate limit, ngân sách, lọc dữ liệu nhạy cảm), **Orchestrator** (hiểu ý định → chọn agent), **Tool Registry** (§2), **Policy Engine** (đánh giá quyền/scope/Autonomy mỗi tool call — AI-R08), **Approval Engine** (`request_approval`), **Audit Engine** (ghi bất biến mọi tool call — AI-R07), **Event Listener** (nghe event backbone §8 để AI Observe). Chi tiết thành phần ở 07.
 
-## 7. Convention (giữ nhất quán nền `main`, không mâu thuẫn BRD)
-Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order`; `Idempotency-Key` bắt buộc cho POST tạo/hành động + endpoint AI ghi; tiền BIGINT + currency; thời gian ISO 8601 UTC; mọi response `X-Request-Id` → log/audit/event `correlation_id`.
+### 4.2. Agent P0 (BRD §11.4)
 
-## 8. Event backbone (FR-DATA-05)
+| Agent | Phạm vi | Ưu tiên | Tool chính (mức khái niệm) |
+|---|---|---|---|
+| CEO Agent | Tổng hợp liên domain, briefing, khuyến nghị chiến lược | P0 | READ liên domain, `generate_report`, `log_decision` |
+| Data Capture Agent | Phân loại, trích xuất, kiểm tra, đề xuất ghi (không tự ghi tài chính) | P0 | tool IDP §6 (READ) + `commit_extraction` (đề xuất) |
+| Performance Agent | KPI/OKR, check-in, phân tích khoảng cách | P0 | `get_kpi_status`, `get_okr_status`, `record_kpi_measurement` |
+| Task Agent | Task, workload, nhắc việc, follow-up | P0 | `create_task`, `assign_task`, `update_task`, `get_overdue_tasks` |
+| Meeting Agent | Biên bản, quyết định, action item | P0 | `log_decision`, `create_task`, `send_notification` |
+| Reporting Agent | Báo cáo định kỳ / theo yêu cầu | P0 | `generate_report`, READ metric |
+| Finance Agent, Sales Agent | Phân tích tài chính, pipeline | P0 Lite / P1 | `get_financial_summary`, `get_sales_pipeline` |
 
-Event nghiệp vụ: `invoice.created, kpi.measured, kpi.below_threshold, task.overdue, document.committed, okr.at_risk, risk.detected, meeting.summarized, decision.logged`… Envelope `{event_id, event_type, occurred_at, version, correlation_id, payload}` (không PII). Danh mục đầy đủ + cặp publish/consume chốt khi chi tiết hóa.
+Agent P1/P2 (HR, Product, Engineering, Procurement, Strategy, Risk, Governance) ghi backlog (09). Người dùng chỉ nói chuyện với **một Assistant duy nhất**; Orchestrator quyết định agent nào xử lý.
 
-## 9. Open questions
-- OQ-10-01: Tool naming — ĐÃ CHỐT: R-DEC-10 — dùng tên theo BRD (snake_case, VD `get_kpi_status`) + giữ bảng ánh xạ sang `TOOL-*` registry `main` (43 tool) để truy nguyên.
-- OQ-10-02: EP numbering — ĐÃ CHỐT: R-DEC-10 — đánh số theo BRD + bảng ánh xạ sang EP-xx của `main`.
+### 4.3. Luồng thực thi (BRD §11.5)
+
+```text
+User / Event → Intent Detection → Context Retrieval → Planning → Tool Selection
+→ Authorization (Policy Engine) → Tool Calling → Result Validation → Reasoning
+→ Recommendation → Approval (theo Autonomy Level) → Execution → Verification → Audit
+```
+
+### 4.4. Quy tắc quyền (BRD §11.5)
+
+- AI **không bao giờ vượt quyền** người được phục vụ: **quyền hiệu lực = giao của quyền agent và quyền người dùng** (P06, AI-R08).
+- Ví dụ: CEO AI → Finance READ/WRITE, HR READ, Strategy READ/WRITE; Employee AI → dữ liệu cá nhân READ/WRITE, task team READ, Finance DENY.
+- AI chạy theo **event/lịch** (không có người hỏi) dùng **danh tính service của agent** với quyền cấu hình riêng, hẹp nhất có thể (ROLE-AI, 02).
+- Lọc tool theo `permissions[]` **trước khi** gửi model; tool chạy in-process qua service layer bằng principal dựng từ danh tính người hỏi — không HTTP loopback, không token hệ thống (07 §3).
+
+## 5. Autonomy & kill switch (BRD §11.6, FR-ADM-07)
+
+Mỗi tool call chịu Autonomy Level cấu hình theo **tool × vai trò × ngưỡng giá trị**:
+
+| Level | Tên | AI được làm gì | Áp cho (contract) |
+|---|---|---|---|
+| L0 | Inform | Chỉ đọc + trả lời | Mọi tool READ |
+| L1 | Suggest | Đề xuất, người tự làm | Phân bổ nguồn lực/nhân sự |
+| L2 | Draft & Confirm | AI chuẩn bị, người bấm xác nhận | Ghi dữ liệu tài chính, EXECUTION (giao tiếp ngoài) |
+| L3 | Act & Notify | AI tự làm trong policy, báo lại, **undo ≥24h** | Task, lịch, nhắc việc nội bộ (`reversible=true`) |
+| L4 | Autonomous | AI tự làm, chỉ audit + báo cáo | **Không bật MVP** (phase 5) |
+
+- Ngưỡng giá trị ví dụ: chi phí < 5 triệu → L3; ≥ 5 triệu → L2 + quản lý duyệt.
+- Hành động L3 trở lên có **nút hoàn tác tối thiểu 24 giờ** khi bản chất cho phép (`reversible=true`).
+- **Kill switch (FR-ADM-07):** Admin tắt toàn bộ hành động WRITE/EXECUTION của AI (hoặc một agent) bằng một thao tác; khi bật, L3 hạ xuống L2 (buộc người xác nhận), L4 luôn khóa.
+- Nâng Autonomy cho một tool cần số liệu chất lượng từ Evaluation Engine + duyệt của Admin và `owner` domain.
+
+## 6. Tool IDP (D03, BRD §6.10 + Bổ sung §3.9)
+
+Domain Data Capture expose 10 tool; IDP **không có tool calling** nội bộ (04 §9) — pipeline gọi tool tuần tự theo state machine `UPLOADED → PROCESSING → EXTRACTED → NEEDS_REVIEW → APPROVED → COMMITTED`.
+
+| Tool | Mục đích (contract) | Loại | Quyền cần |
+|---|---|---|---|
+| `upload_document` | Nhận file/stream, tạo `SourceDocument`, tiền xử lý (quét mã độc, hash trùng, tách trang) | WRITE | `idp:write` |
+| `classify_document` | AI phân loại loại tài liệu (bỏ qua nếu người chọn trước) | READ | `idp:read` |
+| `extract_document` | Trích trường/bảng theo Extraction Schema; mỗi field `{value, confidence, source_location}` | READ | `idp:read` |
+| `validate_extraction` | Kiểm tra nghiệp vụ (tổng dòng + VAT = tổng; MST; master data; trùng) | READ | `idp:read` |
+| `submit_extraction_for_review` | Đẩy vào hàng chờ review (SLA, nhắc việc, escalation) | WRITE | `idp:write` |
+| `approve_extraction` | Reviewer duyệt bản trích (quyền phê duyệt) | APPROVAL | `idp:approve` |
+| `commit_extraction` | Ghi vào domain đích **qua tool đích** (`create_invoice`, `create_task`...) | WRITE (kế thừa risk tool đích) | `idp:write` + `<domain đích>:write` |
+| `import_table` | Import Excel/CSV: map cột, xem trước, ghi dòng hợp lệ, xuất file lỗi | WRITE | `idp:write` |
+| `search_documents` | Tìm tài liệu theo quyền (ngữ nghĩa/metadata) | READ | `idp:read` |
+| `get_source_document` | Lấy tài liệu gốc + trang nguồn (cho lineage/trích dẫn) | READ | `idp:read` |
+
+- Phân loại: `classify`/`extract`/`validate` = READ; `commit_extraction` = WRITE, **kế thừa `risk_level` tool đích**.
+- Ghi vào domain đích **chỉ qua Tool Registry** (FR-DC-17) — áp đủ permission, approval, audit; một transaction / tài liệu; phát `document.committed`.
+- Trường trọng yếu + classification < ngưỡng → luôn review (FR-DC-16); undo window IDP cấu hình ở đợt code.
+
+## 7. Endpoint theo domain
+
+API path `/api/v1/<domain>/<resource>`. EP theo domain P0 (D01–D28, phần P0 khóa ở skeleton §12bis): Organization, Admin & Security, Data Capture, Workflow (cơ bản), Notification, Integration Hub (Google/MS), Strategy (cơ bản), KPI, OKR, Performance (check-in), Task/Workload, Meeting (transcript), Calendar, Knowledge, Finance Lite, HR cơ bản, Sales Lite, AI Platform, CEO Assistant, Reporting cơ bản.
+
+> **Khác `main`:** `main` có EP-01..119 cố định cho 11 module. Theo **R-DEC-10**, AI-EOS đánh EP theo BRD (domain P0) format `EP-<DOMAIN>-NN` + giữ **bảng ánh xạ** EP `main` ↔ AI-EOS để truy nguyên; **EP-*/endpoint path cụ thể gán ở đợt code (R-DEC-09)**. Giữ envelope/phân trang/mã lỗi/Idempotency-Key của `main` làm quy ước triển khai (nhất quán, không mâu thuẫn BRD).
+
+## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
+
+Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:
+
+- Mỗi `tool_result` số liệu mang một **`SourceRef`** mô tả nguồn: loại nguồn (`tool_call` | `metric` | `document`), định danh (tool name + call id, `Metric` id, hoặc `SourceDocument` + trang/vùng tọa độ), và thời điểm cập nhật (Data Freshness, FR-DATA-03).
+- AI chỉ được đưa số khi số đó **khớp** một `tool_result`/`MetricValue` qua `SourceRef`; không khớp → gỡ số + cảnh báo hoặc gắn nhãn "ước tính"; thiếu dữ liệu → trả trạng thái "không có dữ liệu" (không bịa, FR-AIQ-01, AI-R10).
+- Tài liệu → lineage: `get_source_document` trả liên kết "Xem tài liệu gốc" + trang nguồn; AI trích dẫn đúng trang (FR-DC-23, FR-DATA-04).
+- Confidence: khi chưa đủ dữ liệu hiệu chỉnh, dùng thang **Cao/Trung bình/Thấp** kèm lý do thay vì % (FR-AIQ-03).
+- Insight theo cấu trúc 9 phần (BRD §11.8): Observation → Evidence → Impact → Root Cause → Risk → Recommendation → Expected Outcome → Confidence → Action; "Evidence" chính là tập `SourceRef`.
+
+## 9. Event backbone (FR-DATA-05, FR-DATA-04, NFR-INT-01)
+
+Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gian thực (FR-DATA-05, AI-R12); webhook cho event (NFR-INT-01). Event nghiệp vụ phát **trong cùng transaction** với bản ghi (outbox) để không mất khi rollback (quy ước triển khai `main`).
+
+### 9.1. Envelope event
+
+```text
+{
+  event_id        # định danh duy nhất (dedupe consumer)
+  event_type      # vd. invoice.created
+  occurred_at     # ISO 8601 UTC
+  version         # breaking change → event_type _v2
+  correlation_id  # = X-Request-Id của request gốc (P06)
+  payload         # dữ liệu nghiệp vụ, KHÔNG chứa PII / dữ liệu nhạy cảm
+}
+```
+
+- Consumer dedupe theo `event_id`; không giả định thứ tự; payload không chứa PII (số tài khoản, lương, CCCD) — chỉ mã tham chiếu.
+- Metric tính sẵn từ consumer (không tính lúc request); mọi `MetricValue` có `SourceRef`/lineage (§8).
+
+### 9.2. Danh mục event P0 (mức khái niệm)
+
+| Event | Phát khi | Domain nguồn | AI dùng để (Observe) |
+|---|---|---|---|
+| `invoice.created` | Ghi hóa đơn (qua `commit_extraction`/Finance) | D15 Finance | Cảnh báo dòng tiền, cập nhật metric tài chính |
+| `kpi.measured` | Ghi `record_kpi_measurement` | D08 KPI | Cập nhật achievement, trend |
+| `kpi.below_threshold` | KPI dưới ngưỡng cảnh báo | D08 KPI | UC-03 KPI underperformance |
+| `okr.at_risk` | KR/OKR có rủi ro không đạt | D09 OKR | UC-04 OKR at risk |
+| `task.overdue` | Task quá hạn | D11 Task | Nhắc việc, escalation, metric thực thi |
+| `document.committed` | `commit_extraction` ghi thành công | D03 IDP | Cập nhật domain đích, lineage |
+| `meeting.summarized` | Biên bản họp được tóm tắt | D12 Meeting | UC-02/UC-06 meeting → execution |
+| `decision.logged` | Ghi Decision Log (`log_decision`) | D28 Decision Log | Đo North Star, đối chiếu 30/60/90 ngày (FR-DEC-02) |
+| `risk.detected` | Rủi ro tự sinh từ event/ngưỡng | D25 Risk (P1) | BO-10 phát hiện rủi ro sớm (backlog phần nâng cao) |
+
+> Danh mục đầy đủ + cặp **publish/consume** chốt khi chi tiết hóa (R-DEC-09); `risk.detected` thuộc D25 (P1) nên chỉ liệt kê, chi tiết ở đợt sau. Tên event giữ convention BRD (`<entity>.<verb>`), ánh xạ sang `EVT-*` của `main` ở đợt code.
+
+## 10. Convention (giữ nhất quán nền `main`, không mâu thuẫn BRD)
+
+Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order` (`meta.pagination = {total, limit, offset, has_next}`); `Idempotency-Key` **bắt buộc** cho POST tạo/hành động + mọi endpoint AI ghi; tiền **BIGINT + currency** (mặc định VND); tỷ lệ hậu tố `_pct` thang 0–100; thời gian ISO 8601 UTC có `Z`; mọi response `X-Request-Id` → log/audit/event `correlation_id` (P06). Mã lỗi (vd. `FORBIDDEN_ROLE`, `CONFLICT_STATE`, `BUSINESS_RULE_VIOLATION`, `AI_*`) theo quy ước `main`, chốt danh sách đầy đủ ở đợt code (R-DEC-09).
+
+## Open questions
+
+- OQ-10-01: Tool naming — **ĐÃ CHỐT** (R-DEC-10): tên theo BRD snake_case (vd. `get_kpi_status`) + bảng ánh xạ sang `TOOL-*` registry `main` (43 tool) để truy nguyên.
+- OQ-10-02: EP numbering — **ĐÃ CHỐT** (R-DEC-10): đánh số theo BRD (`EP-<DOMAIN>-NN`) + bảng ánh xạ sang EP-xx của `main`; path cụ thể gán ở đợt code (R-DEC-09).
 - OQ-10-03: MCP server (FR-INT-04, P1) — ngoài MVP (P1 backlog, R-DEC-05); xác nhận phạm vi khi chi tiết hóa.
+- OQ-10-04: Cặp publish/consume đầy đủ cho từng event P0 + ánh xạ `EVT-*` của `main` — hoãn sang đợt code (R-DEC-09); registry §9.2 chốt danh mục + domain nguồn.
+- OQ-10-05: Kiểu/định dạng chi tiết 13 metadata tool (vd. enum `risk_level`, đơn vị `cost_estimate`) + danh sách mã lỗi `AI_*` đầy đủ — hoãn sang đợt code (R-DEC-09).
+- OQ-10-06: Bảng ánh xạ 24 tool mẫu BRD ↔ 43 `TOOL-*` của `main` (1-1 hay 1-nhiều) — lập ở đợt code cùng Tool Registry chi tiết.
 
 ## Version
-- **Version:** 0.2.0 (draft, Phase R2)
+
+- **Version:** 0.3.0 (draft, Phase R2)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.3.0:** Mở rộng lên **spec-level P0** — giải thích đầy đủ 13 metadata tool (bảng ý nghĩa mức contract); 4 phân loại tool kèm **quy tắc quyền/Autonomy/approval mỗi loại** (§3); thêm Agent & Orchestrator (thành phần AI Platform liên quan contract, agent P0 + tool chính, luồng §11.5, quyền agent ∩ người §4.4); **Autonomy & kill switch** (§5); danh mục **tool IDP** đầy đủ (tên + mục đích + loại + quyền, §6); **grounding contract SourceRef** (§8); **envelope event + danh mục event P0** kèm domain nguồn và mục đích Observe (§9); bổ sung OQ-10-04..06. Giữ R-DEC-09 (không EP-*/field DB/T-*/TC-* chi tiết), status 🟡 draft, không promote.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 10 theo AI-EOS — API First, Tool Registry + 13 metadata + danh mục mẫu, phân loại READ/WRITE/APPROVAL/EXECUTION, agent BRD §11.4, tool IDP, EP theo 28 domain + ánh xạ `main`, convention giữ nền `main`, event backbone.

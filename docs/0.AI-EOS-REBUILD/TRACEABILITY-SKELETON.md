@@ -189,16 +189,18 @@ Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được 
 - **ENT-*:** cấp ở **05**, định dạng `ENT-<Name>` theo 13 nhóm §11. 05 chốt field/kiểu/quan hệ; mọi entity nghiệp vụ có `tenant_id` (R-DEC-07).
 - **EP-*:** cấp ở **10** theo domain P0, định dạng `EP-<DOMAIN>-NN`. Phân loại tool READ/WRITE/APPROVAL/EXECUTION (§9).
 - **SCR-*:** cấp ở **06** theo SOURCE-UIUX, định dạng `SCR-NN`.
-- **TOOL-*:** cấp ở **10** (Tool Registry §9, 13 metadata). **AIC-*** (13 thành phần AI Platform) cấp ở **07**.
-- Mọi ID mới phải được thêm vào skeleton (file này) **trước** khi dùng trong 00–14.
+- **TOOL-*:** cấp ở **10** (Tool Registry §9, 13 metadata). **AIC-*** (13 thành phần AI Platform) cấp ở **07**. **AGT-*** (agent, §9/§12bis) tham chiếu ở **07**/**10**.
+- **Nhãn nội bộ một file** (CLAUDE.md §10.3 — chỉ dùng trong đúng file, không phải ID liên-file): `OQ-` (open question, mọi file); `DD-` (nguyên tắc dữ liệu demo — 08); `G1..G4` (cổng nghiệm thu MVP — 09); `GR-`/`INJ-`/`AUT-` (nhóm test grounding / anti-injection / autonomy — 14). Thêm nhãn nội bộ mới → ghi tại file dùng + liệt kê ở đây.
+- Mọi ID **liên-file** mới phải được thêm vào skeleton (file này) **trước** khi dùng trong 00–14.
 
 ## 13. Quyết định mở cần human (BRD §21.1 + REBUILD-PLAN Q1–Q6)
 
 Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không blocking docs P0): SaaS đa tenant dài hạn · khách hàng mục tiêu đầu · chính sách AI cloud (dữ liệu tài chính/nhân sự) · vai trò với phần mềm kế toán · ngưỡng L3 mặc định · kênh chat chính · mô hình giá. Theo dõi ở 13-DECISION-LOG §3 (B1–B7).
 
 ## Version
-- **Version:** 0.2.0 (skeleton — P0 locked)
-- **Last updated:** 2026-10-22
+- **Version:** 0.3.0 (skeleton — P0 locked)
+- **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 0.3.0:** Vòng mở rộng spec-level P0 — ghi nhận nhãn nội bộ một file (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`) dùng trong 08/09/14; bổ sung `AGT-*` vào quy ước ID; phân biệt "ID liên-file" (cập nhật skeleton trước) vs "nhãn nội bộ một file". Không đổi tập P0 hay quyết định Q1–Q6.
 - **Change 0.2.0:** Khóa tập P0 (§12bis) sau khi human chốt Q1–Q6: 20 domain P0 / 6 P1 / 1 P2, kênh C1–C5 P0, Autonomy L0–L3 P0 (L4 phase 5), UC P0, agent P0; thêm quy ước gán số METRIC/ENT/EP/SCR/TOOL/AIC + ràng buộc "ID mới cập nhật skeleton trước"; cập nhật §13 (Q1–Q6 đã chốt).
 - **Change 0.1.0:** Tạo ID registry xương sống từ BRD AI-EOS đầy đủ: P01–P11, AI-R01–R12, BO-01–BO-10, 28 domain + FR prefix, 7 role + AI Agent, UC-01–08, ~110 US (19 epic), C1–C10, AI Platform (13 thành phần, L0–L4, agent, tool metadata, insight 9 phần), bộ chỉ số sức khỏe, 13 nhóm entity, ánh xạ main↔ai-eos, quyết định mở.

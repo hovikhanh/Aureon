@@ -1,9 +1,25 @@
 # AI-EOS Rebuild — Self-Review Report (nhánh `ai-eos`)
 
 > **Mục đích:** đóng gói kết quả tự kiểm tra bộ tài liệu AI-EOS viết lại (00–14) để human duyệt/promote với rủi ro thấp. Đây là **tự-review của agent**, không thay cho human review (CLAUDE.md §10.3).
-> **Ngày:** 2026-10-22 · **Phạm vi:** 15 file 00–14 + REBUILD-PLAN + TRACEABILITY-SKELETON (nhánh `ai-eos`), vòng **docs-first P0** sau khi human chốt Q1–Q6.
+> **Ngày:** 2026-10-23 · **Phạm vi:** 15 file 00–14 + REBUILD-PLAN + TRACEABILITY-SKELETON (nhánh `ai-eos`).
 
 ---
+
+## 0. Vòng mở rộng spec-level P0 (2026-10-23, version 0.3.0)
+
+Sau khi human xác nhận mức "**spec-level đầy đủ, KHÔNG field-level**", bộ tài liệu được nâng từ "outline nén" lên **spec-level P0**:
+
+| Hạng mục | Kết quả |
+|---|---|
+| File mở rộng 0.3.0 | 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 14 (13 file) + TRACEABILITY-SKELETON 0.3.0 |
+| Độ sâu | ~1.645 → ~2.690 dòng; mỗi file domain P0 nay có mô tả hành vi per-FR, tiêu chí chấp nhận UC, luồng/trạng thái, quy tắc nghiệp vụ, ngoại lệ, chỉ số, mapping `main` |
+| Grounding | Bám `_reference/SOURCE-BRD-v1.1.md` (+ Bổ sung) + `SOURCE-UIUX.md`; mỗi mục trích §BRD |
+| R-DEC-09 tôn trọng | ✅ KHÔNG field-level DB (xác minh: 0 token SQL type trong 05), KHÔNG `T-*`/`TC-*` đánh số; mọi file giữ ghi chú "chi tiết hóa ở đợt code" |
+| Gate A (0.3.0) | ✅ 01–12, 14: đúng 1 H1, fence cân bằng, có Open questions + Version |
+| ID discipline | ✅ Chỉ ID trong skeleton; nhãn nội bộ mới (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`, `AIC-*`/`AGT-*`) đã ghi vào skeleton §12 (0.3.0) |
+| Ràng buộc | ✅ Chỉ sửa trong `docs/0.AI-EOS-REBUILD/`; không chạm `apps/`/`packages/`/migration/`_reference/`/`main`; giữ `🟡 draft` (human promote); chưa push |
+
+Phần §1–§8 dưới đây là kết quả vòng **docs-first P0 (0.2.0)** trước đó — giữ làm hồ sơ; trạng thái version hiện tại của các file spec là **0.3.0** (xem 12-DOC-AUDIT §2).
 
 ## 1. Tình trạng hoàn tất
 
@@ -82,8 +98,9 @@
 6. Khi mở **đợt code**: dùng skeleton §12 ánh xạ ID → gán số METRIC-/EP-/ENT-/SCR-/TOOL- → sinh T-* (09) và TC-* (14); quyết mức tái dùng code `main` + kế hoạch merge.
 
 ## Version
-- **Version:** 0.2.0
-- **Last updated:** 2026-10-22
+- **Version:** 0.3.0
+- **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 0.3.0:** Thêm §0 vòng mở rộng **spec-level P0** — 13 file (01–12,14) + skeleton nâng lên 0.3.0; bám canonical, R-DEC-09 tôn trọng (không field-level/T-*/TC-*), Gate A pass, ID discipline + nhãn nội bộ ghi vào skeleton. §1–§8 giữ làm hồ sơ vòng 0.2.0.
 - **Change 0.2.0:** Cập nhật sau vòng docs-first P0 — Q1–Q6 đã chốt (R-DEC-05..10) + R-DEC-11; Gate A/B/C pass (0 open+blocking DEC; TC/T-* hoãn đợt code); đóng A3; A4 chuyển sang "gán số ở đợt code"; thêm mục Gate B/Gate C; cập nhật ràng buộc (branch-aware R-DEC-11) + khuyến nghị promote 0.2.0.
 - **Change 0.1.0:** Báo cáo tự-review bộ AI-EOS 00–14 — tình trạng, Gate A format, độ phủ BRD, điểm cần human xác nhận, ràng buộc đã tuân thủ, khuyến nghị bước tiếp.
