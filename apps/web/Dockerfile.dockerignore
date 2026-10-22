@@ -1,0 +1,20 @@
+# Per-Dockerfile ignore (BuildKit) — web image needs packages/, root ignore excludes it.
+.git
+.env
+.env.*
+secrets
+keys
+*.pem
+*.key
+.venv
+**/node_modules
+**/.next
+**/__pycache__
+**/test-results
+**/playwright-report
+apps/api
+_reference
+.agent-teams
+docs
+data
+var
