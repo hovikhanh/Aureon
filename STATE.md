@@ -2,13 +2,50 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 14:52 (Asia/Saigon) |
-| Last commit | `69995b5` feat(idp): S4b review workflow (EP-28..35, EP-126/127) on `main` |
-| Sub-sprint | **S4b — IDP review workflow DONE** (queue/detail/open/fields/approve→commit/reject/reassign/merge/SLA); S4a DONE; S4c/S4d pending |
-| Test count | 741 passed, 2 deselected (`-m "not live"`) |
+| Last updated | 2026-10-22 15:50 (Asia/Saigon) |
+| Last commit | `d738e65` feat(s5): IDP review detail SCR-18b (T-508) on `main` (pushed) |
+| Sub-sprint | **S5a — FE foundation + 4 MUST screens DONE** (T-501..T-508); S4a/S4b DONE; S4c/S4d deferred (DEC-240); S5b/S5c pending |
+| Test count | BE 741 passed (unchanged, backend not touched) · FE Vitest 11 passed · Playwright E2E **20 passed** |
 | Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
-| Open blocking DECs | none |
+| Open blocking DECs | none (auto-DEC non-blocking DEC-237..239; DEC-240 S4c/S4d deferral) |
+
+## S5a FE foundation + 4 MUST screens (done 2026-10-22, direct route; 8 commits, pushed)
+- **S4c deferred** — internal polish (full doc-type catalogue, ENT-DataLineage 4-cấp, EP-33 rollback). Defer to post-S5 if scope permits. S4d (C2/C4/C5 breadth) deferred, optional (DEC-240). Backend IDP not touched this sprint.
+- **T-501** `16492d0` Next.js 15.5 App Router in `apps/web` (TS strict + `noUncheckedIndexedAccess`), Tailwind 4 tokens (`ai` violet ≠ `primary` blue), shadcn-style ui (button/input/label/card/badge/select/dialog/popover/checkbox/collapsible/tooltip/dropdown/toast), next-intl vi/en (251 keys each, cookie `NEXT_LOCALE`), `lib/{api-client,sse,format,query-keys}.ts`.
+- **T-502** `4578cd0` NextAuth Credentials → EP-02; backend access+refresh token only inside the encrypted httpOnly NextAuth JWT. BFF `app/api/backend/[...path]` adds Bearer, single-flight refresh (EP-06 rotation), streams SSE (`X-Accel-Buffering: no`). `middleware.ts` → `/login?callbackUrl` / rewrite `/403`; `lib/permissions.ts` route rules + nav + role landing.
+- **T-503** `ca3f3f8` SCR-13 login (rhf+zod), demo dropdown (5 accounts) fills email; password resolved server-side from `DEMO_*_PASSWORD` when `DEMO_MODE` (never `NEXT_PUBLIC_*`). Error from `{error:{code}}` mapped via i18n.
+- **T-504** `52af5cf` App shell: role-filtered sidebar (Dashboard/IDP/AI/Approvals), header avatar/role badge/logout/VI-EN switcher (server action). ≥1280 full (collapsible), 768–1279 icons, <768 drawer.
+- **T-505** `e5be7fe` SCR-02: 5 pillar cards (5/2/1 cols), one query per domain endpoint (O = hr + execution worst), 60 s refetch, failed source → "Không khả dụng" + retry; Recharts sparkline from `*_trend`; 13 alerts critical-first + Acknowledge (EP alert ack, Idempotency-Key). Period `2026-09` (DEC-237) → 2g/2y/1r. `/dashboard/pillar/[slug]` stub (metrics list) for S5b.
+- **T-506** `822a17f` SCR-16 chat: SSE over POST via `lib/sse.ts`, pure reducer (start/tool_call/tool_result/token/done/error), `ThinkingState` collapsible "AI đang dùng tool: …", `SourceChip` `[n]` popover, new chat + history (EP-112). E2E stubs SSE (DEC-238); live transport verified via curl through BFF.
+- **T-507** `e46b658` SCR-18a queue: table (filename/type/confidence/critical/assigned/age/Review), filters status/doc_type/assigned(me), pagination limit/offset, empty state + Upload (EP-20 multipart).
+- **T-508** `d738e65` SCR-18b: 2 columns (text-layer source viewer + highlight/bbox | field form: ConfidenceBadge, confirm checkbox, correction input, reason for money fields, red border + tooltip), EP-29 open / EP-35 release, EP-30 patch → EP-31 approve → toast "Đã ghi vào Finance" → queue; reject dialog (reason). `/finance/invoices` list (direction filter) shows the committed invoice. `/approvals` placeholder.
+- **E2E seed:** `apps/web/e2e/support/seed_review_doc.py` (UploadService + Pipeline, fixture gateway; unique invoice number per run) called from Playwright via `.venv/bin/python`.
+
+## S5a exit criteria
+| Criterion | Result |
+|---|---|
+| `pnpm build` / `next start` :3000 | ✅ |
+| Login 3 demo accounts (CEO, CFO, REVIEWER) | ✅ |
+| Dashboard 5 cards 2g/2y/1r + 13 alerts | ✅ |
+| Chat streaming + citation | ✅ (fixture SSE, DEC-238) |
+| Queue + filters | ✅ |
+| Detail + approve → invoice visible | ✅ |
+| Role nav + 403 | ✅ |
+| Responsive 1440/1280/768/390 | ✅ (`responsive.spec.ts`, screenshots `apps/web/test-results/screens/`, gitignored) |
+| 4 Playwright flows (login, dashboard, chat, review) | ✅ 20 tests passed |
+| TS strict, ESLint 0 warnings, no `any` (`no-explicit-any: error`) | ✅ |
+
+**FE routes:** 10 pages (`/`, `/login`, `/403`, `/dashboard`, `/dashboard/pillar/[slug]`, `/ai`, `/idp/review`, `/idp/review/[documentId]`, `/finance/invoices`, `/approvals`) + 2 route handlers (`/api/auth/[...nextauth]`, `/api/backend/[...path]`).
+
+### Run E2E
+API :4000 + Postgres seeded, then `pnpm --filter @aureon/web build && pnpm --filter @aureon/web start` and `E2E_NO_SERVER=1 pnpm test:e2e` (or let Playwright start `pnpm start`). `apps/web/.env.local` (gitignored) carries NEXTAUTH_* + demo passwords copied from root `.env`.
+
+### S5a notes / gaps
+- Chat live: OmniRoute `auto/coding` ~39 s/answer > 30 s turn limit → `AI_PROVIDER_TIMEOUT` in live mode; pick faster `MODEL_CHAT` or record fixtures (T-321).
+- Optimistic lock: review detail has no `version`/`ETag`; FE sends `If-Match` only if ETag appears (DEC-237 note). Soft lock EP-29 + 409 cover concurrency today.
+- Dashboard period fixed to T9/2026; period picker + full drill-downs SCR-02..06 = S5b.
+- Not yet: axe-core (TC-UI-020/027), TTFT measurement, ⌘K panel, dark-mode toggle, PWA.
 
 ## Done
 - S0, S0b, S1 (Finance/Sales/HR) — see git history (`ed1836a`).
@@ -125,7 +162,7 @@ upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extra
 4. `[DEFERRED to S5]` T-223 lineage drill-down, T-233 + FE S2 (DEC-229).
 
 ## Next task
-**S4c commit + lineage + Action Registry v2** — on next RESUME: read 09 §S4, 04 §10 (Action Registry, undo, lineage), 05 §ENT-DataLineage, 10 EP-33, gates A/B/C. Extend `commit_service.py` with the full doc-type→domain catalogue, `ENT-DataLineage` rows per committed field, and the 7-day rollback (EP-33) emitting `idp.document_rolled_back`. S4b review workflow sits ready: approved docs reach `COMMITTED` with `undo_deadline`.
+**S5b (5 drill-downs) or S5c (breadth)** — awaiting human RESUME brief. (Former next task, now deferred per DEC-240:) **S4c commit + lineage + Action Registry v2** — on next RESUME: read 09 §S4, 04 §10 (Action Registry, undo, lineage), 05 §ENT-DataLineage, 10 EP-33, gates A/B/C. Extend `commit_service.py` with the full doc-type→domain catalogue, `ENT-DataLineage` rows per committed field, and the 7-day rollback (EP-33) emitting `idp.document_rolled_back`. S4b review workflow sits ready: approved docs reach `COMMITTED` with `undo_deadline`.
 
 ## S4b notes / deferred (for S4c)
 - **Commit path:** only INVOICE→finance.Invoice wired (reference path). OTHER = metadata-only. Remaining doc-type→domain maps (sales report→deals, employee list→hr, risk register→risks, etc.) + `ENT-DataLineage` field→record rows are S4c.

@@ -400,6 +400,20 @@ Sub-sprint **S4b** (T-406→T-412): hàng chờ review (EP-28), chi tiết revie
 | TC-IDP-015 | Passed | `tests/integration/idp/test_review_workflow.py` | T-410, T-412 | EP-126 reassign: dòng `REASSIGN`, bắt buộc `reason` + đúng một trong `to_user_id`/`to_role_code`, Notification; SLA quá hạn → dòng `ESCALATE` + `EVT-idp.review_escalated` (idempotent, không re-escalate cùng cấp) |
 | TC-IDP-021 | Passed | `tests/integration/idp/test_review_workflow.py` | T-411 | EP-127 `ACT-merge_review` gộp tài liệu cùng doc type khi `NEEDS_REVIEW`; khác doc type / khác trạng thái → `409`; `primary_id` ngoài danh sách → `422` |
 
+#### 2.5.3. Trạng thái hiện thực S5a — FE nền tảng + 4 màn MUST (auto-pilot, 2026-10-22)
+
+Sub-sprint **S5a** do brief giao đánh số T-501..T-508 (khác 09): T-501 scaffold · T-502 auth · T-503 login · T-504 shell · T-505 dashboard · T-506 chat · T-507 queue · T-508 review detail. E2E chạy trên stack dev thật (API :4000 + web :3000 `next start`); chat stub SSE ở biên trình duyệt (fixture, CLAUDE §6.6 #7, DEC-238); tài liệu review seed bằng `e2e/support/seed_review_doc.py` (UploadService + Pipeline, gateway fixture).
+
+| TC | Trạng thái | Test | Task (brief S5a) | Ghi chú |
+|---|---|---|---|---|
+| TC-UI-001 | Passed (một phần — login/guard/logout; đổi VI/EN có UI, chưa E2E) | `apps/web/e2e/login.spec.ts` | T-502, T-503 | NextAuth Credentials → EP-02; token chỉ trong cookie httpOnly (BFF `/api/backend/*`); chưa đăng nhập → `/login?callbackUrl`; sai mật khẩu → hiện `INVALID_CREDENTIALS`; 3 tài khoản demo (CEO/CFO → `/dashboard`, REVIEWER → `/idp/review`); route thiếu quyền → 403 |
+| TC-UI-016 | Implemented (một phần — 3/10 role E2E) | `apps/web/e2e/login.spec.ts`, `dashboard.spec.ts`, `src/lib/permissions.test.ts` | T-502, T-504 | Sidebar lọc theo permission; trụ hiện theo scope role (CEO 5, CFO F+S) |
+| TC-UI-004 | Passed | `apps/web/e2e/dashboard.spec.ts` | T-505 | 5 thẻ, mỗi thẻ một query (O = hr + execution, worst); mock `risk` 500 → chỉ thẻ S `unavailable`; kỳ T9/2026 → 2 xanh / 2 vàng / 1 đỏ (DEC-230, DEC-237); 13 cảnh báo critical trước; click F → `/dashboard/pillar/finance` |
+| TC-UI-009 | Passed (một phần — fixture stream, chưa đo TTFT) | `apps/web/e2e/chat.spec.ts`, `src/features/ai/reducer.test.ts`, `src/lib/sse.test.ts` | T-506 | SSE EP-111 qua Route Handler (`X-Accel-Buffering: no`, kiểm thật bằng curl); token-by-token; `ThinkingState` "AI đang dùng tool"; citation `[1]` → popover nguồn; lỗi `error` event hiển thị |
+| TC-UI-013 | Implemented (một phần — luồng duyệt; chưa phím tắt / bấm giờ 60 s) | `apps/web/e2e/review-queue.spec.ts`, `review-detail.spec.ts` | T-507, T-508 | Hàng chờ + lọc status/doc_type/assigned + empty state + Upload; chi tiết 8 field, 3 trọng yếu, ConfidenceBadge HIGH/MEDIUM/LOW, hover tô dòng nguồn, sửa tiền thiếu lý do → viền đỏ; approve → toast "Đã ghi vào Finance" → hóa đơn hiện ở `/finance/invoices`; reject bắt buộc lý do |
+| TC-UI-019 | Passed (một phần — formatter) | `apps/web/src/lib/format.test.ts` | T-501 | `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `T9/2026`; mọi chuỗi qua `next-intl` (vi/en cùng 251 key) |
+| TC-UI-028 | Passed | `apps/web/e2e/responsive.spec.ts` | T-504 | 1440/1280 sidebar đầy đủ + 5 cột; 768 sidebar icon + 2 cột; 390 drawer + 1 cột; không cuộn ngang |
+
 ### 2.6. S5 — UX, mobile, phát hành
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
@@ -482,6 +496,7 @@ Sub-sprint **S4b** (T-406→T-412): hàng chờ review (EP-28), chi tiết revie
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
 | 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA); 07 2.1.0 +3 TC Planned (TC-AI-022 phân loại → provider fail fast, TC-AI-023 verify bù, TC-NFR-004 TTFT/p95) |
 | 2026-10-20 | DEC-144 Phase 3d | Gán task cho **36 TC Planned** của §2.1.1–§2.1.3 (35 TC "Phase 3d" + TC-SYS-009) theo 09 2.1.0 (T-018, T-106, T-133, T-215, T-229..T-233, T-313..T-317, T-324, T-415, T-416 + task sẵn có); §2.1.4 +4 TC Planned (TC-AI-024 classification override, TC-DASH-011 Report, TC-EVT-006 payload 7 event, TC-AUTH-010 rename DEC-154) |
+| 2026-10-22 | S5a T-501..T-508 | §2.5.3: trạng thái FE S5a — TC-UI-001/004/009/019/028 Passed (một phần), TC-UI-013/016 Implemented; 20 E2E Playwright + 11 Vitest |
 
 ---
 
