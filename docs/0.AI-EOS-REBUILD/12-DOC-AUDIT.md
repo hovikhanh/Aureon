@@ -31,18 +31,19 @@ Bộ tài liệu AI-EOS được viết lại trên nhánh `ai-eos` trong `docs/
 | 13 | DECISION-LOG | 0.1.0 | draft | R3 | §21.1 |
 | 14 | TEST-TRACEABILITY | 0.1.0 | draft | R3 | §14,§15 |
 
-**Tiến độ:** 00–14 đã có bản AI-EOS đầu tiên (15/15) + 2 file khung. Toàn bộ draft, chờ human duyệt Q1–Q6 và promote.
+**Tiến độ:** 00–14 đã có bản AI-EOS đầu tiên (15/15) + 2 file khung. Q1–Q6 **đã chốt** (13 §1, R-DEC-05..10); các file đang cập nhật trạng thái quyết định theo đó. Toàn bộ vẫn `draft` — chờ human promote `current`.
 
 ## 3. Định dạng (Gate A)
 Mỗi file: một H1, heading `##`, bảng cho ma trận, code fence đủ cặp, kết bằng "Open questions" + "Version". Đã kiểm thủ công khi viết.
 
 ## 4. Open questions / audit gaps
 - OQ-12-01: Chưa chạy `doc-reviewer` (read-only 5 mục) trên bộ AI-EOS — nên chạy trước promote.
-- OQ-12-02: Mọi version/status do human promote; agent để `draft 0.1.0`.
-- OQ-12-03: Cross-ref ID giữa các file đã verify sơ bộ (domain/role/FR/channel); cần audit ID đầy đủ khi chốt Q6 numbering.
+- OQ-12-02: Mọi version/status do human promote; agent để `draft`.
+- OQ-12-03: Cross-ref ID giữa các file đã verify sơ bộ (domain/role/FR/channel); R-DEC-10 đã chốt (ID theo BRD + ánh xạ `main`), audit ID đầy đủ khi chi tiết hóa numbering ở đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R3)
+- **Version:** 0.2.0 (draft, Phase R3)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Tạo 12 cho nhánh `ai-eos` — bảng trạng thái 00–14 (toàn draft 0.1.0) + 2 file khung, định dạng Gate A, audit gaps.

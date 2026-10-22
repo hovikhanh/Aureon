@@ -170,12 +170,35 @@ Tổ chức (Organization, BusinessUnit, Department, Team, Employee, Position, R
 | Kênh | C1–C5 | C1–C10 |
 | Kiến trúc | Modular Monolith 11 module | 28 domain / 5 lớp (kiến trúc chốt theo Q2 trong REBUILD-PLAN) |
 
+## 12bis. Tập P0 đã khóa (R-DEC-05 — P0 MVP first)
+
+Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được khóa như sau; mọi file 00–14 chỉ đặc tả đầy đủ tập P0, P1/P2 ghi backlog (09).
+
+**Domain P0 (12):** D01 Organization · D02 Admin & Security · D03 Data Capture & IDP · D04 Workflow (cơ bản) · D05 Notification · D06 Integration Hub (Google/MS) · D07 Strategy (cơ bản) · D08 KPI · D09 OKR · D10 Performance (check-in) · D11 Task/Workload · D12 Meeting (từ transcript) · D13 Calendar · D14 Knowledge · D15 Finance Lite · D16 HR cơ bản · D17 Sales Lite · D26 AI Platform · D27 CEO Assistant · D28 Reporting cơ bản.
+**Domain P1 (backlog):** D18 Customer · D19 Partner · D20 Procurement · D21 Contract · D22 Product · D23 Engineering · D25 Risk · D04/D06/D10/D12 phần nâng cao.
+**Domain P2 (backlog):** D24 Governance & Compliance.
+
+**Kênh P0:** C1–C5. **Kênh P1 (backlog):** C6–C10.
+**Autonomy P0:** L0–L3 (undo ≥24h). **L4:** phase 5 (backlog, không bật MVP).
+**UC P0:** UC-01, UC-02 (transcript), UC-03, UC-04, UC-06, UC-07. **UC P1:** UC-05, UC-08, UC-02 (AI dự họp).
+**Agent P0 (`AGT-*`):** CEO, Data Capture, Performance, Task, Meeting, Reporting (+ Finance/Sales Lite). **Agent P1/P2:** HR/Product/Engineering/Procurement/Strategy/Risk/Governance.
+
+### Quy ước gán số ID (R-DEC-10 — BRD + ánh xạ `main`)
+- **FR-*:** đã cố định theo §4 (FR-ORG-01..06, FR-DC-01..23, …). Agent **không** tạo FR ngoài dải này; cần thêm → cập nhật §4 trước.
+- **METRIC-*:** cấp ở **03** theo nhóm §10, định dạng `METRIC-<NHÓM>-NN` (NHÓM ∈ FIN/CUS/OPS/PPL/STR/DQ). Danh sách nguồn ở §10; 03 chốt số + công thức.
+- **ENT-*:** cấp ở **05**, định dạng `ENT-<Name>` theo 13 nhóm §11. 05 chốt field/kiểu/quan hệ; mọi entity nghiệp vụ có `tenant_id` (R-DEC-07).
+- **EP-*:** cấp ở **10** theo domain P0, định dạng `EP-<DOMAIN>-NN`. Phân loại tool READ/WRITE/APPROVAL/EXECUTION (§9).
+- **SCR-*:** cấp ở **06** theo SOURCE-UIUX, định dạng `SCR-NN`.
+- **TOOL-*:** cấp ở **10** (Tool Registry §9, 13 metadata). **AIC-*** (13 thành phần AI Platform) cấp ở **07**.
+- Mọi ID mới phải được thêm vào skeleton (file này) **trước** khi dùng trong 00–14.
+
 ## 13. Quyết định mở cần human (BRD §21.1 + REBUILD-PLAN Q1–Q6)
 
-SaaS đa tenant vs nội bộ · khách hàng mục tiêu đầu · chính sách AI cloud (dữ liệu tài chính/nhân sự) · vai trò với phần mềm kế toán · ngưỡng L3 mặc định · kênh chat chính · mô hình giá. Theo dõi ở 13-DECISION-LOG (nhánh `ai-eos`).
+Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không blocking docs P0): SaaS đa tenant dài hạn · khách hàng mục tiêu đầu · chính sách AI cloud (dữ liệu tài chính/nhân sự) · vai trò với phần mềm kế toán · ngưỡng L3 mặc định · kênh chat chính · mô hình giá. Theo dõi ở 13-DECISION-LOG §3 (B1–B7).
 
 ## Version
-- **Version:** 0.1.0 (skeleton)
+- **Version:** 0.2.0 (skeleton — P0 locked)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Khóa tập P0 (§12bis) sau khi human chốt Q1–Q6: 20 domain P0 / 6 P1 / 1 P2, kênh C1–C5 P0, Autonomy L0–L3 P0 (L4 phase 5), UC P0, agent P0; thêm quy ước gán số METRIC/ENT/EP/SCR/TOOL/AIC + ràng buộc "ID mới cập nhật skeleton trước"; cập nhật §13 (Q1–Q6 đã chốt).
 - **Change 0.1.0:** Tạo ID registry xương sống từ BRD AI-EOS đầy đủ: P01–P11, AI-R01–R12, BO-01–BO-10, 28 domain + FR prefix, 7 role + AI Agent, UC-01–08, ~110 US (19 epic), C1–C10, AI Platform (13 thành phần, L0–L4, agent, tool metadata, insight 9 phần), bộ chỉ số sức khỏe, 13 nhóm entity, ánh xạ main↔ai-eos, quyết định mở.

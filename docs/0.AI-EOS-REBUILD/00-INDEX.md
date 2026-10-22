@@ -61,12 +61,15 @@ Nhánh viết lại tài liệu cho **đúng AI-EOS đầy đủ** (28 domain, 7
 | Mục | Trạng thái |
 |---|---|
 | Nhánh | `ai-eos` (từ `main` @ `e394668`); `main` giữ nguyên demo-ready v2.1 |
-| Bộ 00–14 | ✅ bản AI-EOS đầu tiên đủ 15/15 (R0+R1+R2+R3) + 2 file khung — toàn **draft 0.1.0** |
-| Phase kế | Human duyệt Q1–Q6 (13 §1) → `doc-reviewer` → promote `current` |
-| Mặc định tạm | Q1–Q6 ở 01 §8 / REBUILD-PLAN §6 / 13 §1 |
+| Bộ 00–14 | ✅ bản AI-EOS đủ 15/15 (R0+R1+R2+R3) + 2 file khung — toàn **draft** (chờ human promote `current`) |
+| Quyết định nền | **Q1–Q6 đã chốt** (13 §1, R-DEC-05..10): P0 MVP first · Modular Monolith · single-tenant + `tenant_id` · 7 role + AI Agent · docs-first · ID theo BRD + ánh xạ `main` |
+| Phạm vi đợt này | **Docs-first P0** (R-DEC-09) — hoàn thiện 00–14 + governance; code/app/migration/merge `main` ở đợt sau |
+| Phase kế | `doc-reviewer` (tùy chọn) → human promote `draft → current` theo chuỗi 00→01→… |
+| Mở còn lại | B1–B7 (BRD §21.1, CEO) — không blocking docs P0 (13 §3) |
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R0)
+- **Version:** 0.2.0 (draft, Phase R0)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Cập nhật trạng thái sau khi human chốt Q1–Q6 (R-DEC-05..10); ghi rõ phạm vi docs-first P0; B1–B7 còn mở (CEO, không blocking).
 - **Change 0.1.0:** Tạo 00-INDEX cho nhánh `ai-eos` — bản đồ 00–14 theo AI-EOS, thứ tự đọc, bảng trỏ ID registry, trạng thái nhánh.

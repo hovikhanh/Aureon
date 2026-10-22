@@ -79,15 +79,16 @@ Thanh AI toàn cục (⌘K) · Panel AI ngữ cảnh ("AI đang xem: …") · Tr
 - **WCAG 2.1 AA** cho màn hình chính (NFR-UX-03).
 - **VI mặc định + EN**; AI hiểu câu trộn 2 ngôn ngữ (NFR-UX-01).
 
-> **Khác `main`:** `main` có SCR-01..28 cụ thể cho 5 trụ F.O.C.U.S. AI-EOS dùng IA 8 mục theo vai trò. Mã `SCR-*` cho AI-EOS sẽ cấp khi chi tiết hóa; ánh xạ SCR `main` ↔ màn AI-EOS ở bảng khi quyết Q1/Q6.
+> **Khác `main`:** `main` có SCR-01..28 cụ thể cho 5 trụ F.O.C.U.S. AI-EOS dùng IA 8 mục theo vai trò. Theo R-DEC-10 (ID theo BRD + bảng ánh xạ sang SCR-* của `main`); mã `SCR-*` cho AI-EOS gán khi chi tiết hóa ở đợt code (R-DEC-09).
 
 ## 9. Open questions
-- OQ-06-01: Màu thương hiệu `primary` cụ thể (UIUX §10 bỏ ngỏ) — chờ human.
-- OQ-06-02: Giữ ⌘K + Panel + Chat SSE của `main` làm hiện thực cho "Thanh AI toàn cục" — xác nhận.
-- OQ-06-03: SCR numbering AI-EOS vs giữ SCR-01..28 `main` (Q6).
+- OQ-06-01: Màu thương hiệu `primary` cụ thể (UIUX §10 bỏ ngỏ) — chờ human/design.
+- OQ-06-02: ⌘K + Panel + Chat SSE của `main` làm hiện thực cho "Thanh AI toàn cục" — ĐÃ CHỐT: giữ làm chuẩn hiện thực; chi tiết UI gán khi chi tiết hóa ở đợt code (R-DEC-09).
+- OQ-06-03: SCR numbering — ĐÃ CHỐT: R-DEC-10 — đánh số theo BRD + bảng ánh xạ sang SCR-01..28 của `main`; SCR-* cụ thể gán ở đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R2)
+- **Version:** 0.2.0 (draft, Phase R2)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 06 theo AI-EOS UI/UX — 8 nguyên tắc UX, IA 8 mục theo vai trò, 5 flow F1–F5, wireframe CEO/Review/Mobile, mẫu AI theo Autonomy L0–L4 + bộ component AI, design system (token/màu/thành phần/trực quan hóa), đa thiết bị + WCAG 2.1 AA + VI/EN.

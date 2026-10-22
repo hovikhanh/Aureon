@@ -22,9 +22,9 @@
 
 ## 2. Trường chung mọi bản ghi nghiệp vụ (BRD §13.3)
 
-`created_by` (người hoặc agent) · `source` ∈ {manual, document, integration, ai} · `source_document_id` · `data_classification` ∈ {Công khai, Nội bộ, Mật, Tuyệt mật} · `created_at` · `updated_at` · `version`.
+`tenant_id` (R-DEC-07: 1 tenant cho MVP nhưng có sẵn ở **mọi** business entity để nâng đa tenant sau) · `created_by` (người hoặc agent) · `source` ∈ {manual, document, integration, ai} · `source_document_id` · `data_classification` ∈ {Công khai, Nội bộ, Mật, Tuyệt mật} · `created_at` · `updated_at` · `version`.
 
-> **Khác `main`:** `main`/DEC-154 đổi `source` → tên có hậu tố (`risk_source`, `data_source`…) để tránh trùng tên cột. Trên `ai-eos` giữ `source` theo BRD §13.3; khi code hóa sẽ quyết lại ở DEC (ánh xạ sang quy ước `main` nếu tái dùng code).
+> **`source` vs `*_source` (khác `main`):** `main`/DEC-154 đổi `source` → tên có hậu tố (`risk_source`, `data_source`…) để tránh trùng tên cột. Trên `ai-eos` giữ `source` theo BRD §13.3; việc có đổi sang quy ước hậu tố của `main` (khi tái dùng code) là **quyết định ở đợt code (R-DEC-09)**.
 
 ## 3. 13 nhóm entity (BRD §13.2)
 
@@ -59,7 +59,7 @@ Data → AI → Insight → Recommendation → Decision → Action → Measureme
 
 ## 5. Phân vùng lưu trữ theo domain (ánh xạ sang schema)
 
-AI-EOS 28 domain / 5 lớp. Khi hiện thực hóa trên Modular Monolith (Q2 mặc định), nhóm entity ánh xạ sang schema PostgreSQL theo domain. Bảng ánh xạ 13 nhóm → schema (đề xuất): org/admin → `platform`+`auth`; data capture → `idp`; AI → `ai`; workflow → `platform`; finance → `finance`; sales/customer/partner → `sales`; hr → `hr`; product/engineering → `product`; risk/governance → `risk`; strategy/kpi/okr/performance/meeting/task → `execution`; knowledge/report → `platform`/`dashboard`. Chốt chính thức khi quyết Q2/Q6.
+AI-EOS 28 domain / 5 lớp, hiện thực hóa theo **R-DEC-06 (Modular Monolith)** + **R-DEC-10** (ID theo BRD + ánh xạ `main`): nhóm entity ánh xạ sang schema PostgreSQL theo domain. Bảng ánh xạ 13 nhóm → schema (đề xuất): org/admin → `platform`+`auth`; data capture → `idp`; AI → `ai`; workflow → `platform`; finance → `finance`; sales/customer/partner → `sales`; hr → `hr`; product/engineering → `product`; risk/governance → `risk`; strategy/kpi/okr/performance/meeting/task → `execution`; knowledge/report → `platform`/`dashboard`. Chi tiết schema chốt ở đợt code (R-DEC-09).
 
 ## 6. AI entity & grounding
 
@@ -70,12 +70,13 @@ Mọi con số AI đưa ra phải khớp một `AIToolCall` result hoặc `Metri
 Event mẫu: `invoice.created`, `kpi.measured`, `task.overdue`, `document.committed`, `kpi.below_threshold`, `okr.at_risk`, `risk.detected`. Envelope: `event_id, event_type, occurred_at, version, correlation_id, payload` (không PII). Danh mục event đầy đủ chốt ở 10 §8.
 
 ## 8. Open questions
-- OQ-05-01: Giữ quy ước `source` (BRD) hay hậu tố `*_source` (DEC-154 `main`)? (Q6)
-- OQ-05-02: Số entity chính xác cho MVP P0 (tập con của §13.2) — phụ thuộc Q1.
-- OQ-05-03: effective-dated (FR-DATA-07) cho entity nào ở MVP (ít nhất Organization theo FR-ORG-04).
+- OQ-05-01: Quy ước `source` (BRD) vs hậu tố `*_source` (DEC-154 `main`) — giữ `source` theo BRD ở docs; chốt quy ước cột khi tái dùng code ở đợt code (R-DEC-09).
+- OQ-05-02: Tập entity chính xác cho MVP P0 (tập con của §13.2) — theo R-DEC-05 (phủ tập P0); danh sách entity cụ thể chi tiết hóa ở đợt code (R-DEC-09).
+- OQ-05-03: effective-dated (FR-DATA-07) cho entity nào ở MVP (ít nhất Organization theo FR-ORG-04) — phạm vi cụ thể chốt ở đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R2)
+- **Version:** 0.2.0 (draft, Phase R2)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 05 theo AI-EOS — Data Foundation FR-DATA-01..08, trường chung, 13 nhóm entity BRD §13.2, quan hệ cốt lõi, ánh xạ nhóm→schema, AI entity/grounding, event backbone.

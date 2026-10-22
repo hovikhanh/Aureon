@@ -1,7 +1,24 @@
-# CLAUDE.md — Aureon v2
+# CLAUDE.md — Aureon
 
 > **Hợp đồng vận hành** giữa AI Agent và dự án. Đọc file này TRƯỚC mọi task. Vi phạm = task bị từ chối.
-> Áp dụng cho **Aureon v2** (DEC-124 → DEC-137). Bản v1 (4 trụ, 5 role, HS256) lưu ở nhánh git `v1`.
+
+> ## 🧭 0. Branch-aware loading (ĐỌC TRƯỚC) — R-DEC-11
+>
+> Repo có **hai dòng sản phẩm song song**. Xác định nhánh git hiện tại (`git rev-parse --abbrev-ref HEAD`) rồi nạp đúng bộ nguồn:
+>
+> | Nhánh | Dòng sản phẩm | Nguồn canonical | Doc set nạp cho build | Doc KHÔNG đọc cho build |
+> |---|---|---|---|---|
+> | `main` (+ `s*`, `w2-*`) | **Aureon v2.1** (demo-ready) | `_reference/` (DEC-144) | `docs/1.CONTEXT`–`docs/4.GOVERNANCE/` (v2.1, `current`) | docs `archived`; `docs/0.AI-EOS-REBUILD/` (dòng v3 khác) |
+> | `ai-eos` | **Aureon v3 — AI-EOS** (P0) | `_reference/SOURCE-BRD-v1.1.md` + `SOURCE-BRD-v1.1-Bổ sung.md` + `SOURCE-UIUX.md` | `docs/0.AI-EOS-REBUILD/00-INDEX.md` → 00–14 (AI-EOS) | `docs/1.CONTEXT`–`docs/4.GOVERNANCE/` (v2.1) = **baseline reference-only, KHÔNG đọc cho build AI-EOS**; `SOURCE-BRD-v1.0.md` = historical baseline (không nạp) |
+>
+> - **Tên hiển thị sản phẩm trên `ai-eos`:** **Aureon — AI-EOS**; release line **Aureon v3**.
+> - Trên `ai-eos`, "docs AI-EOS hiện hành" = `docs/0.AI-EOS-REBUILD/`; Gate A/B/C đọc `12`/`13`/`14` trong thư mục đó. Quyết định nhánh: `docs/0.AI-EOS-REBUILD/13-DECISION-LOG.md` (R-DEC-05..11).
+> - **Mọi quy tắc an toàn trong file này (gates, cấm lộ secret, cấm tự quyết API/schema/stack, không force-push/tự-merge) áp dụng nguyên cho CẢ HAI nhánh.** R-DEC-11 chỉ ủy quyền cập nhật doc-loading/branding ở mục này + §9; không nới bất kỳ quy tắc an toàn nào khác.
+> - §1–§12 dưới đây mô tả **Aureon v2.1** (áp dụng khi làm trên `main`). Khi làm trên `ai-eos`, nội dung sản phẩm/kỹ thuật theo bộ AI-EOS; phần "Tech Stack / Commands / quy tắc code / Git / an toàn" vẫn dùng chung.
+
+---
+
+> Áp dụng cho **Aureon v2.1** (DEC-124 → DEC-137) khi ở nhánh `main`. Bản v1 (4 trụ, 5 role, HS256) lưu ở nhánh git `v1`.
 > **Thứ tự ưu tiên khi mâu thuẫn:** quy tắc vận hành / an toàn ở file này luôn thắng. Về nội dung sản phẩm và kỹ thuật, `_reference/` là Canonical Source chính thức (DEC-144). `docs/` là living spec version 2.1.0 phản ánh implementation. Mọi mâu thuẫn giữa `docs/` và `_reference/` → ưu tiên `_reference/`, cập nhật `docs/` tương ứng.
 
 ---
@@ -407,6 +424,8 @@ Check theo thứ tự A → B → C. Fail bất kỳ gate nào → trả về `B
 |---|---|
 | Bất kỳ file `status: archived` | Đã thay thế |
 | Nhánh `v1` khi build v2 | Chỉ để tham khảo lịch sử khi human yêu cầu; spec v1 không dùng cho build |
+| `docs/1.CONTEXT`–`docs/4.GOVERNANCE/` (v2.1) **khi ở nhánh `ai-eos`** | Baseline reference-only; dòng v3 — AI-EOS nạp `docs/0.AI-EOS-REBUILD/` (xem §0). Ngược lại: `docs/0.AI-EOS-REBUILD/` không đọc khi build trên `main`. |
+| `_reference/SOURCE-BRD-v1.0.md` | Historical baseline — không nạp vào doc loading matrix / build prompt |
 
 > `_reference/` **không còn bị cấm đọc** — là nguồn gốc chính thức (Canonical Source) cho Aureon v2 (DEC-144, DEC-145). Mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/` trừ khi có DEC mới hơn nói ngược lại; ghi gap vào `13-DECISION-LOG.md`.
 
@@ -652,13 +671,14 @@ Không được chuyển sang bước tiếp theo nếu gate tương ứng chưa
 
 ## 12. Version
 
-- **CLAUDE.md version:** 2.2.1
+- **CLAUDE.md version:** 2.3.0
 - **Last updated:** 2026-10-22
-- **Applies to:** Aureon v2.1
+- **Applies to:** Aureon v2.1 (nhánh `main`) + Aureon v3 — AI-EOS P0 (nhánh `ai-eos`, xem §0)
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo spec v2 (00–14 `current` 2.0.0): 5 trụ F.O.C.U.S / 31 metric, 10 role, Modular Monolith 11 module, outbox + event, RS256, ModelGateway đa provider, `require_permission`, phân trang `limit/offset`, IDP v2, loading matrix đầy đủ, `_reference/` hết ngoại lệ, sửa lệnh `uv run mypy`, gỡ `pnpm db:seed` (DEC-062). Xử lý nội dung của 13 §5.2 (nợ đồng bộ CLAUDE.md), 07 OQ-04, 11 OQ-01/03/05, 12 OQ-02 — trạng thái các mục đó trong 07/11/12/13 cần human cập nhật riêng. Bản 1.1.0 lưu ở nhánh `v1`.
 - **Change (DEC-145, 2026-10-19):** gỡ `_reference/` khỏi §6.2 "Cấm đọc" và §9; `_reference/` là Canonical Source (DEC-144). Agent sửa theo ủy quyền ngoại lệ duy nhất của human.
 **Change log (2026-10-22):**
+- 2.3.0 (2026-10-22): **R-DEC-11** (human ủy quyền) — thêm §0 Branch-aware loading: tách hai dòng sản phẩm (`main` = Aureon v2.1; `ai-eos` = Aureon v3 — AI-EOS P0). Trên `ai-eos`: canonical = `_reference/SOURCE-BRD-v1.1.md`(+Bổ sung)+`SOURCE-UIUX.md`; doc set = `docs/0.AI-EOS-REBUILD/`; docs v2.1 (`1.CONTEXT`–`4.GOVERNANCE/`) + `SOURCE-BRD-v1.0.md` = reference-only, không nạp cho build. Cập nhật §6.2 (cấm đọc theo nhánh) + §9 (ghi chú branch-aware). Mọi quy tắc an toàn giữ nguyên cho cả hai nhánh. Chi tiết R-DEC: `docs/0.AI-EOS-REBUILD/13-DECISION-LOG.md`.
 - 2.2.1 (2026-10-22): §1.6 cập nhật trạng thái DEMO READY sau S5d (human yêu cầu): sprint S0→S5d, test 777/18/30, compose full stack 9 service, health endpoints, demo reset, danh sách hoãn.
 - 2.2.0 (2026-10-20): Reclassify _reference as canonical, adopt BRD ID scheme (DEC-144/146), scope v2.0/v2.1 split (DEC-153), 12 deps resolved (DEC-138..142), SLA split (DEC-158).
 - 2.1.0 (2026-10-19): v2.1 architecture after AI-EOS merge.

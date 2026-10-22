@@ -51,10 +51,11 @@ Lệnh lint/typecheck/test/mypy/pytest/contract exit 0 trước commit; test AI 
 Theo CLAUDE.md §6.7/§6.8. Số DEC do human cấp; agent chỉ đề xuất nội dung. Spec mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/`, ghi gap vào 13.
 
 ## 8. Open questions
-- OQ-11-01: Loading matrix cần tách theo 5 lớp domain hay giữ gộp theo loại task như §4? (sau khi chốt Q1)
+- OQ-11-01: Loading matrix — giữ **ma trận gộp theo loại task** như §4 cho đợt docs; việc tách theo 5 lớp domain xem xét lại ở đợt code khi có task breakdown T-* (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R3)
+- **Version:** 0.2.0 (draft, Phase R3)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 11 theo AI-EOS — EPCC, 3 gate (giữ CLAUDE.md), loading matrix cho 28 domain, tách build-agent vs agent sản phẩm (D26), verify/escalation giữ nguyên quy tắc an toàn.

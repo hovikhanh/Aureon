@@ -36,14 +36,15 @@ P1: Performance Cycle đầy đủ · AI dự Google Meet · Finance đầy đ�
 P2: Governance & Compliance · Autonomous Agent (L4).
 
 ## 5. Thứ tự sinh tài liệu (CLAUDE.md §10.1)
-Phase 1 (02,03,04) → Phase 2 (05,06,07,08,10,11) → Phase 3 (12,13,14) → Phase 4 (09). File này sinh **sau** khi 00–08,10–14 verified — hiện vẫn draft chờ human duyệt Q1–Q6 để chốt scope task cụ thể (T-*).
+Phase 1 (02,03,04) → Phase 2 (05,06,07,08,10,11) → Phase 3 (12,13,14) → Phase 4 (09). Q1–Q6 đã chốt (13 §1); file này là **product roadmap** của đợt docs-first. Task chi tiết T-* được sinh ở **đợt code** (R-DEC-09), sau khi docs 00–14 được human promote `current`.
 
 ## 6. Open questions
-- OQ-09-01: Task breakdown T-* chi tiết chỉ sinh sau khi human chốt Q1 (full 28 domain vs P0 MVP) và Q5 (docs-only vs code).
-- OQ-09-02: Có tái dùng code `main` (S0–S5d) làm nền M1–M3 không? (Q5)
+- OQ-09-01: Task breakdown T-* chi tiết — được sinh ở **đợt code** (R-DEC-09); doc 09 giữ vai trò product roadmap P0/P1/P2 (R-DEC-05).
+- OQ-09-02: Tái dùng code `main` (S0–S5d) làm nền M1–M3 — quyết định cụ thể ở đợt code (R-DEC-09), gồm cả merge main.
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R3)
+- **Version:** 0.2.0 (draft, Phase R3)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 09 theo AI-EOS — MVP 90 ngày (M1–M3) + cổng MVP, 5 phase sau, ma trận ưu tiên P0/P1/P2, thứ tự sinh tài liệu; T-* chờ Q1/Q5.

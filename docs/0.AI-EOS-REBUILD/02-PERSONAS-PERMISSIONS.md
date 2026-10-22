@@ -110,12 +110,13 @@ Mức phân loại quyết định model được phép xử lý (gắn với FR
 - Log **bất biến**, chỉ Admin/CISO/kiểm toán xem toàn bộ; user xem lịch sử AI trên dữ liệu của mình. Báo cáo governance hằng tháng (số hành động/level, tỷ lệ từ chối/hoàn tác, sự cố, chi phí).
 
 ## 10. Open questions
-- OQ-02-01: ROLE-DIR gộp 5 C-level — có cần tách lại theo khối (Finance/Sales/HR/Product/Risk) như `main` để demo rõ? (Q4)
-- OQ-02-02: Ngưỡng giá trị mặc định cho L3 (BRD §21.1) — chờ CEO.
-- OQ-02-03: Chính sách AI cloud cho mức "Mật" (local-only) vs cho phép cloud VN — chờ CEO (Q3-liên quan).
+- OQ-02-01: ROLE-DIR gộp 5 C-level — ĐÃ CHỐT: R-DEC-08 — giữ 7 role BRD + AI Agent; ROLE-DIR có data scope thay 5 C-level, giữ bảng ánh xạ sang 10 role F.O.C.U.S của `main`.
+- OQ-02-02: Ngưỡng giá trị mặc định cho L3 (BRD §21.1) — chờ CEO (B5).
+- OQ-02-03: Chính sách AI cloud cho mức "Mật" (local-only) vs cho phép cloud VN — chờ CEO (B3).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R1)
+- **Version:** 0.2.0 (draft, Phase R1)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 02 theo AI-EOS — 7 role + AI Agent actor + ánh xạ `main`, RACI, RBAC+ABAC+field-level, 4 mức phân loại dữ liệu → model, Autonomy L0–L4 + kill switch, Approval Matrix đầy đủ, xác thực/tenant isolation, audit & 12 nguyên tắc governance.

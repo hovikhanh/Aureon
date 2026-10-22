@@ -88,11 +88,12 @@ Grounding bắt buộc (FR-AIQ-01); confidence thang Cao/Trung bình/Thấp kèm
 UC-01 Briefing · UC-03 KPI Underperformance · UC-04 OKR At Risk · UC-05 CEO Strategic Question (dashboard + Assistant + Decision Log).
 
 ## 9. Open questions
-- OQ-03-01: Giữ "view 5 trụ F.O.C.U.S" của `main` như một bố cục Executive tùy chọn, hay bỏ hẳn theo 3 cấp dashboard BRD? (Q1/Q4)
-- OQ-03-02: METRIC-* numbering — theo nhóm BRD hay giữ METRIC-<DOMAIN>-xx của `main` + ánh xạ? (Q6)
+- OQ-03-01: Giữ "view 5 trụ F.O.C.U.S" của `main` — ĐÃ CHỐT: R-DEC-10 giữ bảng ánh xạ sang `main`; "view 5 trụ" là bố cục Executive tùy chọn (optional), không phải view chuẩn — view chuẩn là 3 cấp dashboard BRD.
+- OQ-03-02: METRIC-* numbering — ĐÃ CHỐT: R-DEC-10 — đánh số theo nhóm BRD + giữ bảng ánh xạ sang METRIC-<DOMAIN>-xx của `main`; METRIC-* cụ thể gán khi 03 được chi tiết hóa ở đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R1)
+- **Version:** 0.2.0 (draft, Phase R1)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 03 theo AI-EOS — 3 cấp dashboard (Executive/Department/Employee), CEO Assistant 12 năng lực đa kênh, Daily Briefing + Management Loop, bộ chỉ số sức khỏe chuẩn đầy đủ (P0/P1), insight 9 phần, D28 Reporting (PDF/Word/Excel/Google Docs), Decision Log 30/60/90 ngày.

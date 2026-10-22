@@ -57,7 +57,7 @@ AI Orchestrator chọn agent theo ý định; agent có Identity/Role/Permission
 
 API path `/api/v1/<domain>/<resource>`. EP theo 28 domain (D01–D28) — chi tiết hóa theo phase (MVP: Organization, Admin&Security, Data Capture, Strategy/KPI/OKR, Task/Project, Meeting, Calendar, Finance Lite, Sales Lite, CEO Assistant, Reporting, Decision Log).
 
-> **Khác `main`:** `main` có EP-01..119 cố định cho 11 module. AI-EOS đánh EP theo 28 domain; bảng ánh xạ EP `main` ↔ AI-EOS khi quyết Q6. Giữ envelope/phân trang/mã lỗi/Idempotency-Key của `main` làm quy ước triển khai (nhất quán, không mâu thuẫn BRD).
+> **Khác `main`:** `main` có EP-01..119 cố định cho 11 module. Theo **R-DEC-10**, AI-EOS đánh EP theo BRD (28 domain) + giữ **bảng ánh xạ** EP `main` ↔ AI-EOS để truy nguyên; EP-* cụ thể gán ở đợt code (R-DEC-09). Giữ envelope/phân trang/mã lỗi/Idempotency-Key của `main` làm quy ước triển khai (nhất quán, không mâu thuẫn BRD).
 
 ## 7. Convention (giữ nhất quán nền `main`, không mâu thuẫn BRD)
 Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order`; `Idempotency-Key` bắt buộc cho POST tạo/hành động + endpoint AI ghi; tiền BIGINT + currency; thời gian ISO 8601 UTC; mọi response `X-Request-Id` → log/audit/event `correlation_id`.
@@ -67,12 +67,13 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 Event nghiệp vụ: `invoice.created, kpi.measured, kpi.below_threshold, task.overdue, document.committed, okr.at_risk, risk.detected, meeting.summarized, decision.logged`… Envelope `{event_id, event_type, occurred_at, version, correlation_id, payload}` (không PII). Danh mục đầy đủ + cặp publish/consume chốt khi chi tiết hóa.
 
 ## 9. Open questions
-- OQ-10-01: Tool naming — snake_case BRD (`get_kpi_status`) vs `TOOL-*` registry `main` (43 tool) → giữ cả hai + ánh xạ? (Q6)
-- OQ-10-02: EP numbering AI-EOS vs EP-xx `main` (Q6).
-- OQ-10-03: MCP server (FR-INT-04, P1) — trong/ngoài MVP.
+- OQ-10-01: Tool naming — ĐÃ CHỐT: R-DEC-10 — dùng tên theo BRD (snake_case, VD `get_kpi_status`) + giữ bảng ánh xạ sang `TOOL-*` registry `main` (43 tool) để truy nguyên.
+- OQ-10-02: EP numbering — ĐÃ CHỐT: R-DEC-10 — đánh số theo BRD + bảng ánh xạ sang EP-xx của `main`.
+- OQ-10-03: MCP server (FR-INT-04, P1) — ngoài MVP (P1 backlog, R-DEC-05); xác nhận phạm vi khi chi tiết hóa.
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R2)
+- **Version:** 0.2.0 (draft, Phase R2)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 10 theo AI-EOS — API First, Tool Registry + 13 metadata + danh mục mẫu, phân loại READ/WRITE/APPROVAL/EXECUTION, agent BRD §11.4, tool IDP, EP theo 28 domain + ánh xạ `main`, convention giữ nền `main`, event backbone.

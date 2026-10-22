@@ -15,7 +15,7 @@
 
 Nối bởi vòng lặp Outcome → Feedback → System of Record.
 
-> **Q2 (mặc định tạm):** hiện thực hóa trên **Modular Monolith** (FastAPI + Celery, 1 schema PostgreSQL/domain-group), AI Platform là cụm module logic bên trong — nhất quán nền `main`. Mở sang tách service ở phase 5 nếu cần. Chốt ở DEC.
+> **Q2 — đã chốt (R-DEC-06):** hiện thực hóa trên **Modular Monolith** (FastAPI + Celery, 1 schema PostgreSQL/domain-group), AI Platform là cụm module logic bên trong (không tách deployable) — nhất quán nền `main` (kế thừa DEC-125). Mở sang tách service ở phase 5 nếu cần.
 
 ## 2. D26 — AI Platform: 13 thành phần (BRD §11.1)
 
@@ -80,12 +80,13 @@ FR-AIQ-01 grounding bắt buộc · FR-AIQ-02 bộ test chuẩn/agent, chạy l�
 Mọi cấu hình qua config service (fail-fast khi thiếu); không hard-code/commit secret; JWT ký khóa riêng (RS256 nếu tái dùng nền `main`); PII filter trước mọi call model. (Chi tiết env chốt khi code hóa.)
 
 ## 8. Open questions
-- OQ-07-01: Modular Monolith vs tách service cho Agent Runtime/Orchestrator (Q2) — chờ human.
-- OQ-07-02: Memory store (conversation/user/enterprise) công nghệ — chờ chi tiết hóa.
-- OQ-07-03: Chính sách model on-prem cho dữ liệu Mật (BRD §21.1 AI cloud) — chờ CEO.
+- OQ-07-01: Modular Monolith vs tách service cho Agent Runtime/Orchestrator — ĐÃ CHỐT: R-DEC-06 — Modular Monolith, AI Platform là cụm module logic bên trong (không tách deployable).
+- OQ-07-02: Memory store (conversation/user/enterprise) công nghệ — chờ chi tiết hóa ở đợt code (R-DEC-09).
+- OQ-07-03: Chính sách model on-prem cho dữ liệu Mật (BRD §21.1 AI cloud) — chờ CEO (B3).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R2)
+- **Version:** 0.2.0 (draft, Phase R2)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 07 theo AI-EOS — kiến trúc 3 hệ thống + Tool Layer, D26 AI Platform 13 thành phần, luồng thực thi & quyền (agent ∩ người), AI Operating Loop, Model Gateway đa provider + on-prem, chất lượng/chi phí AI (FR-AIQ), NFR baseline đầy đủ, secret/config.

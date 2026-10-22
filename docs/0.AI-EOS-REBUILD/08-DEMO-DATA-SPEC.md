@@ -7,7 +7,7 @@
 
 ## 1. Phạm vi seed
 
-Theo **Q1 (mặc định tạm): phủ tập P0 MVP** trước — đủ chạy UC-01/02/03/04/06/07 và kịch bản CEO (BRD §20.2), mở rộng P1 theo phase sau.
+Theo **R-DEC-05: phủ tập P0 MVP** trước — đủ chạy UC-01/02/03/04/06/07 và kịch bản CEO (BRD §20.2), mở rộng P1 theo phase sau (backlog, không seed đợt này).
 
 > **Khác `main`:** `main` seed Công ty ABC ~150 NV, 9 doc type, 5 trụ F.O.C.U.S. AI-EOS giữ **cùng doanh nghiệp giả định** (dữ liệu giả, không PII thật — nhất quán ràng buộc an toàn) nhưng tổ chức dữ liệu theo **28 domain / 7 role + AI Agent**.
 
@@ -43,11 +43,12 @@ Seed để trạng thái trụ/nhóm chỉ số có cả ok/warning/critical (ru
 Dữ liệu demo là **dữ liệu giả** — không PII/dữ liệu thật trong seed/fixture/prompt. Seed idempotent. (Nhất quán §6.6 CLAUDE.md.)
 
 ## 7. Open questions
-- OQ-08-01: Giữ 9 doc type `main` hay mở 14 doc type BRD trong seed? (Q1)
-- OQ-08-02: Seed đa tenant (nhiều công ty) hay 1 tenant ABC? (Q3)
+- OQ-08-01: Doc type trong seed — ĐÃ CHỐT: R-DEC-05 — dùng tập doc type P0 theo 04 (04 §P0); 14 doc type BRD đầy đủ là backlog phase sau.
+- OQ-08-02: Seed đa tenant vs 1 tenant — ĐÃ CHỐT: R-DEC-07 — seed **1 tenant ABC** cho MVP; data model có `tenant_id` sẵn để nâng đa tenant sau.
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R3)
+- **Version:** 0.2.0 (draft, Phase R3)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 08 theo AI-EOS — phạm vi seed P0 MVP, Công ty ABC theo 28 domain/7 role+AI Agent, seed theo domain, kịch bản CEO 7 bước, chỉ số sức khỏe demo, ràng buộc an toàn.

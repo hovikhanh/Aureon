@@ -1,7 +1,7 @@
 # 01 — Project Overview (AI-EOS, nhánh `ai-eos`)
 
 > **Nguồn chuẩn (Canonical):** `_reference/SOURCE-BRD-v1.1.md` (AI-EOS BRD v1.1) + `SOURCE-BRD-v1.1-Bổ sung.md` + `SOURCE-UIUX.md`. File này viết lại **đầy đủ theo AI-EOS**, không phải bản distill demo v2.0/v2.1 ở `main`.
-> **Trạng thái:** 🟡 draft (Phase R0) — dựng trên **mặc định tạm** Q1–Q6 (`REBUILD-PLAN.md` §6), chờ human chốt.
+> **Trạng thái:** 🟡 draft (Phase R0) — Q1–Q6 **đã chốt** (R-DEC-05..10, 13 §1); phạm vi **docs-first P0** (R-DEC-09).
 > **Phụ thuộc:** `TRACEABILITY-SKELETON.md` (ID registry). **Ngày:** 2026-10-22 · **Maintainer:** @CyEyes
 
 ---
@@ -120,24 +120,25 @@ UC-01 CEO Morning Briefing · UC-02 Meeting to Execution · UC-03 KPI Underperfo
 
 ---
 
-## 8. Quyết định mở (BRD §21.1 + mặc định tạm Q1–Q6)
+## 8. Quyết định nền (Q1–Q6 đã chốt) + quyết định mở CEO (BRD §21.1)
 
-> ⚠️ Các mặc định dưới là **tạm**, dùng để viết tiếp; human chốt ở 13-DECISION-LOG (nhánh `ai-eos`).
+> ✅ Q1–Q6 **đã chốt** (R-DEC-05..10, 13 §1). Các mục dưới ghi quyết định chính thức; BRD-OQ (B1–B7) còn chờ CEO nhưng không blocking docs P0.
 
-| # | Quyết định | Mặc định tạm |
+| # | Quyết định | Đã chốt |
 |---|---|---|
-| Q1 | Toàn bộ 28 domain vs tập P0 MVP | Viết **P0 MVP trước**, khung 28 domain giữ đủ ở 00 |
-| Q2 | Kiến trúc | Modular Monolith; AI Platform là cụm module logic |
-| Q3 | Tenant | Data model có `tenant_id`; chạy 1 tenant cho MVP |
-| Q4 | Role | 7 role BRD chuẩn; Director có data scope thay 5 C-level `main` |
-| Q5 | Phạm vi nhánh | Rebuild **tài liệu** trước; code quyết sau |
-| Q6 | ID scheme | Theo BRD + bảng ánh xạ sang `main` |
-| BRD-OQ | SaaS đa tenant / AI cloud / ngưỡng L3 / phần mềm kế toán / kênh chat / giá | Chờ CEO (BRD §21.1) |
+| Q1 | Toàn bộ 28 domain vs tập P0 MVP | **R-DEC-05:** P0 MVP trước; khung 28 domain giữ đủ ở 00; P1/P2 là backlog (09) |
+| Q2 | Kiến trúc | **R-DEC-06:** Modular Monolith; AI Platform là cụm module logic bên trong |
+| Q3 | Tenant | **R-DEC-07:** 1 tenant cho MVP; data model có `tenant_id` sẵn ở mọi entity |
+| Q4 | Role | **R-DEC-08:** 7 role BRD + AI Agent; Director có data scope thay 5 C-level; giữ bảng ánh xạ 10 role F.O.C.U.S của `main` |
+| Q5 | Phạm vi nhánh | **R-DEC-09:** Docs-first — hoàn thiện 00–14 đợt này; code/app/migration/merge main là đợt sau |
+| Q6 | ID scheme | **R-DEC-10:** Theo BRD + bảng ánh xạ sang METRIC-/EP-/ENT-/SCR-/TOOL- của `main` |
+| BRD-OQ | SaaS đa tenant / AI cloud / ngưỡng L3 / phần mềm kế toán / kênh chat / giá | Chờ CEO (B1–B7, BRD §21.1) — không blocking docs P0 |
 
 ---
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R0)
+- **Version:** 0.2.0 (draft, Phase R0)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 01 theo AI-EOS đầy đủ — tầm nhìn/4 câu hỏi/3 hệ thống, BO-01..10 + North Star, P01..P11 + AI-R, bản đồ 28 domain/5 lớp, 7 role + AI Agent, MVP 90 ngày + 5 phase, kịch bản CEO 7 bước, UC-01..08, quyết định mở + mặc định tạm Q1–Q6.

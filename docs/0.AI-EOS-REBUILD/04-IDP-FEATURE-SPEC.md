@@ -110,11 +110,12 @@ Confidence mỗi trường 0–1. Trường đạt ngưỡng + policy cho phép 
 ## 11. Use case: UC-06 (biên bản → thực thi ≤ 10 phút), UC-07 (onboarding), UC-08 (hóa đơn → dòng tiền).
 
 ## 12. Open questions
-- OQ-04-01: Giữ delimiter `<<<DATA … DATA>>>` + 50 MB/300 trang/100 file của `main` làm chuẩn triển khai? (nhất quán BRD §6.9/FR-DC-07)
-- OQ-04-02: C2 voice — STT thật hay mock ở MVP? (BRD cho P0 nói; `main` mock) — chờ Q1.
+- OQ-04-01: Delimiter `<<<DATA … DATA>>>` + giới hạn 50 MB/300 trang/100 file của `main` — là quy ước triển khai, chốt chi tiết ở đợt code (R-DEC-09); nhất quán BRD §6.9/FR-DC-07.
+- OQ-04-02: C2 voice — P0 có kênh nói (voice) theo BRD (R-DEC-05: phủ tập P0); chi tiết hiện thực STT thật vs mock là chi tiết hóa ở đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R1)
+- **Version:** 0.2.0 (draft, Phase R1)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Viết lại 04 theo AI-EOS — D03 đầy đủ: C1–C10, pipeline, vòng đời 6 trạng thái, 14 doc type + Extraction Schema cấu hình, FR-DC-01..23, độ tin cậy/định tuyến, học từ chỉnh sửa + chỉ số đo, bảo mật/chống prompt injection, tool/entity/agent.

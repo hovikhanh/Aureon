@@ -101,7 +101,7 @@ Giữ khung 15 file + chuỗi phụ thuộc (CLAUDE.md §10.1), nhưng nội dun
 | Q5 | Có tái dùng code trên `main` không, hay chỉ rebuild tài liệu? | Rebuild **tài liệu** trước; code quyết sau khi docs ổn |
 | Q6 | Giữ mã ID của `main` (METRIC-*, EP-*, ENT-*) hay đánh lại theo BRD? | Đánh theo BRD (FR-ORG/DC/…, D01–D28) + bảng ánh xạ sang `main` |
 
-## 7. Lộ trình viết lại (đề xuất — chờ Q1–Q6)
+## 7. Lộ trình viết lại (Q1–Q6 đã chốt — R-DEC-05..10, 13 §1)
 
 **Phase R0 — Khung & registry** (file 00, 01): bản đồ 28 domain, ID registry, scope MVP/phase, nguyên tắc P/BO/AI-R.
 **Phase R1 — Core product** (02, 03, 04): role+RBAC/ABAC, dashboard+chỉ số sức khỏe, Data Capture C1–C10.
@@ -117,7 +117,8 @@ Mỗi phase: viết → `doc-reviewer` (nếu dùng) → human duyệt → promo
 - Không thêm dependency / đổi stack / build code trong phase tài liệu.
 
 ## Version
-- **Version:** 0.1.0 (plan)
+- **Version:** 0.2.0 (plan)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Q1–Q6 đã được human chốt → R-DEC-05..10 (13 §1); vòng này là **docs-first P0** (R-DEC-09). §6 bảng Q giữ làm lịch sử đề xuất; §7 heading cập nhật "đã chốt". Code/app/migration/merge `main` là đợt sau.
 - **Change 0.1.0:** Tạo nhánh `ai-eos` + kế hoạch rebuild tài liệu theo AI-EOS đầy đủ (28 domain, 7 role + AI Agent, Autonomy L0–L4, C1–C10, Data Foundation, AI Platform, D28 Reporting, governance VN). Chờ human quyết Q1–Q6.

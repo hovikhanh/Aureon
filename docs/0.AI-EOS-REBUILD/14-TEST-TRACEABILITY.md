@@ -38,11 +38,12 @@ Mỗi UC/US/FR P0 → ≥1 test case (`TC-*`). Test theo tầng: unit (service/F
 TC-NFR-* cho PERF (p95/p90 ngưỡng), SEC (RBAC/field-level/injection), AV (fallback model, graceful degradation P10), UX (VI/EN, WCAG 2.1 AA).
 
 ## 5. Open questions
-- OQ-14-01: TC-* cụ thể chỉ liệt kê sau khi chốt Q1 (scope) + Q5 (có code hay không).
-- OQ-14-02: Tái dùng test của `main` (BE 777/FE 18/E2E 30) làm nền nếu tái dùng code? (Q5)
+- OQ-14-01: TC-* cụ thể — chi tiết hóa ở **đợt code** (R-DEC-09); scope test bám tập P0 (R-DEC-05). Doc 14 đợt này giữ khung chiến lược + ma trận UC.
+- OQ-14-02: Tái dùng test của `main` (BE 777/FE 18/E2E 30) làm nền — quyết định cụ thể ở đợt code khi chốt mức tái dùng code (R-DEC-09).
 
 ## Version
-- **Version:** 0.1.0 (draft, Phase R3)
+- **Version:** 0.2.0 (draft, Phase R3)
 - **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
+- **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.
 - **Change 0.1.0:** Tạo 14 cho nhánh `ai-eos` — chiến lược test, ma trận UC-01..08 nghiệm thu + khung TC, khung TC theo nhóm FR P0, NFR test; TC-* chi tiết chờ Q1/Q5.
