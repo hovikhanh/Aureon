@@ -16,6 +16,7 @@ from app.modules.execution.services.task_service import detect_overdue_tasks
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.invoice_service import InvoiceService
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
+from app.modules.idp.services.sla_service import SlaService
 from app.modules.platform.services.metric_store import MetricStore
 from app.worker import celery_app
 from app.workers.consumers import load_metric_providers
@@ -53,6 +54,10 @@ async def recompute(db: AsyncSession) -> dict[str, int]:
     return await MetricStore(db).recompute(business_today())
 
 
+async def review_sla(db: AsyncSession) -> int:
+    return len(await SlaService(db).check_review_sla())
+
+
 @celery_app.task(name="app.jobs.daily_burn_check", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def daily_burn_check() -> bool:
     return bool(asyncio.run(_run(burn_check)))
@@ -82,3 +87,9 @@ def verify_action_outcome() -> int:
 def recompute_metrics() -> dict[str, int]:
     result: dict[str, int] = asyncio.run(_run(recompute))
     return result
+
+
+@celery_app.task(name="app.jobs.check_review_sla", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def check_review_sla() -> int:
+    """Hourly (T-412): escalate overdue IDP reviews → `idp.review_escalated` + notification."""
+    return int(asyncio.run(_run(review_sla)))

@@ -386,6 +386,20 @@ Sub-sprint **S4a** (C1/C3/C4 upload + pipeline core: scan → OCR → extract �
 | TC-IDP-012 | Passed (một phần — cross-field VR) | `tests/unit/test_idp_pipeline_units.py`, `tests/unit/test_idp_coverage_gaps.py` | T-405 | Validator: required/`gt`/`in`/`date_not_future`/`sum_equals`; âm tiền + ngày tương lai + tổng lệch → `validation_errors`; XD doanh thu-vs-hóa đơn ở S4c |
 | TC-IDP-EP20 | Passed | `tests/integration/idp/test_upload_api.py` | T-401 | EP-20 `POST /idp/documents` 1..100 file, 202 envelope, `idempotency-key` bắt buộc, guard `idp:write`; EP-25/26 đọc kết quả + data scoping phòng ban |
 
+#### 2.5.2. Trạng thái hiện thực S4b — IDP review workflow (auto-pilot, 2026-10-22)
+
+Sub-sprint **S4b** (T-406→T-412): hàng chờ review (EP-28), chi tiết review, mở/nhả soft-lock 15' (EP-29/35), sửa field + recompute validation (EP-30), approve → commit `finance.Invoice` qua Action Registry (EP-31), reject (EP-32), reassign (EP-126), merge (EP-127), SLA escalation beat `check_review_sla` hằng giờ (`idp.review_escalated` + Notification). Rollback 7 ngày (EP-33, TC-IDP-008) vẫn thuộc S4c. Coverage `modules/idp/services/review*` (review/commit/sla) = **90 % / 90 % / 91 %** (ngưỡng S4b ≥ 90 %). Integration 8 bước (upload→queue→detail→sửa field→recompute→approve→`finance.Invoice`→dashboard) **Passed**.
+
+| TC | Trạng thái | Test | Task | Ghi chú |
+|---|---|---|---|---|
+| TC-IDP-REVQ | Passed | `tests/integration/idp/test_review_workflow.py` | T-406 | EP-28 hàng chờ: phân trang `limit/offset/sort`, lọc `status/document_type/assigned_to/date_from/date_to`, data scoping phòng ban (admin/no-dept thấy hết), `confidence_avg`/`critical_fields_count`/`validation_error_count`/`age_hours`/`due_at` |
+| TC-IDP-REVD | Passed | `tests/integration/idp/test_review_workflow.py` | T-407 | Chi tiết review: 8 field + band + `source_location` (lineage) + validation + assignment; `GET /idp/documents/{id}/review`; không thấy → `404` |
+| TC-IDP-FIX | Passed | `tests/integration/idp/test_review_workflow.py`, `test_review_e2e_http.py` | T-408 | EP-30 sửa `confirm`/`correct`/`clear`, `accept_all_high` (chỉ HIGH non-critical), recompute validation, audit `idp.field.corrected`; field tiền thiếu `reason` → `422`; không giữ lock → `REVIEW_LOCKED`; lock bởi người khác → `409` |
+| TC-IDP-007 | Passed (một phần — INVOICE path, undo S4c) | `tests/integration/idp/test_review_workflow.py`, `test_review_e2e_http.py` | T-409 | EP-31 approve → `ACT-create_invoice` ghi `finance.Invoice` (dùng giá trị đã sửa), status `COMMITTED`, `undo_deadline` +7 ngày, `EVT-idp.document_committed`; doc type không map → metadata-only (`actions=[]`); version lệch → `409`; finance từ chối → `ACTION_REJECTED` (doc giữ `APPROVED`) |
+| TC-IDP-REJ | Passed | `tests/integration/idp/test_review_workflow.py` | T-409 | EP-32 reject bắt buộc `reason` → `REJECTED` + `ENT-ExtractionReview`; sai trạng thái → `409`; EP-29/35 open/release soft-lock |
+| TC-IDP-015 | Passed | `tests/integration/idp/test_review_workflow.py` | T-410, T-412 | EP-126 reassign: dòng `REASSIGN`, bắt buộc `reason` + đúng một trong `to_user_id`/`to_role_code`, Notification; SLA quá hạn → dòng `ESCALATE` + `EVT-idp.review_escalated` (idempotent, không re-escalate cùng cấp) |
+| TC-IDP-021 | Passed | `tests/integration/idp/test_review_workflow.py` | T-411 | EP-127 `ACT-merge_review` gộp tài liệu cùng doc type khi `NEEDS_REVIEW`; khác doc type / khác trạng thái → `409`; `primary_id` ngoài danh sách → `422` |
+
 ### 2.6. S5 — UX, mobile, phát hành
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |

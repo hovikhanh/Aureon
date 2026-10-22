@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 14:05 (Asia/Saigon) |
-| Last commit | `17d26f4` test(idp): S4a pipeline tests + traceability on `main` |
-| Sub-sprint | **S4a — IDP pipeline core DONE** (upload + scan → OCR → extract → validate → route); S4b/S4c/S4d pending |
-| Test count | 710 passed, 2 deselected (`-m "not live"`) |
-| Coverage | `modules/idp/services` **96%** (S4a exit ≥ 90%); ai 95%; overall ≥ 95% |
-| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-001/002/003/005/006/012 + EP-20 Passed) |
+| Last updated | 2026-10-22 14:52 (Asia/Saigon) |
+| Last commit | (pending) `feat(idp): S4b review workflow (EP-28..35, EP-126/127)` — not yet committed |
+| Sub-sprint | **S4b — IDP review workflow DONE** (queue/detail/open/fields/approve→commit/reject/reassign/merge/SLA); S4a DONE; S4c/S4d pending |
+| Test count | 741 passed, 2 deselected (`-m "not live"`) |
+| Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
 | Open blocking DECs | none |
 
 ## Done
@@ -92,8 +92,25 @@
 ### End-to-end sample (invoice.pdf, in-process pipeline)
 upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extracted (1 page, pypdf) → classify `INVOICE` (0.99) → extract 8 fields (subtotal/vat/total HIGH, critical) → validate (VR-INV-02/03/SUB/05 pass) → route `REVIEW` (reason `CRITICAL_FIELD`) → **`NEEDS_REVIEW`**.
 
-## In progress
-- **S4b — IDP review workflow** (T-406→T-412 brief → spec EP-28..35 + EP-126/127).
+## S4b IDP review workflow (done 2026-10-22, direct route)
+- **New services:** `modules/idp/services/review_service.py` (queue EP-28, detail, open/release EP-29/35, patch_fields EP-30, reject EP-32, reassign EP-126, merge EP-127), `commit_service.py` (approve EP-31 → `finance.Invoice` via Action Registry pattern, `idp.document_committed`, undo_deadline +7d), `sla_service.py` (T-412 `check_review_sla` → `idp.review_escalated` + Notification, manager @>SLA / dept-head @>2×SLA, idempotent). `modules/platform/services/notification_service.py` (public cross-module Notification writer, DEC-125). `auth.AuthService.find_user_by_role` (escalation routing lookup).
+- **Routes** (idp router, all guarded `idp:approve`): `GET /idp/review-queue`, `GET /idp/documents/{id}/review`, `POST .../review/open`, `PATCH .../fields`, `POST .../review/approve|reject|release|reassign`, `POST /idp/review-queue/merge`.
+- **Config:** `review_sla_hours` default 24 (env `REVIEW_SLA_HOURS`). **Beat:** `check-review-sla` hourly at :15 (worker.py + jobs.py). No schema change (all tables existed from S4a) → no migration.
+- **Pipeline:** on entering `NEEDS_REVIEW`, creates the initial `ReviewAssignment(kind=ASSIGN, to_role_code=REVIEWER, due_at=now+SLA)` driving the queue + SLA clock.
+- **Approve→commit mapping (INVOICE→finance.Invoice):** direction=IN (received supplier invoice); number←invoice_number, issued_on←issue_date, counterparty←seller_name/seller_tax_code, due_date=issued_on+30d (derived — not an extracted field), one aggregate line subtotal/vat_pct; finance business-rule failure (e.g. duplicate number) → `ACTION_REJECTED` (doc stays `APPROVED`). OTHER doc type → metadata-only commit (`actions=[]`). Full doc-type catalogue + undo (EP-33) = S4c.
+- **Field correction:** confirm persists AI value into `corrected_value` (so `effective_value` is unambiguous vs `clear`→None); money field edit requires `reason`→422; `accept_all_high` confirms HIGH non-critical only.
+- **8-step integration** `test_review_e2e_http.py` over the real HTTP app (upload→queue→detail→correct+reason→recompute→approve→`finance.Invoice`→dashboard) — Passed.
+- **Gate:** ruff ✅ · format ✅ · mypy ✅ (258 files) · pytest **741 passed** · contract ✅.
+- **Errors/DTOs** (added earlier this session): `ReviewLockedError`/`UndoExpiredError`/`ActionRejectedError`; review DTOs in `idp/schemas/__init__.py`.
+- **Stopped at S4b exit per brief — did NOT enter S4c.**
+
+## S4b exit criteria
+| Criterion | Status |
+|---|---|
+| EP-28..35 + EP-126/127 built | ✅ (EP-33 rollback = S4c) |
+| coverage `review*` ≥ 90% | ✅ 90/90/91% |
+| gates A/B/C | ✅ |
+| 8-step integration verified | ✅ |
 
 ## S4b pre-flight (2026-10-22, 3 checks)
 - **Check 1 PaddleOCR:** `paddleocr` NOT installed; dev `.env` was `OCR_PROVIDER=paddle` → set to `stub` (reality). Code degrades gracefully (`except → "",0.0`); text-layer invoice.pdf unaffected. → **DEC-236** non-blocking (stub for demo, paddle for prod, DEC-049 still open).
@@ -102,14 +119,21 @@ upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extra
 - **DEC-234** storage local-FS confirmed non-blocking. Baseline: 31 IDP integ/unit tests green after stub change.
 
 ## Remaining (in order)
-1. **S4b** — IDP review workflow (EP-29..35 open/fields/approve/reject/release, soft-lock 15min, parallel review, reassign/merge T-415). **Do NOT start without a new RESUME brief.**
-2. **S4c** — commit + lineage + Action Registry v2 (ACT-* write to domain services, undo 7d, `EVT-idp.document_committed/rolled_back`, `ENT-DataLineage` field→record→metric, TC-IDP-007/008/009/020).
-3. **S4d** (optional) — C2 voice/transcript (T-416), C5 Excel import (T-407), UC-06/07/08 (T-408), full 9-type LLM classification + accuracy harness (T-403/T-414).
-4. S5 FE/UX/Release; S2 FE tasks T-224..227, T-231/232, T-142/143 still open.
-5. `[DEFERRED to S5]` T-223 lineage drill-down, T-233 + FE S2 (DEC-229).
+1. **S4c** — commit + lineage + Action Registry v2 (full ACT-* catalogue to all domain services, rollback/undo 7d EP-33, `EVT-idp.document_rolled_back`, `ENT-DataLineage` field→record→metric, TC-IDP-008/009/020; detailed invoice line items; derived due_date policy). **Do NOT start without a new RESUME brief.**
+2. **S4d** (optional) — C2 voice/transcript (T-416), C5 Excel import (T-407), UC-06/07/08 (T-408), full 9-type LLM classification + accuracy harness (T-403/T-414).
+3. S5 FE/UX/Release; S2 FE tasks T-224..227, T-231/232, T-142/143 still open.
+4. `[DEFERRED to S5]` T-223 lineage drill-down, T-233 + FE S2 (DEC-229).
 
 ## Next task
-**S4b review workflow** — on next RESUME: read 09 §S4 (T-411/T-415), 04 §8 (review state machine, soft-lock, parallel review), 10 EP-29..35, gates A/B/C. Build review open/fields/approve/reject/release on top of the S4a documents sitting in `NEEDS_REVIEW`.
+**S4c commit + lineage + Action Registry v2** — on next RESUME: read 09 §S4, 04 §10 (Action Registry, undo, lineage), 05 §ENT-DataLineage, 10 EP-33, gates A/B/C. Extend `commit_service.py` with the full doc-type→domain catalogue, `ENT-DataLineage` rows per committed field, and the 7-day rollback (EP-33) emitting `idp.document_rolled_back`. S4b review workflow sits ready: approved docs reach `COMMITTED` with `undo_deadline`.
+
+## S4b notes / deferred (for S4c)
+- **Commit path:** only INVOICE→finance.Invoice wired (reference path). OTHER = metadata-only. Remaining doc-type→domain maps (sales report→deals, employee list→hr, risk register→risks, etc.) + `ENT-DataLineage` field→record rows are S4c.
+- **due_date derivation:** invoice commit sets `due_date = issue_date + 30d` because due_date is not an extracted INVOICE field; revisit in S4c if a payment-term field/policy is added.
+- **Invoice line:** one aggregate line (subtotal as unit_price, extracted `vat_rate_pct`); finance recomputes vat_amount from pct (extracted vat_amount kept for lineage only). Detailed multi-line commit = S4c.
+- **Escalation recipient:** `find_user_by_role` picks an active user by role (MANAGER then CEO as dept-head stand-in), preferring the doc's department; the ESCALATE assignment also carries `to_role_code` so routing works even if no concrete user resolves.
+- **Approve authority:** `idp:approve` on the review is the authority to commit (Action Registry gate); the reviewer's Principal is passed to `finance.InvoiceService.create` as `created_by` even without `finance:write` — matches 04 §10.4 Action Registry pattern. Worth a DEC if prod wants a separate finance-write check on commit.
+- **No new deps / no schema change / no new events beyond registered** (`idp.document_committed`, `idp.review_escalated` already registered).
 
 ## S3 notes / findings
 - EP-125 approval executes the AI action with the **approver's** Principal as actor (04 §10.4). A finance approver (CFO, department-scoped for execution) cannot create a cross-department task — the on-behalf-of requester's authority is not reconstructed. Covered at service level by passing a full-scope actor; worth a DEC if finance approvals must create execution writes in prod. Non-blocking for S3.

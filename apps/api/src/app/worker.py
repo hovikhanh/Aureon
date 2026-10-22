@@ -55,6 +55,11 @@ celery_app.conf.update(
             "task": "app.jobs.recompute_metrics",
             "schedule": crontab(minute=0, hour=1),
         },
+        # T-412 / 04 §8.3 — escalate overdue IDP reviews, hourly
+        "check-review-sla": {
+            "task": "app.jobs.check_review_sla",
+            "schedule": crontab(minute=15),
+        },
     },
 )
 

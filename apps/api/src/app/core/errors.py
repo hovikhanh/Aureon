@@ -77,6 +77,24 @@ class IdempotencyConflictError(AppError):
     status_code, code = 409, "IDEMPOTENCY_CONFLICT"
 
 
+class ReviewLockedError(AppError):
+    """409 — document under another reviewer's soft lock (15 min, 10 §1.4, EP-29/30)."""
+
+    status_code, code = 409, "REVIEW_LOCKED"
+
+
+class UndoExpiredError(AppError):
+    """410 — undo window elapsed (7 days IDP / 24h AI L3, DEC-134; EP-33/EP-116)."""
+
+    status_code, code = 410, "UNDO_EXPIRED"
+
+
+class ActionRejectedError(AppError):
+    """422 — Action Registry / autonomy policy rejected the write (10 §1.4, EP-31)."""
+
+    status_code, code = 422, "ACTION_REJECTED"
+
+
 class ValidationError(AppError):
     status_code, code = 422, "VALIDATION_ERROR"
 

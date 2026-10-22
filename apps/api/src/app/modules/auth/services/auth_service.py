@@ -197,3 +197,28 @@ class AuthService:
         if user is None or not user.is_active:
             raise UnauthenticatedError("user not found or inactive")
         return self.user_out(user, await self._role_of(user))
+
+    async def find_user_by_role(
+        self, role_code: str, *, department_id: uuid.UUID | None = None
+    ) -> uuid.UUID | None:
+        """Public lookup for escalation routing (04 §8.3): an active user with the given role,
+        preferring one in `department_id`. Returns a user id or None. Used by IDP SLA escalation
+        to pick the manager / department head to notify (DEC-125 — no model import elsewhere)."""
+        from sqlalchemy import select
+
+        role = (
+            await self.db.execute(select(Role).where(Role.code == role_code))
+        ).scalar_one_or_none()
+        if role is None:
+            return None
+        base = select(User).where(User.role_id == role.id, User.is_active.is_(True))
+        if department_id is not None:
+            scoped = (
+                (await self.db.execute(base.where(User.department_id == department_id)))
+                .scalars()
+                .first()
+            )
+            if scoped is not None:
+                return scoped.id
+        user = (await self.db.execute(base)).scalars().first()
+        return user.id if user is not None else None

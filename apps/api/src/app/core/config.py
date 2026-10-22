@@ -102,6 +102,10 @@ class ConfigService(BaseSettings):
     # OCR backend: `stub` (deterministic, demo/CI default) | `paddle` (in-process, 07 §47).
     # `paddle` is only used when the optional package is importable (DEC-049 fixture/replay demo).
     ocr_provider: Literal["stub", "paddle"] = "stub"
+    # --- IDP review SLA (04 §8.3, FR-DC-21) ---
+    # Default review SLA: documents in NEEDS_REVIEW beyond this → escalate to manager; a
+    # second SLA span (2×) → escalate to the department head (hourly `check_review_sla` beat).
+    review_sla_hours: int = Field(default=24, gt=0)
 
     # --- Dashboard / DQ / SLA (DEC-148, DEC-158) ---
     dq_weight_completeness: float = 0.3

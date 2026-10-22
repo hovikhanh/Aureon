@@ -182,6 +182,11 @@ class Pipeline:
         doc.status = "AUTO_APPROVED" if decision == "STP" else "NEEDS_REVIEW"
         doc.routing_reason = ", ".join(reasons) if reasons else None
         await self.db.flush()
+
+        # On entering NEEDS_REVIEW, create the initial ASSIGN (04 §8.2): due at now + SLA.
+        # Department scoping picks the reviewer pool later; the row drives the queue + SLA clock.
+        if doc.status == "NEEDS_REVIEW":
+            await self._assign_review(doc)
         await record_audit(
             self.db,
             action="idp.extract",
@@ -204,6 +209,38 @@ class Pipeline:
             routing_reasons=reasons,
             document_type=type_code,
         )
+
+    # -------- review assignment --------
+    async def _assign_review(self, doc: SourceDocument) -> None:
+        """Create the initial ASSIGN row (04 §8.2). `due_at = now + REVIEW_SLA_HOURS`. Assigned
+        to the submitter's department reviewer pool by role (`REVIEWER`); a concrete user is
+        chosen by the queue / reassign later. Idempotent: skips if a current assignment exists."""
+        from datetime import timedelta
+
+        from app.core.config import get_config
+        from app.modules.idp.models import ReviewAssignment
+
+        existing = (
+            await self.db.execute(
+                select(ReviewAssignment).where(
+                    ReviewAssignment.source_document_id == doc.id,
+                    ReviewAssignment.is_current.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return
+        due_at = datetime.now(UTC) + timedelta(hours=get_config().review_sla_hours)
+        self.db.add(
+            ReviewAssignment(
+                source_document_id=doc.id,
+                kind="ASSIGN",
+                to_role_code="REVIEWER",
+                due_at=due_at,
+                is_current=True,
+            )
+        )
+        await self.db.flush()
 
     # -------- routing --------
     def _route(

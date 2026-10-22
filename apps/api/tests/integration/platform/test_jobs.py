@@ -24,6 +24,7 @@ EXPECTED = {
     "detect-overdue-tasks": ("app.jobs.detect_overdue_tasks", "8", "30"),
     "verify-action-outcome": ("app.jobs.verify_action_outcome", "*", "5"),
     "recompute-metrics": ("app.jobs.recompute_metrics", "1", "0"),
+    "check-review-sla": ("app.jobs.check_review_sla", "*", "15"),  # T-412 IDP SLA escalation
 }
 
 
@@ -39,7 +40,8 @@ def test_beat_schedule_registers_jobs() -> None:
         assert entry["task"] == task and task in celery_app.tasks
         assert _hours(entry["schedule"]) == hour and str(entry["schedule"]._orig_minute) == minute
     assert celery_app.conf.timezone == "Asia/Ho_Chi_Minh"
-    assert len(sched) == 7  # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay
+    # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay + check-review-sla (T-412)
+    assert len(sched) == 8
 
 
 @pytest.fixture
