@@ -22,5 +22,5 @@ export async function middleware(req: NextRequest) {
 
 // Must be a static literal (Next.js). Keep in sync with ROUTE_RULES in lib/permissions.ts.
 export const config = {
-  matcher: ["/login", "/dashboard/:path*", "/idp/:path*", "/ai/:path*", "/finance/:path*", "/approvals/:path*"],
+  matcher: ["/login", "/dashboard/:path*", "/idp/:path*", "/ai/:path*", "/finance/:path*", "/approvals/:path*", "/hr/:path*", "/admin/:path*"],
 };

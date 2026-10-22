@@ -1,5 +1,5 @@
 /** Route/nav access by permission (06 §2.3–2.4). Display only — backend enforces (default deny). */
-export type NavKey = "dashboard" | "idp" | "ai" | "approvals";
+export type NavKey = "dashboard" | "idp" | "ai" | "approvals" | "employees" | "audit";
 
 export interface NavItem {
   key: NavKey;
@@ -13,6 +13,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "idp", href: "/idp/review", anyOf: ["idp:approve"] },
   { key: "ai", href: "/ai", anyOf: ["ai:query"] },
   { key: "approvals", href: "/approvals", anyOf: ["platform:approve"] },
+  { key: "employees", href: "/hr/employees", anyOf: ["hr:read"] },
+  { key: "audit", href: "/admin/audit", anyOf: ["platform:read"] },
 ];
 
 /** Protected route prefixes → required permission (any of). Longest prefix wins. */
@@ -22,6 +24,8 @@ export const ROUTE_RULES: readonly { prefix: string; anyOf: readonly string[] }[
   { prefix: "/ai", anyOf: ["ai:query"] },
   { prefix: "/finance", anyOf: ["finance:read"] },
   { prefix: "/approvals", anyOf: ["platform:approve"] },
+  { prefix: "/hr", anyOf: ["hr:read"] },
+  { prefix: "/admin", anyOf: ["platform:read"] },
 ];
 
 export const PROTECTED_PREFIXES = ROUTE_RULES.map((r) => r.prefix);
@@ -48,6 +52,7 @@ export function landingFor(role: string, perms: readonly string[]): string {
   if (role === "REVIEWER" && perms.includes("idp:approve")) return "/idp/review";
   if (perms.includes("dashboard:read")) return "/dashboard";
   if (perms.includes("idp:approve")) return "/idp/review";
+  if (role === "ADMIN" && perms.includes("platform:read")) return "/admin/audit";
   if (perms.includes("ai:query")) return "/ai";
   return "/403";
 }

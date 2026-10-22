@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
-function rootEnv(): Record<string, string> {
+export function rootEnv(): Record<string, string> {
   const file = path.join(ROOT, ".env");
   if (!existsSync(file)) return {};
   const out: Record<string, string> = {};

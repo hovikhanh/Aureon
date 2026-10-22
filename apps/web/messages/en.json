@@ -13,7 +13,9 @@
     "close": "Close menu",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
-    "approvalsPending": "The approval inbox arrives in S5b/S5c."
+    "approvalsPending": "The approval inbox arrives in S5b/S5c.",
+    "employees": "People",
+    "audit": "Audit log"
   },
   "buttons": {
     "login": "Sign in",
@@ -366,6 +368,32 @@
       "sourceEntities": "Sources: {list}",
       "noRecords": "No records in this period",
       "noDocument": "Manual / seeded record — no source document attached"
+    }
+  },
+  "hr": {
+    "employeesTitle": "Employees",
+    "total": "{total} employees",
+    "search": "Search by name or code",
+    "empty": "No matching employees.",
+    "col": {
+      "code": "Code",
+      "name": "Full name",
+      "title": "Title",
+      "status": "Status",
+      "hired": "Hire date"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "total": "{total} entries",
+    "appendOnly": "Read only — the audit log is append-only.",
+    "filterAction": "Filter by action (e.g. idp.approve)",
+    "empty": "No entries.",
+    "col": {
+      "time": "Time",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target"
     }
   }
 }

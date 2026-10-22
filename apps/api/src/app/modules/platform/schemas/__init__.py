@@ -63,3 +63,20 @@ class ApprovalTimelineStep(BaseModel):
 class ApprovalDetailOut(ApprovalRequestOut):
     payload_diff: list[dict[str, object]] = Field(default_factory=list)
     timeline: list[ApprovalTimelineStep] = Field(default_factory=list)
+
+
+class AuditLogOut(BaseModel):
+    """EP-52 row (10 §4.x): append-only audit entry; `before`/`after` already masked."""
+
+    id: uuid.UUID
+    occurred_at: datetime
+    actor_type: str
+    actor_user_id: uuid.UUID | None
+    actor_role: str | None
+    action: str
+    target_schema: str | None
+    target_table: str | None
+    target_id: uuid.UUID | None
+    before: object | None = None
+    after: object | None = None
+    why: str | None = None

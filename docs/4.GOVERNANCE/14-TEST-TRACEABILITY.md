@@ -453,6 +453,9 @@ Brief S5d đánh số T-513..T-518 (khác 09: T-513 ở 09 là seed v2.1). DEC-2
 |---|---|---|---|---|
 | TC-SYS-006 / TC-SYS-008 | Passed | `docker compose -f docker-compose.full.yml up -d` → 9/9 healthy | T-513 | `api` chạy `alembic upgrade head` + seed idempotent rồi uvicorn; `web` image Next.js; network `aureon-net`; healthcheck `api` = `/health/ready`, `web` = `/api/health` |
 | TC-OPS-HEALTH (EP-01) | Passed | `apps/api/tests/integration/test_health.py` (6) | T-515 | `/health` 200 + `dependencies{db,redis,ollama,clamav}`; ollama/clamav down → `degraded` vẫn 200; DB/Redis down → 503; `/health/ready` chỉ DB+Redis; `/health/live` luôn 200; `/metrics` Prometheus text; EP-01 `/api/v1/health` envelope + `model_gateway`. Live: `docker stop ollama` → `/health` 200 `ollama: unavailable` |
+| TC-UI-016 / TC-SEC-004 (5 vai demo) | Passed | `apps/web/e2e/roles.spec.ts` (5) | T-516 | CEO 5 trụ drill-down + 13 alert critical trước; CFO drill F + chat "cash flow" (SSE stub, DEC-238); REVIEWER queue → mở → sửa → approve → hóa đơn IN; HR chỉ trụ O + `/hr/employees` (EP-82, tìm kiếm); ADMIN landing `/admin/audit`, `/dashboard` → 403. Toàn bộ Playwright **30/30** ×2 lượt liên tiếp (không flaky) trên stack `docker-compose.full.yml`. Sửa flaky: chờ `data-status` trước khi click thẻ trụ |
+| TC-UI-018 (một phần — SCR-14 lite) | Passed | `apps/api/tests/integration/platform/test_audit_logs_api.py` (2), `roles.spec.ts` ADMIN | T-516 | EP-52 `GET /platform/audit-logs` (`platform:read`, list-only, before/after mask lại); REVIEWER → 403 `FORBIDDEN_ROLE`. Quản trị user/role (SCR-26) chưa làm |
+| Gate S5d | Passed | BE pytest **777 passed** (coverage **96%**) · Vitest **18** · Playwright **30** | T-516 | +25 BE (6 health, 2 audit, …), +1 Vitest (nav HR/ADMIN), +5 E2E |
 
 ---
 

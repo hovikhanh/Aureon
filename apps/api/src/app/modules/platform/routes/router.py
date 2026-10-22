@@ -18,15 +18,18 @@ from app.core.routing import EnvelopeRouter
 from app.modules.platform.models import ApprovalRequest
 from app.modules.platform.schemas import (
     ApprovalRequestOut,
+    AuditLogOut,
     DeadLetterOut,
     DecideIn,
     ReplayOut,
 )
 from app.modules.platform.services.approval_service import ApprovalService
+from app.modules.platform.services.audit_query import AuditQueryService
 from app.modules.platform.services.platform_service import PlatformService
 
 router = EnvelopeRouter(prefix="/platform", tags=["platform"])
 
+PlatformReader = Annotated[Principal, Depends(require_permission("platform", "read"))]
 PlatformAdmin = Annotated[Principal, Depends(require_permission("platform", "admin"))]
 PlatformApprover = Annotated[Principal, Depends(require_permission("platform", "approve"))]
 DeadLetterPage = Annotated[PageParams, Depends(page_params())]
@@ -37,6 +40,26 @@ def get_platform_service(db: DbSession) -> PlatformService:
 
 
 Service = Annotated[PlatformService, Depends(get_platform_service)]
+
+
+@router.get("/audit-logs", response_model=list[AuditLogOut], summary="EP-52 Audit log")
+async def list_audit_logs(
+    _: PlatformReader,
+    db: DbSession,
+    page: DeadLetterPage,
+    action: Annotated[str | None, Query()] = None,
+    target_type: Annotated[str | None, Query()] = None,
+    target_id: Annotated[uuid.UUID | None, Query()] = None,
+    actor_user_id: Annotated[uuid.UUID | None, Query()] = None,
+) -> Page[AuditLogOut]:
+    return await AuditQueryService(db).list(
+        limit=page.limit,
+        offset=page.offset,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        actor_user_id=actor_user_id,
+    )
 
 
 @router.get("/dead-letters", response_model=list[DeadLetterOut], summary="EP-56 Dead letters")

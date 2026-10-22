@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CheckSquare, ChevronsLeft, ChevronsRight, Inbox, LayoutDashboard, Sparkles, X } from "lucide-react";
+import { CheckSquare, ChevronsLeft, ChevronsRight, Inbox, LayoutDashboard, ScrollText, Sparkles, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { visibleNav, type NavKey } from "@/lib/permissions";
 
@@ -11,6 +11,8 @@ const ICONS: Record<NavKey, typeof LayoutDashboard> = {
   idp: Inbox,
   ai: Sparkles,
   approvals: CheckSquare,
+  employees: Users,
+  audit: ScrollText,
 };
 
 interface Props {

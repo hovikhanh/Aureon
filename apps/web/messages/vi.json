@@ -13,7 +13,9 @@
     "close": "Đóng menu",
     "collapse": "Thu gọn thanh bên",
     "expand": "Mở rộng thanh bên",
-    "approvalsPending": "Hộp phê duyệt sẽ có ở S5b/S5c."
+    "approvalsPending": "Hộp phê duyệt sẽ có ở S5b/S5c.",
+    "employees": "Nhân sự",
+    "audit": "Nhật ký kiểm toán"
   },
   "buttons": {
     "login": "Đăng nhập",
@@ -366,6 +368,32 @@
       "sourceEntities": "Nguồn: {list}",
       "noRecords": "Không có bản ghi trong kỳ",
       "noDocument": "Bản ghi nhập tay / seed — chưa gắn tài liệu gốc"
+    }
+  },
+  "hr": {
+    "employeesTitle": "Danh sách nhân viên",
+    "total": "{total} nhân viên",
+    "search": "Tìm theo tên hoặc mã",
+    "empty": "Không có nhân viên phù hợp.",
+    "col": {
+      "code": "Mã NV",
+      "name": "Họ tên",
+      "title": "Chức danh",
+      "status": "Trạng thái",
+      "hired": "Ngày vào"
+    }
+  },
+  "audit": {
+    "title": "Nhật ký kiểm toán",
+    "total": "{total} bản ghi",
+    "appendOnly": "Chỉ đọc — nhật ký không thể sửa hoặc xóa (append-only).",
+    "filterAction": "Lọc theo hành động (vd. idp.approve)",
+    "empty": "Không có bản ghi.",
+    "col": {
+      "time": "Thời điểm",
+      "actor": "Người thực hiện",
+      "action": "Hành động",
+      "target": "Đối tượng"
     }
   }
 }

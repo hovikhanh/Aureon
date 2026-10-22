@@ -22,7 +22,6 @@ from app.modules.sales.routes.router import router as sales_router
 API_PREFIX = "/api/v1"
 
 MODULE_ROUTERS: tuple[APIRouter, ...] = (
-    health_router,
     platform_router,
     auth_router,
     dashboard_router,
@@ -42,6 +41,7 @@ def create_app() -> FastAPI:
     install_error_handlers(application)
     install_ops_routes(application)  # /health, /health/ready, /health/live, /metrics (T-515)
     application.add_middleware(RequestIdMiddleware)
+    application.include_router(health_router, prefix=API_PREFIX)  # EP-01 (platform module)
     for router in MODULE_ROUTERS:
         application.include_router(router, prefix=API_PREFIX)
     return application
