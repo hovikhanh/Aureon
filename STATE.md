@@ -9,7 +9,15 @@
 | Chat latency | Demo replay (DEMO_MODE) **1,4–2,6 s** / recorded question (TTFB ≈ 3 ms, 30 ms/word) · live `cc/claude-sonnet-5` **9–13 s** (was 96 s timeout) · FE budget 120 s, hints 10/30/90 s |
 | Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
-| Open blocking DECs | none (DEC-237..240 approved by human 2026-10-22; DEC-241 resolved per brief) |
+| Open blocking DECs | none (DEC-237..241 approved by human 2026-10-22) |
+
+## S5b-lite ACCEPTED (human, 2026-10-22 — S5d brief, DEC-241 approved)
+- Lineage drill-down simplified (uses finance list endpoints; EP-13/14 deferred).
+- Sparklines: 12 monthly points (no daily series).
+- `/dashboard/focus` not built — per-pillar endpoints sufficient.
+- Live model 9–13 s accepted (Claude Sonnet standard latency).
+- T-512 (O/C/U/S drill-downs) deferred → S5b-full post-demo.
+- Next: **S5d demo polish + release (T-513..T-518)**.
 
 ## S5b-lite demo polish (done 2026-10-22, direct route; 4 commits, pushed)
 - **Governance** `585e77a`: DEC-237..240 APPROVED (human); backend S4c deferred for all of S5.
