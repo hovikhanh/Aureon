@@ -62,14 +62,21 @@ Hoãn sang v2.1 (ghi rõ trong DEC-150):
 
 **Công ty TNHH TM&DV ABC** — phân phối thiết bị văn phòng + bảo trì + nền tảng "ABC Order"; ~150 nhân sự, 7 phòng ban, ~300 tỷ VNĐ/năm; TP.HCM + chi nhánh Hà Nội. Kỳ demo T9 / Q3 2026, `DEMO_REFERENCE_DATE=2026-10-20`. 9 doc type: `FINANCIAL_REPORT`, `INVOICE`, `SALES_REPORT`, `CONTRACT`, `MEETING_MINUTES`, `EMPLOYEE_LIST`, `KPI_OKR`, `PRODUCT_REPORT`, `RISK_REGISTER`. Chi tiết: `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md`.
 
-### 1.6. Trạng thái hiện tại (2026-10-19)
+### 1.6. Trạng thái hiện tại (2026-10-22) — ✅ DEMO READY
+
+Nguồn chi tiết: `STATE.md` (cập nhật sau mỗi sub-sprint). Mục này chỉ là tóm tắt.
 
 | Mục | Trạng thái |
 |---|---|
-| Tài liệu | 00–14 `current` 2.0.0 — Gate A đạt |
-| Sprint | **S0 — Nền tảng v2**, chưa bắt đầu (bắt đầu từ T-001 → T-002) |
-| Code trên `main` | ⚠️ **v1** — monolith phẳng (`modules/{audit,auth,dashboard,idp,system}`), 4 trụ, 5 role, HS256. **Lệch spec v2 — drift được human chấp nhận.** Build lại theo `09-BUILD-PLAN-TASKS.md`; không "vá" code v1 cho khớp v2 ngoài phạm vi task `T-xxx` đang làm |
-| Hạ tầng | `docker-compose.yml` mới có `postgres`, `redis`, `minio`; `.env.example` còn biến v1 (`JWT_SECRET`, `NEXT_PUBLIC_DEMO_PASSWORD_*`, 20 MB/50 trang) → task **T-014** |
+| Tài liệu | 00–14 v2.1.0 — Gate A đạt; DEC mới nhất **DEC-243** (0 DEC open + blocking) |
+| Sprint | **S0 → S5d xong** (S5d = T-513..T-518 theo brief, khác đánh số 09). S5b-lite accepted (DEC-241) |
+| Code trên `main` | **v2.1** Modular Monolith 11 module, RS256, ModelGateway, IDP v2, Next.js 15 FE. Commit cuối `398ece3` (pushed) |
+| Demo-able | Login 5 tài khoản demo (+ ADMIN bằng mật khẩu) · Dashboard F.O.C.U.S **F🟢 C🟢 U🟡 O🟡 S🔴**, 13 alert · Finance drill-down 6 metric + lineage 3 tầng · AI Chat SSE (demo replay ~1,2–1,3 s; live 9–13 s) · IDP review → approve → hóa đơn Finance · `/hr/employees` · `/admin/audit` (EP-52) |
+| Test | BE pytest **777** pass, coverage **96%** · FE Vitest **18** · E2E Playwright **30** (ổn định 2 lượt liên tiếp) · contract 11 |
+| Hạ tầng | `docker-compose.full.yml` — 9 service healthy (postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web) trên `aureon-net`; `api` tự `alembic upgrade head` + seed. `docker-compose.yml` = hạ tầng cho dev trên host |
+| Health | `/health` (`dependencies` db/redis/ollama/clamav; ollama/clamav down → `degraded` vẫn 200), `/health/ready`, `/health/live`, `/metrics` (DEC-242); EP-01 `/api/v1/health`; web `/api/health` |
+| Demo ops | `./scripts/demo_reset.sh -y` (~13 s: truncate 10 schema → seed → xóa storage + queue → 1 hóa đơn NEEDS_REVIEW → verify) · kịch bản `docs/DEMO-SCRIPT.md` · `README.md` gốc |
+| Hoãn sau demo | S4c lineage 4 cấp (EP-13/14) · S4d C2/C4/C5 · S5b-full drill-down O/C/U/S (T-512) · S5c Approval/Report/Cash Flow + PWA · chuỗi daily finance · 09 T-513 seed v2.1 · EP-52 lọc `from/to/actor_type`, SCR-26 |
 | Backup v1 | Nhánh `v1` (commit `a5161f6`) |
 
 ---
@@ -645,13 +652,14 @@ Không được chuyển sang bước tiếp theo nếu gate tương ứng chưa
 
 ## 12. Version
 
-- **CLAUDE.md version:** 2.2.0
-- **Last updated:** 2026-10-21
+- **CLAUDE.md version:** 2.2.1
+- **Last updated:** 2026-10-22
 - **Applies to:** Aureon v2.1
 - **Maintainer:** @CyEyes
 - **Change:** Viết lại theo spec v2 (00–14 `current` 2.0.0): 5 trụ F.O.C.U.S / 31 metric, 10 role, Modular Monolith 11 module, outbox + event, RS256, ModelGateway đa provider, `require_permission`, phân trang `limit/offset`, IDP v2, loading matrix đầy đủ, `_reference/` hết ngoại lệ, sửa lệnh `uv run mypy`, gỡ `pnpm db:seed` (DEC-062). Xử lý nội dung của 13 §5.2 (nợ đồng bộ CLAUDE.md), 07 OQ-04, 11 OQ-01/03/05, 12 OQ-02 — trạng thái các mục đó trong 07/11/12/13 cần human cập nhật riêng. Bản 1.1.0 lưu ở nhánh `v1`.
 - **Change (DEC-145, 2026-10-19):** gỡ `_reference/` khỏi §6.2 "Cấm đọc" và §9; `_reference/` là Canonical Source (DEC-144). Agent sửa theo ủy quyền ngoại lệ duy nhất của human.
-**Change log (2026-10-21):**
+**Change log (2026-10-22):**
+- 2.2.1 (2026-10-22): §1.6 cập nhật trạng thái DEMO READY sau S5d (human yêu cầu): sprint S0→S5d, test 777/18/30, compose full stack 9 service, health endpoints, demo reset, danh sách hoãn.
 - 2.2.0 (2026-10-20): Reclassify _reference as canonical, adopt BRD ID scheme (DEC-144/146), scope v2.0/v2.1 split (DEC-153), 12 deps resolved (DEC-138..142), SLA split (DEC-158).
 - 2.1.0 (2026-10-19): v2.1 architecture after AI-EOS merge.
 - 2.0.0 (2026-10-18): v2 rewrite based on AI-EOS canonical.
