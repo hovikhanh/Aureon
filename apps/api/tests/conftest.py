@@ -83,8 +83,9 @@ async def roles(db_session: AsyncSession) -> dict[str, Any]:
 class ApiClient:
     """httpx client on the real app, DB = the rolled-back `db_session`; tokens per role."""
 
-    def __init__(self, http: Any) -> None:
+    def __init__(self, http: Any, app: Any = None) -> None:
         self.http = http
+        self.app = app
 
     @staticmethod
     def headers(
@@ -130,4 +131,4 @@ async def api(db_session: AsyncSession) -> AsyncIterator[ApiClient]:
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as http:
-        yield ApiClient(http)
+        yield ApiClient(http, app)

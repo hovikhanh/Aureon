@@ -53,6 +53,15 @@ AiWriter = Annotated[Principal, Depends(require_permission("ai", "write"))]
 AiAdmin = Annotated[Principal, Depends(require_permission("ai", "admin"))]
 
 
+def get_chat_gateway(db: DbSession) -> Any:
+    """The ModelGateway for a chat turn, bound to this session's call log. Overridable in tests
+    (`app.dependency_overrides[get_chat_gateway]`) so the HTTP path runs without a provider."""
+    return AiService(db).gateway()
+
+
+ChatGateway = Annotated[Any, Depends(get_chat_gateway)]
+
+
 def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
     return {
         "conversation_id": str(turn.conversation_id),
@@ -67,8 +76,10 @@ def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
 
 
 @router.post("/chat", response_model=ChatAnswerOut, summary="EP-110 AI chat (sync)")
-async def chat(body: ChatRequestIn, user: AiUser, db: DbSession, idem: Idem) -> ChatAnswerOut:
-    svc = ChatService(db, AiService(db).gateway())
+async def chat(
+    body: ChatRequestIn, user: AiUser, db: DbSession, gateway: ChatGateway, idem: Idem
+) -> ChatAnswerOut:
+    svc = ChatService(db, gateway)
     try:
         turn = await svc.chat(
             user, body.message, conversation_id=body.conversation_id, locale=body.locale
@@ -83,9 +94,9 @@ async def chat(body: ChatRequestIn, user: AiUser, db: DbSession, idem: Idem) -> 
 
 @router.post("/chat/stream", summary="EP-111 AI chat (SSE)", response_class=Response)
 async def chat_stream(
-    body: ChatRequestIn, user: AiUser, db: DbSession, idem: Idem
+    body: ChatRequestIn, user: AiUser, db: DbSession, gateway: ChatGateway, idem: Idem
 ) -> StreamingResponse:
-    svc = ChatService(db, AiService(db).gateway())
+    svc = ChatService(db, gateway)
 
     async def gen() -> AsyncIterator[bytes]:
         eid = 0
