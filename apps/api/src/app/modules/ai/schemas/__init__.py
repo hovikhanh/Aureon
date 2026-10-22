@@ -76,6 +76,31 @@ class ToolOut(BaseModel):
     cost_estimate: str
 
 
+class ConfidenceOut(BaseModel):
+    band: Literal["high", "medium", "low"]
+    reason: str
+
+
+class RecommendationOut(BaseModel):
+    text: str
+    action: dict[str, Any] | None = None
+
+
+class InsightOut(BaseModel):
+    id: uuid.UUID
+    kind: Literal["anomaly", "trend", "risk", "recommendation", "briefing"]
+    pillar: str | None
+    severity: Literal["info", "warning", "critical"] | None
+    observation: str
+    evidence: list[SourceRefOut] = Field(default_factory=list)
+    impact: str | None = None
+    recommendations: list[RecommendationOut] = Field(default_factory=list)
+    confidence: ConfidenceOut
+    structured: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    expires_at: datetime | None = None
+
+
 class CostRowOut(BaseModel):
     key: str
     calls: int

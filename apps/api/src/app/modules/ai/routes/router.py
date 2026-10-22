@@ -26,12 +26,14 @@ from app.modules.ai.schemas import (
     ChatAnswerOut,
     ChatRequestIn,
     ConversationOut,
+    InsightOut,
     MessageOut,
     ToolOut,
 )
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
+from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.tools import advertisable_for, all_tools, available_for
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai"])
@@ -140,6 +142,28 @@ async def list_messages(
     conversation_id: uuid.UUID, user: AiUser, db: DbSession
 ) -> list[MessageOut]:
     return await ConversationService(db).messages(user, conversation_id)
+
+
+@router.get("/insights", response_model=list[InsightOut], summary="EP-114 Insights")
+async def list_insights(
+    user: AiUser,
+    db: DbSession,
+    pillar: str | None = None,
+    kind: str | None = None,
+    severity: str | None = None,
+) -> list[InsightOut]:
+    return await InsightService(db).list_for(user, pillar=pillar, kind=kind, severity=severity)
+
+
+@router.post(
+    "/insights/{insight_id}/dismiss", response_model=InsightOut, summary="EP-114 Dismiss insight"
+)
+async def dismiss_insight(
+    insight_id: uuid.UUID, user: AiUser, db: DbSession, idem: Idem
+) -> InsightOut:
+    out = await InsightService(db).dismiss(user, insight_id)
+    await db.commit()
+    return out
 
 
 @router.get("/tools", response_model=list[ToolOut], summary="EP-119 Tools")

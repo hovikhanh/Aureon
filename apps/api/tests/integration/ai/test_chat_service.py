@@ -44,15 +44,19 @@ class ScriptedGateway:
         self.requests.append(req)
         if req.classification == "SECRET":
             raise SecretDataBlockedError
-        return self._responses.pop(0) if self._responses else ChatResponse(
-            content="(no more)", provider="fixture", model="x"
+        return (
+            self._responses.pop(0)
+            if self._responses
+            else ChatResponse(content="(no more)", provider="fixture", model="x")
         )
 
 
 def _tool_then_answer(tool: str, answer: str) -> ScriptedGateway:
     return ScriptedGateway(
         ChatResponse(
-            content="", provider="fixture", model="x",
+            content="",
+            provider="fixture",
+            model="x",
             tool_calls=(ToolCall(id="c1", name=tool, arguments={}),),
             usage=Usage(10, 0),
         ),  # fmt: skip
@@ -61,9 +65,7 @@ def _tool_then_answer(tool: str, answer: str) -> ScriptedGateway:
 
 
 async def test_ceo_revenue_question_calls_tool_and_cites(db_session) -> None:
-    gw = _tool_then_answer(
-        "TOOL-get_finance_dashboard", "Doanh thu quý 3 đạt 73,5 tỷ đồng."
-    )
+    gw = _tool_then_answer("TOOL-get_finance_dashboard", "Doanh thu quý 3 đạt 73,5 tỷ đồng.")
     svc = ChatService(db_session, gw)
     turn = await svc.chat(principal("CEO"), "Doanh thu công ty thế nào?", locale="vi")
 
@@ -135,17 +137,17 @@ async def test_turn_persists_conversation_message_toolcall(db_session) -> None:
     assert conv.last_message_at is not None
     msgs = (
         await db_session.execute(
-            select(func.count()).select_from(Message).where(
-                Message.conversation_id == turn.conversation_id
-            )
+            select(func.count())
+            .select_from(Message)
+            .where(Message.conversation_id == turn.conversation_id)
         )
     ).scalar_one()
     assert msgs == 2  # user + assistant
     tool_logs = (
         await db_session.execute(
-            select(func.count()).select_from(ToolCallLog).where(
-                ToolCallLog.message_id != turn.message_id
-            )
+            select(func.count())
+            .select_from(ToolCallLog)
+            .where(ToolCallLog.message_id != turn.message_id)
         )
     ).scalar_one()
     assert tool_logs >= 1
