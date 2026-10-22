@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 06:25 (Asia/Saigon) |
-| Last commit | `a0fd762` merge(s2) on `main` (pushed; branch `s2` pushed too) |
-| Sub-sprint | S2 — CHECKPOINT #2 done (metric store, alerts, 5 pillar dashboards, product/risk/execution, seed) |
+| Last updated | 2026-10-22 11:18 (Asia/Saigon) |
+| Last commit | `3bdee1f` feat(platform): SEED_PASSWORD_* aliases (T-237 Step 3) on `main` |
+| Sub-sprint | S2 — CHECKPOINT #2 done + **T-237 seed rebalance done** (2 green / 2 yellow / 1 red) |
 | Test count | 585 passed, 2 deselected (`-m "not live"`) |
 | Coverage | 98% overall (`--cov=app`) |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-DASH-*, TC-EXE-007, TC-DQ-001, TC-SEED-002/003, TC-EVT-007 Passed) |
@@ -33,6 +33,14 @@
 | 32 metrics populated | ✅ |
 | Coverage ≥ 95 %, gates A/B/C | ✅ 98 % |
 
+## T-237 seed rebalance (done 2026-10-22, direct route cc/claude-sonnet-5; 3 commits)
+- **Step 1** (analysis, no edits): identified per-pillar levers vs DEC-143.
+- **Step 2** `b0cefa4` feat(s2): seed data → **F,C green · U,O yellow · S red**. Edited `finance_data.py` (cash flatter→runway 13.6, Q3 budget ≤ alloc, Oct MTD trimmed, 8 carried-forward open invoices `HISTORICAL_OPEN_INVOICES` + `HV_PAID_IN_FULL`), `sales_seed.py` (Sep target 26.0tỷ, Q4 18.0tỷ, `attribute_revenue` splits big row over 5 anchor clients + frozen window for NRR), `product_seed.py` (Sep churn 1.79, retention 43, NPS lift), `hr_seed.py` (1 plan 40d late). Updated 3 finance_seed assertions.
+- **Step 3** `3bdee1f` feat(platform): `SEED_PASSWORD_CPO`/`SEED_PASSWORD_RISK_MANAGER` aliases on config + `.env.example`. Dev `.env` got CPO/RISK/MANAGER/EMPLOYEE/ADMIN passwords → seed creates all 10 users; product owner=CPO, risk owner=RISK_MANAGER.
+- **Verified** (clean-DB `python -m app.seed` + in-process API as CEO): F green · C green · O yellow · U yellow · S red; 13 OPEN alerts (11 WARNING + 2 CRITICAL). `probe3.py` harness truncates domain schemas in a rolled-back tx.
+- **Divergence logged:** DEC-230 (proposed, agent) in 13-DECISION-LOG — T-237 overrides DEC-143/152 pillar layout; brief "2 info" infeasible (enum has only WARNING/CRITICAL). **Human to assign DEC number + resolve.**
+- Gate: ruff ✅ · mypy ✅ (226 files) · pytest 585 ✅.
+
 ## In progress
 - none
 
@@ -43,7 +51,7 @@
 4. `[DEFERRED to S5]` T-223 lineage drill-down (DEC-229).
 5. `[DEFERRED to S3]` T-230 approval — after AI actions exist (DEC-229).
 6. `[DEFERRED to S5]` T-233 + FE S2 tasks T-224..227, T-231, T-232, T-142/143 (DEC-229).
-7. T-237 seed rebalance 2 green / 2 yellow / 1 red + CPO/RISK_MANAGER users (human, before S3).
+7. `[DONE]` T-237 seed rebalance 2 green / 2 yellow / 1 red + CPO/RISK_MANAGER users.
 
 ## Next task
 S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07, 10), then start T-301.
@@ -61,7 +69,7 @@ S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07,
 
 ## Known issues / gaps
 - EP-74 `changed_by` null (DEC-191); MANAGER quota null; no log-redaction filter yet.
-- Dev DB has only 5 S0 users (CPO/RISK_MANAGER passwords not set) → product/risk seed owner falls back to CEO.
+- ~~Dev DB only 5 users~~ **fixed by T-237**: dev `.env` now has all 10 demo passwords; product owner=CPO, risk owner=RISK_MANAGER.
 - Risk: EP-104 doesn't create ENT-Decision; what-if product unavailable; `hr.employee_terminated` not consumed.
 - Product BR-PRD-01 thresholds constants; execution constants not in config (DEC-226).
 - METRIC-DQ-01 accuracy = validation proxy; IDP-correction component comes with S4.
