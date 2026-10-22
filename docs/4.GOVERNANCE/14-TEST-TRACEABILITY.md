@@ -372,6 +372,20 @@ Mã FR-DC theo BRD (00 §4.12). Hành vi đã có TC ở §2.1.1 (TC-IDP-014: b�
 | TC-UI-014 | e2e | Import grid, UC-07, họp → việc ≤ 10 phút (F3) | SCR-11, SCR-12, SCR-18 | T-412 |
 | TC-IDP-013 | ai-eval | Field accuracy ≥ 90% trên ground truth 08; error leakage trường trọng yếu = 0 | 04 §KPI | T-414 |
 
+#### 2.5.1. Trạng thái hiện thực S4a — IDP pipeline core (auto-pilot, 2026-10-22)
+
+Sub-sprint **S4a** (C1/C3/C4 upload + pipeline core: scan → OCR → extract → validate → routing). Review workflow (S4b), commit/lineage/Action Registry (S4c, TC-IDP-007/008/009/020) và phân loại 9/9 (TC-IDP-004) hoãn sang sub-sprint sau. Coverage `modules/idp/services` = **96 %** (ngưỡng S4a ≥ 90 %); full suite **710 passed**.
+
+| TC | Trạng thái | Test | Task | Ghi chú |
+|---|---|---|---|---|
+| TC-IDP-001 | Implemented (một phần — catalog seed, chưa CRUD ADMIN) | `apps/api/tests/integration/idp/test_upload_and_pipeline.py` | T-401 | `schema_registry` seed DocumentType/ExtractionSchema/ValidationRule idempotent (INVOICE + OTHER); CRUD ADMIN ở T-413 |
+| TC-IDP-002 | Passed | `tests/unit/test_idp_pipeline_units.py`, `tests/integration/idp/test_upload_and_pipeline.py` | T-402 | EICAR → `FAILED` `status_reason=MALWARE` + bucket `quarantine`; trùng SHA-256 → `DUPLICATE` liên kết bản gốc; ClamAV TCP (clamd) + `CLAMAV_REQUIRED=false` → `SKIPPED` |
+| TC-IDP-003 | Passed | `tests/unit/test_idp_pipeline_units.py` | T-403 | PDF có text layer → không OCR; scan PDF/ảnh → nhánh OCR (`OCR_PROVIDER` stub/paddle); DOCX/XLSX/CSV trích trực tiếp |
+| TC-IDP-005 | Passed | `tests/unit/test_idp_pipeline_units.py` | T-404 | field result `{value, confidence, source_location, confidence_band}`; không thấy → `null` confidence 0, không bịa (P05) |
+| TC-IDP-006 | Passed | `tests/unit/test_idp_pipeline_units.py`, `tests/integration/idp/test_upload_and_pipeline.py` | T-404 | band HIGH ≥ 0,90 / MEDIUM 0,60–< 0,90 / LOW < 0,60; trường trọng yếu + conf thấp + validation fail → `REVIEW` (`NEEDS_REVIEW`); định tuyến classification theo sensitivity (SECRET → không LLM) |
+| TC-IDP-012 | Passed (một phần — cross-field VR) | `tests/unit/test_idp_pipeline_units.py`, `tests/unit/test_idp_coverage_gaps.py` | T-405 | Validator: required/`gt`/`in`/`date_not_future`/`sum_equals`; âm tiền + ngày tương lai + tổng lệch → `validation_errors`; XD doanh thu-vs-hóa đơn ở S4c |
+| TC-IDP-EP20 | Passed | `tests/integration/idp/test_upload_api.py` | T-401 | EP-20 `POST /idp/documents` 1..100 file, 202 envelope, `idempotency-key` bắt buộc, guard `idp:write`; EP-25/26 đọc kết quả + data scoping phòng ban |
+
 ### 2.6. S5 — UX, mobile, phát hành
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |

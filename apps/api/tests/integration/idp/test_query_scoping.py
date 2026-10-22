@@ -1,0 +1,68 @@
+"""IdpQueryService data scoping (02 §6): a non-admin, department-scoped reader sees documents
+they submitted or in their department, not others'; extraction returns None before a job runs."""
+
+from __future__ import annotations
+
+import uuid
+
+import pytest
+
+from app.core.deps import Principal
+from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.idp.services.query_service import IdpQueryService
+from app.modules.idp.services.upload_service import UploadFile, UploadService
+from tests.integration.idp import sample_docs as s
+
+pytestmark = pytest.mark.integration
+
+
+def _emp(dept: uuid.UUID, uid: uuid.UUID | None = None) -> Principal:
+    return Principal(
+        user_id=uid or uuid.uuid4(),
+        role="EMPLOYEE",
+        permissions=frozenset(ROLE_PERMISSIONS["EMPLOYEE"]),
+        department_id=dept,
+    )
+
+
+def _file() -> UploadFile:
+    return UploadFile("a.pdf", "application/pdf", iter([s.invoice_pdf()]))
+
+
+async def test_reader_sees_own_and_same_department_only(db_session, idp_store) -> None:
+    dept_a, dept_b = uuid.uuid4(), uuid.uuid4()
+    submitter = _emp(dept_a)
+    r = await UploadService(db_session).upload(submitter, [_file()])
+    doc_id = r.document_ids[0]
+    q = IdpQueryService(db_session)
+
+    # same department reader → visible
+    assert await q.get_document(_emp(dept_a), doc_id) is not None
+    # other department reader → hidden
+    assert await q.get_document(_emp(dept_b), doc_id) is None
+    # the QUEUED job exists but has no field results until the pipeline runs
+    ex = await q.get_extraction(_emp(dept_a), doc_id)
+    assert ex is not None and ex.status == "QUEUED" and ex.fields == []
+    # other department reader cannot read the extraction either
+    assert await q.get_extraction(_emp(dept_b), doc_id) is None
+
+
+async def test_pipeline_gateway_factory_and_public_service(db_session) -> None:
+    from app.modules.idp.services import IdpService
+    from app.modules.idp.services.gateway import pipeline_gateway
+
+    gw = pipeline_gateway(db_session)
+    assert hasattr(gw, "chat")
+    assert IdpService(db_session).db is db_session
+
+
+async def test_admin_sees_everything(db_session, idp_store) -> None:
+    submitter = _emp(uuid.uuid4())
+    r = await UploadService(db_session).upload(submitter, [_file()])
+    admin = Principal(
+        user_id=uuid.uuid4(),
+        role="ADMIN",
+        permissions=frozenset(ROLE_PERMISSIONS["ADMIN"]),
+        department_id=None,
+    )
+    assert await IdpQueryService(db_session).get_document(admin, r.document_ids[0]) is not None
