@@ -41,3 +41,25 @@ test.describe("SCR-02 CEO dashboard (T-505)", () => {
     await expect(page.getByTestId("pillar-C")).toHaveCount(0);
   });
 });
+
+test.describe("Dashboard period picker (T-510)", () => {
+  test("label T9/2026 by default; selecting 'Tháng này' refetches with period=2026-10", async ({ page }) => {
+    await loginAs(page, "ceo@abc.demo");
+    await expect(page.getByTestId("period-picker")).toBeVisible();
+    await expect(page.getByTestId("period-label")).toHaveText("Kỳ báo cáo: T9/2026");
+    await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", "ok");
+
+    const refetch = page.waitForRequest((r) => r.url().includes("/api/backend/finance/dashboard") && r.url().includes("period=2026-10"));
+    await page.getByTestId("period-select").selectOption("thisMonth");
+    await refetch;
+    await expect(page).toHaveURL(/\/dashboard\?period=2026-10$/);
+    await expect(page.getByTestId("period-label")).toHaveText("Kỳ báo cáo: T10/2026");
+    await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
+
+    // drill-down keeps the period; Q3 also works
+    await page.getByTestId("pillar-F").click();
+    await expect(page).toHaveURL(/\/dashboard\/pillar\/finance\?period=2026-10$/);
+    await page.getByTestId("period-select").selectOption("q3");
+    await expect(page.getByTestId("period-label")).toHaveText("Kỳ báo cáo: Q3/2026");
+  });
+});

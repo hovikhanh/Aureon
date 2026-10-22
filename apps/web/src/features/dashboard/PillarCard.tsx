@@ -9,6 +9,7 @@ import { Sparkline } from "@/components/Sparkline";
 import { formatMetric, type AppLocale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PillarDef } from "./pillars";
+import { usePeriod } from "./period";
 import { usePillar } from "./use-pillar";
 
 const RING = { ok: "border-t-success", warning: "border-t-warning", critical: "border-t-danger", no_data: "border-t-border", unavailable: "border-t-border" } as const;
@@ -17,6 +18,7 @@ export function PillarCard({ def, period, permissions }: { def: PillarDef; perio
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
   const view = usePillar(def, period, permissions);
+  const { withPeriod } = usePeriod();
   const name = t(`pillar.${def.code}.name`);
   const top = view.metrics.find((m) => m.metric_code === def.top) ?? view.metrics[0];
 
@@ -36,7 +38,7 @@ export function PillarCard({ def, period, permissions }: { def: PillarDef; perio
     );
   }
   return (
-    <Link href={`/dashboard/pillar/${def.slug}`} aria-label={t("dashboard.drillDown", { pillar: name })} className="group block h-full rounded-lg" data-testid={`pillar-${def.code}`} data-status={view.status}>
+    <Link href={withPeriod(`/dashboard/pillar/${def.slug}`)} aria-label={t("dashboard.drillDown", { pillar: name })} className="group block h-full rounded-lg" data-testid={`pillar-${def.code}`} data-status={view.status}>
       <Card className={cn("flex h-full flex-col gap-3 border-t-4 p-4 transition-shadow group-hover:shadow-md", RING[view.status])}>
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-semibold leading-tight"><span className="text-muted-foreground">{def.code}</span> · {name}</h2>

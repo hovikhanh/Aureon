@@ -128,7 +128,17 @@
     "pillarPageTitle": "Pillar {pillar}",
     "pillarPagePending": "The detailed drill-down screen arrives in S5b.",
     "metricsOfPillar": "Pillar metrics",
-    "sparkline": "12-period trend"
+    "sparkline": "12-period trend",
+    "period": {
+      "label": "Reporting period: {period}",
+      "choose": "Choose reporting period",
+      "choice": {
+        "thisMonth": "This month ({period})",
+        "lastMonth": "Last month ({period})",
+        "q3": "Q3 ({period})",
+        "q4": "Q4 ({period})"
+      }
+    }
   },
   "metric": {
     "METRIC-FIN-01": "Revenue vs target",

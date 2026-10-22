@@ -128,7 +128,17 @@
     "pillarPageTitle": "Trụ {pillar}",
     "pillarPagePending": "Màn drill-down chi tiết sẽ có ở S5b.",
     "metricsOfPillar": "Chỉ số của trụ",
-    "sparkline": "Xu hướng 12 kỳ"
+    "sparkline": "Xu hướng 12 kỳ",
+    "period": {
+      "label": "Kỳ báo cáo: {period}",
+      "choose": "Chọn kỳ báo cáo",
+      "choice": {
+        "thisMonth": "Tháng này ({period})",
+        "lastMonth": "Tháng trước ({period})",
+        "q3": "Quý 3 ({period})",
+        "q4": "Quý 4 ({period})"
+      }
+    }
   },
   "metric": {
     "METRIC-FIN-01": "Doanh thu vs kế hoạch",

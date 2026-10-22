@@ -48,6 +48,16 @@ def last_months(period_key: str, n: int) -> list[str]:
 
 def resolve_period(period: str | None, today: date) -> DashboardPeriod:
     """10 §1.5 — current_month (default) / YYYY-MM / current_quarter / YYYY-Qn / ytd."""
+    try:
+        return _resolve_period(period, today)
+    except ValueError as exc:  # e.g. `2026-13`, `2026-Q9` → 400, never 500 (T-510)
+        raise BadRequestError(
+            "period must be current_month, current_quarter, ytd, YYYY-MM or YYYY-Qn",
+            details={"param": "period"},
+        ) from exc
+
+
+def _resolve_period(period: str | None, today: date) -> DashboardPeriod:
     p = period or "current_month"
     if p == "current_month" or (len(p) == 7 and p[4] == "-" and p[5] != "Q"):
         key = month_key(today) if p == "current_month" else p
