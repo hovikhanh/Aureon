@@ -2,13 +2,27 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 15:50 (Asia/Saigon) |
-| Last commit | `d738e65` feat(s5): IDP review detail SCR-18b (T-508) on `main` (pushed) |
-| Sub-sprint | **S5a — FE foundation + 4 MUST screens DONE** (T-501..T-508); S4a/S4b DONE; S4c/S4d deferred (DEC-240); S5b/S5c pending |
-| Test count | BE 741 passed (unchanged, backend not touched) · FE Vitest 11 passed · Playwright E2E **20 passed** |
+| Last updated | 2026-10-22 17:05 (Asia/Saigon) |
+| Last commit | `134d7a5` feat(s5): CEO Finance drill-down with metric cards and lineage (T-511) on `main` (pushed) |
+| Sub-sprint | **S5b-lite DONE** (T-509..T-511; T-512 optional skipped) · S5a DONE (T-501..T-508) · S4c/S4d deferred for all S5 (DEC-240) · S5b-full / S5c pending |
+| Test count | BE **752 passed** (+11: demo mode 9, gateway chain 2) + 17 period-picker contract · FE Vitest **17 passed** · Playwright E2E **25 passed** |
+| Chat latency | Demo replay (DEMO_MODE) **1,4–2,6 s** / recorded question (TTFB ≈ 3 ms, 30 ms/word) · live `cc/claude-sonnet-5` **9–13 s** (was 96 s timeout) · FE budget 120 s, hints 10/30/90 s |
 | Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
-| Open blocking DECs | none (DEC-237..240 approved by human 2026-10-22) |
+| Open blocking DECs | none (DEC-237..240 approved by human 2026-10-22; DEC-241 resolved per brief) |
+
+## S5b-lite demo polish (done 2026-10-22, direct route; 4 commits, pushed)
+- **Governance** `585e77a`: DEC-237..240 APPROVED (human); backend S4c deferred for all of S5.
+- **T-509** `17d2adb` chat fix (DEC-241): chat model chain `CHAT_MODEL_PRIMARY=cc/claude-sonnet-5` → `CHAT_MODEL_FALLBACK=cl/deepseek/deepseek-v4.1-flash` (brief named `deepseek-v4.1-flash-uncensored` — not routable on OmniRoute without provider prefix), 1 attempt/model, `CHAT_TIMEOUT_SECONDS=90` (chat only). `AI_DEMO_REPLAY` (default = `DEMO_MODE`) replays 10 recorded intents from `apps/api/src/app/modules/ai/demo_responses.json` — **numbers always from live tools run as the asker** (no fake numbers; missing permission/value → real model), warning `ai.warn.demo_replay`. System prompt tuned for ≤ 2 tool rounds. FE: `streamSse(..., timeoutMs)` 120 s → `AI_STREAM_TIMEOUT`; `WaitHint` 10 s "AI đang suy nghĩ..." / 30 s "Đang xử lý phức tạp, vui lòng đợi..." / 90 s "AI đang mất nhiều thời gian, thử lại sau". Side fixes: cost-service test baseline-relative (dev DB has live logs); gateway unit tests pin chat chain empty; E2E review specs clean up leftover `hoa-don-E2E*` docs (`seed_review_doc.py --cleanup`).
+- **T-510** `316a0c4` period picker: `PeriodPicker` "Kỳ báo cáo: T9/2026" + [Tháng này | Tháng trước | Q3 | Q4] relative to `NEXT_PUBLIC_DEMO_REFERENCE_DATE=2026-10-20` (not a secret); period in URL `?period=` (kept across drill-down). No new endpoint: `/dashboard/focus` does not exist in 10 — the 6 pillar endpoints (EP-49/60/70/80/90/100) already take `period`; contract test `test_dashboard_period_picker.py` covers 2026-10/09/Q3/Q4 on all 6. **Bug fixed:** `/finance/dashboard?period=2026-13` returned 500 → now 400.
+- **T-511** `134d7a5` Finance drill-down `/dashboard/pillar/finance`: "Trụ Tài chính" + status badge + period picker; 6 cards (Doanh thu 25,5 tỷ, Chi phí, Sử dụng ngân sách 97,3%, Runway 13,6 tháng, Số dư tiền mặt 20,4 tỷ, Burn rate 1,5 tỷ) with trend arrow + 12-period sparkline (monthly series from EP-60 `revenue_trend`/`runway_trend` + EP-63 cash positions — no daily 30-day series exists in the data model). Click → `LineageDialog` 3 levels: metric (EP-12) → component records (finance lists for the month) → source doc (EP-25 via IDP-committed invoice). EP-13/EP-14 not implemented → simplified per brief; seed records show "chưa gắn tài liệu gốc".
+- **T-512** (O/C/U/S drill-downs) skipped — optional; other pillars keep the S5a stub list.
+
+### S5b-lite notes / gaps
+- Live chat 9–13 s on multi-tool questions (target 3–10 s met for simple ones only); demo replay covers the 10 scripted questions. Further: cap tool rounds per turn, or pre-warm.
+- Sparklines are monthly (12 points), not 30 daily points — no daily finance series in 05.
+- Budget / Burn cards have no series in EP-60 (hint text instead).
+- Finance cards are not period-scoped for cash (latest closing ≤ selected month).
 
 ## S5a FE foundation + 4 MUST screens (done 2026-10-22, direct route; 8 commits, pushed)
 - **S4c deferred** — internal polish (full doc-type catalogue, ENT-DataLineage 4-cấp, EP-33 rollback). Defer to post-S5 if scope permits. S4d (C2/C4/C5 breadth) deferred, optional (DEC-240). Backend IDP not touched this sprint.
@@ -162,7 +176,7 @@ upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extra
 4. `[DEFERRED to S5]` T-223 lineage drill-down, T-233 + FE S2 (DEC-229).
 
 ## Next task
-**S5b (5 drill-downs) or S5c (breadth)** — awaiting human RESUME brief. (Former next task, now deferred per DEC-240:) **S4c commit + lineage + Action Registry v2** — on next RESUME: read 09 §S4, 04 §10 (Action Registry, undo, lineage), 05 §ENT-DataLineage, 10 EP-33, gates A/B/C. Extend `commit_service.py` with the full doc-type→domain catalogue, `ENT-DataLineage` rows per committed field, and the 7-day rollback (EP-33) emitting `idp.document_rolled_back`. S4b review workflow sits ready: approved docs reach `COMMITTED` with `undo_deadline`.
+**S5b-full (O/C/U/S drill-downs, same pattern as T-511) or S5c (breadth)** — awaiting human RESUME brief. (Former next task, now deferred per DEC-240:) **S4c commit + lineage + Action Registry v2** — on next RESUME: read 09 §S4, 04 §10 (Action Registry, undo, lineage), 05 §ENT-DataLineage, 10 EP-33, gates A/B/C. Extend `commit_service.py` with the full doc-type→domain catalogue, `ENT-DataLineage` rows per committed field, and the 7-day rollback (EP-33) emitting `idp.document_rolled_back`. S4b review workflow sits ready: approved docs reach `COMMITTED` with `undo_deadline`.
 
 ## S4b notes / deferred (for S4c)
 - **Commit path:** only INVOICE→finance.Invoice wired (reference path). OTHER = metadata-only. Remaining doc-type→domain maps (sales report→deals, employee list→hr, risk register→risks, etc.) + `ENT-DataLineage` field→record rows are S4c.
