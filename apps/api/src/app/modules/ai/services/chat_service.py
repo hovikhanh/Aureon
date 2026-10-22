@@ -36,7 +36,7 @@ from app.core.model_gateway.types import (
     Message as GwMessage,
 )
 from app.modules.ai.models import Conversation, Message, ToolCallLog
-from app.modules.ai.services.prompt_guard import classify_prompt, wrap_data
+from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
 from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
 from app.modules.ai.tools import advertisable_for, get_tool
 
@@ -89,9 +89,11 @@ class ChatService:
         executor = ToolExecutor(self.db, user)
         tool_specs = self._tool_specs(user, guard.classification)
         system = SYSTEM_VI if locale == "vi" else SYSTEM_EN
+        # T-309: the model never sees level-4 PII; level-3 contacts become stable EMP-/CLI- codes.
+        # (The user's own message is persisted verbatim; only the model context is scrubbed.)
         history: list[GwMessage] = [
             GwMessage("system", system),
-            GwMessage("user", message),
+            GwMessage("user", scrub_for_model(message)),
         ]
 
         sources: list[SourceRef] = []
@@ -132,7 +134,7 @@ class ChatService:
                 history.append(
                     GwMessage(
                         "tool",
-                        wrap_data(tc.name, _summarise(result)),
+                        wrap_data(tc.name, scrub_for_model(_summarise(result))),
                         tool_call_id=tc.id,
                     )
                 )

@@ -55,6 +55,11 @@ def _spans(text: str) -> list[tuple[PIIType, int, int]]:
     return sorted(taken, key=lambda t: t[1])
 
 
+def pii_spans(text: str) -> list[tuple[PIIType, int, int]]:
+    """Public: `(type, start, end)` spans of detected PII, ordered by position."""
+    return _spans(text)
+
+
 def detect_content_pii(text: str) -> list[PIIHit]:
     return [PIIHit(k, mask_value(text[s:e]), s) for k, s, e in _spans(text)]
 

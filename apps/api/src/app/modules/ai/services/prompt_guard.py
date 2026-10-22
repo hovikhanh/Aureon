@@ -15,11 +15,12 @@ lowers it. Tool-result classification (§7.4) is handled separately by the execu
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 
 from app.core.model_gateway.types import Classification
-from app.core.pii import PIIHit, detect_content_pii, mask_text
+from app.core.pii import PIIHit, PIIType, detect_content_pii, mask_text, pii_spans
 
 # Salary / compensation signals (level-4, 02 §5.3) → SECRET. VI + EN, number-adjacent.
 _SALARY = re.compile(
@@ -54,6 +55,45 @@ def classify_prompt(text: str) -> PromptClassification:
 def redact_for_log(text: str) -> str:
     """Mask PII in a message before it ever reaches a log line (never the raw prompt)."""
     return mask_text(text)
+
+
+# 02 §5.3 sensitivity → 5.5 model-prompt rule: drop level-4, tokenise level-3.
+_LEVEL_4: frozenset[PIIType] = frozenset({"CCCD", "BANK_ACCOUNT"})  # secret → never to any LLM
+_LEVEL_3: frozenset[PIIType] = frozenset({"EMAIL", "PHONE"})  # confidential → stable pseudonym
+_REDACTED = "[REDACTED]"
+# a contact pattern (e-mail/phone) belongs to an internal employee or an external client
+_CLIENT_HINT = re.compile(r"(khách|client|customer|đối\s*tác|nhà\s*cung\s*cấp|vendor)", re.I)
+
+
+def _token(value: str, prefix: str) -> str:
+    """Stable per-value pseudonym `EMP-xxxx` / `CLI-xxxx` (deterministic, no raw value)."""
+    digest = hashlib.sha256(value.encode()).hexdigest()[:4].upper()
+    return f"{prefix}-{digest}"
+
+
+def scrub_for_model(text: str) -> str:
+    """Sanitise text before it enters the model context (5.5): drop level-4 PII entirely and
+    replace level-3 contact PII with a stable `EMP-xxxx` / `CLI-xxxx` code (salary numbers are
+    handled upstream by `classify_prompt` → SECRET, so no LLM is called at all).
+    """
+    spans = pii_spans(text)
+    if not spans:
+        return text
+    out: list[str] = []
+    pos = 0
+    for kind, start, end in spans:
+        out.append(text[pos:start])
+        raw = text[start:end]
+        if kind in _LEVEL_4:
+            out.append(_REDACTED)
+        elif kind in _LEVEL_3:
+            prefix = "CLI" if _CLIENT_HINT.search(text[max(0, start - 24) : start]) else "EMP"
+            out.append(_token(raw, prefix))
+        else:
+            out.append(_REDACTED)
+        pos = end
+    out.append(text[pos:])
+    return "".join(out)
 
 
 def wrap_data(label: str, body: str) -> str:
