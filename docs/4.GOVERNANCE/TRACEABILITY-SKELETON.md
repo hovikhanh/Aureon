@@ -1,10 +1,10 @@
-# AI-EOS Traceability Skeleton — ID Registry (nhánh `ai-eos`)
+# AI-EOS Traceability Skeleton — ID Registry (Aureon v3 — AI-EOS)
 
-> **Mục đích:** bộ **ID registry xương sống** cho toàn bộ tài liệu AI-EOS viết lại (00–14). Mọi spec sau này chỉ dùng ID trong file này; đây là nguồn traceability duy nhất cho nhánh `ai-eos`.
-> **Nguồn:** `_reference/SOURCE-BRD-v1.1.md` (1.264 dòng), `_reference/SOURCE-BRD-v1.1-Bổ sung.md`, `_reference/SOURCE-UIUX.md`.
-> **Khác `main`:** `main`/v2.1 dùng 5 trụ F.O.C.U.S + 10 role + 6 module. Registry này bám **BRD đầy đủ**: 28 domain, 7 role + AI Agent, FR theo domain. Bảng ánh xạ sang `main` ở §12.
-> **Trạng thái:** 🟡 skeleton — khung ID; định nghĩa chi tiết (entity field, metric formula, EP contract) sẽ viết ở các file 00–14 theo `REBUILD-PLAN.md` §7.
-> **Ngày:** 2026-10-22 · **Maintainer:** @CyEyes
+> **Mục đích:** bộ **ID registry xương sống** cho toàn bộ tài liệu AI-EOS (00–14). Mọi spec chỉ dùng ID trong file này; đây là nguồn traceability duy nhất cho Aureon v3 — AI-EOS.
+> **Nguồn:** `_reference/SOURCE-BRD-v1.1.md` (1.264 dòng), `_reference/SOURCE-BRD-v1.1-Bổ sung.md`, `_reference/SOURCE-UIUX.md`. Tách từ Aureon v2.1 (nay archived ở `docs/_archive/v2.1/`).
+> **Khác v2.1:** v2.1 dùng 5 trụ F.O.C.U.S + 10 role + 6 module. Registry này bám **BRD đầy đủ**: 28 domain, 7 role + AI Agent, FR theo domain. Bảng ánh xạ sang v2.1 ở §12.
+> **Trạng thái:** ✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC — khung ID; định nghĩa chi tiết (entity field, metric formula, EP contract) viết ở các file 00–14 theo `docs/4.GOVERNANCE/REBUILD-PLAN.md` §7.
+> **Ngày:** 2026-10-23 · **Maintainer:** @CyEyes
 
 ---
 
@@ -156,9 +156,9 @@ Tổ chức (Organization, BusinessUnit, Department, Team, Employee, Position, R
 
 → Dùng `ENT-<Name>` khi viết 05; field, kiểu, quan hệ chốt ở 05-DATA-MODEL.
 
-## 12. Ánh xạ `main` (v2.1) ↔ `ai-eos` (AI-EOS) — để giữ traceability
+## 12. Ánh xạ Aureon v2.1 ↔ Aureon v3 (AI-EOS) — để giữ traceability
 
-| Khía cạnh | `main` v2.1 | `ai-eos` AI-EOS |
+| Khía cạnh | Aureon v2.1 | Aureon v3 (AI-EOS) |
 |---|---|---|
 | Trụ F (Finance) | 5 trụ F.O.C.U.S | D15 Finance + chỉ số Tài chính §12.4 |
 | Trụ O (Operations & People) | trụ O | D11 Task/Workload + D16 HR + chỉ số Vận hành/Con người |
@@ -183,7 +183,7 @@ Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được 
 **UC P0:** UC-01, UC-02 (transcript), UC-03, UC-04, UC-06, UC-07. **UC P1:** UC-05, UC-08, UC-02 (AI dự họp).
 **Agent P0 (`AGT-*`):** CEO, Data Capture, Performance, Task, Meeting, Reporting (+ Finance/Sales Lite). **Agent P1/P2:** HR/Product/Engineering/Procurement/Strategy/Risk/Governance.
 
-### Quy ước gán số ID (R-DEC-10 — BRD + ánh xạ `main`)
+### Quy ước gán số ID (R-DEC-10 — BRD + ánh xạ Aureon v2.1)
 - **FR-*:** đã cố định theo §4 (FR-ORG-01..06, FR-DC-01..23, …). Agent **không** tạo FR ngoài dải này; cần thêm → cập nhật §4 trước.
 - **METRIC-*:** cấp ở **03** theo nhóm §10, định dạng `METRIC-<NHÓM>-NN` (NHÓM ∈ FIN/CUS/OPS/PPL/STR/DQ). Danh sách nguồn ở §10; 03 chốt số + công thức.
 - **ENT-*:** cấp ở **05**, định dạng `ENT-<Name>` theo 13 nhóm §11. 05 chốt field/kiểu/quan hệ; mọi entity nghiệp vụ có `tenant_id` (R-DEC-07).
@@ -198,9 +198,10 @@ Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được 
 Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không blocking docs P0): SaaS đa tenant dài hạn · khách hàng mục tiêu đầu · chính sách AI cloud (dữ liệu tài chính/nhân sự) · vai trò với phần mềm kế toán · ngưỡng L3 mặc định · kênh chat chính · mô hình giá. Theo dõi ở 13-DECISION-LOG §3 (B1–B7).
 
 ## Version
-- **Version:** 0.3.0 (skeleton — P0 locked)
+- **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Vòng mở rộng spec-level P0 — ghi nhận nhãn nội bộ một file (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`) dùng trong 08/09/14; bổ sung `AGT-*` vào quy ước ID; phân biệt "ID liên-file" (cập nhật skeleton trước) vs "nhãn nội bộ một file". Không đổi tập P0 hay quyết định Q1–Q6.
 - **Change 0.2.0:** Khóa tập P0 (§12bis) sau khi human chốt Q1–Q6: 20 domain P0 / 6 P1 / 1 P2, kênh C1–C5 P0, Autonomy L0–L3 P0 (L4 phase 5), UC P0, agent P0; thêm quy ước gán số METRIC/ENT/EP/SCR/TOOL/AIC + ràng buộc "ID mới cập nhật skeleton trước"; cập nhật §13 (Q1–Q6 đã chốt).
 - **Change 0.1.0:** Tạo ID registry xương sống từ BRD AI-EOS đầy đủ: P01–P11, AI-R01–R12, BO-01–BO-10, 28 domain + FR prefix, 7 role + AI Agent, UC-01–08, ~110 US (19 epic), C1–C10, AI Platform (13 thành phần, L0–L4, agent, tool metadata, insight 9 phần), bộ chỉ số sức khỏe, 13 nhóm entity, ánh xạ main↔ai-eos, quyết định mở.

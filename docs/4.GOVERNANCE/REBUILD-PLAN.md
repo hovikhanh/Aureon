@@ -1,9 +1,9 @@
-# AI-EOS Rebuild Plan — nhánh `ai-eos`
+# AI-EOS Rebuild Plan (Aureon v3 — AI-EOS)
 
 > **Mục đích:** viết lại bộ tài liệu 00–14 cho **đúng AI-EOS đầy đủ** (`_reference/SOURCE-BRD-v1.1.md` + `SOURCE-BRD-v1.1-Bổ sung.md` + `SOURCE-UIUX.md`), thay vì bản distill demo-ready v2.0/v2.1 đang nằm trên `main`.
-> **Nhánh:** `ai-eos` (tách từ `main` @ `e394668` — bản demo-ready v2.1, giữ nguyên code + docs để làm baseline/fallback).
-> **Trạng thái:** 🟡 Planning — chưa viết lại nội dung spec cho tới khi human duyệt kế hoạch này.
-> **Ngày:** 2026-10-22 · **Maintainer:** @CyEyes
+> **Nguồn gốc:** tách từ Aureon v2.1 (nay archived ở docs/_archive/v2.1/) — bản demo-ready v2.1 giữ làm baseline lịch sử.
+> **Trạng thái:** ✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC.
+> **Ngày:** 2026-10-23 · **Maintainer:** @CyEyes
 
 ---
 
@@ -111,14 +111,15 @@ Giữ khung 15 file + chuỗi phụ thuộc (CLAUDE.md §10.1), nhưng nội dun
 Mỗi phase: viết → `doc-reviewer` (nếu dùng) → human duyệt → promote; bám chuỗi phụ thuộc CLAUDE.md §10.1.
 
 ## 8. Ràng buộc
-- **`main` bất khả xâm phạm** trong nhánh này — mọi thay đổi chỉ trên `ai-eos`.
+- **Baseline Aureon v2.1 bất khả xâm phạm** (nay archived ở docs/_archive/v2.1/) — tài liệu chính thức v3 không sửa bản baseline đó.
 - `_reference/` là Canonical Source; gitignored (không commit nội dung nguồn), nhưng là khung chính của nhánh.
 - Agent chỉ đề xuất version/status; human promote (CLAUDE.md §10.3).
 - Không thêm dependency / đổi stack / build code trong phase tài liệu.
 
 ## Version
-- **Version:** 0.2.0 (plan)
-- **Last updated:** 2026-10-22
+- **Version:** 1.0.0 (current)
+- **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.2.0:** Q1–Q6 đã được human chốt → R-DEC-05..10 (13 §1); vòng này là **docs-first P0** (R-DEC-09). §6 bảng Q giữ làm lịch sử đề xuất; §7 heading cập nhật "đã chốt". Code/app/migration/merge `main` là đợt sau.
 - **Change 0.1.0:** Tạo nhánh `ai-eos` + kế hoạch rebuild tài liệu theo AI-EOS đầy đủ (28 domain, 7 role + AI Agent, Autonomy L0–L4, C1–C10, Data Foundation, AI Platform, D28 Reporting, governance VN). Chờ human quyết Q1–Q6.
