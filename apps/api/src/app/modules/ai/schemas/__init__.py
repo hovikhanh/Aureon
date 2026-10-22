@@ -152,6 +152,7 @@ class CostRowOut(BaseModel):
     tokens_out: int
     cost_usd: float
     error_rate: float
+    p95_ms: int = 0
 
 
 class CostSummaryOut(BaseModel):

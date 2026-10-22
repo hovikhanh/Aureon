@@ -72,7 +72,10 @@ class ActionService:
         # seed the verification baseline (T-307) so the 24h/7d sweep can measure the outcome
         verification: dict[str, Any] | None = None
         if expected_outcome is not None:
-            verification = {"expected_outcome": expected_outcome, "baseline_status": baseline_status}
+            verification = {
+                "expected_outcome": expected_outcome,
+                "baseline_status": baseline_status,
+            }
         action = AIAction(
             action_name=action_name, tool_name=tool_name, agent_profile_code=agent_code,
             autonomy_level=level, status="proposed", on_behalf_of=user.user_id,

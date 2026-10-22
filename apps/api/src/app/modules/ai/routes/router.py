@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import AsyncIterator
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Response
 from fastapi.responses import StreamingResponse
@@ -28,6 +28,7 @@ from app.modules.ai.schemas import (
     ChatRequestIn,
     ConfirmActionIn,
     ConversationOut,
+    CostSummaryOut,
     InsightOut,
     KillSwitchIn,
     KillSwitchOut,
@@ -40,6 +41,7 @@ from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
+from app.modules.ai.services.cost_service import CostService
 from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
 from app.modules.ai.tools import advertisable_for, all_tools, available_for
@@ -246,6 +248,15 @@ async def list_tools(user: AiUser) -> list[ToolOut]:
         )
         for t in all_tools()
     ]
+
+
+@router.get("/usage", response_model=CostSummaryOut, summary="EP-119 AI usage & cost")
+async def ai_usage(
+    admin: AiAdmin,
+    db: DbSession,
+    group_by: Literal["provider", "model", "task_kind", "user"] = "provider",
+) -> CostSummaryOut:
+    return await CostService(db).usage(group_by=group_by)
 
 
 def _chunks(text: str, size: int = 48) -> list[str]:
