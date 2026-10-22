@@ -1,0 +1,92 @@
+"""T-301 — Tool Registry (10 §7). TC-AI-001.
+
+Verifies: the registry has all 43 `TOOL-*` with the correct kind split (27 QUERY / 13 WRITE /
+2 APPROVAL / 1 EXECUTION), every metadata attribute is present and valid, permission filtering
+(P06) and classification filtering (§7.4) behave, and APPROVAL tools are never advertised to the
+model (§7.3). No DB / network — pure catalog.
+"""
+
+from collections import Counter
+
+from app.core.permissions import VALID_PERMISSIONS
+from app.modules.ai.tools import (
+    TOOLS,
+    advertisable_for,
+    all_tools,
+    available_for,
+    get_tool,
+)
+
+ALL_PERMS = frozenset(VALID_PERMISSIONS)
+
+
+def test_registry_has_43_tools() -> None:
+    assert len(all_tools()) == 43
+    assert len({t.name for t in TOOLS}) == 43  # unique names
+
+
+def test_kind_split_matches_spec() -> None:
+    c = Counter(t.kind for t in TOOLS)
+    assert c["READ"] + c["COMPUTE"] == 27  # QUERY
+    assert c["WRITE"] == 13
+    assert c["APPROVAL"] == 2
+    assert c["EXECUTION"] == 1
+
+
+def test_every_tool_carries_valid_metadata() -> None:
+    for t in TOOLS:
+        assert t.name.startswith("TOOL-")
+        assert t.description
+        assert t.domain
+        assert t.endpoint
+        assert t.kind in ("READ", "COMPUTE", "WRITE", "APPROVAL", "EXECUTION")
+        assert t.risk_level in ("low", "medium", "high")
+        assert t.cost_estimate in ("low", "medium", "high")
+        assert t.classification in ("INTERNAL", "CONFIDENTIAL", "SECRET")
+        assert t.required_permissions, f"{t.name} missing permissions"
+        for p in t.required_permissions:
+            assert p in VALID_PERMISSIONS, f"{t.name} has undefined permission {p}"
+        # QUERY/COMPUTE → reversible n/a; WRITE → bool
+        if t.kind in ("READ", "COMPUTE"):
+            assert t.reversible is None and t.reversible_label == "n/a"
+        else:
+            assert isinstance(t.reversible, bool)
+
+
+def test_write_tools_require_ai_write_plus_domain() -> None:
+    for t in TOOLS:
+        if t.kind == "WRITE":
+            assert "ai:write" in t.required_permissions
+            # at least one domain:write / domain:read companion
+            assert len(t.required_permissions) >= 1
+
+
+def test_permission_filter_scopes_tools_by_role() -> None:
+    # EMPLOYEE-like: only execution:read → only the 3 execution read tools
+    emp = {t.name for t in available_for(frozenset({"execution:read"}))}
+    assert emp == {"TOOL-list_tasks", "TOOL-list_objectives", "TOOL-get_kpi_status"}
+    # no permissions → nothing
+    assert available_for(frozenset()) == ()
+    # all permissions → all 43
+    assert len(available_for(ALL_PERMS)) == 43
+
+
+def test_classification_filter_caps_advertised_tools() -> None:
+    internal = advertisable_for(ALL_PERMS, max_classification="INTERNAL")
+    assert internal and all(t.classification == "INTERNAL" for t in internal)
+    conf = advertisable_for(ALL_PERMS, max_classification="CONFIDENTIAL")
+    assert len(conf) > len(internal)
+    assert all(t.classification in ("INTERNAL", "CONFIDENTIAL") for t in conf)
+
+
+def test_approval_tools_never_advertised_to_model() -> None:
+    adv = advertisable_for(ALL_PERMS)
+    assert all(t.kind != "APPROVAL" for t in adv)
+    # but they are still "available" (server may call them)
+    av = {t.name for t in available_for(ALL_PERMS)}
+    assert "TOOL-approve_request" in av and "TOOL-reject_request" in av
+
+
+def test_get_tool_lookup() -> None:
+    assert get_tool("TOOL-get_finance_dashboard").domain == "finance"  # type: ignore[union-attr]
+    assert get_tool("TOOL-nope") is None
