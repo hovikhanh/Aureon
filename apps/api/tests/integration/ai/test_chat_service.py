@@ -59,7 +59,7 @@ def _tool_then_answer(tool: str, answer: str) -> ScriptedGateway:
             model="x",
             tool_calls=(ToolCall(id="c1", name=tool, arguments={}),),
             usage=Usage(10, 0),
-        ),  # fmt: skip
+        ),
         ChatResponse(content=answer, provider="fixture", model="x", usage=Usage(5, 20)),
     )
 

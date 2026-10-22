@@ -23,22 +23,32 @@ from app.core.idempotency import Idem
 from app.core.model_gateway.errors import SecretDataBlockedError
 from app.core.routing import EnvelopeRouter
 from app.modules.ai.schemas import (
+    AIActionOut,
     ChatAnswerOut,
     ChatRequestIn,
+    ConfirmActionIn,
     ConversationOut,
     InsightOut,
+    KillSwitchIn,
+    KillSwitchOut,
     MessageOut,
+    RejectActionIn,
     ToolOut,
+    UndoActionIn,
 )
+from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
 from app.modules.ai.services.insight_service import InsightService
+from app.modules.ai.services.kill_switch_service import KillSwitchService
 from app.modules.ai.tools import advertisable_for, all_tools, available_for
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai"])
 
 AiUser = Annotated[Principal, Depends(require_permission("ai", "query"))]
+AiWriter = Annotated[Principal, Depends(require_permission("ai", "write"))]
+AiAdmin = Annotated[Principal, Depends(require_permission("ai", "admin"))]
 
 
 def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
@@ -162,6 +172,59 @@ async def dismiss_insight(
     insight_id: uuid.UUID, user: AiUser, db: DbSession, idem: Idem
 ) -> InsightOut:
     out = await InsightService(db).dismiss(user, insight_id)
+    await db.commit()
+    return out
+
+
+@router.get("/actions", response_model=list[AIActionOut], summary="EP-115 AI actions")
+async def list_actions(
+    user: AiUser, db: DbSession, status: str | None = None, autonomy_level: str | None = None
+) -> list[AIActionOut]:
+    return await ActionService(db).list_for(user, status=status, autonomy_level=autonomy_level)
+
+
+@router.get("/actions/{action_id}", response_model=AIActionOut, summary="EP-115 AI action")
+async def get_action_ep(action_id: uuid.UUID, user: AiUser, db: DbSession) -> AIActionOut:
+    return await ActionService(db).get(user, action_id)
+
+
+@router.post("/actions/{action_id}/confirm", response_model=AIActionOut, summary="EP-115 Confirm")
+async def confirm_action(
+    action_id: uuid.UUID, body: ConfirmActionIn, user: AiWriter, db: DbSession, idem: Idem
+) -> AIActionOut:
+    out = await ActionService(db).confirm(user, action_id, edited_input=body.edited_input)
+    await db.commit()
+    return out
+
+
+@router.post("/actions/{action_id}/reject", response_model=AIActionOut, summary="EP-115 Reject")
+async def reject_action(
+    action_id: uuid.UUID, body: RejectActionIn, user: AiWriter, db: DbSession, idem: Idem
+) -> AIActionOut:
+    out = await ActionService(db).reject(user, action_id, reason=body.reason)
+    await db.commit()
+    return out
+
+
+@router.post("/actions/{action_id}/undo", response_model=AIActionOut, summary="EP-116 Undo")
+async def undo_action(
+    action_id: uuid.UUID, body: UndoActionIn, user: AiWriter, db: DbSession, idem: Idem
+) -> AIActionOut:
+    out = await ActionService(db).undo(user, action_id, reason=body.reason)
+    await db.commit()
+    return out
+
+
+@router.get("/kill-switch", response_model=KillSwitchOut, summary="EP-118 Kill switch status")
+async def kill_switch_status(user: AiUser, db: DbSession) -> KillSwitchOut:
+    return await KillSwitchService(db).status()
+
+
+@router.put("/kill-switch", response_model=KillSwitchOut, summary="EP-118 Set kill switch")
+async def set_kill_switch(
+    body: KillSwitchIn, admin: AiAdmin, db: DbSession, idem: Idem
+) -> KillSwitchOut:
+    out = await KillSwitchService(db).set(admin, body)
     await db.commit()
     return out
 

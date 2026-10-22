@@ -1,0 +1,204 @@
+"""T-304/305/306 — AI action lifecycle, undo 24h, 2-sided approval, kill switch.
+
+TC-AI-012 (actions + undo), TC-AI-013 (approval 2-sided), TC-AI-014 (kill switch).
+Runs against the seeded dev DB inside the rolled-back `db_session`.
+"""
+
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from app.core.deps import Principal
+from app.core.errors import ConflictStateError, PermissionDeniedError
+from app.modules.ai.schemas import KillSwitchIn
+from app.modules.ai.services.action_service import ActionService, UndoExpiredError
+from app.modules.ai.services.autonomy import resolve_level
+from app.modules.ai.services.kill_switch_service import KillSwitchService
+from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.platform.services.approval_service import ApprovalService
+
+pytestmark = pytest.mark.integration
+
+
+def principal(role: str, user_id: uuid.UUID | None = None) -> Principal:
+    return Principal(
+        user_id=user_id or uuid.uuid4(), role=role,
+        permissions=frozenset(ROLE_PERMISSIONS[role]),
+    )  # fmt: skip
+
+
+# ---------- T-304: lifecycle + undo ----------
+async def test_l3_action_auto_executes_with_24h_undo_window(db_session) -> None:
+    svc = ActionService(db_session)
+    ceo = principal("CEO")
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "AI task from meeting", "status": "todo"},
+        idempotency_key="act-l3-1",
+    )  # fmt: skip
+    assert out.autonomy_level == "L3"
+    assert out.status == "executed"
+    assert out.can_undo is True
+    assert out.result_refs and out.result_refs[0]["table"] == "execution.tasks"
+    assert out.undo_deadline is not None
+    assert out.undo_deadline - datetime.now(UTC) > timedelta(hours=23)
+
+
+async def test_undo_reverses_within_window(db_session) -> None:
+    svc = ActionService(db_session)
+    ceo = principal("CEO")
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "undo me", "status": "todo"}, idempotency_key="act-undo-1",
+    )  # fmt: skip
+    undone = await svc.undo(ceo, out.id, reason="mistake")
+    assert undone.status == "undone"
+    # the underlying task row is soft-deleted
+    from sqlalchemy import select
+
+    from app.modules.execution.models import Task
+
+    task_id = uuid.UUID(out.result_refs[0]["id"])
+    task = (await db_session.execute(select(Task).where(Task.id == task_id))).scalar_one()
+    assert task.deleted_at is not None
+
+
+async def test_undo_past_window_is_expired(db_session) -> None:
+    svc = ActionService(db_session)
+    ceo = principal("CEO")
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "stale", "status": "todo"}, idempotency_key="act-stale-1",
+    )  # fmt: skip
+    # force the deadline into the past
+    action = await svc._locked(out.id)
+    action.undo_deadline = datetime.now(UTC) - timedelta(minutes=1)
+    await db_session.flush()
+    with pytest.raises(UndoExpiredError):
+        await svc.undo(ceo, out.id, reason="too late")
+
+
+async def test_confirm_requires_ai_write_and_domain_write(db_session) -> None:
+    svc = ActionService(db_session)
+    # EMPLOYEE lacks execution:write for a confirm; build a proposed L2 by kill-switching to L2
+    await KillSwitchService(db_session).set(
+        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+    )
+    emp = principal("EMPLOYEE")
+    out = await svc.propose(
+        emp, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "needs confirm", "status": "todo"}, idempotency_key="act-l2-1",
+    )  # fmt: skip
+    assert out.autonomy_level == "L2"
+    assert out.status == "proposed"
+    # strip execution:write to prove the confirm gate
+    no_exec = Principal(
+        user_id=emp.user_id,
+        role="EMPLOYEE",
+        permissions=frozenset(p for p in ROLE_PERMISSIONS["EMPLOYEE"] if p != "execution:write"),
+    )
+    with pytest.raises(PermissionDeniedError):
+        await svc.confirm(no_exec, out.id)
+
+
+async def test_reject_a_proposed_action(db_session) -> None:
+    svc = ActionService(db_session)
+    await KillSwitchService(db_session).set(
+        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+    )
+    ceo = principal("CEO")
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "reject me", "status": "todo"}, idempotency_key="act-rej-1",
+    )  # fmt: skip
+    rejected = await svc.reject(ceo, out.id, reason="not needed")
+    assert rejected.status == "rejected"
+    with pytest.raises(ConflictStateError):
+        await svc.confirm(ceo, out.id)
+
+
+# ---------- T-305: 2-sided approval (DEC-155) ----------
+async def test_finance_over_threshold_needs_two_distinct_approvers(db_session) -> None:
+    svc = ApprovalService(db_session)
+    requester = uuid.uuid4()
+    req = await svc.create_for_ai_action(
+        ai_action_id=uuid.uuid4(), requested_by=requester, amount=600_000_000,
+        currency="VND", payload={"kind": "expense"}, is_finance=True,
+    )  # fmt: skip
+    assert req.status == "PENDING" and req.step == 1
+    r1 = await svc.decide(principal("CEO"), req.id, decision="approve", reason=None)
+    assert r1.step == 2 and r1.status == "PENDING"  # waiting on the second approver
+    r2 = await svc.decide(principal("CFO"), req.id, decision="approve", reason=None)
+    assert r2.status == "APPROVED"
+
+
+async def test_finance_under_threshold_is_single_step(db_session) -> None:
+    svc = ApprovalService(db_session)
+    req = await svc.create_for_ai_action(
+        ai_action_id=uuid.uuid4(), requested_by=uuid.uuid4(), amount=100_000_000,
+        currency="VND", payload={}, is_finance=True,
+    )  # fmt: skip
+    r = await svc.decide(principal("CEO"), req.id, decision="approve", reason=None)
+    assert r.status == "APPROVED"
+
+
+async def test_non_approver_role_cannot_decide(db_session) -> None:
+    svc = ApprovalService(db_session)
+    req = await svc.create_for_ai_action(
+        ai_action_id=uuid.uuid4(), requested_by=uuid.uuid4(), amount=100_000_000,
+        currency="VND", payload={}, is_finance=True,
+    )  # fmt: skip
+    with pytest.raises(PermissionDeniedError):
+        await svc.decide(principal("EMPLOYEE"), req.id, decision="approve", reason=None)
+
+
+# ---------- T-306: kill switch ----------
+async def test_kill_switch_write_off_downgrades_l3_to_l2(db_session) -> None:
+    await KillSwitchService(db_session).set(
+        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="risk")
+    )
+    level = await resolve_level(
+        db_session, action_name="ACT-create_task", role="CEO", amount=None,
+        agent_code="assistant",
+    )  # fmt: skip
+    assert level == "L2"
+
+
+async def test_kill_switch_l0_blocks_preparation(db_session) -> None:
+    await KillSwitchService(db_session).set(
+        principal("ADMIN"), KillSwitchIn(enabled=True, mode="L0", agents=[], reason="incident")
+    )
+    level = await resolve_level(
+        db_session, action_name="ACT-create_task", role="CEO", amount=None,
+        agent_code="assistant",
+    )  # fmt: skip
+    assert level == "L0"
+
+
+async def test_kill_switch_per_agent_scope(db_session) -> None:
+    # engage only for agent "reporter" — the default "assistant" stays L3
+    await KillSwitchService(db_session).set(
+        principal("ADMIN"),
+        KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=["reporter"], reason="scoped"),
+    )
+    assistant = await resolve_level(
+        db_session, action_name="ACT-create_task", role="CEO", amount=None,
+        agent_code="assistant",
+    )  # fmt: skip
+    reporter = await resolve_level(
+        db_session, action_name="ACT-create_task", role="CEO", amount=None,
+        agent_code="reporter",
+    )  # fmt: skip
+    assert assistant == "L3"
+    assert reporter == "L2"
+
+
+async def test_kill_switch_status_roundtrip(db_session) -> None:
+    svc = KillSwitchService(db_session)
+    assert (await svc.status()).enabled is False
+    await svc.set(
+        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="x")
+    )
+    st = await svc.status()
+    assert st.enabled is True and st.mode == "WRITE_OFF"

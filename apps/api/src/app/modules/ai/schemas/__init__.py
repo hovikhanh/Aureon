@@ -76,6 +76,50 @@ class ToolOut(BaseModel):
     cost_estimate: str
 
 
+class AIActionOut(BaseModel):
+    """EP-115/116 AIActionOut (10 §4.11)."""
+
+    id: uuid.UUID
+    action_name: str
+    tool_name: str | None = None
+    autonomy_level: Literal["L0", "L1", "L2", "L3"]
+    status: Literal["proposed", "confirmed", "executed", "rejected", "undone", "failed"]
+    input_preview: dict[str, Any] = Field(default_factory=dict)
+    result_refs: list[dict[str, Any]] = Field(default_factory=list)
+    on_behalf_of: uuid.UUID
+    approval_request_id: uuid.UUID | None = None
+    executed_at: datetime | None = None
+    undo_deadline: datetime | None = None
+    can_undo: bool = False
+
+
+class ConfirmActionIn(BaseModel):
+    edited_input: dict[str, Any] | None = None
+
+
+class RejectActionIn(BaseModel):
+    reason: str
+
+
+class UndoActionIn(BaseModel):
+    reason: str | None = None
+
+
+class KillSwitchOut(BaseModel):
+    enabled: bool
+    mode: Literal["WRITE_OFF", "L0"]
+    agents: list[str] = Field(default_factory=list)
+    changed_by: uuid.UUID | None = None
+    changed_at: datetime | None = None
+
+
+class KillSwitchIn(BaseModel):
+    enabled: bool
+    mode: Literal["WRITE_OFF", "L0"] = "WRITE_OFF"
+    agents: list[str] = Field(default_factory=list)
+    reason: str
+
+
 class ConfidenceOut(BaseModel):
     band: Literal["high", "medium", "low"]
     reason: str
