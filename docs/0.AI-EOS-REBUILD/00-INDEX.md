@@ -61,9 +61,9 @@ Nhánh viết lại tài liệu cho **đúng AI-EOS đầy đủ** (28 domain, 7
 | Mục | Trạng thái |
 |---|---|
 | Nhánh | `ai-eos` (từ `main` @ `e394668`); `main` giữ nguyên demo-ready v2.1 |
-| Deliverable R0 | ✅ REBUILD-PLAN, TRACEABILITY-SKELETON, 00, 01 |
-| Phase kế | R1: 02, 03, 04 (chờ human chốt Q1–Q6) |
-| Mặc định tạm | Q1–Q6 ở 01 §8 / REBUILD-PLAN §6 |
+| Bộ 00–14 | ✅ bản AI-EOS đầu tiên đủ 15/15 (R0+R1+R2+R3) + 2 file khung — toàn **draft 0.1.0** |
+| Phase kế | Human duyệt Q1–Q6 (13 §1) → `doc-reviewer` → promote `current` |
+| Mặc định tạm | Q1–Q6 ở 01 §8 / REBUILD-PLAN §6 / 13 §1 |
 
 ## Version
 - **Version:** 0.1.0 (draft, Phase R0)
