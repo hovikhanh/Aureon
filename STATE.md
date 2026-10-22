@@ -8,7 +8,7 @@
 | Test count | BE 741 passed (unchanged, backend not touched) · FE Vitest 11 passed · Playwright E2E **20 passed** |
 | Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
-| Open blocking DECs | none (auto-DEC non-blocking DEC-237..239; DEC-240 S4c/S4d deferral) |
+| Open blocking DECs | none (DEC-237..240 approved by human 2026-10-22) |
 
 ## S5a FE foundation + 4 MUST screens (done 2026-10-22, direct route; 8 commits, pushed)
 - **S4c deferred** — internal polish (full doc-type catalogue, ENT-DataLineage 4-cấp, EP-33 rollback). Defer to post-S5 if scope permits. S4d (C2/C4/C5 breadth) deferred, optional (DEC-240). Backend IDP not touched this sprint.
