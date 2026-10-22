@@ -54,3 +54,6 @@ _reference/
 
 # Windows ADS junk
 *:Zone.Identifier
+
+# IDP local object store (dev/demo runtime storage — DEC-138 quarantine bucket)
+var/

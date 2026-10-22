@@ -92,6 +92,16 @@ class ConfigService(BaseSettings):
     clamav_host: str = "localhost"
     clamav_port: int = 3310
     clamav_required: bool = False
+    # --- IDP storage & pipeline limits (04 §15.1, 07 §448) ---
+    # Demo object store: local filesystem under this dir (prod swaps for MinIO/S3 behind the
+    # same ObjectStore interface). `quarantine` bucket for INFECTED files (DEC-138).
+    idp_storage_dir: Path = REPO_ROOT / "var" / "idp-storage"
+    idp_max_file_size_mb: int = Field(default=50, gt=0)  # 04 §15.1
+    idp_max_pages: int = Field(default=300, gt=0)
+    idp_max_files_per_upload: int = Field(default=100, gt=0)
+    # OCR backend: `stub` (deterministic, demo/CI default) | `paddle` (in-process, 07 §47).
+    # `paddle` is only used when the optional package is importable (DEC-049 fixture/replay demo).
+    ocr_provider: Literal["stub", "paddle"] = "stub"
 
     # --- Dashboard / DQ / SLA (DEC-148, DEC-158) ---
     dq_weight_completeness: float = 0.3

@@ -81,3 +81,9 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = ["celery", "celery.*"]
 ignore_missing_imports = true
+
+# IDP document-parsing / scanning deps ship no type stubs (DEC-138 clamd, DEC-120 openpyxl);
+# paddleocr is an optional in-process OCR backend, imported lazily (07 §OCR, DEC-049).
+[[tool.mypy.overrides]]
+module = ["clamd", "openpyxl", "openpyxl.*", "paddleocr"]
+ignore_missing_imports = true
