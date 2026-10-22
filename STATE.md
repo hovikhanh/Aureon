@@ -93,7 +93,13 @@
 upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extracted (1 page, pypdf) → classify `INVOICE` (0.99) → extract 8 fields (subtotal/vat/total HIGH, critical) → validate (VR-INV-02/03/SUB/05 pass) → route `REVIEW` (reason `CRITICAL_FIELD`) → **`NEEDS_REVIEW`**.
 
 ## In progress
-- none
+- **S4b — IDP review workflow** (T-406→T-412 brief → spec EP-28..35 + EP-126/127).
+
+## S4b pre-flight (2026-10-22, 3 checks)
+- **Check 1 PaddleOCR:** `paddleocr` NOT installed; dev `.env` was `OCR_PROVIDER=paddle` → set to `stub` (reality). Code degrades gracefully (`except → "",0.0`); text-layer invoice.pdf unaffected. → **DEC-236** non-blocking (stub for demo, paddle for prod, DEC-049 still open).
+- **Check 2 ClamAV:** ✅ REAL. Container `clamav` (ClamAV 1.5.4) reachable; live clamd `CLEAN` clean bytes, `INFECTED/Eicar-Test-Signature` on EICAR. `CLAMAV_REQUIRED` unset=false. → **DEC-235** confirms demo fallback + verified live.
+- **Check 3 samples:** ✅ 7/9 doc types in `data/` (financial/invoice-xlsx/sales/contract/meeting/employee/kpi) + in-memory `sample_docs.py`. No new fixtures needed for S4b.
+- **DEC-234** storage local-FS confirmed non-blocking. Baseline: 31 IDP integ/unit tests green after stub change.
 
 ## Remaining (in order)
 1. **S4b** — IDP review workflow (EP-29..35 open/fields/approve/reject/release, soft-lock 15min, parallel review, reassign/merge T-415). **Do NOT start without a new RESUME brief.**
