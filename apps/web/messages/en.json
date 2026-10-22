@@ -1,0 +1,321 @@
+{
+  "app": {
+    "name": "Aureon",
+    "tagline": "Digital Chief of Staff"
+  },
+  "nav": {
+    "dashboard": "F.O.C.U.S Home",
+    "idp": "Data inbox",
+    "ai": "Ask AI",
+    "approvals": "Approvals",
+    "invoices": "Invoices",
+    "menu": "Open menu",
+    "close": "Close menu",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
+  },
+  "buttons": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "send": "Send",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "approve": "Approve",
+    "reject": "Reject",
+    "review": "Review",
+    "upload": "Upload document",
+    "acknowledge": "Acknowledge",
+    "newChat": "New chat",
+    "previous": "Previous",
+    "next": "Next",
+    "clearFilters": "Clear filters",
+    "back": "Back"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again in a few minutes.",
+    "network": "Cannot reach the server. Check your connection and retry.",
+    "INVALID_CREDENTIALS": "Incorrect email or password.",
+    "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
+    "FORBIDDEN_ROLE": "Your role is not allowed to perform this action.",
+    "FORBIDDEN_SCOPE": "This data is outside your scope.",
+    "REVIEW_LOCKED": "Another reviewer is working on this document.",
+    "CONFLICT_STATE": "The document changed. Please reload.",
+    "VALIDATION_ERROR": "Some data is invalid.",
+    "ACTION_REJECTED": "The data could not be committed.",
+    "RATE_LIMIT_EXCEEDED": "Too many requests. Try again shortly.",
+    "AI_PROVIDER_TIMEOUT": "The AI assistant took too long. Please retry.",
+    "AI_DISABLED": "The AI assistant cannot process this request.",
+    "AI_QUOTA_EXCEEDED": "The monthly AI budget is exhausted.",
+    "notFound": "Page not found.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenBody": "Your current role cannot view this screen. Contact an administrator if needed.",
+    "goHome": "Go home"
+  },
+  "auth": {
+    "title": "Sign in to Aureon",
+    "subtitle": "Executive assistant for ABC Company",
+    "email": "Email",
+    "password": "Password",
+    "emailInvalid": "Invalid email",
+    "passwordRequired": "Please enter your password",
+    "demoAccounts": "Demo accounts",
+    "demoHint": "Pick an account to fill the email; demo passwords are provided by the admin.",
+    "signingIn": "Signing in…"
+  },
+  "role": {
+    "CEO": "CEO",
+    "CFO": "CFO",
+    "VP_SALES": "VP Sales",
+    "HR_MANAGER": "HR Manager",
+    "REVIEWER": "Reviewer",
+    "CPO": "CPO",
+    "RISK_MANAGER": "Risk Manager",
+    "MANAGER": "Manager",
+    "EMPLOYEE": "Employee",
+    "ADMIN": "Admin"
+  },
+  "header": {
+    "language": "Language",
+    "account": "Account",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "pillar": {
+    "F": {
+      "name": "Finance"
+    },
+    "O": {
+      "name": "Operations & People"
+    },
+    "C": {
+      "name": "Customer & Growth"
+    },
+    "U": {
+      "name": "Product & Innovation"
+    },
+    "S": {
+      "name": "Strategy & Risk"
+    }
+  },
+  "status": {
+    "ok": "On track",
+    "warning": "At risk",
+    "critical": "Off track",
+    "no_data": "No data",
+    "unavailable": "Unavailable"
+  },
+  "dashboard": {
+    "title": "F.O.C.U.S overview",
+    "subtitle": "Period {period}",
+    "topMetric": "Key metric",
+    "openAlerts": "{count, plural, =0 {No alerts} one {# open alert} other {# open alerts}}",
+    "unavailable": "This pillar could not be loaded",
+    "drillDown": "Open pillar {pillar}",
+    "alertsTitle": "Alerts ({count})",
+    "alertsEmpty": "No alerts.",
+    "alertsError": "Could not load alerts.",
+    "acknowledged": "Acknowledged",
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning"
+    },
+    "age": "{hours, plural, =0 {just now} one {# hour ago} other {# hours ago}}",
+    "ageDays": "{days} days ago",
+    "alertTitle": "{metric}: {value} (threshold {threshold})",
+    "pillarPageTitle": "Pillar {pillar}",
+    "pillarPagePending": "The detailed drill-down screen arrives in S5b.",
+    "metricsOfPillar": "Pillar metrics",
+    "sparkline": "12-period trend"
+  },
+  "metric": {
+    "METRIC-FIN-01": "Revenue vs target",
+    "METRIC-FIN-02": "Gross margin",
+    "METRIC-FIN-03": "Cash runway",
+    "METRIC-FIN-04": "Days sales outstanding",
+    "METRIC-FIN-05": "Overdue receivables",
+    "METRIC-FIN-06": "Budget variance",
+    "METRIC-FIN-07": "Net burn vs forecast",
+    "METRIC-CUS-01": "Pipeline coverage",
+    "METRIC-CUS-02": "Win rate",
+    "METRIC-CUS-03": "Net revenue retention",
+    "METRIC-CUS-04": "Top-5 revenue concentration",
+    "METRIC-CUS-05": "NPS",
+    "METRIC-CUS-06": "Average sales cycle",
+    "METRIC-HR-01": "Revenue per employee",
+    "METRIC-HR-02": "Annualized turnover",
+    "METRIC-HR-03": "Overload",
+    "METRIC-HR-04": "Late hiring plans",
+    "METRIC-OPS-01": "On-time tasks",
+    "METRIC-OPS-02": "Late projects",
+    "METRIC-OPS-03": "Decision execution",
+    "METRIC-PRD-01": "Adoption / MAU",
+    "METRIC-PRD-02": "Churn",
+    "METRIC-PRD-03": "30-day retention",
+    "METRIC-PRD-04": "Roadmap on track",
+    "METRIC-PRD-05": "Features released",
+    "METRIC-RSK-01": "Open high/critical risks",
+    "METRIC-RSK-02": "Unowned high risks",
+    "METRIC-RSK-03": "High risks without mitigation > 30 days",
+    "METRIC-RSK-04": "Aggregate risk score",
+    "METRIC-RSK-05": "Overdue mitigations",
+    "METRIC-RSK-06": "Strategy execution index",
+    "METRIC-DQ-01": "Data quality score"
+  },
+  "unit": {
+    "MONTHS": "months",
+    "DAYS": "days",
+    "COUNT": "",
+    "SCORE": "pts",
+    "RATIO": "x",
+    "PCT": "%",
+    "VND": "VND"
+  },
+  "ai": {
+    "title": "Ask AI",
+    "badge": "AI",
+    "placeholder": "Ask about revenue, cash, risks… (Enter to send)",
+    "inputLabel": "Question for the AI assistant",
+    "history": "History",
+    "historyEmpty": "No conversations yet.",
+    "untitled": "Conversation",
+    "welcome": "What would you like to know today? Every number is sourced.",
+    "you": "You",
+    "assistant": "AI assistant",
+    "state": {
+      "thinking": "AI is thinking…",
+      "tool": "AI is using tool: {tool}",
+      "toolDone": "Used tool: {tool} ({ms} ms)",
+      "streaming": "AI is answering…"
+    },
+    "toolCalls": "{count, plural, =1 {1 tool used} other {# tools used}}",
+    "sources": "Sources",
+    "sourceType": "Source type",
+    "sourcePeriod": "Period",
+    "sourceValue": "Value",
+    "openLineage": "View lineage",
+    "warning": {
+      "AI_NO_DATA_AVAILABLE": "No data available to answer this.",
+      "default": "Note: {code}"
+    },
+    "truncated": "The answer was truncated.",
+    "suggestions": {
+      "q1": "Q3 revenue?",
+      "q2": "Which risks are critical?",
+      "q3": "How long is our cash runway?"
+    }
+  },
+  "idp": {
+    "queueTitle": "Review queue",
+    "queueSubtitle": "{count, plural, =0 {No documents} one {# document} other {# documents}}",
+    "empty": "No documents need review",
+    "emptyHint": "Uploaded documents that need a human check will appear here.",
+    "col": {
+      "filename": "File name",
+      "type": "Type",
+      "confidence": "Avg confidence",
+      "critical": "Critical fields",
+      "assigned": "Assigned to",
+      "age": "Age",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "filter": {
+      "status": "Status",
+      "docType": "Document type",
+      "assigned": "Assigned to",
+      "all": "All",
+      "me": "Mine"
+    },
+    "unassigned": "Unassigned",
+    "pageInfo": "{from}–{to} of {total}",
+    "docType": {
+      "INVOICE": "Invoice",
+      "FINANCIAL_REPORT": "Financial report",
+      "SALES_REPORT": "Sales report",
+      "CONTRACT": "Contract",
+      "MEETING_MINUTES": "Meeting minutes",
+      "EMPLOYEE_LIST": "Employee list",
+      "KPI_OKR": "KPI/OKR",
+      "PRODUCT_REPORT": "Product report",
+      "RISK_REGISTER": "Risk register",
+      "OTHER": "Other",
+      "unknown": "Unclassified"
+    },
+    "status": {
+      "NEEDS_REVIEW": "Needs review",
+      "IN_REVIEW": "In review",
+      "APPROVED": "Approved",
+      "COMMITTED": "Committed",
+      "REJECTED": "Rejected",
+      "AUTO_APPROVED": "Auto-approved",
+      "FAILED": "Failed",
+      "UPLOADED": "Uploaded",
+      "PROCESSING": "Processing",
+      "DUPLICATE": "Duplicate"
+    },
+    "detailTitle": "Document review",
+    "source": "Source document",
+    "page": "Page {n}",
+    "noPreview": "Preview not available yet — highlights show field locations.",
+    "fields": "Extracted fields ({count})",
+    "field": {
+      "name": "Field",
+      "value": "AI value",
+      "confirm": "Confirm",
+      "correction": "Correct value",
+      "reason": "Correction reason",
+      "critical": "Critical",
+      "reasonRequired": "Money fields require a correction reason",
+      "corrected": "Corrected"
+    },
+    "confidence": {
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low"
+    },
+    "validationErrors": "Validation errors",
+    "validationOk": "Validation passed",
+    "rejectTitle": "Reject document",
+    "rejectReason": "Rejection reason",
+    "rejectReasonRequired": "Please enter a reason",
+    "committed": "Committed to Finance",
+    "rejected": "Document rejected",
+    "lockedBy": "Review locked until {time}",
+    "saving": "Saving…",
+    "fieldName": {
+      "invoice_number": "Invoice number",
+      "issue_date": "Issue date",
+      "seller_name": "Seller",
+      "seller_tax_code": "Seller tax code",
+      "subtotal": "Subtotal",
+      "vat_rate_pct": "VAT rate (%)",
+      "vat_amount": "VAT amount",
+      "total_amount": "Total amount",
+      "buyer_name": "Buyer",
+      "buyer_tax_code": "Buyer tax code"
+    }
+  },
+  "finance": {
+    "invoicesTitle": "Invoices",
+    "col": {
+      "number": "No.",
+      "counterparty": "Counterparty",
+      "issued": "Issued",
+      "total": "Total",
+      "status": "Status",
+      "direction": "Direction"
+    },
+    "direction": {
+      "IN": "Inbound",
+      "OUT": "Outbound"
+    },
+    "empty": "No invoices yet."
+  },
+  "common": {
+    "loading": "Loading…",
+    "none": "—",
+    "page": "Page",
+    "of": "of"
+  }
+}

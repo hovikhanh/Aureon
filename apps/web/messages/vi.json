@@ -1,0 +1,321 @@
+{
+  "app": {
+    "name": "Aureon",
+    "tagline": "Digital Chief of Staff"
+  },
+  "nav": {
+    "dashboard": "Trang chủ F.O.C.U.S",
+    "idp": "Hộp thư dữ liệu",
+    "ai": "Hỏi AI",
+    "approvals": "Phê duyệt",
+    "invoices": "Hóa đơn",
+    "menu": "Mở menu",
+    "close": "Đóng menu",
+    "collapse": "Thu gọn thanh bên",
+    "expand": "Mở rộng thanh bên"
+  },
+  "buttons": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "send": "Gửi",
+    "retry": "Thử lại",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "review": "Review",
+    "upload": "Gửi tài liệu",
+    "acknowledge": "Ghi nhận",
+    "newChat": "Cuộc trò chuyện mới",
+    "previous": "Trước",
+    "next": "Sau",
+    "clearFilters": "Xóa bộ lọc",
+    "back": "Quay lại"
+  },
+  "errors": {
+    "generic": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút.",
+    "network": "Không kết nối được máy chủ. Anh/chị kiểm tra mạng rồi thử lại.",
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu không đúng.",
+    "UNAUTHENTICATED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "FORBIDDEN_ROLE": "Vai trò của anh/chị không có quyền thực hiện thao tác này.",
+    "FORBIDDEN_SCOPE": "Dữ liệu nằm ngoài phạm vi của anh/chị.",
+    "REVIEW_LOCKED": "Tài liệu đang được người khác review.",
+    "CONFLICT_STATE": "Tài liệu đã thay đổi. Vui lòng tải lại.",
+    "VALIDATION_ERROR": "Dữ liệu chưa hợp lệ.",
+    "ACTION_REJECTED": "Không ghi được dữ liệu vào nghiệp vụ.",
+    "RATE_LIMIT_EXCEEDED": "Quá nhiều yêu cầu. Thử lại sau ít phút.",
+    "AI_PROVIDER_TIMEOUT": "Trợ lý AI phản hồi quá chậm. Anh/chị thử lại.",
+    "AI_DISABLED": "Trợ lý AI không xử lý yêu cầu này.",
+    "AI_QUOTA_EXCEEDED": "Đã hết ngân sách AI tháng này.",
+    "notFound": "Không tìm thấy trang.",
+    "forbiddenTitle": "Không có quyền truy cập",
+    "forbiddenBody": "Vai trò hiện tại không được xem màn hình này. Liên hệ quản trị nếu cần.",
+    "goHome": "Về trang chủ"
+  },
+  "auth": {
+    "title": "Đăng nhập Aureon",
+    "subtitle": "Trợ lý điều hành cho Công ty ABC",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "emailInvalid": "Email không hợp lệ",
+    "passwordRequired": "Vui lòng nhập mật khẩu",
+    "demoAccounts": "Tài khoản demo",
+    "demoHint": "Chọn tài khoản để điền email; mật khẩu demo do quản trị cung cấp.",
+    "signingIn": "Đang đăng nhập…"
+  },
+  "role": {
+    "CEO": "CEO",
+    "CFO": "CFO",
+    "VP_SALES": "VP Sales",
+    "HR_MANAGER": "Trưởng nhân sự",
+    "REVIEWER": "Reviewer",
+    "CPO": "CPO",
+    "RISK_MANAGER": "Quản lý rủi ro",
+    "MANAGER": "Quản lý",
+    "EMPLOYEE": "Nhân viên",
+    "ADMIN": "Quản trị"
+  },
+  "header": {
+    "language": "Ngôn ngữ",
+    "account": "Tài khoản",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "pillar": {
+    "F": {
+      "name": "Tài chính"
+    },
+    "O": {
+      "name": "Vận hành & Con người"
+    },
+    "C": {
+      "name": "Khách hàng & Tăng trưởng"
+    },
+    "U": {
+      "name": "Sản phẩm & Đổi mới"
+    },
+    "S": {
+      "name": "Chiến lược & Rủi ro"
+    }
+  },
+  "status": {
+    "ok": "Đúng kế hoạch",
+    "warning": "Có nguy cơ",
+    "critical": "Lệch nghiêm trọng",
+    "no_data": "Chưa có dữ liệu",
+    "unavailable": "Không khả dụng"
+  },
+  "dashboard": {
+    "title": "Tổng quan F.O.C.U.S",
+    "subtitle": "Kỳ {period}",
+    "topMetric": "Chỉ số chính",
+    "openAlerts": "{count, plural, =0 {Không có cảnh báo} other {# cảnh báo mở}}",
+    "unavailable": "Không tải được dữ liệu trụ này",
+    "drillDown": "Xem chi tiết trụ {pillar}",
+    "alertsTitle": "Cảnh báo ({count})",
+    "alertsEmpty": "Không có cảnh báo nào.",
+    "alertsError": "Không tải được danh sách cảnh báo.",
+    "acknowledged": "Đã ghi nhận",
+    "severity": {
+      "critical": "Nghiêm trọng",
+      "warning": "Cảnh báo"
+    },
+    "age": "{hours, plural, =0 {vừa xong} other {# giờ trước}}",
+    "ageDays": "{days} ngày trước",
+    "alertTitle": "{metric}: {value} (ngưỡng {threshold})",
+    "pillarPageTitle": "Trụ {pillar}",
+    "pillarPagePending": "Màn drill-down chi tiết sẽ có ở S5b.",
+    "metricsOfPillar": "Chỉ số của trụ",
+    "sparkline": "Xu hướng 12 kỳ"
+  },
+  "metric": {
+    "METRIC-FIN-01": "Doanh thu vs kế hoạch",
+    "METRIC-FIN-02": "Biên lợi nhuận gộp",
+    "METRIC-FIN-03": "Cash runway",
+    "METRIC-FIN-04": "DSO",
+    "METRIC-FIN-05": "Công nợ quá hạn",
+    "METRIC-FIN-06": "Chênh lệch ngân sách",
+    "METRIC-FIN-07": "Net burn vs dự báo",
+    "METRIC-CUS-01": "Pipeline coverage",
+    "METRIC-CUS-02": "Win rate",
+    "METRIC-CUS-03": "NRR",
+    "METRIC-CUS-04": "Tập trung doanh thu top 5",
+    "METRIC-CUS-05": "NPS",
+    "METRIC-CUS-06": "Chu kỳ bán TB",
+    "METRIC-HR-01": "Doanh thu / nhân sự",
+    "METRIC-HR-02": "Turnover năm hóa",
+    "METRIC-HR-03": "Quá tải",
+    "METRIC-HR-04": "Kế hoạch tuyển dụng trễ",
+    "METRIC-OPS-01": "Task đúng hạn",
+    "METRIC-OPS-02": "Dự án trễ",
+    "METRIC-OPS-03": "Thực thi quyết định",
+    "METRIC-PRD-01": "Adoption / MAU",
+    "METRIC-PRD-02": "Churn",
+    "METRIC-PRD-03": "Retention 30 ngày",
+    "METRIC-PRD-04": "Roadmap đúng tiến độ",
+    "METRIC-PRD-05": "Tính năng release trong kỳ",
+    "METRIC-RSK-01": "Rủi ro high/critical đang mở",
+    "METRIC-RSK-02": "Rủi ro high chưa có chủ",
+    "METRIC-RSK-03": "Rủi ro high > 30 ngày chưa có biện pháp",
+    "METRIC-RSK-04": "Điểm rủi ro tổng hợp",
+    "METRIC-RSK-05": "Biện pháp quá hạn",
+    "METRIC-RSK-06": "Strategy execution index (SEI)",
+    "METRIC-DQ-01": "Điểm chất lượng dữ liệu"
+  },
+  "unit": {
+    "MONTHS": "tháng",
+    "DAYS": "ngày",
+    "COUNT": "",
+    "SCORE": "điểm",
+    "RATIO": "x",
+    "PCT": "%",
+    "VND": "đ"
+  },
+  "ai": {
+    "title": "Hỏi AI",
+    "badge": "AI",
+    "placeholder": "Hỏi về doanh thu, dòng tiền, rủi ro… (Enter để gửi)",
+    "inputLabel": "Câu hỏi cho trợ lý AI",
+    "history": "Lịch sử",
+    "historyEmpty": "Chưa có cuộc trò chuyện.",
+    "untitled": "Cuộc trò chuyện",
+    "welcome": "Anh/chị muốn biết gì hôm nay? Mọi con số đều có nguồn.",
+    "you": "Bạn",
+    "assistant": "Trợ lý AI",
+    "state": {
+      "thinking": "AI đang suy nghĩ…",
+      "tool": "AI đang dùng tool: {tool}",
+      "toolDone": "Đã dùng tool: {tool} ({ms} ms)",
+      "streaming": "AI đang trả lời…"
+    },
+    "toolCalls": "{count, plural, =1 {1 tool đã dùng} other {# tool đã dùng}}",
+    "sources": "Nguồn",
+    "sourceType": "Loại nguồn",
+    "sourcePeriod": "Kỳ",
+    "sourceValue": "Giá trị",
+    "openLineage": "Xem nguồn gốc",
+    "warning": {
+      "AI_NO_DATA_AVAILABLE": "Không có dữ liệu để trả lời câu này.",
+      "default": "Lưu ý: {code}"
+    },
+    "truncated": "Câu trả lời bị cắt ngắn.",
+    "suggestions": {
+      "q1": "Doanh thu Q3?",
+      "q2": "Rủi ro nào đang nghiêm trọng?",
+      "q3": "Cash runway còn bao lâu?"
+    }
+  },
+  "idp": {
+    "queueTitle": "Hàng chờ review",
+    "queueSubtitle": "{count, plural, =0 {Không có tài liệu} other {# tài liệu}}",
+    "empty": "Không có tài liệu cần review",
+    "emptyHint": "Tài liệu gửi lên cần người kiểm tra sẽ xuất hiện ở đây.",
+    "col": {
+      "filename": "Tên file",
+      "type": "Loại",
+      "confidence": "Độ tin cậy TB",
+      "critical": "Trường trọng yếu",
+      "assigned": "Người được phân",
+      "age": "Tuổi",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    },
+    "filter": {
+      "status": "Trạng thái",
+      "docType": "Loại tài liệu",
+      "assigned": "Người được phân",
+      "all": "Tất cả",
+      "me": "Của tôi"
+    },
+    "unassigned": "Chưa phân",
+    "pageInfo": "{from}–{to} / {total}",
+    "docType": {
+      "INVOICE": "Hóa đơn",
+      "FINANCIAL_REPORT": "Báo cáo tài chính",
+      "SALES_REPORT": "Báo cáo bán hàng",
+      "CONTRACT": "Hợp đồng",
+      "MEETING_MINUTES": "Biên bản họp",
+      "EMPLOYEE_LIST": "Danh sách nhân sự",
+      "KPI_OKR": "KPI/OKR",
+      "PRODUCT_REPORT": "Báo cáo sản phẩm",
+      "RISK_REGISTER": "Sổ rủi ro",
+      "OTHER": "Khác",
+      "unknown": "Chưa phân loại"
+    },
+    "status": {
+      "NEEDS_REVIEW": "Chờ review",
+      "IN_REVIEW": "Đang review",
+      "APPROVED": "Đã duyệt",
+      "COMMITTED": "Đã ghi",
+      "REJECTED": "Đã từ chối",
+      "AUTO_APPROVED": "Tự duyệt",
+      "FAILED": "Lỗi",
+      "UPLOADED": "Đã tải lên",
+      "PROCESSING": "Đang xử lý",
+      "DUPLICATE": "Trùng lặp"
+    },
+    "detailTitle": "Review tài liệu",
+    "source": "Tài liệu gốc",
+    "page": "Trang {n}",
+    "noPreview": "Bản xem trước chưa khả dụng — vùng tô hiển thị vị trí trường.",
+    "fields": "Trường trích xuất ({count})",
+    "field": {
+      "name": "Trường",
+      "value": "Giá trị AI",
+      "confirm": "Xác nhận",
+      "correction": "Sửa giá trị",
+      "reason": "Lý do sửa",
+      "critical": "Trọng yếu",
+      "reasonRequired": "Trường tiền cần ghi lý do sửa",
+      "corrected": "Đã sửa"
+    },
+    "confidence": {
+      "HIGH": "Cao",
+      "MEDIUM": "Trung bình",
+      "LOW": "Thấp"
+    },
+    "validationErrors": "Lỗi kiểm tra",
+    "validationOk": "Kiểm tra hợp lệ",
+    "rejectTitle": "Từ chối tài liệu",
+    "rejectReason": "Lý do từ chối",
+    "rejectReasonRequired": "Vui lòng nhập lý do",
+    "committed": "Đã ghi vào Finance",
+    "rejected": "Đã từ chối tài liệu",
+    "lockedBy": "Đang khóa review đến {time}",
+    "saving": "Đang lưu…",
+    "fieldName": {
+      "invoice_number": "Số hóa đơn",
+      "issue_date": "Ngày lập",
+      "seller_name": "Người bán",
+      "seller_tax_code": "MST người bán",
+      "subtotal": "Tiền trước thuế",
+      "vat_rate_pct": "Thuế suất VAT (%)",
+      "vat_amount": "Tiền thuế VAT",
+      "total_amount": "Tổng thanh toán",
+      "buyer_name": "Người mua",
+      "buyer_tax_code": "MST người mua"
+    }
+  },
+  "finance": {
+    "invoicesTitle": "Hóa đơn",
+    "col": {
+      "number": "Số",
+      "counterparty": "Đối tác",
+      "issued": "Ngày lập",
+      "total": "Tổng tiền",
+      "status": "Trạng thái",
+      "direction": "Chiều"
+    },
+    "direction": {
+      "IN": "Đầu vào",
+      "OUT": "Đầu ra"
+    },
+    "empty": "Chưa có hóa đơn."
+  },
+  "common": {
+    "loading": "Đang tải…",
+    "none": "—",
+    "page": "Trang",
+    "of": "/"
+  }
+}
