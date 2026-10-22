@@ -445,6 +445,15 @@ Brief S5b-lite đánh số T-509..T-512 (khác 09). DEC-241.
 | TC-NFR-003 | manual | SUS ≥ 75; ≥ 90% hoàn thành F1–F5 không cần hỗ trợ | 01 §4 | T-520 |
 | TC-SYS-008 | integration | `docker compose up --wait` từ zero + seed thành công | 07 §Deployment | T-540 |
 
+#### 2.6.1. Trạng thái S5d — demo polish + release (2026-10-22)
+
+Brief S5d đánh số T-513..T-518 (khác 09: T-513 ở 09 là seed v2.1). DEC-242.
+
+| TC | Trạng thái | Test | Task | Ghi chú |
+|---|---|---|---|---|
+| TC-SYS-006 / TC-SYS-008 | Passed | `docker compose -f docker-compose.full.yml up -d` → 9/9 healthy | T-513 | `api` chạy `alembic upgrade head` + seed idempotent rồi uvicorn; `web` image Next.js; network `aureon-net`; healthcheck `api` = `/health/ready`, `web` = `/api/health` |
+| TC-OPS-HEALTH (EP-01) | Passed | `apps/api/tests/integration/test_health.py` (6) | T-515 | `/health` 200 + `dependencies{db,redis,ollama,clamav}`; ollama/clamav down → `degraded` vẫn 200; DB/Redis down → 503; `/health/ready` chỉ DB+Redis; `/health/live` luôn 200; `/metrics` Prometheus text; EP-01 `/api/v1/health` envelope + `model_gateway`. Live: `docker stop ollama` → `/health` 200 `ollama: unavailable` |
+
 ---
 
 ## 3. Ma trận spec ↔ test (tóm tắt)
@@ -507,6 +516,7 @@ Brief S5b-lite đánh số T-509..T-512 (khác 09). DEC-241.
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
 | 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA); 07 2.1.0 +3 TC Planned (TC-AI-022 phân loại → provider fail fast, TC-AI-023 verify bù, TC-NFR-004 TTFT/p95) |
 | 2026-10-20 | DEC-144 Phase 3d | Gán task cho **36 TC Planned** của §2.1.1–§2.1.3 (35 TC "Phase 3d" + TC-SYS-009) theo 09 2.1.0 (T-018, T-106, T-133, T-215, T-229..T-233, T-313..T-317, T-324, T-415, T-416 + task sẵn có); §2.1.4 +4 TC Planned (TC-AI-024 classification override, TC-DASH-011 Report, TC-EVT-006 payload 7 event, TC-AUTH-010 rename DEC-154) |
+| 2026-10-22 | S5d T-513..T-518 | §2.6.1: compose full stack, health endpoints, E2E 5 vai, demo reset |
 | 2026-10-22 | S5b-lite T-511 | §2.5.4: drill-down trụ F — 2 E2E + 4 Vitest; 25 E2E toàn bộ pass |
 | 2026-10-22 | S5b-lite T-510 | §2.5.4: period picker dashboard — 1 E2E + 2 Vitest + 17 BE |
 | 2026-10-22 | S5b-lite T-509 | §2.5.4: chat demo replay + chuỗi model chat (DEC-241); 4 E2E chat, 9 BE demo-mode + 2 gateway unit |
