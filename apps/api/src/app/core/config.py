@@ -133,8 +133,14 @@ class ConfigService(BaseSettings):
         default=None, validation_alias=AliasChoices("DEMO_HR_MANAGER_PASSWORD", "DEMO_HR_PASSWORD")
     )
     demo_reviewer_password: SecretStr | None = None
-    demo_cpo_password: SecretStr | None = None
-    demo_risk_manager_password: SecretStr | None = None
+    # T-237: `SEED_PASSWORD_CPO` / `SEED_PASSWORD_RISK_MANAGER` accepted as aliases (brief naming).
+    demo_cpo_password: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("DEMO_CPO_PASSWORD", "SEED_PASSWORD_CPO")
+    )
+    demo_risk_manager_password: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DEMO_RISK_MANAGER_PASSWORD", "SEED_PASSWORD_RISK_MANAGER"),
+    )
     demo_manager_password: SecretStr | None = None
     demo_employee_password: SecretStr | None = None
     demo_admin_password: SecretStr | None = None
