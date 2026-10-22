@@ -40,7 +40,10 @@
 1. S3 AI Core (T-3xx per 09): ModelGateway already exists from S0 — check 09 for T-301.. (chat SSE EP-110.., Tool Registry, insight, autonomy L0–L3, kill switch, cost log).
 2. S4 IDP v2.1 (T-4xx).
 3. S5 FE/UX/Release (Next.js login → dashboard → upload → review); S2 FE tasks T-224..227, T-231/232, T-142/143 still open.
-4. S2 leftovers not in exit criteria: T-223 lineage drill-down, T-230 approval, T-233.
+4. `[DEFERRED to S5]` T-223 lineage drill-down (DEC-229).
+5. `[DEFERRED to S3]` T-230 approval — after AI actions exist (DEC-229).
+6. `[DEFERRED to S5]` T-233 + FE S2 tasks T-224..227, T-231, T-232, T-142/143 (DEC-229).
+7. T-237 seed rebalance 2 green / 2 yellow / 1 red + CPO/RISK_MANAGER users (human, before S3).
 
 ## Next task
 S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07, 10), then start T-301.
@@ -50,6 +53,11 @@ S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07,
 - `apps/api/src/app/seed/{__init__,finance_seed,hr_seed,sales_seed,product_seed,risk_seed,execution_seed,ids}.py`
 - `apps/api/src/app/workers/{consumers,jobs}.py`, `apps/api/src/app/worker.py`
 - Env: `export PYTHONPATH=$PWD/apps/api/src:$PWD/apps/api PATH=$PWD/.venv/bin:$PATH` (never `uv sync`).
+
+## Human decisions (2026-10-22)
+- DEC-227 (human "DEC-210"): DQ-01 = 87.0 accepted; 77.1 aspirational; calibration S4.
+- DEC-228 (human "DEC-211"): sub-agents = single code tasks only; seed / cross-file / orchestration by DSH.
+- DEC-229: deferrals above. (Numbers 210/211 were already taken by Product DECs → renumbered.)
 
 ## Known issues / gaps
 - EP-74 `changed_by` null (DEC-191); MANAGER quota null; no log-redaction filter yet.
