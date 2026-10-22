@@ -644,14 +644,16 @@ Fail bất kỳ gate nào → task `BLOCKED`, không code. Chi tiết ở `CLAUD
 
 ## 8. Trạng thái hiện tại
 
+> **Nguồn trạng thái build chi tiết:** `STATE.md` (cập nhật sau mỗi sub-sprint). Bảng dưới chỉ là tóm tắt tại 2026-10-22.
+
 | Mục | Trạng thái |
 |---|---|
-| Documentation | 🟡 Phase 3 cập nhật 2.1.0 theo DEC-146..153 (3a: 00, 05 → 3b → 3c → 3d); file chưa cập nhật còn dùng mã cũ — đọc qua §4.13 |
-| Sprint hiện tại | **S0 — Nền tảng v2** (chưa bắt đầu) |
-| Code | ⚠️ Code trên `main` là v1 (4 trụ, 5 role, monolith phẳng) — **lệch spec v2** (drift được human chấp nhận); build lại theo 09 |
+| Documentation | ✅ 00–14 `current` **2.1.0** (promote 2026-10-21); gap `_reference/` đã đóng (DEC-146..158, `GAP-ANALYSIS-v2.1.md` §J) |
+| Sprint hiện tại | **S0 → S5d xong — ✅ DEMO READY** (2026-10-22); layout demo F🟢 C🟢 U🟡 O🟡 S🔴 (DEC-230) |
+| Code | ✅ Code trên `main` = **v2.1** Modular Monolith 11 module, RS256, ModelGateway, IDP v2, Next.js 15 FE; BE 777 test / 96% · FE 18 Vitest · E2E 30 Playwright |
 | Backup v1 | Nhánh `v1` (commit `a5161f6`) |
-| Blocking decisions | 0 open+blocking — xem `13-DECISION-LOG.md` |
-| Doc audit status | Xem `12-DOC-AUDIT.md` |
+| Blocking decisions | 0 open+blocking — DEC mới nhất DEC-243 (xem `13-DECISION-LOG.md`) |
+| Doc audit status | Xem `12-DOC-AUDIT.md` (đồng bộ 2026-10-22) |
 
 ---
 

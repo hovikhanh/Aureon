@@ -216,9 +216,61 @@ Không có bản cũ của `SOURCE-BRD-v1.1.md` để diff (`_reference/` bị g
 | V4 | `DocumentStatus` có `SUPERSEDED` (05 enum, 04, 10 DocumentOut) | **PASS** |
 | V5 | `RiskCategory` 13 danh mục (05 enum, 10 EP-101, 04 schema RISK_REGISTER) | **PASS** — 04 §5 sửa `market` → 13 danh mục ở bước verify |
 
+## J. Closure — docs v2.1.0 đã promote, gap đã đóng (2026-10-22)
+
+> Mục này **chốt** đợt gap analysis: xác nhận các gap §A–§D đã được xử lý và `docs/` đã lên `current` 2.1.0. Dùng để trả lời "so sánh trạng thái Aureon ↔ AI-EOS đã đúng chưa".
+
+### J.1. `_reference/` không đổi kể từ gap analysis → kết quả còn hiệu lực
+
+Đối chiếu sha256 (16 ký tự đầu) tại 2026-10-22 với §0:
+
+| File | sha256 (§0, 2026-10-19) | sha256 (2026-10-22) | Kết luận |
+|---|---|---|---|
+| `SOURCE-BRD-v1.1.md` | `7be8eb870949fb05` | `7be8eb870949fb05` | **Không đổi** |
+| `SOURCE-BRD-v1.1-Bổ sung.md` | `7affd07ccd4f0fd1` | `7affd07ccd4f0fd1` | **Không đổi** |
+| `SOURCE-UIUX.md` | `cf7efbe1749a9e0c` | `cf7efbe1749a9e0c` | **Không đổi** |
+
+→ Không cần tái đối chiếu toàn văn; ~95 gap §A–§D vẫn là tập gap đầy đủ giữa `_reference/` và `docs/`.
+
+### J.2. Gói G1–G7 → DEC → trạng thái
+
+| Gói | DEC | Trạng thái | File đã cập nhật (2.1.0) |
+|---|---|---|---|
+| G1 Scope v2.0/v2.1 | DEC-153 | resolved | 01 §3 (IN/OUT/hoãn v2.1), 03, 04, 05, 06, 07, 09, 10 |
+| G2 ID registry (mã BRD) | DEC-146 | resolved | 00 §4.9–4.13 (mapping cũ→mới), 02, 03, 04, 09, 14 |
+| G3 Data model lite | DEC-147 (+ DEC-154 rename, DEC-162 schema_version) | resolved | 00 §4.3, 05, 03, 10, 08 |
+| G4 Risk & Data Quality | DEC-148 | resolved | 00, 03 (METRIC-DQ-01 = metric thứ 32), 05, 08, 10, 14 |
+| G5 AI governance v2.0 | DEC-149 (+ DEC-150 hoãn, DEC-155 ngưỡng 2 người, DEC-157 provider CONFIDENTIAL) | resolved | 02, 03, 05, 06, 07, 10 §7, 14 |
+| G6 IDP chi tiết | DEC-151 | resolved | 04, 05, 06, 10, 09 (T-002) |
+| G7 Ngưỡng & NFR | DEC-152 (+ DEC-158 SLA freshness split) | resolved | 03, 07 NFR-02, 08 |
+
+Gói G1 được human đề xuất số **DEC-153**; các DEC-146..152 theo đúng §G. Tất cả `resolved`, `blocking=false`.
+
+### J.3. Trạng thái promote tài liệu
+
+- **Phase 3a–3d hoàn tất; docs 00–11 promote `current` 2.1.0 (2026-10-21)** — xem change-log từng file (vd 00 §9, 01 §14, 10 §Version). Ngoại lệ DEC-144 (agent sửa docs) hết hiệu lực sau promote.
+- `12-DOC-AUDIT.md` §2 cần đồng bộ theo promote này (trước đó còn ghi "tạm draft — chờ gap analysis"); đã xử lý trong đợt audit 2026-10-22.
+- Trạng thái build (ngoài phạm vi so sánh tài liệu, tham chiếu `STATE.md`): **S5d — DEMO READY** (2026-10-22); BE 777 test / 96% coverage, FE 18 Vitest, E2E 30 Playwright; 0 DEC open+blocking (DEC mới nhất DEC-243).
+
+### J.4. DEC phát sinh sau Phase 3 có liên quan đến so sánh ↔ BRD
+
+| DEC | Nội dung | Quan hệ với gap |
+|---|---|---|
+| DEC-158 | Tách 2 loại SLA: `SLA_OPERATIONAL_*` (03) vs `SLA_FRESHNESS_*` (08/DQ Score) | Làm rõ G4/G7 (DQ freshness) |
+| DEC-230/231 | Demo layout chính thức **F🟢 C🟢 U🟡 O🟡 S🔴**; alert severity enum = WARNING\|CRITICAL | Supersede phần "demo layout" của DEC-143/152 (ngưỡng giữ nguyên, NFR-19) |
+| DEC-224, DEC-162 | KPI measurement; đổi `extraction_schemas.version → schema_version` | Chi tiết hoá G3 (data model execution/IDP) |
+
+### J.5. Gap còn mở có chủ đích (không phải lỗi)
+
+- **DEC-156 `open`** (FR-ADM-08 "Xem như người dùng" + thông báo nâng cao D05): hoãn v2.1, v2.0 dùng chuyển vai trò demo EP-04/05 — chờ human chốt `resolved`/giữ open.
+- **Mục OUT/hoãn v2.1** theo §G: Knowledge RAG, MFA, Calendar sync, Voice C2 STT thật, Orchestrator + 6 agent, prompt versioning, effective-dated org, bulk grid edit — đều có rationale trong DEC-150/151/153.
+
+**Kết luận:** so sánh trạng thái Aureon (docs v2.1.0) ↔ AI-EOS (`_reference/`) **đúng và đã đóng gap qua DEC-146..158**; phần cần sửa còn lại là **đồng bộ các file tracking** (12-DOC-AUDIT §2/§3/§X, 00-INDEX §8, `_reference/README.md`, DEC-156) cho khớp trạng thái thực.
+
 ## Version
 
-- **Version:** 1.0.0 (reference)
-- **Last updated:** 2026-10-19
+- **Version:** 1.1.0 (reference) — *agent đề xuất; human bump khi duyệt*
+- **Last updated:** 2026-10-22
 - **Maintainer:** @CyEyes
-- **Change:** Tạo mới — lưu gap analysis Phase 2 và quyết định G1–G7 của human.
+- **Change 1.1.0 (2026-10-22):** thêm §J Closure — xác nhận `_reference/` không đổi (sha256), G1–G7 → DEC-146..158 resolved, docs promote 2.1.0 (2026-10-21), DEC phát sinh sau Phase 3 (158/230/231/224/162), gap còn mở có chủ đích (DEC-156). Kết luận so sánh đã đúng; việc còn lại là đồng bộ file tracking.
+- **Change 1.0.0 (2026-10-19):** Tạo mới — lưu gap analysis Phase 2 và quyết định G1–G7 của human.
