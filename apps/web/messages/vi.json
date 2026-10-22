@@ -334,5 +334,38 @@
     "none": "—",
     "page": "Trang",
     "of": "/"
+  },
+  "financeDrill": {
+    "title": "Trụ Tài chính",
+    "months": "tháng",
+    "sparkline": "Xu hướng {metric} 12 kỳ gần nhất",
+    "openLineage": "Xem nguồn gốc số liệu {metric}",
+    "card": {
+      "revenue": "Doanh thu",
+      "expense": "Chi phí",
+      "budget": "Sử dụng ngân sách",
+      "runway": "Runway",
+      "cash": "Số dư tiền mặt",
+      "burn": "Burn rate (ròng/tháng)"
+    },
+    "hint": {
+      "budget": "Đã chi / ngân sách được duyệt trong kỳ",
+      "burn": "Chi ròng mỗi tháng (gross burn − doanh thu thu được)"
+    },
+    "trend": {
+      "up": "Tăng",
+      "down": "Giảm",
+      "flat": "Đi ngang"
+    },
+    "lineage": {
+      "title": "Nguồn gốc số liệu",
+      "subtitle": "Chỉ số → bản ghi thành phần → tài liệu gốc",
+      "metric": "Chỉ số",
+      "records": "Bản ghi thành phần ({month})",
+      "document": "Tài liệu gốc",
+      "sourceEntities": "Nguồn: {list}",
+      "noRecords": "Không có bản ghi trong kỳ",
+      "noDocument": "Bản ghi nhập tay / seed — chưa gắn tài liệu gốc"
+    }
   }
 }

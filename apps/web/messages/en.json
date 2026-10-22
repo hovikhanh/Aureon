@@ -334,5 +334,38 @@
     "none": "—",
     "page": "Page",
     "of": "of"
+  },
+  "financeDrill": {
+    "title": "Finance pillar",
+    "months": "months",
+    "sparkline": "{metric} trend, last 12 periods",
+    "openLineage": "View data lineage of {metric}",
+    "card": {
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "budget": "Budget utilisation",
+      "runway": "Runway",
+      "cash": "Cash position",
+      "burn": "Burn rate (net/month)"
+    },
+    "hint": {
+      "budget": "Spent / approved budget in the period",
+      "burn": "Net cash out per month (gross burn − collected revenue)"
+    },
+    "trend": {
+      "up": "Up",
+      "down": "Down",
+      "flat": "Flat"
+    },
+    "lineage": {
+      "title": "Data lineage",
+      "subtitle": "Metric → component records → source document",
+      "metric": "Metric",
+      "records": "Component records ({month})",
+      "document": "Source document",
+      "sourceEntities": "Sources: {list}",
+      "noRecords": "No records in this period",
+      "noDocument": "Manual / seeded record — no source document attached"
+    }
   }
 }
