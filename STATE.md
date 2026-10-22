@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 11:18 (Asia/Saigon) |
-| Last commit | `3bdee1f` feat(platform): SEED_PASSWORD_* aliases (T-237 Step 3) on `main` |
-| Sub-sprint | S2 — CHECKPOINT #2 done + **T-237 seed rebalance done** (2 green / 2 yellow / 1 red) |
-| Test count | 585 passed, 2 deselected (`-m "not live"`) |
-| Coverage | 98% overall (`--cov=app`) |
-| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-DASH-*, TC-EXE-007, TC-DQ-001, TC-SEED-002/003, TC-EVT-007 Passed) |
+| Last updated | 2026-10-22 12:55 (Asia/Saigon) |
+| Last commit | `b954f47` test(ai): PII filter tests (T-309) on `main` |
+| Sub-sprint | **S3 — AI Core DONE** (T-301→T-310 all complete + verified) |
+| Test count | 667 passed, 2 deselected (`-m "not live"`) |
+| Coverage | ai module **95%** (S3 exit gate); overall ≥ 95% (`--cov=app`) |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-AI-001..018 Passed) |
 | Open blocking DECs | none |
 
 ## Done
@@ -42,20 +42,47 @@
 - **DEC-231 APPROVED**: alert severity enum = WARNING|CRITICAL only (INFO = log level). "≥10 alerts" = ≥10 alerts **any severity** (met 11W + 2C = 13).
 - Gate: ruff ✅ · mypy ✅ (226 files) · pytest 585 ✅.
 
+## S3 AI Core (done 2026-10-22, direct route; 10 commits incl. DEC governance)
+- **DEC-230/231 governance** `ad5c598` — demo layout + alert-severity enum approved (gate prelude).
+- **T-301** `1212181` Tool Registry: 43 `TOOL-*` with §7.4 metadata (27 QUERY + 13 WRITE + 2 APPROVAL + 1 EXECUTION), `advertisable_for`/`available_for` permission + classification filters.
+- **T-302** `9413b9e` Chat orchestration EP-110 + SSE EP-111 (`start→thinking|tool_call→tool_result→token→done`, `X-Accel-Buffering: no`); tool-calling loop (≤ 8 calls, budget warning); prompt_guard classification routing (salary→SECRET no-LLM, PII→CONFIDENTIAL local-only); `<<<DATA … DATA>>>` injection guard.
+- **T-303** `c0bf68c` Proactive insights: 9-part grounded `ENT-Insight` from worst-status metric, evidence-gated (≥1 SourceRef), EP-114 list/dismiss with pillar-scope hiding.
+- **T-304/305/306** `db9447c` AI action lifecycle (`ENT-AIAction`: propose→L3 auto-exec | L2 confirm card; undo 24h via `TaskService.delete`), Action Registry single write gate, 2-sided approval (finance ≥500M → CEO step1 + CFO step2, distinct approvers), kill switch per-agent/global WRITE_OFF|L0 (L3→L2). Cross-module via `core/approval_hooks.py` (breaks platform↔ai cycle, DEC-125).
+- **T-307** `63ecc31` Outcome verification 24h/7d: scores metric status movement (improved/worsened/unchanged/not_measurable) vs baseline captured at propose time, reading current status via platform `MetricQueryService`.
+- **T-308** `6a413d4` Cost & usage EP-119 `/ai/usage` (`ai:admin`): aggregates `ENT-ModelCallLog` → budget/used/used_pct + per-key rows (calls/tokens/cost/error_rate/p95_ms) grouped provider|model|task_kind|user; warn 80% / over 100% vs `AI_MONTHLY_BUDGET_USD` (DEC-131).
+- **T-309** `ea9866e`+`b954f47` PII filter: `scrub_for_model` drops level-4 PII, tokenises level-3 contacts to stable `EMP-`/`CLI-` codes before every model call (5.5, FR-AI-10).
+- **T-310** `0e4d8aa` E2E + coverage: HTTP sweep of EP-110..119 via overridable `get_chat_gateway` dep + service edge branches → **ai coverage 95%** (S3 exit met).
+- **Gate:** ruff ✅ · format ✅ · mypy ✅ (242 files) · pytest **667 passed**.
+
+## S3 exit criteria
+| Criterion | Result |
+|---|---|
+| Chat SSE EP-110/111 event order | ✅ |
+| Tool Registry 43 tools, permission-filtered | ✅ |
+| 9-part grounded insight, no fabricated numbers | ✅ (evidence-gated) |
+| Autonomy L0–L3 + undo 24h + kill switch | ✅ |
+| 2-sided approval ≥500M (CEO→CFO) | ✅ |
+| PII scrub + classification routing | ✅ |
+| Cost log + EP-119 usage | ✅ |
+| ai coverage ≥ 95%, gates A/B/C | ✅ 95% |
+
 ## In progress
 - none
 
 ## Remaining (in order)
-1. S3 AI Core (T-3xx per 09): ModelGateway already exists from S0 — check 09 for T-301.. (chat SSE EP-110.., Tool Registry, insight, autonomy L0–L3, kill switch, cost log).
-2. S4 IDP v2.1 (T-4xx).
+1. S4 IDP v2.1 (T-4xx).
 3. S5 FE/UX/Release (Next.js login → dashboard → upload → review); S2 FE tasks T-224..227, T-231/232, T-142/143 still open.
 4. `[DEFERRED to S5]` T-223 lineage drill-down (DEC-229).
-5. `[DEFERRED to S3]` T-230 approval — after AI actions exist (DEC-229).
+5. `[DONE in S3]` T-230 approval — built as 2-sided ApprovalService + EP-125 hook (`db9447c`).
 6. `[DEFERRED to S5]` T-233 + FE S2 tasks T-224..227, T-231, T-232, T-142/143 (DEC-229).
 7. `[DONE]` T-237 seed rebalance 2 green / 2 yellow / 1 red + CPO/RISK_MANAGER users.
 
 ## Next task
-S3 — read 09 S3 section (T-3xx), gates A/B/C for AI Core (load 00, 01, 02, 07, 10), then start T-301.
+S4 — read 09 S4 section (T-4xx IDP v2.1), gates A/B/C for IDP (load 00, 01, 04, 05, 10), then start the first S4 task.
+
+## S3 notes / findings
+- EP-125 approval executes the AI action with the **approver's** Principal as actor (04 §10.4). A finance approver (CFO, department-scoped for execution) cannot create a cross-department task — the on-behalf-of requester's authority is not reconstructed. Covered at service level by passing a full-scope actor; worth a DEC if finance approvals must create execution writes in prod. Non-blocking for S3.
+- `get_chat_gateway` FastAPI dependency added so chat/stream routes are testable without a provider (`app.dependency_overrides`).
 
 ## Key files
 - `apps/api/src/app/modules/platform/services/{metric_store,pillar_snapshot,metrics}.py`, `core/{metrics,data_quality,periods}.py`
