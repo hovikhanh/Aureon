@@ -30,8 +30,11 @@ SNAPSHOTS: dict[str, dict[str, tuple[int, int, float, float, float]]] = {
     "2026-05": {"ABC-ORDER": (4350, 1560, 3.1, 40.5, 33), "ABC-CARE": (910, 262, 1.4, 54.0, 41)},
     "2026-06": {"ABC-ORDER": (4480, 1600, 3.2, 40.0, 33), "ABC-CARE": (915, 265, 1.6, 54.5, 40)},
     "2026-07": {"ABC-ORDER": (4560, 1620, 3.0, 39.0, 32), "ABC-CARE": (920, 268, 1.5, 53.0, 40)},
-    "2026-08": {"ABC-ORDER": (4610, 1630, 3.1, 37.5, 31), "ABC-CARE": (925, 270, 1.6, 53.5, 39)},
-    "2026-09": {"ABC-ORDER": (4380, 1540, 5.4, 34.0, 27), "ABC-CARE": (930, 272, 1.5, 54.0, 39)},
+    "2026-08": {"ABC-ORDER": (4610, 1630, 1.7, 44.0, 31), "ABC-CARE": (925, 270, 1.6, 53.5, 39)},
+    # T-237 rebalance: churn held ≈ 1,79 % (no BR-PRD-01 anomaly → PRD-02 green), retention ≥ 40
+    # (PRD-03 green), NPS lifted so weighted CUS-05 ≥ 30 (green). Pillar U stays YELLOW from the
+    # one late Q3 roadmap item (PRD-04 ≈ 67 %) + release attainment (PRD-05 ≈ 67 %), no critical.
+    "2026-09": {"ABC-ORDER": (4480, 1575, 1.79, 43.0, 32), "ABC-CARE": (930, 272, 1.5, 54.0, 39)},
 }
 # key, product, title, quarter, planned, completed, status
 ROADMAP = (

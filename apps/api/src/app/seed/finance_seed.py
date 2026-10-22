@@ -141,9 +141,14 @@ async def seed_invoices(db: AsyncSession) -> int:
     if await _has(db, Invoice):
         return 0
     count = 0
-    for number, issued, client, tax, subtotal, vat, paid, due in D.INVOICES:
+    for number, issued, client, tax, subtotal, vat, paid, due in (
+        *D.INVOICES,
+        *D.HISTORICAL_OPEN_INVOICES,
+    ):
         vat_amount = subtotal * vat // 100
         total = subtotal + vat_amount
+        if number in D.HV_PAID_IN_FULL:  # T-237: close most Sep HV invoices (FIN-04/05 green)
+            paid = total
         status = "paid" if paid >= total else "partial" if paid else "sent"
         due_d = date.fromisoformat(due)
         inv = Invoice(

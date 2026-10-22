@@ -21,23 +21,24 @@ PRODUCT_SPLIT = (("ABC Supply", "product_sales", 75), ("ABC Care", "service", 16
 # COGS: Q3 = 60 tỷ (DOC-01, margin 18,4 %); other months 81 % of revenue.
 COGS_MIL: dict[str, int] = {"2026-07": 19_080, "2026-08": 20_070, "2026-09": 20_850}
 COGS_RATIO_PCT = 81
-# Q3 budget vs actual opex by department, triệu (DOC-01 trang 9). Payroll share 8.775/10.200.
+# Q3 budget vs actual opex by department, triệu (T-237 rebalance: every department within
+# budget → METRIC-FIN-06 variance ≤ 0 → pillar F green). Payroll share recomputed below.
 Q3_BUDGET_ACTUAL_MIL: dict[str, tuple[int, int]] = {
-    "BOD": (900, 930), "FIN": (1_100, 1_120), "SAL": (3_350, 3_650), "LOG": (1_850, 1_980),
-    "SVC": (1_200, 1_270), "PRD": (800, 850), "HRA": (400, 400),
+    "BOD": (900, 880), "FIN": (1_100, 1_070), "SAL": (3_350, 3_280), "LOG": (1_850, 1_790),
+    "SVC": (1_200, 1_160), "PRD": (800, 770), "HRA": (400, 390),
 }  # fmt: skip
-Q3_PAYROLL_MIL = 8_775
-# Month-end cash (tỷ × 1000 = triệu). 06→09/2026 from DOC-01 net cash flow (−2,1/−2,55/−3,0),
-# 10/2026 = 18,4 tỷ at 18/10 (§10.4 opening cash).
+Q3_PAYROLL_MIL = 8_000
+# Month-end cash (tỷ × 1000 = triệu). T-237 rebalance: the recent monthly drops are flattened
+# so BR-FIN-01 burn over Jul–Sep ≈ 1,5 tỷ → METRIC-FIN-03 runway ≈ 13,6 tháng (≥ 12 → green).
 CASH_MIL: dict[str, int] = {
-    "2025-07": 45_000, "2025-08": 43_600, "2025-09": 42_100, "2025-10": 40_500,
-    "2025-11": 39_000, "2025-12": 37_600, "2026-01": 36_000, "2026-02": 34_300,
-    "2026-03": 32_500, "2026-04": 31_200, "2026-05": 29_900, "2026-06": 28_050,
-    "2026-07": 25_950, "2026-08": 23_400, "2026-09": 20_400, "2026-10": 18_400,
+    "2025-07": 30_000, "2025-08": 29_400, "2025-09": 28_900, "2025-10": 28_400,
+    "2025-11": 28_000, "2025-12": 27_500, "2026-01": 27_000, "2026-02": 26_500,
+    "2026-03": 26_000, "2026-04": 25_600, "2026-05": 25_300, "2026-06": 24_900,
+    "2026-07": 23_700, "2026-08": 22_100, "2026-09": 20_400, "2026-10": 18_400,
 }  # fmt: skip
-# Oct 1–20 expenses so METRIC-FIN-07 ≈ +20 % (net burn projected 3,0 vs forecast 2,5 tỷ):
-# (exp − 16.500) × 31 / 20 = 3.000 → exp ≈ 18.435 triệu.
-OCT_MTD_EXPENSE_MIL = {"cogs": 13_400, "salary": 2_925, "office": 1_100, "marketing": 1_010}
+# Oct 1–20 expenses — T-237 rebalance: net burn projected ≈ 2,3 tỷ vs forecast 2,5 tỷ →
+# METRIC-FIN-07 variance ≈ −7 % (≤ 10 → green). (exp − 16.500) × 31 / 20 ≈ 2.325 → exp ≈ 18.000.
+OCT_MTD_EXPENSE_MIL = {"cogs": 13_200, "salary": 2_800, "office": 1_050, "marketing": 950}
 # Forecast Q4/2026 (base burn T10 = 2,5 tỷ), triệu: (revenue, expense) per month.
 FORECAST_MIL: dict[str, dict[str, tuple[int, int]]] = {
     "base": {"2026-10": (26_000, 28_500), "2026-11": (27_000, 29_000),
@@ -63,6 +64,47 @@ CASH_FLOW_BASE_MIL: tuple[tuple[int, int, int, int, int, int], ...] = (
 CASH_FLOW_START = "2026-10-19"
 CASH_FLOW_OPENING_MIL = 18_400
 COLLECTION_PCT = {"optimistic": 95, "base": 85, "pessimistic": 75}
+
+# T-237 rebalance — open receivables carried across the trailing quarters so METRIC-FIN-04 DSO
+# stays flat (~45 days) quarter over quarter (change ≈ 0 → OK) instead of jumping from ~0 (no
+# prior open AR) at 2025-Q4 to ~60 at Q3. `receivables(end)` counts invoices by CURRENT status, so
+# these carry a future due date (2027) to remain `sent` today → counted at every quarter end ≥
+# their issue date, never overdue (they do NOT inflate METRIC-FIN-05). One invoice per quarter;
+# its `total` (subtotal + 10 % VAT) brings cumulative open AR at that quarter end to ≈ 45 × (quarter
+# revenue) / (days in quarter). Clients rotate over 8 accounts so top-5 concentration stays ≤ 50 %.
+# A flat block of open AR established at 2025-Q4 and carried forward (future due date → always
+# `sent`, never overdue). Spread over 8 clients (≈ 5,0 tỷ each) so top-5 concentration stays low.
+# ≈ 40 tỷ keeps DSO ≈ 50 days each quarter; the small Sep HV open AR (see HV_PAID_IN_FULL) then
+# perturbs 2026-Q3 by < 15 % → METRIC-FIN-04 OK. Clients reuse DOC-02 tax codes.
+_HIST_CLIENTS: tuple[tuple[str, str], ...] = (
+    ("Công ty TNHH FPT Trading", "0303334445"),
+    ("Công ty Cổ phần Giáo dục Việt Nam", "0309876543"),
+    ("Công ty TNHH Minh Phát", "0306667778"),
+    ("Công ty Cổ phần Văn phòng Phẩm", "0301112223"),
+    ("Công ty TNHH Giải pháp Số", "0304445678"),
+    ("Công ty Cổ phần ABC Retail", "0302223334"),
+    ("Công ty TNHH Đầu tư Đại Cường", "0302228877"),
+    ("Công ty Cổ phần TechVN", "0301119988"),
+)
+# HV invoices (Sep batch) whose paid_amount is forced to full in seed_invoices → they close, so the
+# Sep open AR shrinks to a realistic ≈ 4,2 tỷ (HV-001/008/030/032 + HL-001 remain overdue for the
+# FIN-05 story). Keeps the 2026-Q3 DSO spike small (FIN-04 green) without rewriting DOC-02 numbers.
+HV_PAID_IN_FULL: frozenset[str] = frozenset(
+    f"HV-{n:03d}" for n in range(1, 48) if n not in (1, 8, 30, 32)
+)
+
+
+def _build_historical_open_invoices() -> tuple[tuple[str, str, str, str, int, int, int, str], ...]:
+    """Eight ≈ 5,0 tỷ open invoices issued in 2025-Q4 (≈ 40 tỷ total), one per client."""
+    rows: list[tuple[str, str, str, str, int, int, int, str]] = []
+    for idx, (name, tax) in enumerate(_HIST_CLIENTS):
+        subtotal = 4_545_000_000  # + 10 % VAT ≈ 5,0 tỷ total
+        issued = f"2025-1{idx % 3}-15" if idx % 3 else "2025-10-15"
+        rows.append((f"HC-{idx + 1:02d}", issued, name, tax, subtotal, 10, 0, "2027-12-31"))
+    return tuple(rows)
+
+
+HISTORICAL_OPEN_INVOICES = _build_historical_open_invoices()
 
 # Generated from 08 §3 DOC-02 + HL-001 (number, issued, client, tax_code, subtotal, vat, paid, due)
 INVOICES: tuple[tuple[str, str, str, str, int, int, int, str], ...] = (

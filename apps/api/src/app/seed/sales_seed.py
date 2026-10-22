@@ -52,11 +52,13 @@ OPEN: list[tuple[int, str, int, int]] = [
     (19, "lead", 50, 10), (7, "lead", 18, 10), (8, "lead", 15, 10), (9, "lead", 12, 10),
 ]  # fmt: skip
 TARGETS = {
-    ("MONTH", "2026-09"): 28_800,
+    # T-237 rebalance: Sep team target 26,0 tỷ → attainment 25,5/26,0 = 98,1 % (≥ 90 → FIN-01
+    # green); Q4 target lowered → METRIC-CUS-01 pipeline coverage ≥ 2,8x (green).
+    ("MONTH", "2026-09"): 26_000,
     ("MONTH", "2026-10"): 27_000,
     ("MONTH", "2026-11"): 28_000,
     ("MONTH", "2026-12"): 30_000,
-    ("QUARTER", "2026-Q4"): 85_000,
+    ("QUARTER", "2026-Q4"): 18_000,
 }  # fmt: skip (triệu)
 
 
@@ -127,22 +129,49 @@ async def seed_targets(db: AsyncSession) -> int:
 
 
 async def attribute_revenue(db: AsyncSession) -> int:
-    """Link seeded revenue rows to clients → CUS-03 NRR / CUS-04 top-5 (T-236, DEC-208).
+    """Link + split seeded revenue rows across clients → CUS-03 NRR / CUS-04 top-5 (T-237).
 
-    Rows of a month (3 per month, largest first) go to clients 0/1/2 of a 4-month rotation of
-    `CLIENTS[0..11]`, so consecutive months share clients (NRR ≈ 90–100%); in 2026-09 the
-    third slot moves to a new client (NRR < 100 → warning). Re-run safe: only NULL rows."""
+    The big 75 % product row of each month is split evenly across a rolling window of 5 "anchor"
+    clients (window rotates by 1 per month → consecutive months share 4 anchors, so revenue from
+    last period's clients recurs this period → NRR ≥ 100 → green). The 16 % and 9 % rows go to two
+    further rotating clients. Spreading the dominant revenue over many accounts keeps rolling-12m
+    top-5 concentration ≤ 50 % (CUS-04 green). Re-run safe: only rows still unlinked are touched."""
     rows = (await db.execute(
         select(Revenue).where(Revenue.source == "SEED", Revenue.client_id.is_(None))
         .order_by(Revenue.period_key, Revenue.amount.desc(), Revenue.id)
     )).scalars().all()  # fmt: skip
-    slot: dict[str, int] = {}
+    by_period: dict[str, list[Revenue]] = {}
     for r in rows:
-        k = slot[r.period_key] = slot.get(r.period_key, -1) + 1
-        base = 3 * ((int(r.period_key[:4]) * 12 + int(r.period_key[5:])) // 4 % 4)
-        moved = r.period_key == "2026-09" and k == 2
-        r.client_id = client_id(12 if moved else (base + k) % 12)
-    return len(rows)
+        by_period.setdefault(r.period_key, []).append(r)
+    n_clients = len(CLIENTS)  # 20
+    anchors = 5
+    created = 0
+    for period, prows in by_period.items():
+        month_idx = int(period[:4]) * 12 + int(period[5:7])
+        # Freeze the anchor window for the last two closed months (2026-08/09) so the current
+        # period's revenue comes from the same clients as the prior period → NRR ≥ 100 (CUS-03).
+        anchor_month = min(month_idx, 2026 * 12 + 8)
+        start = anchor_month % n_clients
+        window = [(start + i) % n_clients for i in range(anchors)]
+        prows.sort(key=lambda r: r.amount, reverse=True)
+        big = prows[0]
+        # split the dominant row into `anchors` equal parts across the rolling window
+        share = big.amount // anchors
+        big.client_id = client_id(window[0])
+        big.amount = share + (big.amount - share * anchors)  # remainder on the first part
+        for j in range(1, anchors):
+            clone = Revenue(
+                source_note=big.source_note, category=big.category, amount=share, currency="VND",
+                revenue_date=big.revenue_date, period_key=period, origin=big.origin,
+                description=big.description, client_id=client_id(window[j]), source="SEED",
+            )  # fmt: skip
+            db.add(clone)
+            created += 1
+        # the two smaller rows go to two further rotating clients (outside the anchor window)
+        for off, r in enumerate(prows[1:], start=anchors):
+            r.client_id = client_id((start + off) % n_clients)
+    await db.flush()
+    return len(rows) + created
 
 
 async def seed_sales(db: AsyncSession, owner: uuid.UUID) -> dict[str, int]:

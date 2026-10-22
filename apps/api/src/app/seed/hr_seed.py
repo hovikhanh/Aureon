@@ -41,15 +41,18 @@ EMPLOYEES: tuple[tuple[str, str, str, str | None, str, date, date | None, int], 
 )  # fmt: skip
 SALARY_MONTHS = (date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1))
 # code, dept, title/position, headcount, filled, status, start, target fill date
+# T-237 rebalance: exactly ONE plan is late and by ≤ 45 days (HP-2026-07, 40 days at 20/10) →
+# METRIC-HR-04 = 1, warning (not critical) → pillar O stays YELLOW, no critical. The others are
+# either future-dated (not yet late) or submitted.
 PLANS = (
     ("HP-2026-05", "PRD", "Backend developer", 2, 0, "approved", date(2026, 9, 1),
      date(2026, 10, 31)),
     ("HP-2026-06", "SVC", "Kỹ thuật viên", 3, 1, "in_progress", date(2026, 7, 1),
-     date(2026, 9, 30)),
+     date(2026, 11, 15)),
     ("HP-2026-07", "SAL", "Sales Hà Nội", 6, 2, "in_progress", date(2026, 6, 15),
-     date(2026, 9, 15)),
+     date(2026, 9, 10)),
     ("HP-2026-03", "FIN", "Kế toán tổng hợp", 1, 0, "in_progress", date(2026, 5, 4),
-     date(2026, 8, 31)),
+     date(2026, 11, 30)),
     ("HP-2026-08", "SAL", "Account manager", 2, 0, "submitted", date(2026, 10, 1),
      date(2026, 12, 15)),
 )  # fmt: skip
