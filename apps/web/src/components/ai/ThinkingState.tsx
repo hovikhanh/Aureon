@@ -1,8 +1,30 @@
 "use client";
+import * as React from "react";
 import { useTranslations } from "next-intl";
+import { CHAT_WAIT_GIVE_UP_MS, CHAT_WAIT_SLOW_MS, CHAT_WAIT_THINKING_MS } from "@/lib/api-client";
 import { ChevronDown, Loader2, Wrench } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ToolCall } from "@/features/ai/types";
+
+/** T-509: elapsed-time hint while waiting for the first token (10 s / 30 s / 90 s). */
+export function WaitHint({ active }: { active: boolean }) {
+  const t = useTranslations("ai.wait");
+  const [ms, setMs] = React.useState(0);
+  React.useEffect(() => {
+    if (!active) return;
+    const start = Date.now();
+    setMs(0);
+    const id = window.setInterval(() => setMs(Date.now() - start), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  if (!active || ms < CHAT_WAIT_THINKING_MS) return null;
+  const key = ms >= CHAT_WAIT_GIVE_UP_MS ? "giveUp" : ms >= CHAT_WAIT_SLOW_MS ? "slow" : "thinking";
+  return (
+    <p className="text-xs text-muted-foreground" role="status" aria-live="polite" data-testid="wait-hint" data-phase={key}>
+      {t(key)}
+    </p>
+  );
+}
 
 /** 06 §5.1 ThinkingState — collapsible list of tools the AI is using / used. */
 export function ThinkingState({ tools, streaming }: { tools: ToolCall[]; streaming: boolean }) {

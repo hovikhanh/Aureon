@@ -6,7 +6,7 @@ import { MessageSquarePlus, Send, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SourceChip } from "@/components/ai/SourceChip";
-import { ThinkingState } from "@/components/ai/ThinkingState";
+import { ThinkingState, WaitHint } from "@/components/ai/ThinkingState";
 import { api } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import { segmentCitations } from "./reducer";
 import type { ChatMessage, ConversationOut, MessageOut } from "./types";
 import { fromHistory, useChat } from "./use-chat";
 
-const KNOWN = ["AI_PROVIDER_TIMEOUT", "AI_DISABLED", "AI_QUOTA_EXCEEDED", "RATE_LIMIT_EXCEEDED", "UNAUTHENTICATED", "FORBIDDEN_ROLE"];
+const KNOWN = ["AI_STREAM_TIMEOUT", "AI_PROVIDER_TIMEOUT", "AI_DISABLED", "AI_QUOTA_EXCEEDED", "RATE_LIMIT_EXCEEDED", "UNAUTHENTICATED", "FORBIDDEN_ROLE"];
 
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const t = useTranslations();
@@ -24,6 +24,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
         <Sparkles className="h-4 w-4" aria-hidden />{t("ai.assistant")}<Badge variant="ai">{t("ai.badge")}</Badge>
       </div>
       <ThinkingState tools={m.tools} streaming={m.streaming && !m.content} />
+      <WaitHint active={m.streaming && !m.content} />
       {m.content && (
         <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm border-l-4 border-ai bg-card px-4 py-3 text-sm leading-relaxed shadow-sm" data-testid="answer">
           {segmentCitations(m.content).map((s, i) =>

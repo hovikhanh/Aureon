@@ -26,6 +26,14 @@ def _log(provider: str, model: str, *, cost_micro: int, status: str = "ok",
 
 
 async def test_usage_aggregates_cost_and_error_rate(db_session) -> None:
+    # Relative to the dev DB's existing month (live chat logs may exist — T-509).
+    before = await CostService(db_session).usage(group_by="provider")
+    base = {r.key: r for r in before.rows}
+    b_omni = base.get("omniroute")
+    b_calls = b_omni.calls if b_omni else 0
+    b_cost = b_omni.cost_usd if b_omni else 0.0
+    b_errors = round(b_omni.error_rate * b_omni.calls) if b_omni else 0
+    b_ds = base["deepseek"].cost_usd if "deepseek" in base else 0.0
     db_session.add_all([
         _log("omniroute", "claude", cost_micro=250_000),
         _log("omniroute", "claude", cost_micro=250_000),
@@ -37,13 +45,13 @@ async def test_usage_aggregates_cost_and_error_rate(db_session) -> None:
     await db_session.flush()
     out = await CostService(db_session).usage(group_by="provider")
     by_key = {r.key: r for r in out.rows}
-    assert by_key["omniroute"].calls == 5
-    assert by_key["omniroute"].cost_usd == pytest.approx(1.25)
-    assert by_key["omniroute"].error_rate == pytest.approx(0.2)
-    assert by_key["deepseek"].cost_usd == pytest.approx(0.1)
+    assert by_key["omniroute"].calls == b_calls + 5
+    assert by_key["omniroute"].cost_usd == pytest.approx(b_cost + 1.25)
+    assert by_key["omniroute"].error_rate == pytest.approx((b_errors + 1) / (b_calls + 5))
+    assert by_key["deepseek"].cost_usd == pytest.approx(b_ds + 0.1)
     # rows ordered by cost desc
-    assert out.rows[0].key == "omniroute"
-    assert out.used_usd == pytest.approx(1.35)
+    assert [r.cost_usd for r in out.rows] == sorted((r.cost_usd for r in out.rows), reverse=True)
+    assert out.used_usd == pytest.approx(before.used_usd + 1.35)
     assert out.budget_usd == float(get_config().ai_monthly_budget_usd)
     assert out.over_budget is False
 

@@ -85,6 +85,14 @@ class ConfigService(BaseSettings):
     model_max_output_tokens: int = Field(default=2048, gt=0)
     model_pricing_json: str = "{}"  # {"provider:model": {"in": usd_per_1m, "out": usd_per_1m}}
     ai_turn_timeout_sec: float = Field(default=30, gt=0)
+    # T-509 / DEC-241: chat-only model chain inside each cloud provider (primary → fallback,
+    # each tried once on timeout) and a longer per-call chat timeout. Empty → MODEL_CHAT.
+    chat_model_primary: str = ""
+    chat_model_fallback: str = ""
+    chat_timeout_seconds: float = Field(default=90, gt=0)
+    # Demo replay of recorded answers (DEC-241). Unset → follows DEMO_MODE.
+    ai_demo_replay: bool | None = None
+    ai_demo_token_delay_sec: float = Field(default=0.03, ge=0, le=1)
     ai_monthly_budget_usd: float = Field(default=50, ge=0)
     ai_budget_alert_pct: int = Field(default=80, ge=1, le=100)
 

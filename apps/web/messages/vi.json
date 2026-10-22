@@ -51,7 +51,8 @@
     "notFound": "Không tìm thấy trang.",
     "forbiddenTitle": "Không có quyền truy cập",
     "forbiddenBody": "Vai trò hiện tại không được xem màn hình này. Liên hệ quản trị nếu cần.",
-    "goHome": "Về trang chủ"
+    "goHome": "Về trang chủ",
+    "AI_STREAM_TIMEOUT": "AI phản hồi quá lâu (quá 120 giây). Vui lòng thử lại."
   },
   "auth": {
     "title": "Đăng nhập Aureon",
@@ -204,6 +205,11 @@
       "q1": "Doanh thu Q3?",
       "q2": "Rủi ro nào đang nghiêm trọng?",
       "q3": "Cash runway còn bao lâu?"
+    },
+    "wait": {
+      "thinking": "AI đang suy nghĩ...",
+      "slow": "Đang xử lý phức tạp, vui lòng đợi...",
+      "giveUp": "AI đang mất nhiều thời gian, thử lại sau"
     }
   },
   "idp": {

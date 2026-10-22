@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale } from "next-intl";
-import { ApiError } from "@/lib/api-client";
+import { ApiError, CHAT_STREAM_TIMEOUT_MS } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import { streamSse } from "@/lib/sse";
 import { applyEvent } from "./reducer";
@@ -57,6 +57,7 @@ export function useChat() {
             update(r.msg);
           },
           abort.current.signal,
+          CHAT_STREAM_TIMEOUT_MS,
         );
         if (current.streaming) update({ ...current, streaming: false });
       } catch (err) {

@@ -1,6 +1,9 @@
 /** Minimal SSE-over-POST client (EventSource cannot POST). Parses `event:`/`data:` frames. */
 import { API_PROXY, ApiError, newIdempotencyKey, toApiError } from "./api-client";
 
+/** Thrown when the stream exceeds `timeoutMs` (T-509). */
+export const STREAM_TIMEOUT = "AI_STREAM_TIMEOUT";
+
 export interface SseEvent {
   event: string;
   data: unknown;
@@ -42,7 +45,19 @@ export async function streamSse(
   body: unknown,
   onEvent: (e: SseEvent) => void,
   signal?: AbortSignal,
+  timeoutMs?: number,
 ): Promise<void> {
+  const timer = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
+  const merged = timer ? (signal ? AbortSignal.any([signal, timer]) : timer) : signal;
+  try {
+    await run(path, body, onEvent, merged);
+  } catch (err) {
+    if (timer?.aborted && !signal?.aborted) throw new ApiError(504, STREAM_TIMEOUT, "stream timeout");
+    throw err;
+  }
+}
+
+async function run(path: string, body: unknown, onEvent: (e: SseEvent) => void, signal?: AbortSignal): Promise<void> {
   const res = await fetch(`${API_PROXY}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream", "idempotency-key": newIdempotencyKey() },

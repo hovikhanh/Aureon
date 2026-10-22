@@ -53,3 +53,37 @@ test("shows API error from the stream", async ({ page }) => {
   await page.getByTestId("chat-input").press("Enter");
   await expect(page.getByTestId("chat-error")).toContainText("không xử lý");
 });
+
+/**
+ * T-509 demo replay through the real stack (BFF → API, DEMO_MODE=true): no model call, the
+ * recorded intent replays with live tool numbers. Requires the dev API with DEMO_MODE=true.
+ */
+test("demo mode: recorded question answers fast with citation [1]", async ({ page }) => {
+  await loginAs(page, "ceo@abc.demo");
+  await page.goto("/ai");
+  await page.getByTestId("chat-input").fill("Doanh thu Q3?");
+  const started = Date.now();
+  await page.getByTestId("chat-send").click();
+  await expect(page.getByTestId("assistant-message")).toHaveAttribute("data-streaming", "false", { timeout: 10_000 });
+  expect(Date.now() - started).toBeLessThan(5_000);
+  const answer = page.getByTestId("answer");
+  await expect(answer).toContainText("98,1%");
+  await answer.getByTestId("citation").first().click();
+  await expect(page.getByTestId("source-popover")).toContainText("METRIC-FIN-01");
+});
+
+test("long wait shows progressive hints", async ({ page }) => {
+  await page.clock.install();
+  await page.route("**/api/backend/ai/chat/stream", () => new Promise(() => {})); // never answers
+  await loginAs(page, "ceo@abc.demo");
+  await page.goto("/ai");
+  await page.getByTestId("chat-input").fill("Câu hỏi khó");
+  await page.getByTestId("chat-send").click();
+  await expect(page.getByTestId("thinking")).toBeVisible();
+  await page.clock.runFor(11_000);
+  await expect(page.getByTestId("wait-hint")).toHaveAttribute("data-phase", "thinking");
+  await page.clock.runFor(20_000);
+  await expect(page.getByTestId("wait-hint")).toContainText("Đang xử lý phức tạp");
+  await page.clock.runFor(60_000);
+  await expect(page.getByTestId("wait-hint")).toContainText("thử lại sau");
+});

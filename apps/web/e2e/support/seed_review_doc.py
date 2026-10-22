@@ -5,21 +5,28 @@ Pipeline, with a fixture gateway (no live LLM — CLAUDE §6.6 #7). Dev DB only;
 Prints `{"document_id": ..., "invoice_number": ...}` as the last stdout line.
 
 Run: PYTHONPATH=apps/api/src:apps/api .venv/bin/python apps/web/e2e/support/seed_review_doc.py
+`--cleanup` soft-deletes E2E documents still waiting for review (`hoa-don-E2E*`, NEEDS_REVIEW /
+IN_REVIEW) so backend queue tests see a clean dev DB; committed / rejected ones are kept.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
+
+from sqlalchemy import update
 
 from app.core.config import get_config
 from app.core.db import get_sessionmaker
 from app.core.deps import Principal
 from app.core.model_gateway import ChatResponse
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.idp.models import SourceDocument
 from app.modules.idp.services.pipeline import Pipeline
 from app.modules.idp.services.upload_service import UploadFile, UploadService
 from tests.integration.idp.sample_docs import _pdf_with_text
@@ -62,5 +69,21 @@ async def main() -> None:
     print(json.dumps({"document_id": str(doc_id), "invoice_number": number, "status": outcome.status}))
 
 
+async def cleanup() -> None:
+    get_config()
+    async with get_sessionmaker()() as db:
+        res = await db.execute(
+            update(SourceDocument)
+            .where(
+                SourceDocument.original_filename.like("hoa-don-E2E%"),
+                SourceDocument.status.in_(("NEEDS_REVIEW", "IN_REVIEW")),
+                SourceDocument.deleted_at.is_(None),
+            )
+            .values(deleted_at=datetime.now(UTC), locked_by=None, locked_until=None)
+        )
+        await db.commit()
+    print(json.dumps({"cleaned": res.rowcount}))  # type: ignore[attr-defined]
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(cleanup() if "--cleanup" in sys.argv else main())

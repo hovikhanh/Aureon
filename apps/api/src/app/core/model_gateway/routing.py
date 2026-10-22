@@ -83,3 +83,24 @@ def model_for(cfg: "ConfigService", task: TaskKind, provider: str) -> str:
         return cfg.embedding_model
     value: str = getattr(cfg, f"model_{task}")
     return value
+
+
+def models_for(cfg: "ConfigService", task: TaskKind, provider: str) -> list[str]:
+    """Ordered model chain for one provider (T-509, DEC-241).
+
+    Chat on a cloud provider without a per-provider override uses
+    `CHAT_MODEL_PRIMARY` → `CHAT_MODEL_FALLBACK` when set; every other case is the single
+    `model_for` value.
+    """
+    base = model_for(cfg, task, provider)
+    if task != "chat" or provider not in CLOUD_PROVIDERS:
+        return [base]
+    if cfg.model_overrides().get((task, provider)):
+        return [base]
+    chain = [m for m in (cfg.chat_model_primary.strip(), cfg.chat_model_fallback.strip()) if m]
+    return list(dict.fromkeys(chain)) or [base]
+
+
+def timeout_for(cfg: "ConfigService", task: TaskKind) -> float:
+    """Per-call timeout: chat uses `CHAT_TIMEOUT_SECONDS` (T-509), others `AI_TURN_TIMEOUT_SEC`."""
+    return cfg.chat_timeout_seconds if task == "chat" else cfg.ai_turn_timeout_sec

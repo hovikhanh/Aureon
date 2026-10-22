@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { loginAs } from "./helpers";
-import { seedReviewDoc } from "./support/seed";
+import { cleanupReviewDocs, seedReviewDoc } from "./support/seed";
+
+test.afterAll(() => cleanupReviewDocs());
 
 test.describe("SCR-18a review queue (T-507)", () => {
   test("lists seeded document with filters", async ({ page }) => {

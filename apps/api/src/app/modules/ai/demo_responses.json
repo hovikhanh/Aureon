@@ -1,0 +1,225 @@
+{
+  "_doc": "T-509 / DEC-241 demo replay. `match`: any keyword set whose words all appear in the normalised question (lowercase, no diacritics). `tools`: read tools run with the asker's Principal (P06). `answer_vi`: {METRIC-X} → formatted value from the tool results, {open_alerts} → tool data field, [[METRIC-X]] → citation [n] bound to that MetricValue source (P05). Missing tool/value → no replay (live model).",
+  "entries": [
+    {
+      "id": "revenue_q3",
+      "match": [
+        [
+          "doanh thu",
+          "q3"
+        ],
+        [
+          "doanh thu",
+          "quy 3"
+        ],
+        [
+          "revenue",
+          "q3"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_finance_dashboard"
+      ],
+      "answer_vi": "Doanh thu T9/2026 đạt {METRIC-FIN-01}% kế hoạch [[METRIC-FIN-01]] — trụ Tài chính đang ở trạng thái tốt. Biên lợi nhuận gộp Q3/2026 là {METRIC-FIN-02}% [[METRIC-FIN-02]], chi phí Q3 thấp hơn ngân sách {METRIC-FIN-06}% [[METRIC-FIN-06]].",
+      "answer_en": "September 2026 revenue reached {METRIC-FIN-01}% of plan [[METRIC-FIN-01]]. Q3/2026 gross margin is {METRIC-FIN-02}% [[METRIC-FIN-02]]; Q3 spend variance vs budget is {METRIC-FIN-06}% [[METRIC-FIN-06]]."
+    },
+    {
+      "id": "cash_flow",
+      "match": [
+        [
+          "cash flow"
+        ],
+        [
+          "dong tien"
+        ],
+        [
+          "tien mat"
+        ],
+        [
+          "runway"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_finance_dashboard"
+      ],
+      "answer_vi": "Dòng tiền ổn: cash runway còn {METRIC-FIN-03} tháng [[METRIC-FIN-03]]. Net burn tháng này lệch {METRIC-FIN-07}% so với dự báo [[METRIC-FIN-07]] (âm = đốt tiền ít hơn dự kiến). Công nợ quá hạn chiếm {METRIC-FIN-05}% [[METRIC-FIN-05]].",
+      "answer_en": "Cash is healthy: runway is {METRIC-FIN-03} months [[METRIC-FIN-03]]. Net burn this month is {METRIC-FIN-07}% vs forecast [[METRIC-FIN-07]]. Overdue receivables are {METRIC-FIN-05}% [[METRIC-FIN-05]]."
+    },
+    {
+      "id": "top_clients",
+      "match": [
+        [
+          "top",
+          "khach hang"
+        ],
+        [
+          "khach hang",
+          "lon nhat"
+        ],
+        [
+          "top",
+          "client"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_sales_dashboard"
+      ],
+      "answer_vi": "Top 5 khách hàng chiếm {METRIC-CUS-04}% doanh thu T9/2026 [[METRIC-CUS-04]] — dưới ngưỡng tập trung cảnh báo. Giữ chân doanh thu ròng (NRR) đạt {METRIC-CUS-03}% [[METRIC-CUS-03]], NPS {METRIC-CUS-05} [[METRIC-CUS-05]]. Danh sách chi tiết xem ở màn Khách hàng.",
+      "answer_en": "The top 5 clients account for {METRIC-CUS-04}% of September revenue [[METRIC-CUS-04]]. Net revenue retention is {METRIC-CUS-03}% [[METRIC-CUS-03]], NPS {METRIC-CUS-05} [[METRIC-CUS-05]]."
+    },
+    {
+      "id": "top_risk",
+      "match": [
+        [
+          "rui ro"
+        ],
+        [
+          "risk"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_risk_dashboard"
+      ],
+      "answer_vi": "Trụ Chiến lược & Rủi ro đang đỏ: {METRIC-RSK-01} rủi ro mức high/critical đang mở [[METRIC-RSK-01]], trong đó {METRIC-RSK-02} rủi ro high chưa có người phụ trách [[METRIC-RSK-02]] — đây là việc cần xử lý trước. Điểm rủi ro tổng hợp {METRIC-RSK-04} [[METRIC-RSK-04]]; {METRIC-RSK-05} biện pháp giảm thiểu đã quá hạn [[METRIC-RSK-05]].",
+      "answer_en": "Strategy & Risk is red: {METRIC-RSK-01} high/critical risks are open [[METRIC-RSK-01]], {METRIC-RSK-02} of them without an owner [[METRIC-RSK-02]]. Composite risk score {METRIC-RSK-04} [[METRIC-RSK-04]]; {METRIC-RSK-05} mitigations overdue [[METRIC-RSK-05]]."
+    },
+    {
+      "id": "turnover",
+      "match": [
+        [
+          "turnover"
+        ],
+        [
+          "nghi viec"
+        ],
+        [
+          "nhan su",
+          "roi"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_hr_dashboard"
+      ],
+      "answer_vi": "Tỷ lệ nghỉ việc năm hóa T9/2026 là {METRIC-HR-02}% [[METRIC-HR-02]] — trong ngưỡng an toàn. Điểm cần chú ý là {METRIC-HR-03}% nhân sự đang quá tải [[METRIC-HR-03]].",
+      "answer_en": "Annualised turnover for September 2026 is {METRIC-HR-02}% [[METRIC-HR-02]], within target. Watch item: {METRIC-HR-03}% of staff are overloaded [[METRIC-HR-03]]."
+    },
+    {
+      "id": "pipeline",
+      "match": [
+        [
+          "pipeline"
+        ],
+        [
+          "co hoi ban hang"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_sales_pipeline"
+      ],
+      "answer_vi": "Pipeline coverage cho Q4/2026 là {METRIC-CUS-01} lần chỉ tiêu [[METRIC-CUS-01]] — đủ an toàn. Tỷ lệ thắng T9 đạt {METRIC-CUS-02}% [[METRIC-CUS-02]], chu kỳ bán trung bình {METRIC-CUS-06} ngày [[METRIC-CUS-06]].",
+      "answer_en": "Q4/2026 pipeline coverage is {METRIC-CUS-01}x target [[METRIC-CUS-01]]. September win rate {METRIC-CUS-02}% [[METRIC-CUS-02]], average sales cycle {METRIC-CUS-06} days [[METRIC-CUS-06]]."
+    },
+    {
+      "id": "ai_today",
+      "match": [
+        [
+          "ai",
+          "da lam"
+        ],
+        [
+          "ai",
+          "hom nay"
+        ],
+        [
+          "what did",
+          "ai"
+        ]
+      ],
+      "tools": [
+        "TOOL-list_alerts",
+        "TOOL-get_risk_dashboard"
+      ],
+      "answer_vi": "Hôm nay AI đang theo dõi {open_alerts} cảnh báo mở trên 5 trụ; nổi bật nhất là {METRIC-RSK-01} rủi ro high/critical đang mở [[METRIC-RSK-01]]. Các hành động AI đã đề xuất hoặc thực hiện (kèm hoàn tác) nằm ở mục \"AI đã làm\" trong Trung tâm AI.",
+      "answer_en": "Today AI is monitoring {open_alerts} open alerts across the 5 pillars; the most important is {METRIC-RSK-01} open high/critical risks [[METRIC-RSK-01]]. Actions AI proposed or executed (with undo) are listed under \"AI did\" in the AI Center."
+    },
+    {
+      "id": "why_o_yellow",
+      "match": [
+        [
+          "tru",
+          "o"
+        ],
+        [
+          "o",
+          "vang"
+        ],
+        [
+          "o",
+          "yellow"
+        ],
+        [
+          "o",
+          "pillar"
+        ],
+        [
+          "van hanh",
+          "vang"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_hr_dashboard"
+      ],
+      "answer_vi": "Trụ Vận hành & Con người vàng vì 3 chỉ số chạm ngưỡng cảnh báo: chỉ {METRIC-OPS-01}% task đúng hạn [[METRIC-OPS-01]], {METRIC-OPS-02}% dự án trễ [[METRIC-OPS-02]] và {METRIC-HR-03}% nhân sự quá tải [[METRIC-HR-03]]. Ngoài ra có {METRIC-HR-04} kế hoạch tuyển dụng trễ [[METRIC-HR-04]].",
+      "answer_en": "Operations & People is yellow: only {METRIC-OPS-01}% of tasks on time [[METRIC-OPS-01]], {METRIC-OPS-02}% of projects late [[METRIC-OPS-02]] and {METRIC-HR-03}% of staff overloaded [[METRIC-HR-03]]; {METRIC-HR-04} hiring plan is late [[METRIC-HR-04]]."
+    },
+    {
+      "id": "forecast_q4",
+      "match": [
+        [
+          "du bao",
+          "q4"
+        ],
+        [
+          "forecast",
+          "q4"
+        ],
+        [
+          "du bao",
+          "quy 4"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_sales_pipeline",
+        "TOOL-get_finance_forecast"
+      ],
+      "answer_vi": "Triển vọng Q4/2026 tích cực: pipeline phủ {METRIC-CUS-01} lần chỉ tiêu [[METRIC-CUS-01]], doanh thu T9 đã đạt {METRIC-FIN-01}% kế hoạch [[METRIC-FIN-01]] và runway {METRIC-FIN-03} tháng [[METRIC-FIN-03]]. Đây là chỉ báo, không phải con số dự báo cam kết.",
+      "answer_en": "Q4/2026 outlook is positive: pipeline coverage {METRIC-CUS-01}x [[METRIC-CUS-01]], September revenue at {METRIC-FIN-01}% of plan [[METRIC-FIN-01]], runway {METRIC-FIN-03} months [[METRIC-FIN-03]]. Indicators, not a committed forecast."
+    },
+    {
+      "id": "compare_f_s",
+      "match": [
+        [
+          "so sanh",
+          "f",
+          "s"
+        ],
+        [
+          "compare",
+          "f",
+          "s"
+        ],
+        [
+          "tai chinh",
+          "rui ro",
+          "so sanh"
+        ]
+      ],
+      "tools": [
+        "TOOL-get_finance_dashboard",
+        "TOOL-get_risk_dashboard"
+      ],
+      "answer_vi": "F (Tài chính) xanh: doanh thu đạt {METRIC-FIN-01}% kế hoạch [[METRIC-FIN-01]], runway {METRIC-FIN-03} tháng [[METRIC-FIN-03]]. S (Chiến lược & Rủi ro) đỏ: {METRIC-RSK-01} rủi ro high/critical đang mở [[METRIC-RSK-01]], SEI chỉ {METRIC-RSK-06}% [[METRIC-RSK-06]]. Tài chính khỏe nhưng rủi ro chưa được kiểm soát — nên ưu tiên giao chủ cho rủi ro.",
+      "answer_en": "F is green: revenue {METRIC-FIN-01}% of plan [[METRIC-FIN-01]], runway {METRIC-FIN-03} months [[METRIC-FIN-03]]. S is red: {METRIC-RSK-01} open high/critical risks [[METRIC-RSK-01]], SEI {METRIC-RSK-06}% [[METRIC-RSK-06]]."
+    }
+  ]
+}

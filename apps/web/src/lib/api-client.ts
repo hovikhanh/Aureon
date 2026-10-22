@@ -28,6 +28,12 @@ export class ApiError extends Error {
 
 export const API_PROXY = "/api/backend";
 
+/** T-509: chat SSE budget (BE chat timeout 90 s + fallback model) and UI wait thresholds (ms). */
+export const CHAT_STREAM_TIMEOUT_MS = 120_000;
+export const CHAT_WAIT_THINKING_MS = 10_000;
+export const CHAT_WAIT_SLOW_MS = 30_000;
+export const CHAT_WAIT_GIVE_UP_MS = 90_000;
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;

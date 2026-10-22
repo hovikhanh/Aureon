@@ -51,7 +51,8 @@
     "notFound": "Page not found.",
     "forbiddenTitle": "Access denied",
     "forbiddenBody": "Your current role cannot view this screen. Contact an administrator if needed.",
-    "goHome": "Go home"
+    "goHome": "Go home",
+    "AI_STREAM_TIMEOUT": "The AI took too long to respond (over 120 s). Please try again."
   },
   "auth": {
     "title": "Sign in to Aureon",
@@ -204,6 +205,11 @@
       "q1": "Q3 revenue?",
       "q2": "Which risks are critical?",
       "q3": "How long is our cash runway?"
+    },
+    "wait": {
+      "thinking": "AI is thinking...",
+      "slow": "Working on a complex request, please wait...",
+      "giveUp": "AI is taking too long, please try again later"
     }
   },
   "idp": {

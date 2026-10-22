@@ -29,7 +29,7 @@ from app.core.model_gateway.errors import (
     provider_error,
 )
 from app.core.model_gateway.fixtures import FixtureStore
-from app.core.model_gateway.routing import TEMPLATE, Route, model_for, route
+from app.core.model_gateway.routing import TEMPLATE, Route, models_for, route, timeout_for
 from app.core.model_gateway.types import ChatChunk, ChatRequest, ChatResponse, Usage
 
 log = logging.getLogger("app.model_gateway")
@@ -219,58 +219,45 @@ class ModelGateway:
     async def _live(self, req: ChatRequest, rt: Route) -> ChatResponse:
         last_err: ProviderCallError | None = None
         failed_from: str | None = None
+        timeout_s = timeout_for(self.cfg, req.task)
         for provider in rt.providers:
             if provider == TEMPLATE:
                 raise await self._template(req, rt, failed_from)
             if self.breaker.is_open(provider):
                 log.warning("model_gateway: circuit open, skip %s", provider)
                 continue
-            model = model_for(self.cfg, req.task, provider)
+            models = models_for(self.cfg, req.task, provider)
+            # One model → ≤ 2 retries (07 §6.2). A model chain (T-509) → one attempt per model,
+            # so a slow primary hands over to the fallback model instead of retrying.
+            attempts = len(RETRY_BACKOFF_S) + 1 if len(models) == 1 else 1
             adapter = self._adapter(self.cfg, provider)
-            for attempt in range(len(RETRY_BACKOFF_S) + 1):
-                started = time.monotonic()
-                try:
-                    resp = await adapter.chat(
-                        req, model=model, timeout_s=self.cfg.ai_turn_timeout_sec
-                    )
-                except ProviderCallError as err:
-                    last_err = err
-                    self.breaker.failure(provider)
-                    status: CallStatus = "timeout" if err.timeout else "error"
-                    code = "AI_PROVIDER_TIMEOUT" if err.timeout else "AI_PROVIDER_ERROR"
-                    await self.sink.record(
-                        self._rec(
-                            req,
-                            rt,
-                            provider,
-                            model,
-                            status,
-                            started,
-                            fallback_from=failed_from,
-                            error_code=code,
-                        )
-                    )
-                    if not err.retryable:
-                        raise provider_error(err) from err  # 4xx content: no fallback
-                    if attempt < len(RETRY_BACKOFF_S):
-                        await self._sleep(RETRY_BACKOFF_S[attempt])
-                    continue
-                self.breaker.success(provider)
-                resp = replace(resp, fallback_from=failed_from)
-                await self.sink.record(
-                    self._rec(
-                        req,
-                        rt,
-                        provider,
-                        resp.model,
-                        "ok",
-                        started,
-                        usage=resp.usage,
-                        fallback_from=failed_from,
-                    )
-                )
-                return resp
-            failed_from = provider
+            for model in models:
+                for attempt in range(attempts):
+                    started = time.monotonic()
+                    try:
+                        resp = await adapter.chat(req, model=model, timeout_s=timeout_s)
+                    except ProviderCallError as err:
+                        last_err = err
+                        self.breaker.failure(provider)
+                        status: CallStatus = "timeout" if err.timeout else "error"
+                        code = "AI_PROVIDER_TIMEOUT" if err.timeout else "AI_PROVIDER_ERROR"
+                        await self.sink.record(self._rec(
+                            req, rt, provider, model, status, started,
+                            fallback_from=failed_from, error_code=code,
+                        ))  # fmt: skip
+                        if not err.retryable:
+                            raise provider_error(err) from err  # 4xx content: no fallback
+                        if attempt + 1 < attempts:
+                            await self._sleep(RETRY_BACKOFF_S[attempt])
+                        continue
+                    self.breaker.success(provider)
+                    resp = replace(resp, fallback_from=failed_from)
+                    await self.sink.record(self._rec(
+                        req, rt, provider, resp.model, "ok", started,
+                        usage=resp.usage, fallback_from=failed_from,
+                    ))  # fmt: skip
+                    return resp
+                failed_from = f"{provider}:{model}" if len(models) > 1 else provider
         raise provider_error(last_err)
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[ChatChunk]:
@@ -285,44 +272,35 @@ class ModelGateway:
             return
         last_err: ProviderCallError | None = None
         failed_from: str | None = None
+        timeout_s = timeout_for(self.cfg, req.task)
         for provider in rt.providers:
             if provider == TEMPLATE:
                 raise await self._template(req, rt, failed_from)
             if self.breaker.is_open(provider):
                 continue
-            model = model_for(self.cfg, req.task, provider)
-            started, emitted = time.monotonic(), False
-            try:
-                adapter = self._adapter(self.cfg, provider)
-                async for chunk in adapter.stream(
-                    req, model=model, timeout_s=self.cfg.ai_turn_timeout_sec
-                ):
-                    emitted = True
-                    if chunk.done:
-                        await self.sink.record(
-                            self._rec(
-                                req,
-                                rt,
-                                provider,
-                                model,
-                                "ok",
-                                started,
-                                usage=chunk.usage,
-                                fallback_from=failed_from,
-                            )
-                        )
-                    yield chunk
-                self.breaker.success(provider)
-                return
-            except ProviderCallError as err:
-                last_err = err
-                self.breaker.failure(provider)
-                await self.sink.record(self._rec(
-                    req, rt, provider, model, "timeout" if err.timeout else "error", started,
-                    fallback_from=failed_from,
-                    error_code="AI_PROVIDER_TIMEOUT" if err.timeout else "AI_PROVIDER_ERROR",
-                ))  # fmt: skip
-                if emitted or not err.retryable:
-                    raise provider_error(err) from err
-                failed_from = provider
+            for model in models_for(self.cfg, req.task, provider):
+                started, emitted = time.monotonic(), False
+                try:
+                    adapter = self._adapter(self.cfg, provider)
+                    async for chunk in adapter.stream(req, model=model, timeout_s=timeout_s):
+                        emitted = True
+                        if chunk.done:
+                            await self.sink.record(self._rec(
+                                req, rt, provider, model, "ok", started,
+                                usage=chunk.usage, fallback_from=failed_from,
+                            ))  # fmt: skip
+                        yield chunk
+                    self.breaker.success(provider)
+                    return
+                except ProviderCallError as err:
+                    last_err = err
+                    self.breaker.failure(provider)
+                    await self.sink.record(self._rec(
+                        req, rt, provider, model, "timeout" if err.timeout else "error", started,
+                        fallback_from=failed_from,
+                        error_code="AI_PROVIDER_TIMEOUT" if err.timeout else "AI_PROVIDER_ERROR",
+                    ))  # fmt: skip
+                    if emitted or not err.retryable:
+                        raise provider_error(err) from err
+                    failed_from = provider
         raise provider_error(last_err)

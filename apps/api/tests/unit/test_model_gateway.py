@@ -41,6 +41,8 @@ def cfg(**kw: Any) -> ConfigService:
         "model_provider_confidential": "ollama",
         "model_pricing_json": json.dumps({"openrouter:auto/coding": {"in": 3, "out": 15}}),
         "ai_monthly_budget_usd": 50,
+        "chat_model_primary": "",  # dev .env may set the T-509 chain; tests opt in explicitly
+        "chat_model_fallback": "",
         **{f"{p}_api_key": SecretStr(f"k-{p}") for p in KEYS},
         **{f"{p}_base_url": f"https://{p}.test/v1" for p in KEYS if p != "anthropic"},
         "anthropic_base_url": "https://anthropic.test",
@@ -512,3 +514,41 @@ def test_no_api_key_in_logs_or_errors(caplog: pytest.LogCaptureFixture) -> None:
     assert "k-openai" not in str(
         ProviderCallError("openai", retryable=True, status=503, timeout=False)
     )
+
+
+# --- T-509 / DEC-241: chat model chain + chat timeout -----------------------------------
+
+
+def test_chat_model_chain_and_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.model_gateway.routing import models_for, timeout_for
+
+    c = cfg(chat_model_primary="cc/claude-sonnet-5", chat_model_fallback="cl/ds-flash")
+    assert models_for(c, "chat", "omniroute") == ["cc/claude-sonnet-5", "cl/ds-flash"]
+    assert models_for(c, "insight", "omniroute") == ["auto/cheap"]  # chat only
+    assert models_for(c, "chat", "ollama") == ["qwen2.5:7b-instruct"]  # local unaffected
+    assert models_for(cfg(), "chat", "omniroute") == ["auto/coding"]  # unset → MODEL_CHAT
+    monkeypatch.setenv("MODEL_CHAT__OMNIROUTE", "pinned")
+    assert models_for(c, "chat", "omniroute") == ["pinned"]  # explicit override wins
+    assert timeout_for(cfg(chat_timeout_seconds=90), "chat") == 90
+    assert timeout_for(cfg(ai_turn_timeout_sec=30), "extract") == 30
+
+
+@respx.mock
+async def test_chat_primary_timeout_falls_back_to_second_model_once() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        model = json.loads(request.content)["model"]
+        seen.append(model)
+        if model == "slow-primary":
+            raise httpx.ReadTimeout("t")
+        return httpx.Response(200, json=ok_body(model=model))
+
+    respx.post("https://omniroute.test/v1/chat/completions").mock(side_effect=handler)
+    sink = NullSink()
+    c = cfg(chat_model_primary="slow-primary", chat_model_fallback="fast-fallback")
+    resp = await gw(c, sink).chat(req())
+    assert seen == ["slow-primary", "fast-fallback"]  # one attempt each, no 3× retry
+    assert resp.model == "fast-fallback"
+    assert resp.fallback_from == "omniroute:slow-primary"
+    assert [r.status for r in sink.records] == ["timeout", "ok"]

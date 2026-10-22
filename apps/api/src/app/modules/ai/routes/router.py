@@ -9,7 +9,9 @@ makes the gateway raise `SecretDataBlockedError` → the turn is refused with `4
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated, Any, Literal
@@ -17,6 +19,7 @@ from typing import Annotated, Any, Literal
 from fastapi import Depends, Response
 from fastapi.responses import StreamingResponse
 
+from app.core.config import get_config
 from app.core.deps import DbSession, Principal, require_permission
 from app.core.errors import ai_error
 from app.core.idempotency import Idem
@@ -132,8 +135,16 @@ async def chat_stream(
                 "status": fc["status"], "latency_ms": fc["latency_ms"],
                 "sources": [s.as_dict() for s in turn.sources],
             })  # fmt: skip
-        for chunk in _chunks(turn.answer):
-            yield ev("token", {"delta": chunk})
+        if turn.replayed:
+            # demo replay (DEC-241): word-sized tokens paced like a live stream
+            delay = get_config().ai_demo_token_delay_sec
+            for word in _words(turn.answer):
+                yield ev("token", {"delta": word})
+                if delay:
+                    await asyncio.sleep(delay)
+        else:
+            for chunk in _chunks(turn.answer):
+                yield ev("token", {"delta": chunk})
         yield ev("done", {
             "message_id": str(turn.message_id),
             "answer": turn.answer,
@@ -268,6 +279,10 @@ async def ai_usage(
     group_by: Literal["provider", "model", "task_kind", "user"] = "provider",
 ) -> CostSummaryOut:
     return await CostService(db).usage(group_by=group_by)
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"\S+\s*", text) or [""]
 
 
 def _chunks(text: str, size: int = 48) -> list[str]:

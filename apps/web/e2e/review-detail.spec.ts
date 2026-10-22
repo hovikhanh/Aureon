@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { loginAs } from "./helpers";
-import { seedReviewDoc } from "./support/seed";
+import { cleanupReviewDocs, seedReviewDoc } from "./support/seed";
+
+test.afterAll(() => cleanupReviewDocs());
 
 test.describe("SCR-18b review detail (T-508)", () => {
   test("8 fields, correct one, approve → invoice visible in Finance", async ({ page }) => {

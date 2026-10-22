@@ -414,6 +414,15 @@ Sub-sprint **S5a** do brief giao đánh số T-501..T-508 (khác 09): T-501 scaf
 | TC-UI-019 | Passed (một phần — formatter) | `apps/web/src/lib/format.test.ts` | T-501 | `1.250.000 đ`, `1,2 tỷ`, `12,5%`, `T9/2026`; mọi chuỗi qua `next-intl` (vi/en cùng 251 key) |
 | TC-UI-028 | Passed | `apps/web/e2e/responsive.spec.ts` | T-504 | 1440/1280 sidebar đầy đủ + 5 cột; 768 sidebar icon + 2 cột; 390 drawer + 1 cột; không cuộn ngang |
 
+#### 2.5.4. Trạng thái S5b-lite (2026-10-22)
+
+Brief S5b-lite đánh số T-509..T-512 (khác 09). DEC-241.
+
+| TC | Trạng thái | Test | Task | Ghi chú |
+|---|---|---|---|---|
+| TC-UI-009 | Passed (bổ sung — replay thật qua BFF + gợi ý chờ 10/30/90 s) | `apps/web/e2e/chat.spec.ts` (4), `apps/api/tests/integration/ai/test_chat_demo_mode.py` (9) | T-509 | 5 câu ghi sẵn stream < 2 s, `[1]` gắn `metric_value`, không gọi model; thiếu quyền / câu lạ → model thật; FE timeout 120 s → `AI_STREAM_TIMEOUT` |
+| TC-AI-022 (bổ sung) | Passed | `apps/api/tests/unit/test_model_gateway.py::test_chat_model_chain_and_timeout`, `::test_chat_primary_timeout_falls_back_to_second_model_once` | T-509 | Chuỗi model chat trong cùng provider, 1 lần thử/model; timeout chat 90 s chỉ cho task `chat` |
+
 ### 2.6. S5 — UX, mobile, phát hành
 
 | TC | Loại | Mô tả / tiêu chí pass | Spec | Task |
@@ -496,6 +505,7 @@ Sub-sprint **S5a** do brief giao đánh số T-501..T-508 (khác 09): T-501 scaf
 | 2026-10-20 | DEC-144 Phase 3b | +9 TC Planned (§2.1.2): 02 2.1.0 (ràng buộc AI nhân sự, tool APPROVAL không gửi model, `platform:approve`); 03 2.1.0 (DQ Score, SEI Initiative, chặn số không nguồn + insight 9 phần, Verification 24h/7d, định tuyến theo phân loại, Briefing) |
 | 2026-10-20 | DEC-144 Phase 3c | §2.1.3: 04 2.1.0 +8 TC Planned (TC-IDP-016..023: C2 voice mock, transcript upload, checkbox/chữ ký/viết tay, "Chấp nhận tất cả HIGH", Verification sau commit, merge review, preview 50 dòng, dữ liệu sức khỏe `SECRET`); 06 2.1.0 +5 TC Planned (TC-UI-023..027: SCR-29 phê duyệt 2 bước, SCR-30 báo cáo, SCR-31 dòng tiền, TTFT, axe-core WCAG AA); 07 2.1.0 +3 TC Planned (TC-AI-022 phân loại → provider fail fast, TC-AI-023 verify bù, TC-NFR-004 TTFT/p95) |
 | 2026-10-20 | DEC-144 Phase 3d | Gán task cho **36 TC Planned** của §2.1.1–§2.1.3 (35 TC "Phase 3d" + TC-SYS-009) theo 09 2.1.0 (T-018, T-106, T-133, T-215, T-229..T-233, T-313..T-317, T-324, T-415, T-416 + task sẵn có); §2.1.4 +4 TC Planned (TC-AI-024 classification override, TC-DASH-011 Report, TC-EVT-006 payload 7 event, TC-AUTH-010 rename DEC-154) |
+| 2026-10-22 | S5b-lite T-509 | §2.5.4: chat demo replay + chuỗi model chat (DEC-241); 4 E2E chat, 9 BE demo-mode + 2 gateway unit |
 | 2026-10-22 | S5a T-501..T-508 | §2.5.3: trạng thái FE S5a — TC-UI-001/004/009/019/028 Passed (một phần), TC-UI-013/016 Implemented; 20 E2E Playwright + 11 Vitest |
 
 ---
