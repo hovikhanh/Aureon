@@ -60,6 +60,7 @@ class ActionService:
         self, user: Principal, *, action_name: str, tool_name: str | None,
         input_data: dict[str, Any], idempotency_key: str, amount: int | None = None,
         message_id: uuid.UUID | None = None, agent_code: str = DEFAULT_AGENT,
+        expected_outcome: dict[str, Any] | None = None, baseline_status: str | None = None,
     ) -> AIActionOut:  # fmt: skip
         act = get_action(action_name)
         if act is None:
@@ -68,11 +69,15 @@ class ActionService:
             self.db, action_name=action_name, role=user.role, amount=amount,
             agent_code=agent_code,
         )  # fmt: skip
+        # seed the verification baseline (T-307) so the 24h/7d sweep can measure the outcome
+        verification: dict[str, Any] | None = None
+        if expected_outcome is not None:
+            verification = {"expected_outcome": expected_outcome, "baseline_status": baseline_status}
         action = AIAction(
             action_name=action_name, tool_name=tool_name, agent_profile_code=agent_code,
             autonomy_level=level, status="proposed", on_behalf_of=user.user_id,
             message_id=message_id, input=input_data, idempotency_key=idempotency_key,
-            source="AI",
+            source="AI", verification=verification,
         )  # fmt: skip
         self.db.add(action)
         await self.db.flush()

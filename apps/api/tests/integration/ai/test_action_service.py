@@ -194,6 +194,64 @@ async def test_kill_switch_per_agent_scope(db_session) -> None:
     assert reporter == "L2"
 
 
+# ---------- T-307: outcome verification 24h/7d ----------
+def test_evaluate_scores_status_movement() -> None:
+    from app.modules.ai.services.verification import evaluate
+
+    exp = {"metric_id": "METRIC-F-01", "target": "về ngưỡng"}
+    assert evaluate(exp, "critical", "ok")[0] == "improved"
+    assert evaluate(exp, "warning", "critical")[0] == "worsened"
+    assert evaluate(exp, "warning", "warning")[0] == "unchanged"
+    # no metric_id, no baseline, or no current reading → not measurable
+    assert evaluate({"target": "x"}, "critical", "ok")[0] == "not_measurable"
+    assert evaluate(exp, None, "ok")[0] == "not_measurable"
+    assert evaluate(exp, "warning", None)[0] == "not_measurable"
+
+
+async def test_proposed_action_seeds_verification_baseline(db_session) -> None:
+    svc = ActionService(db_session)
+    ceo = principal("CEO")
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "fix the metric", "status": "todo"}, idempotency_key="act-ver-1",
+        expected_outcome={"metric_id": "METRIC-F-01", "target": "về ngưỡng"},
+        baseline_status="critical",
+    )  # fmt: skip
+    action = await svc._locked(out.id)
+    assert action.verification["expected_outcome"]["metric_id"] == "METRIC-F-01"
+    assert action.verification["baseline_status"] == "critical"
+
+
+async def test_verification_sweep_measures_against_current_metric(db_session) -> None:
+    from app.modules.ai.services.verification import verify_action_outcomes
+    from app.modules.platform.services.metric_query import MetricQueryService
+
+    # anchor the baseline on any current company metric value
+    values = await MetricQueryService(db_session).current_values()
+    assert values, "seed should have company metric values"
+    mv = values[0]
+    svc = ActionService(db_session)
+    ceo = principal("CEO")
+    # baseline deliberately one notch worse than current so the sweep scores "improved"
+    worse = {"ok": "warning", "no_data": "warning", "warning": "critical", "critical": "critical"}
+    out = await svc.propose(
+        ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "verify sweep", "status": "todo"}, idempotency_key="act-ver-2",
+        expected_outcome={"metric_id": mv.metric_code, "target": "về ngưỡng"},
+        baseline_status=worse[mv.status],
+    )  # fmt: skip
+    # force the action past the 24h checkpoint
+    action = await svc._locked(out.id)
+    action.executed_at = datetime.now(UTC) - timedelta(hours=30)
+    await db_session.flush()
+    written = await verify_action_outcomes(db_session, datetime.now(UTC))
+    assert written >= 1
+    action = await svc._locked(out.id)
+    check = action.verification["checks"][0]
+    expected = "unchanged" if worse[mv.status] == mv.status else "improved"
+    assert check["result"] == expected
+
+
 async def test_kill_switch_status_roundtrip(db_session) -> None:
     svc = KillSwitchService(db_session)
     assert (await svc.status()).enabled is False
