@@ -1,15 +1,66 @@
-# STATE — Aureon v2.1 auto-pilot
+# Aureon v2.1 — DEMO READY
+
+## Status: ✅ Demo-ready
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 17:05 (Asia/Saigon) |
-| Last commit | `134d7a5` feat(s5): CEO Finance drill-down with metric cards and lineage (T-511) on `main` (pushed) |
-| Sub-sprint | **S5b-lite DONE** (T-509..T-511; T-512 optional skipped) · S5a DONE (T-501..T-508) · S4c/S4d deferred for all S5 (DEC-240) · S5b-full / S5c pending |
-| Test count | BE **752 passed** (+11: demo mode 9, gateway chain 2) + 17 period-picker contract · FE Vitest **17 passed** · Playwright E2E **25 passed** |
-| Chat latency | Demo replay (DEMO_MODE) **1,4–2,6 s** / recorded question (TTFB ≈ 3 ms, 30 ms/word) · live `cc/claude-sonnet-5` **9–13 s** (was 96 s timeout) · FE budget 120 s, hints 10/30/90 s |
-| Coverage | `modules/idp/services/review*` review **90%** / commit **90%** / sla **91%** (S4b exit ≥ 90%); full idp services ≥ 90% |
-| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (TC-IDP-REVQ/REVD/FIX/007/REJ/015/021 Passed + S4a set) |
-| Open blocking DECs | none (DEC-237..241 approved by human 2026-10-22) |
+| Last updated | 2026-10-22 21:30 (Asia/Saigon) |
+| Sub-sprint | **S5d DONE** (T-513..T-518) · S5b-lite accepted (DEC-241) · S5a DONE |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking; DEC-242/243 non-blocking resolved) · C ✅ (14 §2.6.1) |
+
+## What works (demo-able):
+- Login (5 demo accounts; + ADMIN via password)
+- Dashboard F.O.C.U.S (F🟢 C🟢 U🟡 O🟡 S🔴, 13 alerts)
+- Finance drill-down (6 metrics + lineage)
+- AI Chat (demo mode: 1,2–1,3 s measured on the full stack; live: 9–13 s)
+- IDP Review (queue → detail → correct → approve → finance invoice)
+- HR employees list (`/hr/employees`), ADMIN audit log (`/admin/audit`, EP-52)
+- Health: `/health`, `/health/ready`, `/health/live`, `/metrics`, EP-01 `/api/v1/health`, web `/api/health`
+
+## What's deferred (post-demo):
+- S4c: Full lineage 4-cấp (ENT-DataLineage, EP-13/14)
+- S4d: C2/C4/C5 breadth
+- S5b-full: 4 drill-down O/C/U/S
+- S5c: Approval, Report, Cash Flow screens + PWA mobile
+- Daily finance series (sparkline 12 monthly only)
+
+## Test counts:
+- BE: **777** tests passed, coverage **96%** (+25 vs S5b-lite: health 6, EP-52 audit 2, …)
+- FE: **18** Vitest
+- E2E: **30** Playwright (25 + 5 role regression), 30/30 on 2 consecutive runs
+
+## Quick start:
+`docker compose -f docker-compose.full.yml up -d`
+`open http://localhost:3000`
+Demo accounts: ceo@abc.demo / cfo@abc.demo / reviewer@abc.demo (password in .env)
+Reset before each demo: `./scripts/demo_reset.sh -y` · Script: `docs/DEMO-SCRIPT.md`
+
+## T-518 final verification checklist (2026-10-22)
+- [x] `docker compose -f docker-compose.full.yml up` → 9 services healthy (cold start 26 s)
+- [x] Login CEO → dashboard F🟢 C🟢 U🟡 O🟡 S🔴 with 13 alerts (E2E `dashboard.spec.ts`, `roles.spec.ts`)
+- [x] Chat "Doanh thu Q3?" → 1,32 s total (TTFB 0,25 s) with citations [1][2][3]; "Top 5 khách hàng?" 1,17 s
+- [x] Login reviewer → queue → approve → invoice committed (E2E `roles.spec.ts`, `review-detail.spec.ts`)
+- [x] `pytest --cov` → 777 passed, 96%
+- [x] `pnpm build` → 0 errors · lint / typecheck / ruff / mypy clean · contract 11 passed
+- [x] `README.md` root + `docs/DEMO-SCRIPT.md` present
+- [x] `scripts/demo_reset.sh` works (~13 s, verified 5 users · 32 metrics · 13 alerts · 1 NEEDS_REVIEW)
+- [x] Git clean, pushed to main
+
+## S5d demo polish + release (done 2026-10-22, direct route)
+- **Governance** `929b167`: S5b-lite accepted, DEC-241 approved, S5b-full deferred.
+- **T-513** `cc54910` `docker-compose.full.yml`: postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web on `aureon-net`; healthchecks on all 9; persistent volumes pg/minio/ollama/clamav (+redis); `env_file: .env` + in-network host overrides; `api` = `alembic upgrade head && python -m app.seed && uvicorn`; worker/beat wait for api healthy; JWT keys `./keys:ro`; OmniRoute via `host.docker.internal`. New `apps/web/Dockerfile` (Next 15 build, NEXT_PUBLIC_* non-secret build args only). Fixed api image perms (`pyproject.toml` unreadable for uid 1000).
+- **T-514** `5c40d05` root `README.md` rewritten for v2.1 (quick start, accounts, features, mermaid, tests, license) + `docs/DEMO-SCRIPT.md` (5-min walkthrough + pre-demo checklist + troubleshooting).
+- **T-515** `2e94206` `core/health.py` probes (2 s timeout each, never raise) + `core/ops_routes.py` (`/health`, `/health/ready`, `/health/live`, `/metrics` Prometheus text, no new dependency) + EP-01 `/api/v1/health` envelope; web `/api/health` proxy. Ollama down → `degraded` + 200 (verified live by stopping the container). DEC-242.
+- **T-516** `a50c82e` `e2e/roles.spec.ts` (5 roles). Needed minimal screens: `/hr/employees` (EP-82) and `/admin/audit` (EP-52 implemented — was in 10, missing in code). DEC-243. Flaky fix: wait for pillar `data-status` before click.
+- **T-517** `6511778` `scripts/demo_reset.sh`: TRUNCATE 10 module schemas (keeps alembic_version) → seed → clear IDP store + MinIO → purge Celery + restart worker/beat → 1 invoice NEEDS_REVIEW → verify.
+- **T-518** final verification (this file). Fix: IDP integration tests now hide pre-existing dev-DB queue docs inside the rolled-back transaction (they failed after a demo reset left 1 NEEDS_REVIEW invoice).
+
+### S5d notes / gaps
+- Brief numbering T-513..T-518 ≠ 09 (09 T-513 = seed v2.1, still pending).
+- MinIO not used by the app in demo (local-FS IDP store, DEC-234); reset clears both anyway.
+- `/metrics` exposes build info, uptime, dependency up/down and HTTP response counters only.
+- EP-52 filters `from`/`to`/`actor_type` not implemented yet; SCR-26 user admin not built.
+- Demo passwords for ADMIN are not in the login dropdown (5 accounts only, by design).
 
 ## S5b-lite ACCEPTED (human, 2026-10-22 — S5d brief, DEC-241 approved)
 - Lineage drill-down simplified (uses finance list endpoints; EP-13/14 deferred).
