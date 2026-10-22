@@ -80,13 +80,36 @@ pnpm dev:web                                        # Web :3000
 
 Gate: `pnpm lint && pnpm typecheck && pnpm test && uv run ruff check . && uv run mypy && uv run pytest && pnpm contract:validate`.
 
+Reset dữ liệu demo (không xoá volume/schema): `./scripts/demo_reset.sh -y`.
+
+## Chế độ AI (ModelGateway)
+
+Mọi lời gọi LLM đi qua một điểm duy nhất là `ModelGateway`. Biến `MODEL_GATEWAY_MODE` trong `.env` quyết định nguồn:
+
+| `MODEL_GATEWAY_MODE` | Hành vi | Cần key? |
+|---|---|---|
+| `fixture` (mặc định dev/CI) | Phát lại kết quả đã ghi sẵn; không có mạng, không gọi AI thật. Thiếu fixture → lỗi rõ ràng. | ❌ Không |
+| `live` | Gọi LLM thật qua endpoint tương thích OpenAI tại `OMNIROUTE_BASE_URL`. | ✅ Có |
+
+Chat demo (`DEMO_MODE=true`) phát lại các câu hỏi kịch bản trong ~1,2–1,3 s — **số liệu luôn lấy từ tool thật**, không bịa. Bật AI/chat thật:
+
+```bash
+# .env
+MODEL_GATEWAY_MODE=live
+OMNIROUTE_BASE_URL=<url-gateway>/v1       # vd http://localhost:20128/v1
+OMNIROUTE_API_KEY=<key>                   # gửi dạng Authorization: Bearer <key>
+CHAT_MODEL_PRIMARY=cc/claude-sonnet-5     # model chat chính (xem DEC-241)
+```
+
+Test gọi provider thật chỉ chạy khi cho phép: `RUN_LIVE_TESTS=true uv run pytest -m live`. Không commit key (`.env` đã gitignore).
+
 ## Test
 
 | Bộ | Số lượng |
 |---|---|
-| Backend pytest | **752** (coverage ≥ 95%) |
-| Frontend Vitest | **17** |
-| E2E Playwright | **25** |
+| Backend pytest | **777** (coverage 96%) |
+| Frontend Vitest | **18** |
+| E2E Playwright | **30** |
 
 ## Tài liệu
 

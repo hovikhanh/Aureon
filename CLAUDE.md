@@ -208,7 +208,7 @@ Test gọi dịch vụ thật (`-m live`, VD OmniRoute `localhost:20128`) **ch�
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "<module>: <mô tả>"   # review migration trước khi apply
 uv run alembic downgrade -1 && uv run alembic upgrade head        # kiểm tra reversible
-uv run python -m app.reset                                        # reset dữ liệu demo (không xóa volume)
+./scripts/demo_reset.sh -y                                        # reset dữ liệu demo (không xóa volume/schema — T-517)
 pnpm build                                                        # build mọi package FE (Python không có bước build)
 ```
 
@@ -484,7 +484,7 @@ Agent **KHÔNG ĐƯỢC** tự:
 
 **Tooling & Docker**
 - `uv run mypy app/` lỗi khi chạy từ root → dùng `uv run mypy` (config ở `pyproject.toml`).
-- `docker compose down -v` xóa volume dữ liệu demo → không dùng `-v`; reset bằng `uv run python -m app.reset`.
+- `docker compose down -v` xóa volume dữ liệu demo → không dùng `-v`; reset bằng `./scripts/demo_reset.sh -y`.
 
 ### 6.6. 🛡️ Quy tắc an toàn khi sửa code (`11` §10)
 
