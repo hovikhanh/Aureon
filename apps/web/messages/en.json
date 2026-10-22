@@ -12,7 +12,8 @@
     "menu": "Open menu",
     "close": "Close menu",
     "collapse": "Collapse sidebar",
-    "expand": "Expand sidebar"
+    "expand": "Expand sidebar",
+    "approvalsPending": "The approval inbox arrives in S5b/S5c."
   },
   "buttons": {
     "login": "Sign in",

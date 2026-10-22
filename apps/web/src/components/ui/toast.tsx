@@ -6,9 +6,7 @@ type Toast = { id: number; message: string; tone: "success" | "danger" | "info" 
 type Ctx = { push: (message: string, tone?: Toast["tone"]) => void };
 const ToastCtx = React.createContext<Ctx>({ push: () => undefined });
 
-const STORAGE_KEY = "aureon.flash";
-
-/** Toast host. `flash()` survives one client navigation (used after approve → queue). */
+/** Toast host (mounted in the root layout, so toasts survive client-side navigation). */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<Toast[]>([]);
   const push = React.useCallback((message: string, tone: Toast["tone"] = "success") => {
@@ -16,13 +14,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setItems((xs) => [...xs, { id, message, tone }]);
     window.setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), 6000);
   }, []);
-  React.useEffect(() => {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-      push(raw, "success");
-    }
-  });
   return (
     <ToastCtx.Provider value={{ push }}>
       {children}
@@ -48,7 +39,3 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export const useToast = () => React.useContext(ToastCtx);
 
-/** Queue a toast for the next page (UI message only — never tokens/PII). */
-export function flash(message: string): void {
-  window.sessionStorage.setItem(STORAGE_KEY, message);
-}
