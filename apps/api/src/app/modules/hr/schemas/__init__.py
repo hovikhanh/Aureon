@@ -8,7 +8,7 @@
 - EP-84 `salary_min/max` ↔ `salary_range_min/max`, `target_date` ↔ `target_fill_date`,
   `budget_amount` ↔ `budget_allocated`.
 
-Level-4 fields (02 §6.3) are typed `T | Masked`: only CEO / HR_MANAGER get the value, every
+Level-4 fields (02 §6.3) are typed `T | Masked`: only CEO / HR-DIR get the value, every
 other role gets `{ "masked": true }` (10 §4.8 EP-82).
 """
 

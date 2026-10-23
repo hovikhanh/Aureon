@@ -11,7 +11,7 @@ from fastapi import Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
-from app.core.deps import Principal, get_db, require_permission
+from app.core.deps import Principal, get_db, require_permission, require_pillar_permission
 from app.core.envelope import Page
 from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
@@ -43,9 +43,14 @@ from app.modules.hr.services.metrics import Period, resolve_period
 router = EnvelopeRouter(tags=["hr"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
-Reader = Annotated[Principal, Depends(require_permission("hr:read"))]
-Writer = Annotated[Principal, Depends(require_permission("hr:write"))]
+# Bản ghi con người (O) cô lập theo khối (R-DEC-12a): DIR ngoài khối O → 403.
+Reader = Annotated[Principal, Depends(require_pillar_permission("hr:read"))]
+Writer = Annotated[Principal, Depends(require_pillar_permission("hr:write"))]
+# hr:approve là cổng ngân sách của Finance-DIR (chỉ CFO nền v2.1 có hr:approve); dependency
+# chặn vai không có quyền, service `decide` siết thêm "đúng Finance-DIR (khối F)".
 Approver = Annotated[Principal, Depends(require_permission("hr:approve"))]
+# Dashboard HR là tổng hợp nhưng chứa quỹ lương (mức 4): mở cho CEO/HR-DIR(O)/Finance-DIR(F),
+# service lọc chi tiết; vai query khối khác (Sales/Product/Risk-DIR) không xem → 403 ở service.
 Querier = Annotated[Principal, Depends(require_permission("hr:query"))]
 
 

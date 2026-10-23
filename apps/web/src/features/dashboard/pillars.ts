@@ -39,14 +39,15 @@ export function pillarBySlug(slug: string): PillarDef | undefined {
   return PILLARS.find((p) => p.slug === slug);
 }
 
-/** Pillar scope per role (CLAUDE §1.4, 06 §2.3 "F.O.C.U.S" row). Out-of-scope pillars are hidden. */
+/**
+ * Pillar scope per role v3 (CLAUDE §1.4, R-DEC-12). Out-of-scope pillars are hidden.
+ * CEO + DIR span all five pillars at the role level; a DIR's khối is enforced server-side
+ * (R-DEC-12a scope_pillars) per request — the FE menu intersects with `permissions`.
+ * MGR/EMP/REV/ADM have no executive pillar card.
+ */
 export const ROLE_PILLARS: Record<string, readonly PillarCode[]> = {
   CEO: ["F", "O", "C", "U", "S"],
-  CFO: ["F", "S"],
-  VP_SALES: ["C"],
-  HR_MANAGER: ["O"],
-  CPO: ["U"],
-  RISK_MANAGER: ["S"],
+  DIR: ["F", "O", "C", "U", "S"],
 };
 
 /** Visible pillars = role scope ∩ permission on at least one source endpoint. */

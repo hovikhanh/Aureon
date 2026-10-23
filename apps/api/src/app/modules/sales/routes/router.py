@@ -12,7 +12,7 @@ from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
-from app.core.deps import Principal, get_db, require_permission
+from app.core.deps import Principal, get_db, require_permission, require_pillar_permission
 from app.core.envelope import Page
 from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
@@ -54,8 +54,10 @@ from app.modules.sales.services.sales_service import (
 router = EnvelopeRouter(tags=["sales"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
-Reader = Annotated[Principal, Depends(require_permission("sales:read"))]
-Writer = Annotated[Principal, Depends(require_permission("sales:write"))]
+# Record/detail reads + writes bị cô lập theo khối C (R-DEC-12a): DIR ngoài khối C → 403.
+Reader = Annotated[Principal, Depends(require_pillar_permission("sales:read"))]
+Writer = Annotated[Principal, Depends(require_pillar_permission("sales:write"))]
+# Tổng hợp (pipeline/performance/dashboard) mở cho mọi DIR; chi tiết per-owner chặn ở scope.
 Querier = Annotated[Principal, Depends(require_permission("sales:query"))]
 DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}
 

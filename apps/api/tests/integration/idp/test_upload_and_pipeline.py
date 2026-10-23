@@ -29,9 +29,10 @@ def _principal(dept: uuid.UUID | None = None):
 
     return Principal(
         user_id=uuid.uuid4(),
-        role="CFO",
-        permissions=frozenset(ROLE_PERMISSIONS["CFO"]),
+        role="DIR",
+        permissions=frozenset(ROLE_PERMISSIONS["DIR"]),
         department_id=dept,
+        scope_pillars=frozenset({"F"}),
     )
 
 

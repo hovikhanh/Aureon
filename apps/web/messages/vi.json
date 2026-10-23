@@ -69,15 +69,19 @@
   },
   "role": {
     "CEO": "CEO",
-    "CFO": "CFO",
-    "VP_SALES": "VP Sales",
-    "HR_MANAGER": "Trưởng nhân sự",
-    "REVIEWER": "Reviewer",
-    "CPO": "CPO",
-    "RISK_MANAGER": "Quản lý rủi ro",
-    "MANAGER": "Quản lý",
-    "EMPLOYEE": "Nhân viên",
-    "ADMIN": "Quản trị"
+    "DIR": "Giám đốc khối",
+    "MGR": "Trưởng bộ phận",
+    "EMP": "Nhân viên",
+    "REV": "Reviewer",
+    "ADM": "Quản trị",
+    "AI": "Trợ lý AI"
+  },
+  "demoAccount": {
+    "ceo": "CEO",
+    "cfo": "Giám đốc tài chính",
+    "vp_sales": "Giám đốc kinh doanh",
+    "hr_manager": "Giám đốc nhân sự",
+    "reviewer": "Reviewer"
   },
   "header": {
     "language": "Ngôn ngữ",

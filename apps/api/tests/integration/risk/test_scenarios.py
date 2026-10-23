@@ -74,7 +74,9 @@ async def test_scenario_validation_and_scope(api: ApiClient) -> None:
     assert (await _run(api, [r["id"]], horizon_months=25)).status_code == 422
     assert (await _run(api, [str(uuid.uuid4())])).status_code == 404
     assert (await _run(api, [r["id"]], role="RISK_MANAGER")).status_code == 201
-    assert (await _run(api, [r["id"]], role="VP_SALES")).status_code == 403
+    # Sales-DIR (khối C) có risk:query nhưng không thấy risk category=product (linked reader
+    # chỉ thấy risk khối mình) → risk nằm ngoài scope → 404 (R-DEC-12a; không lộ tồn tại).
+    assert (await _run(api, [r["id"]], role="VP_SALES")).status_code == 404
     bad = await _run(api, [r["id"]], assumptions={"foo": 1})
     assert bad.status_code == 422
 

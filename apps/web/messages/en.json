@@ -69,15 +69,19 @@
   },
   "role": {
     "CEO": "CEO",
-    "CFO": "CFO",
-    "VP_SALES": "VP Sales",
-    "HR_MANAGER": "HR Manager",
-    "REVIEWER": "Reviewer",
-    "CPO": "CPO",
-    "RISK_MANAGER": "Risk Manager",
-    "MANAGER": "Manager",
-    "EMPLOYEE": "Employee",
-    "ADMIN": "Admin"
+    "DIR": "Director",
+    "MGR": "Manager",
+    "EMP": "Employee",
+    "REV": "Reviewer",
+    "ADM": "Admin",
+    "AI": "AI Agent"
+  },
+  "demoAccount": {
+    "ceo": "CEO",
+    "cfo": "CFO",
+    "vp_sales": "VP Sales",
+    "hr_manager": "HR Manager",
+    "reviewer": "Reviewer"
   },
   "header": {
     "language": "Language",

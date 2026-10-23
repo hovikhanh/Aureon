@@ -18,11 +18,28 @@ from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 pytestmark = pytest.mark.integration
 
 
+# ex 10-role F.O.C.U.S → 7-role v3 (+ scope_pillars khối) — R-DEC-12/12a.
+_LEGACY: dict[str, tuple[str, frozenset[str]]] = {
+    "CEO": ("CEO", frozenset()),
+    "CFO": ("DIR", frozenset({"F"})),
+    "VP_SALES": ("DIR", frozenset({"C"})),
+    "HR_MANAGER": ("DIR", frozenset({"O"})),
+    "CPO": ("DIR", frozenset({"U"})),
+    "RISK_MANAGER": ("DIR", frozenset({"S"})),
+    "MANAGER": ("MGR", frozenset()),
+    "EMPLOYEE": ("EMP", frozenset()),
+    "REVIEWER": ("REV", frozenset()),
+    "ADMIN": ("ADM", frozenset()),
+}
+
+
 def principal(role: str) -> Principal:
+    v3, pillars = _LEGACY.get(role, (role, frozenset()))
     return Principal(
         user_id=uuid.uuid4(),
-        role=role,
-        permissions=frozenset(ROLE_PERMISSIONS[role]),
+        role=v3,
+        scope_pillars=pillars,
+        permissions=frozenset(ROLE_PERMISSIONS[v3]),
     )
 
 

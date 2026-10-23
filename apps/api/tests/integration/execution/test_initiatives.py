@@ -101,10 +101,10 @@ async def test_initiative_crud_scope_filters(api: ApiClient, db_session: AsyncSe
     flt = await api.call("GET", "/execution/initiatives", "MANAGER", department_id=dept, params={
         "objective_id": ini["objective_id"], "status": "at_risk", "pillar": "S"})  # fmt: skip
     assert [x["id"] for x in flt.json()["data"]] == [iid]
-    assert (await as_user(api, "GET", f"/execution/initiatives/{iid}", "EMPLOYEE",
+    assert (await as_user(api, "GET", f"/execution/initiatives/{iid}", "EMP",
                           owner)).status_code == 200  # fmt: skip
     stranger = await as_user(api, "GET", f"/execution/initiatives/{iid}/milestones",
-                             "EMPLOYEE", uuid.uuid4())  # fmt: skip
+                             "EMP", uuid.uuid4())  # fmt: skip
     assert stranger.status_code == 403
     mgr = await patch(api, f"/execution/initiatives/{iid}", 2, role="MANAGER",
                       department_id=str(uuid.uuid4()))  # fmt: skip

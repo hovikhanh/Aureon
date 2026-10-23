@@ -47,7 +47,11 @@ async def test_usage_aggregates_cost_and_error_rate(db_session) -> None:
     by_key = {r.key: r for r in out.rows}
     assert by_key["omniroute"].calls == b_calls + 5
     assert by_key["omniroute"].cost_usd == pytest.approx(b_cost + 1.25)
-    assert by_key["omniroute"].error_rate == pytest.approx((b_errors + 1) / (b_calls + 5))
+    # CostService làm tròn error_rate 4 chữ số (cost_service.py) → so khớp cùng độ chính xác
+    # (tỷ lệ thật có thể không hữu hạn khi dev-DB đã có log omniroute từ trước).
+    assert by_key["omniroute"].error_rate == pytest.approx(
+        round((b_errors + 1) / (b_calls + 5), 4), abs=1e-4
+    )
     assert by_key["deepseek"].cost_usd == pytest.approx(b_ds + 0.1)
     # rows ordered by cost desc
     assert [r.cost_usd for r in out.rows] == sorted((r.cost_usd for r in out.rows), reverse=True)

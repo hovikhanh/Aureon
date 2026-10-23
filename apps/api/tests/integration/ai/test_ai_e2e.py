@@ -67,7 +67,7 @@ async def test_ep115_116_action_lifecycle_over_http(api, db_session) -> None:
 
     # force L2 so the action waits as a confirm card
     await KillSwitchService(db_session).set(
-        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+        principal("ADM"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
     )
     ceo = Principal(user_id=ceo_id, role="CEO", permissions=frozenset(ROLE_PERMISSIONS["CEO"]))
     out = await svc.propose(
@@ -107,7 +107,7 @@ async def test_ep115_reject_over_http(api, db_session) -> None:
     from app.modules.ai.services.kill_switch_service import KillSwitchService
 
     await KillSwitchService(db_session).set(
-        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+        principal("ADM"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
     )
     ceo_id = uuid.uuid4()
     ceo = Principal(user_id=ceo_id, role="CEO", permissions=frozenset(ROLE_PERMISSIONS["CEO"]))
@@ -141,7 +141,7 @@ async def test_tool_executor_rejects_unknown_write_and_forbidden(db_session) -> 
     # metric tool needs an argument
     assert (await ex.run("TOOL-get_metric", {})).error_code == "AI_MISSING_ARGUMENT"
     # EMPLOYEE lacks the finance permission the tool requires → forbidden
-    emp = ToolExecutor(db_session, principal("EMPLOYEE"))
+    emp = ToolExecutor(db_session, principal("EMP"))
     assert (await emp.run("TOOL-get_finance_dashboard", {})).status == "forbidden"
 
 
@@ -168,7 +168,7 @@ async def test_action_get_foreign_is_not_found(db_session) -> None:
         ceo, action_name="ACT-create_task", tool_name="TOOL-create_task",
         input_data={"title": "owned", "status": "todo"}, idempotency_key="e2e-own",
     )  # fmt: skip
-    other = principal("CFO")
+    other = principal("DIR")
     with pytest.raises(NotFoundError):
         await svc.get(other, out.id)
 
@@ -179,7 +179,7 @@ async def test_action_undo_requires_executed(db_session) -> None:
     from app.modules.ai.services.kill_switch_service import KillSwitchService
 
     await KillSwitchService(db_session).set(
-        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+        principal("ADM"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
     )
     svc = ActionService(db_session)
     ceo = principal("CEO")
@@ -406,7 +406,7 @@ async def test_confirm_with_edited_input(db_session) -> None:
     from app.modules.ai.services.kill_switch_service import KillSwitchService
 
     await KillSwitchService(db_session).set(
-        principal("ADMIN"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
+        principal("ADM"), KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=[], reason="t")
     )
     svc = ActionService(db_session)
     ceo = principal("CEO")
@@ -464,7 +464,7 @@ async def test_finance_action_opens_approval_and_executes_on_hook(db_session) ->
 
     await asvc.decide(principal("CEO"), approval_id, decision="approve", reason=None)
     await asvc.decide(
-        principal("CFO"),
+        principal("DIR"),
         approval_id,
         decision="approve",
         reason=None,
@@ -578,7 +578,7 @@ async def test_tool_executor_metric_detail_ok(db_session) -> None:
 
 async def test_tool_executor_employee_metric_forbidden(db_session) -> None:
     # an EMPLOYEE asking a finance metric detail is scoped out → forbidden
-    ex = ToolExecutor(db_session, principal("EMPLOYEE"))
+    ex = ToolExecutor(db_session, principal("EMP"))
     r = await ex.run("TOOL-get_metric", {"metric_code": "METRIC-F-01"})
     assert r.status in ("forbidden",) or r.error_code in ("FORBIDDEN_ROLE", "AI_NO_DATA_AVAILABLE")
 

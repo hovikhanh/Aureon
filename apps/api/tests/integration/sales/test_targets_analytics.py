@@ -124,6 +124,8 @@ async def test_pipeline(api: ApiClient, db_session: AsyncSession) -> None:
     assert by["lead"]["value"] == 1_000_000_000 and by["lead"]["avg_days_in_stage"] is not None
     assert by["closed_won"]["count"] == 2 and data["period"] is None
     assert data["coverage_ratio"] == 3.0  # BR-SAL-04: 3 tỷ open in quarter / 1 tỷ
+    # R-DEC-12a (Option A): DIR ngoài khối C vẫn đọc TỔNG HỢP (sales:query), nhưng không
+    # xem được breakdown per-owner (cần quyền chi tiết khối C). Finance-DIR (CFO) minh hoạ.
     month = await api.call("GET", "/sales/pipeline", "CFO", params={"period": "current_month"})
     mby = {s["stage"]: s for s in month.json()["data"]["stages"]}
     assert mby["closed_won"]["count"] == 1 and mby["closed_lost"]["value"] == 400_000_000
@@ -131,15 +133,16 @@ async def test_pipeline(api: ApiClient, db_session: AsyncSession) -> None:
     oby = {s["stage"]: s for s in own.json()["data"]["stages"]}
     assert oby["proposal"]["count"] == 0 and oby["lead"]["count"] == 1
     assert own.json()["data"]["coverage_ratio"] is None  # bob has no quarter target
+    # Finance-DIR không thuộc khối C → breakdown per-owner bị chặn (aggregate-only).
     agg_only = await api.call("GET", "/sales/pipeline", "CFO", params={"owner_id": book["bob"]})
     assert agg_only.status_code == 403
     bad = await api.call("GET", "/sales/pipeline", "VP_SALES", params={"period": "custom"})
     assert bad.status_code == 400
-    assert (await api.call("GET", "/sales/pipeline", "HR_MANAGER")).status_code == 403
 
 
 async def test_performance(api: ApiClient, db_session: AsyncSession) -> None:
     book = await _book(api, db_session)
+    # Finance-DIR (CFO) đọc được tổng hợp team (sales:query ngoài khối vẫn cho aggregate).
     team = await api.call("GET", "/sales/performance", "CFO")
     assert team.json()["data"] == [{
         "owner_ref": "team", "closed_value": 600_000_000, "quota": 1_200_000_000,
@@ -149,6 +152,7 @@ async def test_performance(api: ApiClient, db_session: AsyncSession) -> None:
     rows = {r["owner_ref"]: r for r in own.json()["data"]}
     assert rows[book["alice"]]["attainment_pct"] == 200.0
     assert rows[book["bob"]]["win_rate_pct"] == 0.0 and rows[book["bob"]]["quota"] is None
+    # ...nhưng breakdown per-owner thì bị chặn cho DIR ngoài khối C (R-DEC-12a).
     denied = await api.call("GET", "/sales/performance", "CFO", params={"group_by": "owner"})
     assert denied.status_code == 403 and denied.json()["error"]["code"] == "FORBIDDEN_SCOPE"
 
@@ -182,9 +186,12 @@ async def test_dashboard_contract(api: ApiClient, db_session: AsyncSession) -> N
         p["period_key"] for p in d["pipeline_trend"]
     )
     assert d["pipeline_trend"][-1]["pipeline_value"] == 3_000_000_000
+    # Dashboard là tổng hợp (sales:query): mọi DIR đọc được, kể cả DIR ngoài khối C (R-DEC-12a).
     q = await api.call("GET", "/sales/dashboard", "RISK_MANAGER", params={"period": "ytd"})
     assert q.status_code == 200 and q.json()["data"]["period"]["type"] == "ytd"
-    assert (await api.call("GET", "/sales/dashboard", "HR_MANAGER")).status_code == 403
+    assert (await api.call("GET", "/sales/dashboard", "HR_MANAGER")).status_code == 200
+    # EMP không có sales:query → bị từ chối.
+    assert (await api.call("GET", "/sales/dashboard", "EMPLOYEE")).status_code == 403
 
 
 async def test_manager_analytics_scoped(api: ApiClient, db_session: AsyncSession) -> None:

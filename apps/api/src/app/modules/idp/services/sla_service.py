@@ -26,8 +26,8 @@ from app.modules.idp.models import ReviewAssignment, SourceDocument
 
 EVT_ESCALATED = "idp.review_escalated"
 
-# role codes used for escalation targets (02 §1.4)
-MANAGER_ROLE = "MANAGER"
+# role codes used for escalation targets (02 §1.4, R-DEC-12)
+MANAGER_ROLE = "MGR"
 DEPT_HEAD_ROLE = "CEO"  # department-head stand-in for the demo org (04 §8.3 "escalate_to")
 
 

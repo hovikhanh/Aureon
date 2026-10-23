@@ -42,6 +42,22 @@ AI-EOS là sản phẩm **AI-first** (P01) với con người trong vòng lặp 
 
 Gate C đạt khi: mỗi UC/FR P0 có ≥1 nhóm `TC-*` mapping; không có test gap blocking (bảo mật, event idempotency, Action Registry, grounding, exit criteria của mốc).
 
+### 1.4. Phase 1 — Refactor role 10→7 + tenant_id + review autonomy (trạng thái đợt code)
+
+Phase 1 (`09`, FE→BE verifiable) refactor nền v2.1 sang model v3: thay 10 role F.O.C.U.S bằng 7 role BRD + AI Agent (R-DEC-08/12), thêm `tenant_id` mọi business entity (R-DEC-07/13), phân biệt khối của ROLE-DIR gộp bằng `scope_pillars` (R-DEC-12a), review Tool Registry/Autonomy L0–L3 (L4 khóa) + kill switch.
+
+| Hạng mục | Trạng thái | Bằng chứng |
+|---|---|---|
+| Enum 7 role (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + `role_code` pg_enum | **Passed** | `core/enums.py`, `permission_matrix.py` (DIR=union 5 C-level), migration `0009_v3_roles_tenant` reversible |
+| `tenant_id` mọi business entity + JWT claim + backfill | **Passed** | `core/base_model.py` `TenantMixin` (47 bảng), `security.py` AccessClaims, migration `0009` |
+| `scope_pillars` (khối ⊆ F.O.C.U.S) phân biệt DIR | **Passed** | `auth.users.scope_pillars`, `deps.Principal.in_pillar`, seed 10 demo user |
+| Cô lập khối per-module (R-DEC-12a): record/write theo khối, aggregate/`:query` mở cho mọi DIR, dashboard HR giới hạn O/F/S, hiring-approve = Finance-DIR | **Passed** | `finance/hr/product/risk/sales` scope.py + routes `require_pillar_permission`; `dashboard.visible_pillars`; `hr.sees_hr_dashboard`/`hiring_service.decide`; 143 assertion cross-pillar giữ nguyên |
+| Field-level mức 4 (lương) chỉ CEO + HR-DIR(O); payroll aggregate thêm Finance-DIR(F) | **Passed (bảo mật ≥90%)** | `hr/scope.py` `sees_level4`/`sees_payroll`; `hr/test_dashboard.py`, `test_departments_employees_salary.py` |
+| Autonomy L0–L3, **L4 khóa** + kill switch còn nguyên (không coupling role cũ) | **Passed** | `enums.AUTONOMY_LEVEL`=L0..L3 (`# L4 out of scope`); `ai/autonomy.py` + `kill_switch_service.py` không tham chiếu role cũ; `ai/test_*` xanh |
+| Gate verify đợt code | ruff + mypy + FE lint/typecheck/test xanh; **BE pytest 770 passed** (role/scope đều xanh) | `uv run ruff check .` / `uv run mypy` / `pnpm test` (18/18) / `uv run pytest` |
+
+**Nợ kỹ thuật tiền-tồn (KHÔNG do Phase 1):** 4 case `tests/contract/test_api_contract.py` FAIL vì khi promote doc 10 sang v3 (commit `7a31c10`, trước Phase 1) bảng mã lỗi `### 1.4.` đã bị gỡ — doc 10 v3 §10 ghi "chốt danh sách đầy đủ ở đợt code (R-DEC-09)". Test parse bảng không còn tồn tại; không liên quan refactor role. Xử lý ở task riêng (viết lại contract test lấy mã lỗi từ `core/errors.py`, cần DEC về nguồn-sự-thật mã lỗi).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).

@@ -54,7 +54,7 @@ async def test_meeting_decision_task_chain(api: ApiClient, db_session: AsyncSess
                            params={"meeting_id": m["id"], "review_due": flag})  # fmt: skip
         assert r.status_code == 200
     # EMPLOYEE attendee sees the meeting + own decision; MANAGER of dept sees decision
-    assert (await as_user(api, "GET", f"/execution/meetings/{m['id']}", "EMPLOYEE",
+    assert (await as_user(api, "GET", f"/execution/meetings/{m['id']}", "EMP",
                           me)).status_code == 200  # fmt: skip
     md = await api.call("GET", "/execution/decisions", "MANAGER", department_id=dept,
                         params={"meeting_id": m["id"]})  # fmt: skip
@@ -62,7 +62,7 @@ async def test_meeting_decision_task_chain(api: ApiClient, db_session: AsyncSess
     other = await api.call("GET", f"/execution/decisions/{d['id']}", "MANAGER",
                            department_id=uuid.uuid4())  # fmt: skip
     assert other.status_code == 403
-    me_d = await as_user(api, "GET", "/execution/decisions", "EMPLOYEE", me)
+    me_d = await as_user(api, "GET", "/execution/decisions", "EMP", me)
     assert [x["id"] for x in me_d.json()["data"]] == [d["id"]]
     await api.call("DELETE", f"/execution/tasks/{t['id']}", "CEO")
     assert "execution.decision_update" in await audit_actions(db_session, d["id"])
@@ -70,11 +70,11 @@ async def test_meeting_decision_task_chain(api: ApiClient, db_session: AsyncSess
 
 async def test_meeting_and_decision_rules(api: ApiClient) -> None:
     me = uuid.uuid4()
-    m = await as_user(api, "POST", "/execution/meetings", "EMPLOYEE", me,
+    m = await as_user(api, "POST", "/execution/meetings", "EMP", me,
                       json={"title": "1:1", "held_at": HELD})  # fmt: skip
     assert m.status_code == 201 and m.json()["data"]["chair_id"] == str(me)
     mid = m.json()["data"]["id"]
-    foreign = await as_user(api, "POST", "/execution/meetings", "EMPLOYEE", me, json={
+    foreign = await as_user(api, "POST", "/execution/meetings", "EMP", me, json={
         "title": "x", "held_at": HELD, "chair_id": str(uuid.uuid4())})  # fmt: skip
     assert foreign.status_code == 403
     tr = await api.call("POST", "/execution/meetings", "CEO", json={
@@ -83,16 +83,16 @@ async def test_meeting_and_decision_rules(api: ApiClient) -> None:
     nf_meeting = await api.call("POST", "/execution/decisions", "CEO", json={
         "content": "x", "decided_at": HELD, "meeting_id": str(uuid.uuid4())})  # fmt: skip
     assert nf_meeting.status_code == 422
-    own = await as_user(api, "POST", "/execution/decisions", "EMPLOYEE", me, json={
+    own = await as_user(api, "POST", "/execution/decisions", "EMP", me, json={
         "content": "x", "decided_at": HELD, "meeting_id": mid, "status": "done",
         "review_at": ["2037-09-01"]})  # fmt: skip
     assert own.status_code == 201, own.text
     od = own.json()["data"]
     assert od["owner_id"] == str(me) and od["review_at"] == ["2037-09-01"] and od["done_at"]
-    other_owner = await as_user(api, "PATCH", f"/execution/decisions/{od['id']}", "EMPLOYEE",
+    other_owner = await as_user(api, "PATCH", f"/execution/decisions/{od['id']}", "EMP",
                                 me, json={"owner_id": str(uuid.uuid4()), "version": 1})  # fmt: skip
     assert other_owner.status_code == 403
-    deleted = await as_user(api, "DELETE", f"/execution/meetings/{mid}", "EMPLOYEE", me)
+    deleted = await as_user(api, "DELETE", f"/execution/meetings/{mid}", "EMP", me)
     assert deleted.status_code == 409
     lonely = await make(api, "/execution/meetings", {"title": "y", "held_at": HELD})
     assert (await api.call("DELETE", f"/execution/meetings/{lonely['id']}", "CEO")).status_code \
@@ -129,9 +129,9 @@ async def test_project_crud(api: ApiClient, db_session: AsyncSession) -> None:
     lst = await api.call("GET", "/execution/projects", "MANAGER", department_id=dept,
                          params={"status": "on_hold", "department_id": str(dept)})  # fmt: skip
     assert [x["id"] for x in lst.json()["data"]] == [p["id"]]
-    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMPLOYEE",
+    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMP",
                           owner)).status_code == 200  # fmt: skip
-    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMPLOYEE",
+    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMP",
                           uuid.uuid4())).status_code == 403  # fmt: skip
     t = await make_task(api, project_id=p["id"])
     assert (await api.call("DELETE", f"/execution/projects/{p['id']}", "CEO")).status_code == 409

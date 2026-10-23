@@ -235,7 +235,7 @@ class Pipeline:
             ReviewAssignment(
                 source_document_id=doc.id,
                 kind="ASSIGN",
-                to_role_code="REVIEWER",
+                to_role_code="REV",
                 due_at=due_at,
                 is_current=True,
             )

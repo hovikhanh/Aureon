@@ -28,9 +28,9 @@ from app.core.errors import AppError, PermissionDeniedError
 from app.modules.platform.models import ApprovalRequest, ApprovalRule
 from app.modules.platform.schemas import ApprovalRequestOut
 
-# step → approver roles for an AI-action finance approval (DEC-155)
-FINANCE_STEP_ROLES = {1: ("CEO",), 2: ("CFO",)}
-SINGLE_STEP_ROLES = ("CEO", "CFO")
+# step → approver roles for an AI-action finance approval (DEC-155; CFO→DIR theo R-DEC-12)
+FINANCE_STEP_ROLES = {1: ("CEO",), 2: ("DIR",)}
+SINGLE_STEP_ROLES = ("CEO", "DIR")
 DEFAULT_SLA_HOURS = 8
 RULE_SINGLE = "RULE-ai_action_single"
 RULE_TWO_SIDED = "RULE-ai_action_two_sided"
@@ -149,7 +149,7 @@ class ApprovalService:
             code=code, target_kind="ai_action",
             condition={"field": "amount", "op": ">=", "value": 0, "currency": "VND"},
             approver_role_codes=["CEO"],
-            second_approver_role_codes=["CFO"] if two_sided else None,
+            second_approver_role_codes=["DIR"] if two_sided else None,
             sla_hours=DEFAULT_SLA_HOURS, is_active=True, priority=100,
         )  # fmt: skip
         self.db.add(rule)

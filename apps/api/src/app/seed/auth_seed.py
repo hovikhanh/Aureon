@@ -1,10 +1,14 @@
-"""Seed `auth.roles` (10 roles, 02 §5.3) and demo users (08 §2) — idempotent upsert.
+"""Seed `auth.roles` (7 roles v3, R-DEC-12) and demo users (08 §2) — idempotent upsert.
 
 Roles: keyed by `code`; permissions / scope_rules / pillars / names re-synced from
 `permission_matrix` on every run (`version` bumped only when something changed).
 Users: keyed by e-mail; password only from env (`DEMO_<ROLE>_PASSWORD`, fallback
 `DEMO_PASSWORD`) — an account whose password is not configured is skipped, never created
 with a default. The hash is replaced only when the env password no longer verifies.
+
+R-DEC-12a: 10 demo accounts giữ nguyên (phủ UC demo), nhưng 5 C-level map vào ROLE-DIR và
+phân biệt bằng `scope_pillars` (Finance-DIR={F}, Sales-DIR={C}, HR-DIR={O}…). `env_key` giữ
+tên biến mật khẩu cũ (`DEMO_CFO_PASSWORD`…) để không phá cấu hình dev.
 """
 
 import logging
@@ -32,40 +36,40 @@ class RoleSpec:
     pillars: tuple[str, ...]
 
 
-# 02 §1 (name, pillars). REVIEWER / MANAGER / EMPLOYEE / ADMIN have no executive pillar.
+# 02 §1 (name, pillars) — 7 role v3 (R-DEC-12). CEO phủ toàn khối; DIR mang mọi khối
+# (phân biệt từng giám đốc ở user.scope_pillars); MGR/EMP/REV/ADM/AI không có khối điều hành.
 ROLES: tuple[RoleSpec, ...] = (
     RoleSpec("CEO", "Tổng giám đốc", "Chief Executive Officer", ("F", "O", "C", "U", "S")),
-    RoleSpec("CFO", "Giám đốc tài chính", "Chief Financial Officer", ("F", "S")),
-    RoleSpec("VP_SALES", "Giám đốc kinh doanh", "VP Sales", ("C",)),
-    RoleSpec("HR_MANAGER", "Trưởng phòng nhân sự", "HR Manager", ("O",)),
-    RoleSpec("REVIEWER", "Người duyệt dữ liệu", "Data Reviewer", ()),
-    RoleSpec("CPO", "Giám đốc sản phẩm", "Chief Product Officer", ("U",)),
-    RoleSpec("RISK_MANAGER", "Quản trị rủi ro", "Risk Manager", ("S",)),
-    RoleSpec("MANAGER", "Trưởng bộ phận", "Department Manager", ()),
-    RoleSpec("EMPLOYEE", "Nhân viên", "Employee", ()),
-    RoleSpec("ADMIN", "Quản trị hệ thống", "System Administrator", ()),
+    RoleSpec("DIR", "Giám đốc khối", "Director / Executive", ("F", "O", "C", "U", "S")),
+    RoleSpec("MGR", "Trưởng bộ phận", "Department Manager", ()),
+    RoleSpec("EMP", "Nhân viên", "Employee", ()),
+    RoleSpec("REV", "Người duyệt dữ liệu", "Data Reviewer", ()),
+    RoleSpec("ADM", "Quản trị hệ thống", "System Administrator", ()),
+    RoleSpec("AI", "Trợ lý AI", "AI Agent", ()),
 )
 
 
 @dataclass(frozen=True)
 class UserSpec:
-    role: str
+    role: str  # role_code v3 (CEO/DIR/MGR/EMP/REV/ADM)
     email: str
     full_name: str
+    env_key: str  # tên biến mật khẩu dev (giữ tên C-level cũ để không phá .env)
+    scope_pillars: tuple[str, ...] = ()  # khối phụ trách của DIR (R-DEC-12a)
 
 
-# 08 §2 — 10 demo accounts, one role each. Department link comes with the HR seed (S1).
+# 08 §2 — 10 demo accounts. 5 C-level → DIR, phân biệt bằng scope_pillars (R-DEC-12a).
 DEMO_USERS: tuple[UserSpec, ...] = (
-    UserSpec("CEO", "ceo@abc.demo", "Nguyễn Văn An"),
-    UserSpec("CFO", "cfo@abc.demo", "Trần Thị Minh"),
-    UserSpec("VP_SALES", "sales@abc.demo", "Lê Hoàng Giang"),
-    UserSpec("HR_MANAGER", "hr@abc.demo", "Phạm Thị Hạnh"),
-    UserSpec("REVIEWER", "reviewer@abc.demo", "Vũ Đức Thắng"),
-    UserSpec("CPO", "cpo@abc.demo", "Đỗ Quang Huy"),
-    UserSpec("RISK_MANAGER", "risk@abc.demo", "Bùi Thu Trang"),
-    UserSpec("MANAGER", "manager@abc.demo", "Hoàng Minh Tuấn"),
-    UserSpec("EMPLOYEE", "employee@abc.demo", "Ngô Thị Lan"),
-    UserSpec("ADMIN", "admin@abc.demo", "Trịnh Văn Khoa"),
+    UserSpec("CEO", "ceo@abc.demo", "Nguyễn Văn An", "CEO"),
+    UserSpec("DIR", "cfo@abc.demo", "Trần Thị Minh", "CFO", ("F",)),
+    UserSpec("DIR", "sales@abc.demo", "Lê Hoàng Giang", "VP_SALES", ("C",)),
+    UserSpec("DIR", "hr@abc.demo", "Phạm Thị Hạnh", "HR_MANAGER", ("O",)),
+    UserSpec("REV", "reviewer@abc.demo", "Vũ Đức Thắng", "REVIEWER"),
+    UserSpec("DIR", "cpo@abc.demo", "Đỗ Quang Huy", "CPO", ("U",)),
+    UserSpec("DIR", "risk@abc.demo", "Bùi Thu Trang", "RISK_MANAGER", ("S",)),
+    UserSpec("MGR", "manager@abc.demo", "Hoàng Minh Tuấn", "MANAGER"),
+    UserSpec("EMP", "employee@abc.demo", "Ngô Thị Lan", "EMPLOYEE"),
+    UserSpec("ADM", "admin@abc.demo", "Trịnh Văn Khoa", "ADMIN"),
 )
 
 
@@ -114,13 +118,14 @@ async def seed_users(
     session: AsyncSession, roles: dict[str, Role], report: SeedReport, cfg: ConfigService
 ) -> None:
     for spec in DEMO_USERS:
-        secret = cfg.demo_password_for(spec.role)
+        secret = cfg.demo_password_for(spec.env_key)
         if secret is None or not secret.get_secret_value():
-            log.warning("seed: skip %s — DEMO_%s_PASSWORD not set", spec.email, spec.role)
+            log.warning("seed: skip %s — DEMO_%s_PASSWORD not set", spec.email, spec.env_key)
             report.users[spec.email] = "skipped"
             continue
         password = secret.get_secret_value()
         role_id = roles[spec.role].id
+        pillars = list(spec.scope_pillars)
         stmt = select(User).where(User.email == spec.email)
         user = (await session.execute(stmt)).scalar_one_or_none()
         if user is None:
@@ -130,6 +135,7 @@ async def seed_users(
                     password_hash=hash_password(password),
                     full_name=spec.full_name,
                     role_id=role_id,
+                    scope_pillars=pillars,
                 )
             )
             report.users[spec.email] = "created"
@@ -137,6 +143,8 @@ async def seed_users(
         changed = False
         if user.role_id != role_id or user.full_name != spec.full_name:
             user.role_id, user.full_name, changed = role_id, spec.full_name, True
+        if list(user.scope_pillars) != pillars:
+            user.scope_pillars, changed = pillars, True
         if user.deleted_at is not None or not user.is_active:
             user.deleted_at, user.is_active, changed = None, True, True
         if not verify_password(user.password_hash, password):

@@ -19,8 +19,8 @@ pytestmark = pytest.mark.integration
 def _emp(dept: uuid.UUID, uid: uuid.UUID | None = None) -> Principal:
     return Principal(
         user_id=uid or uuid.uuid4(),
-        role="EMPLOYEE",
-        permissions=frozenset(ROLE_PERMISSIONS["EMPLOYEE"]),
+        role="EMP",
+        permissions=frozenset(ROLE_PERMISSIONS["EMP"]),
         department_id=dept,
     )
 
@@ -61,8 +61,8 @@ async def test_admin_sees_everything(db_session, idp_store) -> None:
     r = await UploadService(db_session).upload(submitter, [_file()])
     admin = Principal(
         user_id=uuid.uuid4(),
-        role="ADMIN",
-        permissions=frozenset(ROLE_PERMISSIONS["ADMIN"]),
+        role="ADM",
+        permissions=frozenset(ROLE_PERMISSIONS["ADM"]),
         department_id=None,
     )
     assert await IdpQueryService(db_session).get_document(admin, r.document_ids[0]) is not None

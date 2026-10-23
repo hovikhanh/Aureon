@@ -45,6 +45,28 @@ Mỗi FR-DATA dưới đây mô tả hành vi + tiêu chí chấp nhận mức s
 
 > Nguyên tắc classification (đồng bộ CLAUDE.md §2.2): Công khai/Nội bộ → có thể dùng cloud LLM; Mật → LLM local; Tuyệt mật → không đưa vào LLM. Hiện thực chính sách ở 07 (đợt code).
 
+### 2.2. Field-level đợt code — Phase 1 (R-DEC-12, R-DEC-13)
+
+> Chốt ở đợt code (R-DEC-09) khi refactor nền v2.1 → model v3. Áp cho hiện thực SQLAlchemy/Alembic; migration reversible.
+
+**`tenant_id` (R-DEC-13):** `tenant_id UUID NOT NULL`, mặc định một tenant hệ thống cố định ở MVP (single-tenant), có ở **mọi business entity** (thêm qua `TenantMixin`, gộp vào `BusinessModel`); index theo `tenant_id`. Repository lọc `tenant_id` của principal; JWT mang claim `tenant_id`; backfill tenant mặc định cho dữ liệu hiện có khi migrate.
+
+**`auth.role_code` enum (R-DEC-12):** 7 giá trị BRD + AI Agent (thay 10 giá trị F.O.C.U.S của nền v2.1):
+
+| role_code (v3) | ROLE-* | Gộp từ 10 code F.O.C.U.S | Phân biệt scope |
+|---|---|---|---|
+| `CEO` | ROLE-CEO | CEO | Toàn doanh nghiệp |
+| `DIR` | ROLE-DIR | CFO, VP_SALES, HR_MANAGER, CPO, RISK_MANAGER | Theo `department_id` + data scope (ABAC) |
+| `MGR` | ROLE-MGR | MANAGER | Team |
+| `EMP` | ROLE-EMP | EMPLOYEE | Cá nhân & việc được giao |
+| `REV` | ROLE-REV | REVIEWER | Hàng chờ review được phân |
+| `ADM` | ROLE-ADM | ADMIN | Cấu hình nền tảng (không mặc định đọc bản ghi nghiệp vụ) |
+| `AI` | ROLE-AI | (mới — actor) | Quyền agent ∩ người được phục vụ |
+
+- `DIR.permissions[]` = hợp quyền của 5 C-level cũ (ma trận: `auth/permission_matrix.py`, sinh từ 02 §5.3), **thu hẹp theo khối** bằng `auth.users.scope_pillars PILLAR[]` (R-DEC-12a, chống leo quyền): tập con ⊆ {F,O,C,U,S}; rỗng = không lọc (CEO, non-DIR). Tầng kiểm quyền ánh xạ domain↔pillar (finance↔F, hr↔O, sales↔C, product↔U, risk↔S; execution/idp/ai/dashboard/platform cross-pillar — không lọc) và từ chối domain nếu pillar ∉ `scope_pillars`. Phạm vi **hàng** vẫn thu hẹp bằng `department_id`/ownership (02 §5–§6).
+- `scope_pillars` vào claim JWT + `Principal`; effective-dated không áp (thuộc identity).
+- Giữ **bảng ánh xạ** 10→7 (R-DEC-08) ở `TRACEABILITY-SKELETON.md` §12 để truy nguyên test/seed nền v2.1.
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -154,6 +176,7 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (code round — human ủy quyền R-DEC-14, 2026-10-23):** Thêm §2.2 field-level đợt code Phase 1: `tenant_id UUID NOT NULL` + `TenantMixin` (R-DEC-13); `auth.role_code` enum 7 giá trị v3 (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + bảng gộp 10→7 (R-DEC-12). Chi tiết schema/migration ở code; mọi thay đổi reversible.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 (docs-first R-DEC-09 — không field-level DB): mỗi FR-DATA-01..08 thêm mô tả hành vi + tiêu chí chấp nhận; §2.1 data classification per nhóm entity; §3 bổ sung vai trò nghiệp vụ + entity P0 chính + liên kết lineage/event cho 13 nhóm; §4 sơ đồ quan hệ cốt lõi với cardinality mức khái niệm + giải thích chuỗi lineage; §6 mở rộng AI entity/grounding; §6bis Metric Store/Semantic layer; §6ter effective-dated scope P0; §7 event backbone (envelope, nguyên tắc outbox/idempotent, event→tác động); thêm OQ-05-04/05.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

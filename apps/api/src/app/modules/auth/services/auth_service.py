@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import Actor, record_audit
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import get_config
 from app.core.errors import InvalidCredentialsError, RefreshTokenInvalidError, UnauthenticatedError
 from app.core.security import (
@@ -79,6 +80,8 @@ class AuthService:
             role_id=str(role.id),
             permissions=role.permissions,
             department_id=user.department_id,
+            tenant_id=DEFAULT_TENANT_ID,  # single-tenant MVP (R-DEC-07/13)
+            scope_pillars=tuple(user.scope_pillars),  # R-DEC-12a — khối phụ trách của DIR
             now=now,
         )
         raw = new_refresh_token()

@@ -11,7 +11,7 @@ from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
-from app.core.deps import Principal, get_db, require_permission
+from app.core.deps import Principal, get_db, require_permission, require_pillar_permission
 from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
@@ -45,8 +45,11 @@ from app.modules.risk.services.scenario_service import ScenarioService
 router = EnvelopeRouter(tags=["risk"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
+# Reader giữ mở cho linked-reader liên-miền (DIR khối C/O/U đọc risk gắn với khối mình);
+# Writer cô lập khối S (R-DEC-12a): DIR ngoài khối S → 403; MGR (scope rỗng) vẫn qua, dept
+# được chốt ở scope.check_write. Query (what-if/dashboard) mở cho mọi DIR.
 Reader = Annotated[Principal, Depends(require_permission("risk:read"))]
-Writer = Annotated[Principal, Depends(require_permission("risk:write"))]
+Writer = Annotated[Principal, Depends(require_pillar_permission("risk:write"))]
 Querier = Annotated[Principal, Depends(require_permission("risk:query"))]
 Approver = Annotated[Principal, Depends(require_permission("risk:approve"))]
 DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}

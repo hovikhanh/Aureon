@@ -55,8 +55,7 @@ PROCESSING_STATUS = pg_enum("platform", "processing_status", "DONE", "DLQ")
 # --- cross-schema owned types ---
 ROLE_CODE = pg_enum(
     "auth", "role_code",
-    "CEO", "CFO", "VP_SALES", "HR_MANAGER", "REVIEWER", "CPO", "RISK_MANAGER", "MANAGER",
-    "EMPLOYEE", "ADMIN",
+    "CEO", "DIR", "MGR", "EMP", "REV", "ADM", "AI",  # 7 role BRD v3 + AI Agent (R-DEC-12)
 )  # fmt: skip
 AUTONOMY_LEVEL = pg_enum("ai", "autonomy_level", "L0", "L1", "L2", "L3")  # L4 out of scope
 

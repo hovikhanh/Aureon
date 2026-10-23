@@ -10,7 +10,7 @@
 
 import os
 from collections.abc import AsyncIterator, Iterator
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -87,18 +87,38 @@ class ApiClient:
         self.http = http
         self.app = app
 
+    # Legacy 10-code → (v3 role, scope_pillars) so existing tests keep their intent (R-DEC-12a):
+    # a "CFO" call becomes a Finance-DIR, "VP_SALES" a Sales-DIR, etc.
+    _LEGACY: ClassVar[dict[str, tuple[str, tuple[str, ...]]]] = {
+        "CFO": ("DIR", ("F",)),
+        "VP_SALES": ("DIR", ("C",)),
+        "HR_MANAGER": ("DIR", ("O",)),
+        "CPO": ("DIR", ("U",)),
+        "RISK_MANAGER": ("DIR", ("S",)),
+        "MANAGER": ("MGR", ()),
+        "EMPLOYEE": ("EMP", ()),
+        "REVIEWER": ("REV", ()),
+        "ADMIN": ("ADM", ()),
+        "CEO": ("CEO", ()),
+    }
+
     @staticmethod
     def headers(
-        role: str, *, department_id: Any = None, user_id: Any = None, idem: bool = False
-    ) -> dict[str, str]:
+        role: str, *, department_id: Any = None, user_id: Any = None, idem: bool = False,
+        scope_pillars: tuple[str, ...] | None = None,
+    ) -> dict[str, str]:  # fmt: skip
         import uuid
 
+        from app.core.base_model import DEFAULT_TENANT_ID
         from app.core.security import sign_access_token
         from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 
+        v3_role, legacy_pillars = ApiClient._LEGACY.get(role, (role, ()))
+        pillars = scope_pillars if scope_pillars is not None else legacy_pillars
         token, _ = sign_access_token(
-            user_id=user_id or uuid.uuid4(), email=f"{role.lower()}@abc.test", role=role,
-            role_id=role, permissions=list(ROLE_PERMISSIONS[role]), department_id=department_id,
+            user_id=user_id or uuid.uuid4(), email=f"{role.lower()}@abc.test", role=v3_role,
+            role_id=v3_role, permissions=list(ROLE_PERMISSIONS[v3_role]),
+            department_id=department_id, tenant_id=DEFAULT_TENANT_ID, scope_pillars=pillars,
         )  # fmt: skip
         h = {"Authorization": f"Bearer {token}"}
         if idem:

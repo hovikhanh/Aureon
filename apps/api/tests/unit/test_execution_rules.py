@@ -39,31 +39,31 @@ def _p(role: str, dept: uuid.UUID | None = None) -> Principal:
 
 def test_scope_levels() -> None:
     assert scope.level(_p("CEO")) == "all"
-    assert scope.level(_p("HR_MANAGER"), "query") == "all"
-    assert scope.level(_p("HR_MANAGER"), "read") == "d"
-    assert scope.level(_p("EMPLOYEE"), "query") == "o"
+    assert scope.level(_p("DIR"), "query") == "all"
+    assert scope.level(_p("DIR"), "read") == "d"
+    assert scope.level(_p("EMP"), "query") == "o"
     assert scope.predicate(_p("CEO"), "read", dept=Task.department_id) is None
-    none = scope.predicate(_p("MANAGER"), "read", dept=Task.department_id)
+    none = scope.predicate(_p("MGR"), "read", dept=Task.department_id)
     assert none is not None and str(none) == str(false())
     dept = uuid.uuid4()
-    mgr = _p("MANAGER", dept)
+    mgr = _p("MGR", dept)
     assert scope.allowed(mgr, "read", dept=dept, owners=())
     assert not scope.allowed(mgr, "read", dept=uuid.uuid4(), owners=())
     assert scope.allowed(mgr, "read", dept=None, owners=(mgr.user_id,))
     with pytest.raises(ScopeDeniedError):
-        scope.check(_p("EMPLOYEE", dept), "read", dept=dept, owners=())
+        scope.check(_p("EMP", dept), "read", dept=dept, owners=())
 
 
 def test_pin_department() -> None:
     dept = uuid.uuid4()
     assert scope.pin_department(_p("CEO"), dept) == dept
-    assert scope.pin_department(_p("MANAGER", dept), None) == dept
-    assert scope.pin_department(_p("EMPLOYEE", dept), None) == dept
+    assert scope.pin_department(_p("MGR", dept), None) == dept
+    assert scope.pin_department(_p("EMP", dept), None) == dept
     with pytest.raises(ScopeDeniedError):
-        scope.pin_department(_p("EMPLOYEE", dept), uuid.uuid4())
+        scope.pin_department(_p("EMP", dept), uuid.uuid4())
     with pytest.raises(ScopeDeniedError):
-        scope.pin_department(_p("MANAGER"), None)
-    emp = _p("EMPLOYEE")
+        scope.pin_department(_p("MGR"), None)
+    emp = _p("EMP")
     scope.require_self(emp, emp.user_id, None, field="owner_id")
     scope.require_self(_p("CEO"), uuid.uuid4(), field="owner_id")
     with pytest.raises(ScopeDeniedError):

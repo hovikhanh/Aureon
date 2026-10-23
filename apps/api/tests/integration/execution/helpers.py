@@ -17,11 +17,21 @@ def uniq(prefix: str = "X") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
 
 
+# ex 10-role F.O.C.U.S → 7-role v3 (+ scope_pillars khối) — R-DEC-12/12a.
+_LEGACY: dict[str, tuple[str, tuple[str, ...]]] = {
+    "CEO": ("CEO", ()), "CFO": ("DIR", ("F",)), "VP_SALES": ("DIR", ("C",)),
+    "HR_MANAGER": ("DIR", ("O",)), "CPO": ("DIR", ("U",)), "RISK_MANAGER": ("DIR", ("S",)),
+    "MANAGER": ("MGR", ()), "EMPLOYEE": ("EMP", ()), "REVIEWER": ("REV", ()), "ADMIN": ("ADM", ()),
+}  # fmt: skip
+
+
 def headers(role: str, user_id: Any, department_id: Any = None) -> dict[str, str]:
     """Token for a fixed user id (owner / assignee scope `◑o`)."""
+    v3, pillars = _LEGACY.get(role, (role, ()))
     token, _ = sign_access_token(
-        user_id=user_id, email=f"{role.lower()}@abc.test", role=role, role_id=role,
-        permissions=list(ROLE_PERMISSIONS[role]), department_id=department_id,
+        user_id=user_id, email=f"{v3.lower()}@abc.test", role=v3, role_id=v3,
+        permissions=list(ROLE_PERMISSIONS[v3]), department_id=department_id,
+        scope_pillars=pillars,
     )  # fmt: skip
     return {"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())}
 

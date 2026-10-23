@@ -118,12 +118,31 @@ class SourceMixin:
     source: Mapped[str] = mapped_column(RECORD_SOURCE, nullable=False)
 
 
+# R-DEC-07/R-DEC-13: single-tenant ở MVP, mọi business entity mang `tenant_id` sẵn sàng đa tenant.
+# Tenant mặc định cố định: dùng cho server_default (backfill) + seed, đổi được khi lên đa tenant.
+DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+class TenantMixin:
+    """`tenant_id` — có ở mọi business entity (R-DEC-13); index để lọc theo tenant."""
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+        default=DEFAULT_TENANT_ID,
+        server_default=text(f"'{DEFAULT_TENANT_ID}'"),
+    )
+
+
 class CommonFieldsMixin(SourceMixin, ClassificationMixin, VersionMixin):
     """All three C19 columns."""
 
 
-class BusinessModel(Base, IdMixin, TimestampMixin, SoftDeleteMixin, ActorMixin, CommonFieldsMixin):
-    """Abstract base for business entities (05 §2.1 group 1)."""
+class BusinessModel(
+    Base, IdMixin, TenantMixin, TimestampMixin, SoftDeleteMixin, ActorMixin, CommonFieldsMixin
+):
+    """Abstract base for business entities (05 §2.1 group 1), tenant-scoped (R-DEC-13)."""
 
     __abstract__ = True
 

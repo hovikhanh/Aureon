@@ -26,7 +26,7 @@ TS = DateTime(timezone=True)
 
 
 class Role(ConfigModel):
-    """ENT-Role — seeded 10 rows; permissions are a text[] (no Permission entity, DEC-150)."""
+    """ENT-Role — 7 rows (R-DEC-12); permissions là text[] (không có Permission entity, DEC-150)."""
 
     __tablename__ = "roles"
     __table_args__ = schema_args(S)
@@ -54,6 +54,10 @@ class User(ConfigModel, SoftDeleteMixin):
     full_name: Mapped[str] = txt()
     role_id: Mapped[uuid.UUID] = fk(f"{S}.roles.id")
     department_id: Mapped[uuid.UUID | None] = sr()
+    # R-DEC-12a: khối phụ trách của ROLE-DIR (⊆ F,O,C,U,S); rỗng = không lọc khối (CEO, non-DIR).
+    scope_pillars: Mapped[list[str]] = mapped_column(
+        ARRAY(PILLAR), nullable=False, server_default=text("'{}'")
+    )
     employee_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, unique=True, index=True
     )

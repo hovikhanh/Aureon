@@ -72,7 +72,7 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
             <option value="">—</option>
             {DEMO_ACCOUNTS.map((a) => (
               <option key={a.email} value={a.email}>
-                {t(`role.${a.role}`)} — {a.email}
+                {t(`demoAccount.${a.labelKey}`)} — {a.email}
               </option>
             ))}
           </NativeSelect>

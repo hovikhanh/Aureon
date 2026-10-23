@@ -28,6 +28,17 @@ Human đã chốt 6 quyết định nền (chọn mặc định đề xuất). �
 | R-DEC-04 | Rebuild AI-EOS không ghi đè docs v2.1 (nay đã promote thành tài liệu chính thức Aureon v3 tại `docs/1.CONTEXT`–`docs/4.GOVERNANCE/`; v2.1 archived ở `docs/_archive/v2.1/`) | resolved (human) |
 | R-DEC-11 | **Ủy quyền agent sửa `CLAUDE.md` / `AGENT.md` / `.github/copilot-instructions.md`** — chỉ trong phạm vi doc-loading AI-EOS: trỏ canonical `_reference/` + bộ docs chính thức Aureon v3 (`docs/1.CONTEXT`–`docs/4.GOVERNANCE/`), đánh dấu docs v2.1 là baseline reference-only, cập nhật branding Aureon — AI-EOS / release line Aureon v3. Giữ nguyên mọi quy tắc an toàn (gate A/B/C, cấm lộ secret, cấm tự quyết API/schema/stack). Bỏ ràng buộc CLAUDE.md §6.3(6)/§6.6(10) **chỉ cho đợt này**. Bản v2.1 lưu trong git history. | resolved (human, 2026-10-22) |
 
+## 2bis. Quyết định đợt code (code round) — ĐÃ CHỐT (human)
+
+> Đợt code bắt đầu (R-DEC-09: field-level chốt ở đợt code). Các quyết định dưới đây chốt field-level/schema để refactor codebase nền v2.1 sang model v3 theo phase (`09`). Human ủy quyền agent cập nhật `05-DATA-MODEL.md` (field-level) + file này trước khi đổi schema, trong phạm vi từng DEC.
+
+| ID | Quyết định | Trạng thái |
+|---|---|---|
+| R-DEC-12 | **Phase 1 — Role enum v3 field-level.** `auth.role_code` (enum DB) đổi từ 10 giá trị F.O.C.U.S (CEO/CFO/VP_SALES/HR_MANAGER/REVIEWER/CPO/RISK_MANAGER/MANAGER/EMPLOYEE/ADMIN) → **7 giá trị BRD + AI Agent**: `CEO`, `DIR`, `MGR`, `EMP`, `REV`, `ADM`, `AI` (↔ ROLE-CEO/DIR/MGR/EMP/REV/ADM/AI). Ánh xạ 10→7 (R-DEC-08, 02 §2.1): CEO→CEO; **CFO/VP_SALES/HR_MANAGER/CPO/RISK_MANAGER → DIR**; MANAGER→MGR; EMPLOYEE→EMP; REVIEWER→REV; ADMIN→ADM; thêm **AI** (actor mới). Migration reversible. Field-level ghi ở `05-DATA-MODEL.md` §2.2. | resolved (human, 2026-10-23) |
+| R-DEC-12a | **Phase 1 — DIR scope theo khối (chống leo quyền).** 5 C-level gộp vào một `DIR` role row với **permission set chuẩn = hợp các action domain của 5 C-level**, NHƯNG DIR bị **thu hẹp theo khối phụ trách**: thêm `auth.users.scope_pillars PILLAR[]` (tập ⊆ {F,O,C,U,S}; rỗng = toàn bộ, dùng cho ROLE-CEO). Claim JWT `scope_pillars`; `Principal.scope_pillars`. Tầng kiểm quyền ánh xạ domain↔pillar (finance↔F, hr↔O, sales↔C, product↔U, risk↔S; execution/idp/ai/dashboard/platform là cross-pillar — không lọc) và **từ chối** permission domain nếu pillar của domain ∉ `scope_pillars` (khi `scope_pillars` không rỗng). Kết quả: Finance-DIR (scope_pillars={F}) chỉ dùng `finance:*`; không thể ghi sales/hr/product/risk. CEO/non-DIR: `scope_pillars` rỗng → không lọc (hành vi như cũ). Field-level: `05-DATA-MODEL.md` §2.2. | resolved (human, 2026-10-23) |
+| R-DEC-13 | **Phase 1 — `tenant_id` field-level (R-DEC-07).** Thêm cột `tenant_id UUID NOT NULL` vào **mọi business entity** (qua `TenantMixin` ở `core/base_model.py`), default = một tenant hệ thống cố định ở MVP (single-tenant); index theo `tenant_id`. Thêm claim `tenant_id` vào JWT + middleware gắn tenant hiện tại; repository enforce lọc `tenant_id`. Migration reversible, backfill tenant mặc định cho dữ liệu hiện có. Field-level ghi ở `05-DATA-MODEL.md` §2.1. | resolved (human, 2026-10-23) |
+| R-DEC-14 | **Ủy quyền agent cập nhật `05-DATA-MODEL.md` + `13` (file này) cho đợt code**, trong phạm vi field-level của các DEC đợt code (R-DEC-12, R-DEC-13 và kế tiếp). Bỏ ràng buộc CLAUDE.md §6.3(2)/(6) và §6.6(1)/(10) **chỉ cho các DEC đã liệt kê**; mọi quy tắc an toàn khác giữ nguyên (gate A/B/C, cấm lộ secret, cấm tự thêm endpoint/field/tool/event ngoài 10, migration reversible). | resolved (human, 2026-10-23) |
+
 ## 3. Quyết định mở từ BRD §21.1 — CHỜ CEO (không blocking cho docs P0)
 
 Các quyết định này thuộc về CEO/chủ sản phẩm; không chặn việc hoàn thiện tài liệu P0 (docs ghi mặc định tạm + đánh dấu "chờ CEO"). Khi CEO chốt → nâng thành DEC chính thức và cập nhật file liên quan.
@@ -54,5 +65,6 @@ Các quyết định này thuộc về CEO/chủ sản phẩm; không chặn vi�
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
+- **Change 1.1.0 (code round — human ủy quyền, 2026-10-23):** Thêm §2bis Quyết định đợt code: R-DEC-12 (role enum v3 7 giá trị + ánh xạ 10→7, Phase 1), R-DEC-13 (`tenant_id` field-level, Phase 1), R-DEC-14 (ủy quyền agent cập nhật 05 + 13 cho field-level đợt code). Bắt đầu đợt code refactor nền v2.1 → model v3 theo phase (09).
 - **Change 0.2.0:** Human chốt Q1–Q6 → R-DEC-05..10 `resolved` (P0 MVP first, Modular Monolith, single-tenant + `tenant_id`, 7 role + AI Agent, docs-first, ID theo BRD + ánh xạ `main`). Thêm R-DEC-11 (ủy quyền sửa file bảo vệ cho doc-loading AI-EOS). Chuyển B1–B7 (BRD §21.1) thành quyết định mở của CEO, không blocking docs P0.
 - **Change 0.1.0:** Tạo 13 cho nhánh `ai-eos` — gom Q1–Q6 + B1–B7 + R-DEC-01..04.

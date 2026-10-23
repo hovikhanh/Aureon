@@ -3,7 +3,8 @@
 Reads the metric store only through `platform` public services (DTOs). Pillar visibility
 (02 §5.4): a pillar is visible when the caller holds `<domain>:query` of its module (aggregate
 `○` included); out-of-scope pillars are **absent** from lists (CLAUDE §5.3) and 403 on detail.
-VP_SALES / HR_MANAGER / CPO see only METRIC-FIN-01 of pillar F (their `finance:query ○`).
+Non-finance DIR see only METRIC-FIN-01 of pillar F (their `finance:query ○`); R-DEC-12a scopes
+a DIR to its khối via `scope_pillars`, so `visible_pillars` falls out of `Principal.has()`.
 """
 
 import uuid
@@ -31,7 +32,7 @@ from app.modules.platform.services.metric_query import AlertDTO, MetricQueryServ
 
 PILLAR_DOMAIN = {"F": "finance", "O": "hr", "C": "sales", "U": "product", "S": "risk"}
 PILLARS = ("F", "O", "C", "U", "S")
-FIN_FULL_ROLES = {"CEO", "CFO", "RISK_MANAGER"}
+_FIN_FULL_PILLARS = frozenset({"F", "S"})  # Finance-DIR / Risk-DIR see full pillar-F metrics
 NO_DATA_RATIO = 0.5  # PILLAR_NO_DATA_RATIO (03 §4)
 _RANK = {"ok": 0, "warning": 1, "critical": 2}
 DATA_SOURCES = {
@@ -46,15 +47,34 @@ DATA_SOURCES = {
 
 
 def visible_pillars(user: Principal) -> set[str]:
-    return {p for p, d in PILLAR_DOMAIN.items() if user.has(f"{d}:query")}
+    """Trụ hiện trên dashboard = có `:query` VÀ thuộc khối phụ trách (R-DEC-12a).
+
+    `:query` nay không bị lọc theo khối ở tầng permission (DIR đọc được tổng hợp mọi
+    domain), nên menu dashboard tự thu hẹp theo `scope_pillars`: Sales-DIR chỉ thấy C.
+    Ngoại lệ trụ F: headline tài chính công khai (METRIC-FIN-01) hiển thị cho mọi vai có
+    `finance:query` (02 §6.1) — `metric_visible` sẽ thu hẹp xuống đúng METRIC-FIN-01 nếu
+    vai không phải full-finance reader. CEO / DIR toàn khối thấy tất cả.
+    """
+    seen = {p for p, d in PILLAR_DOMAIN.items() if user.has(f"{d}:query") and user.in_pillar(d)}
+    if "F" not in seen and user.has("finance:query"):
+        seen.add("F")  # chỉ để lộ headline công khai; chi tiết do metric_visible chặn
+    return seen
 
 
 def metric_visible(user: Principal, code: str, pillar: str | None) -> bool:
     if pillar is None or pillar not in visible_pillars(user):
         return False
-    if pillar == "F" and user.role not in FIN_FULL_ROLES:
+    if pillar == "F" and not _sees_full_finance(user):
         return code == "METRIC-FIN-01"
     return True
+
+
+def _sees_full_finance(user: Principal) -> bool:
+    if user.role == "CEO":
+        return True
+    return user.role == "DIR" and (
+        not user.scope_pillars or bool(_FIN_FULL_PILLARS & user.scope_pillars)
+    )
 
 
 def pillar_status(statuses: list[str]) -> PillarState:
@@ -137,7 +157,7 @@ class DashboardService:
         if pillar is not None:
             pillars &= {pillar}
         codes = None
-        if "F" in pillars and user.role not in FIN_FULL_ROLES:
+        if "F" in pillars and not _sees_full_finance(user):
             codes = {d.code for d in await self.q.definitions()
                      if metric_visible(user, d.code, d.pillar)}  # fmt: skip
         rows, total = await self.q.list_alerts(

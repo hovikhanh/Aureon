@@ -39,11 +39,12 @@ from app.modules.dashboard.services.dashboard_service import (
     visible_pillars,
 )
 
-PILLAR_OWNER = {"F": "CFO", "C": "VP_SALES", "O": "HR_MANAGER", "U": "CPO", "S": "RISK_MANAGER"}
-# which roles should see a pillar's insight (pillar owner + CEO always)
+# Pillar owner = the responsible director (R-DEC-12a: 5 C-level nền v2.1 → DIR).
+PILLAR_OWNER = {"F": "DIR", "C": "DIR", "O": "DIR", "U": "DIR", "S": "DIR"}
+# Roles seeing a pillar's insight: CEO + DIR (pillar narrowing applied via visible_pillars).
 PILLAR_AUDIENCE = {
-    "F": ["CEO", "CFO"], "C": ["CEO", "VP_SALES"], "O": ["CEO", "HR_MANAGER"],
-    "U": ["CEO", "CPO"], "S": ["CEO", "RISK_MANAGER"],
+    "F": ["CEO", "DIR"], "C": ["CEO", "DIR"], "O": ["CEO", "DIR"],
+    "U": ["CEO", "DIR"], "S": ["CEO", "DIR"],
 }  # fmt: skip
 INSIGHT_TTL = timedelta(days=7)
 REQUIRED_PARTS = (

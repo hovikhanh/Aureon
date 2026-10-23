@@ -94,7 +94,7 @@ async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
 async def test_patch_with_matching_if_match_bumps_version(
     client: httpx.AsyncClient, db_session: AsyncSession, roles: dict[str, Role]
 ) -> None:
-    u = await _user(db_session, roles["EMPLOYEE"])
+    u = await _user(db_session, roles["EMP"])
     assert u.version == 1
     r = await client.patch(f"/users/{u.id}", json={"full_name": "Sau"}, headers={"If-Match": "1"})
     assert r.status_code == 200, r.text
@@ -106,7 +106,7 @@ async def test_patch_with_matching_if_match_bumps_version(
 async def test_patch_with_stale_version_is_409(
     client: httpx.AsyncClient, db_session: AsyncSession, roles: dict[str, Role]
 ) -> None:
-    u = await _user(db_session, roles["EMPLOYEE"])
+    u = await _user(db_session, roles["EMP"])
     ok = await client.patch(f"/users/{u.id}", json={"full_name": "A"}, headers={"If-Match": '"1"'})
     assert ok.status_code == 200
     r = await client.patch(f"/users/{u.id}", json={"full_name": "B"}, headers={"If-Match": "1"})
@@ -129,7 +129,7 @@ async def test_patch_version_missing_or_inconsistent_is_422(
     headers: dict[str, str],
     body_version: int | None,
 ) -> None:
-    u = await _user(db_session, roles["EMPLOYEE"])
+    u = await _user(db_session, roles["EMP"])
     body: dict[str, Any] = {"full_name": "X", "version": body_version}
     r = await client.patch(f"/users/{u.id}", json=body, headers=headers)
     assert (r.status_code, r.json()["error"]["code"]) == (422, "VALIDATION_ERROR")
@@ -142,7 +142,7 @@ async def test_concurrent_patches_same_version_exactly_one_wins(roles: dict[str,
     engine = create_async_engine(get_config().database_url.get_secret_value(), poolclass=NullPool)
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as s:
-        role = await s.get(Role, roles["EMPLOYEE"].id)
+        role = await s.get(Role, roles["EMP"].id)
         if role is None:  # roles fixture runs in a rolled-back tx; seeded row must exist
             pytest.fail("EMPLOYEE role not seeded — run `uv run python -m app.seed`")
         u = await _user(s, role)
@@ -178,7 +178,7 @@ async def test_concurrent_patches_same_version_exactly_one_wins(roles: dict[str,
 async def test_update_without_expected_version_still_bumps(
     db_session: AsyncSession, roles: dict[str, Role]
 ) -> None:
-    u = await _user(db_session, roles["EMPLOYEE"])
+    u = await _user(db_session, roles["EMP"])
     await BaseRepository(db_session, User).update(u, full_name="Y")
     assert u.version == 2
 

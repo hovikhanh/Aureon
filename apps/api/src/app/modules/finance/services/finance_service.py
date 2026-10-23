@@ -39,7 +39,7 @@ from app.modules.finance.schemas import (
 )
 from app.modules.finance.services.budget_service import BudgetService
 
-DEPARTMENT_SCOPED_ROLES = frozenset({"MANAGER"})
+DEPARTMENT_SCOPED_ROLES = frozenset({"MGR"})  # R-DEC-12: ROLE-MGR scope phòng ban
 
 
 def period_of(d: Any) -> str:

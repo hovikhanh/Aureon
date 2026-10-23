@@ -9,13 +9,14 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import Principal, get_db, require_permission
+from app.core.deps import Principal, get_db, require_permission, require_pillar_permission
 from app.core.routing import EnvelopeRouter
 
 router = EnvelopeRouter(tags=["product"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
+# Record reads cô lập khối U ở service (require_reader); writes cô lập khối U ở dependency.
 Reader = Annotated[Principal, Depends(require_permission("product:read"))]
-Writer = Annotated[Principal, Depends(require_permission("product:write"))]
+Writer = Annotated[Principal, Depends(require_pillar_permission("product:write"))]
 Querier = Annotated[Principal, Depends(require_permission("product:query"))]
 DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}
