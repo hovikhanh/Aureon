@@ -11,6 +11,7 @@ const EXEC = ["home", "ask", "goals", "work", "meetings", "data", "business", "k
 const SIDEBAR: readonly (readonly [string, readonly string[]])[] = [
   ["ceo@abc.demo", ALL],
   ["cfo@abc.demo", EXEC],
+  ["hr@abc.demo", ALL], // DIR khối O → Quản trị (cơ cấu, R-DEC-30; T-617F)
   ["manager@abc.demo", EXEC],
   ["employee@abc.demo", EXEC],
   ["reviewer@abc.demo", ["home", "ask", "data", "business", "knowledge"]],

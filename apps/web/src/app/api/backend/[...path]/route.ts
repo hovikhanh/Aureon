@@ -5,7 +5,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { API_BASE, isMockMode } from "@/lib/server-env";
-import { persistToken, readToken } from "@/lib/session-token";
+import { clearSession, persistToken, readToken } from "@/lib/session-token";
 import { decodeMockToken } from "@/mocks/auth";
 import { handleMock } from "@/mocks/router";
 
@@ -37,9 +37,11 @@ async function mock(req: NextRequest, path: string[]): Promise<Response> {
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
   const { path } = await ctx.params;
   if (isMockMode()) return mock(req, path);
-  const { token, refreshed } = await readToken(req);
+  const { token, refreshed, revoked } = await readToken(req);
   if (!token) {
-    return NextResponse.json(UNAUTH, { status: 401 });
+    const res = NextResponse.json(UNAUTH, { status: 401 });
+    if (revoked) clearSession(res); // otherwise /login → / → 401 → /login loops on a dead session
+    return res;
   }
   const headers = new Headers({ authorization: `Bearer ${token.accessToken}` });
   for (const h of FORWARD_REQ) {
