@@ -79,6 +79,89 @@ Mỗi FR-DATA dưới đây mô tả hành vi + tiêu chí chấp nhận mức s
 - Migration reversible (`0010_tenant_outbox`), backfill tenant mặc định. Không đổi bảng nghiệp vụ (đã có `tenant_id` từ `0009`).
 - Seed v3 (R-DEC-23) **không** đổi schema; DEC-230/231 hết hiệu lực, số liệu demo theo `08`.
 
+### 2.4. Field-level đợt code — M1.2 (D01 Organization, D02 Admin, D05 Notification — đề xuất, chờ human duyệt bước S)
+
+> Migration dự kiến `0011_org_assignments_notifications` (reversible, backfill). Nhóm cột theo §2.1 nền code: `BusinessModel` = id + `tenant_id` + timestamps + `deleted_at` + `created_by/updated_by` + `source` + `data_classification` + `version`. Endpoint ở 10 §7.2.1.
+
+**ENT-Organization — `hr.organizations`** (mới, `BusinessModel`; R-DEC-24 — schema `hr`)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `code` | text | NOT NULL; unique `(tenant_id, code)` WHERE `deleted_at IS NULL` | Nội bộ | VD `ABC` |
+| `name` | text | NOT NULL | Nội bộ | Tên giao dịch |
+| `legal_name` | text | NULL | Nội bộ | Tên pháp lý |
+| `tax_code` | text | NULL | Nội bộ | MST doanh nghiệp (công khai về pháp lý; không phải MST cá nhân) |
+| `valid_from` | date | NOT NULL | Nội bộ | Ngày bắt đầu hiệu lực |
+| `valid_to` | date | NULL; CHECK `valid_to IS NULL OR valid_to > valid_from` | Nội bộ | NULL = đang hiệu lực; set khi archive |
+
+- **BusinessUnit** (T-611 "tùy chọn"): **không** tạo ở M1.2 — khối/phòng cấp cao biểu diễn bằng `departments.parent_id` (OQ-05-06).
+- MVP single-tenant: một tenant có thể nhiều Organization (pháp nhân), seed ABC có **1**.
+
+**ENT-Department — `hr.departments`** (sửa)
+
+| Cột | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `organization_id` | + mới | UUID NOT NULL FK `hr.organizations.id` (RESTRICT), index | Backfill = Organization seed của tenant (migration tạo 1 org mặc định cho tenant có phòng ban) |
+| `parent_id` | giữ (đã có) | UUID NULL FK `hr.departments.id`, index | Service chặn vòng (chính nó/hậu duệ) và cha khác `organization_id` |
+| `valid_from` | + mới | date NOT NULL | Backfill = `created_at::date` |
+| `valid_to` | + mới | date NULL; CHECK `> valid_from` | Set khi archive cùng `deleted_at` |
+| `code` | sửa unique | unique toàn cục → unique `(tenant_id, code)` WHERE `deleted_at IS NULL` (áp tương tự cho `teams.code`, `positions.code`) | Archive xong được dùng lại mã |
+
+**ENT-Team — `hr.teams`** (sửa): + `valid_from date NOT NULL` (backfill `created_at::date`), + `valid_to date NULL`; ngữ nghĩa như Department. **ENT-Position** giữ nguyên (không effective-dated — lịch sử nằm ở phân công).
+
+**ENT-EmployeeAssignment — `hr.employee_assignments`** (mới, `BusinessModel`; FR-ORG-04, FR-DATA-07, §6ter)
+
+| Cột | Kiểu | Ràng buộc | Mức |
+|---|---|---|---|
+| `employee_id` | UUID | NOT NULL FK `hr.employees.id`, index | Nội bộ |
+| `department_id` | UUID | NOT NULL FK `hr.departments.id`, index | Nội bộ |
+| `team_id` | UUID | NULL FK `hr.teams.id`, index; team phải thuộc `department_id` (service) | Nội bộ |
+| `position_id` | UUID | NULL FK `hr.positions.id`, index; position phải thuộc `department_id` (service) | Nội bộ |
+| `manager_id` | UUID | NULL FK `hr.employees.id`, index; CHECK `manager_id <> employee_id` | Nội bộ |
+| `valid_from` | date | NOT NULL | Nội bộ |
+| `valid_to` | date | NULL; CHECK `valid_to IS NULL OR valid_to > valid_from` | Nội bộ |
+| `reason` | text | NULL (≤ 500) | Nội bộ |
+
+- **Khoảng nửa mở `[valid_from, valid_to)`**; `valid_to IS NULL` = phân công **hiện hành**. Hiệu lực tại ngày X ⇔ `valid_from <= X AND (valid_to IS NULL OR valid_to > X)` (index `(employee_id, valid_from)` và `(department_id, valid_from)`).
+- **Không chồng khoảng cho cùng `employee_id`** (bỏ qua bản ghi `deleted_at`): (1) unique partial index `(employee_id) WHERE valid_to IS NULL AND deleted_at IS NULL` — tối đa một phân công hiện hành; (2) service kiểm chồng khoảng trong transaction sau `SELECT … FOR UPDATE` trên dòng `hr.employees` (tuần tự hóa ghi cùng nhân viên). Ràng buộc `EXCLUDE USING gist` cần extension `btree_gist` (chưa có trong `0001` EXTENSIONS) → **không dùng ở M1.2** (OQ-05-07).
+- Đổi phân công = đóng bản hiện hành (`valid_to = valid_from` mới) + mở bản mới, một transaction, không tạo khoảng trống; không backdate trước `valid_from` hiện hành (sửa lịch sử = PATCH có audit, EP-ORG-23).
+- **Cột cache trên `hr.employees`** (`department_id`, `team_id`, `position_id`, `manager_id`) giữ nguyên làm **giá trị hiện hành**, đồng bộ cùng transaction với phân công — code v2.1/scope/dashboard không đổi. Truy vấn quá khứ (`as_of`) **chỉ** đọc `employee_assignments`.
+- Backfill migration: mỗi nhân viên live một dòng `valid_from = hire_date`, `valid_to = termination_date` (NULL nếu còn làm), lấy từ cột cache.
+- **Giới hạn P0:** đổi `departments.parent_id` **không** effective-dated (cây `as_of` dùng `parent_id` hiện tại + khoảng tồn tại `valid_from/valid_to` của đơn vị); lịch sử tái cấu trúc cấp phòng ban truy qua audit (OQ-05-08).
+
+**ENT-Notification — `platform.notifications`** (sửa; `LogModel`, không `deleted_at`)
+
+| Cột | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `tenant_id` | + mới | UUID NOT NULL, default tenant hệ thống (backfill), index | `LogModel` không có `TenantMixin` (như `outbox_events` §2.3); EP-NTF lọc tenant + `recipient_id` |
+| `email_status` | + mới | enum `platform.email_status` ∈ `NOT_REQUIRED, PENDING, SENT, FAILED` NOT NULL default `NOT_REQUIRED`; index `(email_status, created_at)` | Set `PENDING` khi tạo nếu preference `email_enabled` của người nhận cho `kind` = true |
+| `email_sent_at` | + mới | timestamptz NULL | Gửi thành công |
+| `email_attempts` | + mới | smallint NOT NULL default 0 | Retry tối đa 3 (5 s/30 s/120 s) → `FAILED` |
+| `title`, `body` | giữ | text | Không chứa dữ liệu mức 3–4 (người tạo chịu trách nhiệm; email **không** dùng hai cột này — template theo `kind`) |
+
+- `read_at` đã có; cập nhật `read_at`/`email_*` là UPDATE kỹ thuật được phép (bảng không thuộc diện append-only như `audit_logs`).
+
+**ENT-NotificationPreference — `platform.notification_preferences`** (mới; nhóm config: id + `tenant_id` + timestamps + `version`, không `deleted_at`) — FR-NTF-04 tối thiểu cho T-616b
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| `tenant_id` | UUID | NOT NULL, index |
+| `user_id` | UUID | NOT NULL, soft-ref `auth.users.id` (C7, khác schema); unique `(user_id, kind)` |
+| `kind` | `platform.notification_kind` | NOT NULL |
+| `email_enabled` | boolean | NOT NULL |
+
+- Không có dòng = **mặc định**: email bật cho `task_assigned`, `approval_requested`, `review_assigned`, `review_escalated`; tắt cho các `kind` còn lại (cấu hình trong code `notification_defaults`, đổi = qua DEC). In-app luôn bật. Giờ yên lặng/mức ưu tiên (FR-NTF-03/04 phần còn lại) → backlog.
+
+**Field classification cho mask ở serializer (T-615, R-DEC-34)** — registry một nơi (`core/field_policy.py`), serializer mọi module dùng chung; trường bị che trả `{ "masked": true }` (10 §7.2.1), cùng danh sách dùng cho mask audit (`core/audit.MASKED_KEYS`), event payload và PII filter LLM.
+
+| Bảng.cột | Mức | Ai thấy giá trị thật |
+|---|---|---|
+| `hr.employees.date_of_birth`, `address`, `national_id`, `bank_account`, `emergency_contact` | 4 Tuyệt mật | CEO, DIR khối O (+ REV trong phiên review được phân — khi IDP gán) |
+| `hr.salary_history.base_salary` | 4 Tuyệt mật | như trên (đã có `FORBIDDEN_SALARY` ở list) |
+| `hr.employees.email`, `phone` | 3 Mật | Người có data scope trên bản ghi (CEO, DIR-O toàn bộ; MGR phòng mình; EMP chính mình); ADM scope `s` và mọi kênh ra ngoài (email, event, prompt LLM cloud) → mask |
+| `auth.users.email` | 3 Mật | ADM (`platform:read` — cần để quản trị tài khoản), chính chủ (`/auth/me`); không vào event payload/email body |
+| `hr.organizations.*`, `departments.*`, `teams.*`, `positions.*`, `employee_assignments.*`, `employees.full_name/employee_code` | 2 Nội bộ | Theo permission + data scope; không mask |
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -160,6 +243,8 @@ Metric Store là **nơi định nghĩa chỉ số một lần**, chia sẻ cho d
 - **Cơ cấu tổ chức** (Organization/Department/Team/Employee–Position–Role) — bám FR-ORG-04: truy được sơ đồ tổ chức tại một mốc quá khứ; phục vụ UC-07 onboarding và báo cáo lịch sử.
 - **KPITarget** — target có thể đổi giữa kỳ; cần biết target "đang hiệu lực" tại thời điểm đo để KPIEvaluation đúng.
 
+**Mô hình đã chốt cho cơ cấu (M1.2, §2.4):** cột `valid_from`/`valid_to` (nửa mở, `valid_to NULL` = hiện hành) trên `hr.organizations`, `hr.departments`, `hr.teams` và bảng `hr.employee_assignments`; KPITarget chốt ở M1.4.
+
 Entity còn lại (ngoài P0) dùng `version` + audit để truy vết thay đổi; mở rộng effective-dated sang entity khác và **mô hình lưu lịch sử cụ thể** (bitemporal, bảng history hay cột valid_from/valid_to) chốt ở đợt code (R-DEC-09). Giữ nguyên tắc: không ghi field-level DB ở vòng docs này.
 
 ## 7. Event backbone (FR-DATA-05)
@@ -182,12 +267,16 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - OQ-05-02: Tập entity chính xác cho MVP P0 (tập con của §13.2) — theo R-DEC-05 (phủ tập P0); §3 đã nêu entity P0 chính per nhóm, danh sách field-level cụ thể chi tiết hóa ở đợt code (R-DEC-09).
 - OQ-05-03: effective-dated (FR-DATA-07) cho entity nào ở MVP — §6ter chốt tối thiểu cơ cấu tổ chức (FR-ORG-04) + KPITarget; mở rộng & mô hình lưu lịch sử (bitemporal / valid_from-to) chốt ở đợt code (R-DEC-09).
 - OQ-05-04: DQ Score (FR-DATA-02) — công thức tổng hợp 4 chiều (đầy đủ/chính xác/kịp thời/nhất quán) per-domain + ngưỡng tươi dữ liệu per-domain (FR-DATA-03) chốt ở 03 (`METRIC-DQ-*`); chưa gán số ở vòng này.
-- OQ-05-05: Data classification mặc định per nhóm (§2.1) là đề xuất mức khái niệm; override per-field + chính sách LLM theo mức chốt ở 07/đợt code (R-DEC-09).
+- OQ-05-05: Data classification mặc định per nhóm (§2.1) là đề xuất mức khái niệm; override per-field + chính sách LLM theo mức chốt ở 07/đợt code (R-DEC-09). M1.2: override per-field cho Tổ chức/Identity ở §2.4 (R-DEC-34).
+- OQ-05-06 (M1.2): BusinessUnit (FR-ORG-01) — hoãn; khối biểu diễn bằng `departments.parent_id`. Cần entity riêng khi có báo cáo theo khối khác cây phòng ban → DEC.
+- OQ-05-07 (M1.2): Không chồng khoảng phân công bằng `EXCLUDE USING gist` cần extension PostgreSQL `btree_gist` (contrib, không phải package mới) — M1.2 dùng partial unique + kiểm ở service dưới khóa dòng; bật extension = hạ tầng mới → chờ human.
+- OQ-05-08 (M1.2): Tái cấu trúc cấp phòng ban (đổi `parent_id`) chưa effective-dated — cây `as_of` quá khứ dùng `parent_id` hiện tại. Cần bảng `department_versions` nếu UC-07/báo cáo đòi đúng cây cha tại quá khứ.
 
 ## Version
 - **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-24/32/33/34, chờ human duyệt bước S):** §2.4 field-level M1.2: `hr.organizations` (ENT-Organization, effective-dated), `hr.departments` + `organization_id`/`valid_from`/`valid_to` + unique `code` theo tenant, `hr.teams` + `valid_from`/`valid_to`, `hr.employee_assignments` (ENT-EmployeeAssignment, nửa mở, tối đa một hiện hành/NV, không chồng khoảng; cột cache trên `employees`), `platform.notifications` + `tenant_id`/`email_status`/`email_sent_at`/`email_attempts`, `platform.notification_preferences` (mới), bảng classification per-field mức 3/4 cho mask serializer (T-615); §6ter ghi mô hình `valid_from/valid_to`; thêm OQ-05-06..08.
 - **Change 1.2.0 (human duyệt 2026-10-23 — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
 - **Change 1.1.0 (code round — human ủy quyền R-DEC-14, 2026-10-23):** Thêm §2.2 field-level đợt code Phase 1: `tenant_id UUID NOT NULL` + `TenantMixin` (R-DEC-13); `auth.role_code` enum 7 giá trị v3 (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + bảng gộp 10→7 (R-DEC-12). Chi tiết schema/migration ở code; mọi thay đổi reversible.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).

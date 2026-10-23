@@ -94,13 +94,23 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 | SCR-48 | `/business/hr/employees` | Kinh doanh — nhân sự | quyền `hr:read` | có sẵn (lite) | `/hr/employees` |
 | SCR-49 | `/knowledge` | Tri thức / báo cáo | mọi role (Admin: audit) | M3.3 / M3.4 | — |
 | SCR-50 | `/admin` | Quản trị — tổng quan | ADM (CEO xem) | M1.2 | — |
-| SCR-14 | `/admin/audit` | Quản trị — audit log | ADM | có sẵn (lite) | (giữ) |
+| SCR-14 | `/admin/audit` | Quản trị — audit log (M1.2: thêm lọc `from`/`to`/`actor_type`, EP-ADM-12) | ADM | có sẵn (lite) → M1.2 | (giữ) |
+| SCR-51 | `/admin/org` | Quản trị — cơ cấu tổ chức (cây + panel + mốc `as_of`) | ADM, CEO, DIR khối O (sửa); MGR không thấy mục | M1.2 | — |
+| SCR-52 | `/admin/positions` | Quản trị — vị trí / định biên | ADM, CEO, DIR khối O | M1.2 | — |
+| SCR-53 | `/admin/users` | Quản trị — người dùng & phân quyền | ADM (CEO xem) | M1.2 | — |
+| SCR-54 | `/admin/roles` | Quản trị — ma trận vai trò × quyền (chỉ đọc) | ADM (CEO xem) | M1.2 | — |
 | — | `/403` | Không có quyền | — | có sẵn | (giữ) |
 
 - **SCR-13 `/login` (T-610c, R-DEC-28):** form email + mật khẩu; khi `DEMO_MODE=true` có **một dropdown** (native `select`) liệt kê 10 tài khoản demo (`DEMO_ACCOUNTS`: đủ 7 role, DIR 4 khối F/O/C/U), nhãn `<tên role i18n> — <email>` (+ khối cho DIR). Chọn một dòng → FE gọi Route Handler `POST /api/demo-credentials` (body `{email}`) → điền **cả** ô email và ô mật khẩu (giá trị thật, thấy được, sửa được); **không tự submit** — người dùng tự bấm "Đăng nhập" (submit `demo: "false"`). Route tắt/không có mật khẩu → chỉ điền email, ô mật khẩu trống + gợi ý `auth.demoPasswordMissing`. Ô mật khẩu có **nút con mắt** (Eye/EyeOff, `type="button"`) đổi `password`↔`text`, `aria-label` `auth.showPassword`/`auth.hidePassword`, `aria-pressed`, dùng được bằng bàn phím, vùng chạm ≥ 44 px (§8.2), áp cả khi tự gõ. HTML `/login` không chứa mật khẩu; không dùng `NEXT_PUBLIC_*` cho mật khẩu.
 - Mục chưa xây (phase sau) hiện trạng thái **"Sắp có"** trong khung trang, không ẩn khỏi IA của role được thấy.
 - Sidebar lọc theo cột "Role thấy" + permission (default-deny §3.3); product/risk **không** có mục riêng (R-DEC-16).
-- Màn hình mới của phase sau (VD `/admin/org`, `/goals/kpis/[id]`) được cấp `SCR-5x+` ở bước Spec lock của phase đó và thêm vào bảng này.
+- Màn hình mới của phase sau (VD `/goals/kpis/[id]`) được cấp `SCR-5x+` ở bước Spec lock của phase đó và thêm vào bảng này.
+- **Trang con Quản trị = SCR riêng (M1.2, R-DEC-37 đề xuất):** theo tiền lệ SCR-14 `/admin/audit` và SCR-43 `/work/approvals` (route con có SCR riêng, không là tab của SCR cha) → SCR-51..54; SCR-50 `/admin` là trang tổng quan + điều hướng tới các trang con (thẻ: Tổ chức, Vị trí, Người dùng, Vai trò, Audit, lọc theo quyền). Mỗi trang con là URL riêng (deep-link, test E2E, breadcrumb Quản trị › …).
+- **SCR-51 `/admin/org`:** trái = cây Organization → Department (theo `parent_id`) → Team → Employee (EP-ORG-24, headcount mỗi nút); trên = bộ chọn ngày `as_of` (mặc định hôm nay; ngày quá khứ → cây chỉ đọc + nhãn "Cơ cấu tại dd/MM/yyyy"); phải = panel chi tiết nút chọn (thông tin, trưởng đơn vị, lịch sử phân công EP-ORG-21) + hành động: thêm/sửa/archive phòng ban/team (EP-ORG-07..15), gán/chuyển nhân viên với "hiệu lực từ" (EP-ORG-22). Archive cần hộp xác nhận nêu lý do bị chặn (`details.reason`). Không hiển thị field mức 3–4. DIR ngoài khối O, MGR, EMP: mục ẩn khỏi Sidebar; vào URL trực tiếp → `/403`.
+- **SCR-52 `/admin/positions`:** bảng vị trí lọc theo phòng ban (EP-ORG-16) — cột mã, chức danh, cấp, định biên, đang có, **trống** (FR-ORG-06); form tạo/sửa (rhf + zod).
+- **SCR-53 `/admin/users`:** bảng người dùng (EP-ADM-05) lọc role/trạng thái/phòng ban/tìm kiếm; form tạo (email, họ tên, role, `scope_pillars` chỉ hiện khi role = DIR, phòng ban, liên kết nhân viên, mật khẩu ban đầu kèm con mắt §8.2) và sửa (EP-ADM-06/08); nút **Khóa / Mở khóa** có xác nhận + lý do (EP-ADM-09/10) — toast nêu "phiên đăng nhập của người này đã bị thu hồi". Không cho tự khóa/tự đổi role chính mình (nút disabled + tooltip). CEO xem chỉ đọc.
+- **SCR-54 `/admin/roles`:** ma trận 7 role × permission `<domain>:<action>` (EP-ADM-11) dạng lưới ✓/—, kèm ghi chú scope (`d/o/p/r/s/…`); chỉ đọc ở P0 (vai trò tùy biến — backlog).
+- **Chuông thông báo (Header, mọi role trừ AI actor — không phải SCR):** icon chuông + badge `meta.unread_count` (ẩn khi 0, "99+" khi > 99); poll EP-NTF-01 `unread_only=true&limit=10` mỗi 60 giây và khi focus cửa sổ (không SSE ở P0); mở popover danh sách 10 mới nhất (tiêu đề, thời gian tương đối, chấm chưa đọc), bấm một mục → EP-NTF-02 + điều hướng `link`; nút "Đánh dấu đã đọc tất cả" (EP-NTF-03); liên kết "Cài đặt email" mở dialog tùy chọn theo loại (EP-NTF-04/05). `aria-label` có số chưa đọc, `aria-live="polite"` khi số tăng, điều khiển bằng bàn phím (§8.2).
 
 ## 4. Luồng người dùng chính (UIUX §5)
 
@@ -327,6 +337,7 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-37, chờ human duyệt bước S):** §3.4 thêm SCR-51 `/admin/org`, SCR-52 `/admin/positions`, SCR-53 `/admin/users`, SCR-54 `/admin/roles` (trang con Quản trị = SCR riêng theo tiền lệ SCR-14/SCR-43); SCR-14 thêm lọc `from`/`to`/`actor_type`; mô tả hành vi từng màn hình + chuông thông báo ở Header (component, không phải SCR).
 - **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §3.4 thêm mô tả SCR-13: dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` (không tự submit), gợi ý `auth.demoPasswordMissing` khi thiếu mật khẩu, nút con mắt hiện/ẩn mật khẩu (WCAG AA §8.2).
 - **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/16/22/25):** thêm §3.4 bảng route v3 ↔ `SCR-*` ↔ redirect từ route v2.1 (giữ SCR v2.1 cho màn hình dùng tiếp, màn hình mới từ SCR-40); §5.3 ghi rõ P0 không offline/sinh trắc học, giọng nói chỉ nhập liệu ngắn, không ghi âm họp; đóng OQ-06-03.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).

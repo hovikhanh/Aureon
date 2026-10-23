@@ -203,19 +203,23 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 ### 6.3. M1.2 — D01 Organization + D02 Admin & Security + D05 Notification (nhánh `v3/m1.2-org-admin`)
 
-**FE (mock trước):** `/admin/org` cây Organization → Department → Team → Employee + panel chi tiết + chọn mốc ngày (`as_of`); `/admin/positions`; `/admin/users` (tạo/mời, gán role + `scope_pillars`, khóa/mở); `/admin/roles` (ma trận quyền, chỉ đọc); `/admin/audit` thêm lọc `from`/`to`/`actor_type`; chuông thông báo ở Header. Form rhf + zod; mọi chuỗi qua i18n. SCR cấp ở bước S.
+**FE (mock trước):** `/admin/org` cây Organization → Department → Team → Employee + panel chi tiết + chọn mốc ngày (`as_of`); `/admin/positions`; `/admin/users` (tạo/mời, gán role + `scope_pillars`, khóa/mở); `/admin/roles` (ma trận quyền, chỉ đọc); `/admin/audit` thêm lọc `from`/`to`/`actor_type`; chuông thông báo ở Header. Form rhf + zod; mọi chuỗi qua i18n. SCR (bước S, đề xuất): SCR-51 `/admin/org`, SCR-52 `/admin/positions`, SCR-53 `/admin/users`, SCR-54 `/admin/roles`, SCR-14 `/admin/audit`; chuông = component Header (06 §3.4).
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-611 | ENT-Organization (+ BusinessUnit tùy chọn) trong schema `hr` (R-DEC-24); `Department.organization_id`, `parent_id`; migration reversible | ☐ |
-| T-612 | Effective-dated cơ cấu (FR-ORG-04, 05 §6ter): `hr.employee_assignments(employee_id, department_id, team_id, position_id, manager_id, valid_from, valid_to)`; truy vấn "tại ngày X" | ☐ |
-| T-613 | API ORG: CRUD organization/department/team/position; `GET /org/tree?as_of=`; employee CRUD nối HR hiện có | ☐ |
-| T-614 | API ADM: `GET/POST/PATCH /platform/users`, `POST /platform/users/{id}/deactivate`, `GET /platform/roles`; audit + outbox mọi mutation | ☐ |
-| T-615 | Field-level security tổng quát: policy mask theo classification (mức 3/4) ở serializer, không chỉ HR | ☐ |
-| T-616 | Notification in-app: `GET /notifications`, `POST /notifications/{id}/read`, read-all | ☐ |
-| T-616b | Email (R-DEC-20): `platform/services/email_sender.py` (`smtplib`, Celery task retry + idempotent theo notification id); `SMTP_*` qua ConfigService + `.env.example` placeholder; Mailpit trong `docker-compose.yml`; tùy chọn nhận email theo loại; không chứa dữ liệu mức 3–4 | ☐ |
-| T-617 | Seed bổ sung Organization + assignment effective-dated | ☐ |
-| T-618 | Nối + E2E `admin-org.spec.ts` (ADM tạo phòng ban → gán NV → CEO thấy trên cây; EMP bị 403); đóng phase | ☐ |
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-611S | **Spec lock M1.2** (bước S): 10 §7.2.1 (EP-ORG-01..24, EP-HR-01..05, EP-ADM-05..12, EP-NTF-01..05) + §9.2 (2 event); 05 §2.4/§6ter; 06 §3.4 (SCR-51..54, chuông); 14 §1.6; 13 R-DEC-29..37 | docs | R-DEC-15 | — | ◐ (chờ human duyệt diff) |
+| T-611 | ENT-Organization trong schema `hr` (R-DEC-24; **BusinessUnit hoãn** — OQ-05-06); `Department.organization_id` + `valid_from/valid_to`, `parent_id` (đã có) chặn vòng; `teams.valid_from/valid_to`; unique `code` theo tenant; migration reversible `0011` + backfill | `modules/hr/models`, `alembic/versions/0011_*` | 05 §2.4 | TC-M12-01, TC-M12-16 | ☐ |
+| T-612 | Effective-dated cơ cấu (FR-ORG-04, 05 §6ter): `hr.employee_assignments(employee_id, department_id, team_id, position_id, manager_id, valid_from, valid_to)` nửa mở, ≤ 1 hiện hành/NV, không chồng (service + khóa dòng); cột cache `employees.*` đồng bộ; truy vấn "tại ngày X" | `modules/hr/{models,repositories,services/org_service.py}` | 05 §2.4, EP-ORG-21..23 | TC-M12-02, TC-M12-03 | ☐ |
+| T-613 | API ORG: CRUD organization/team/position (`/org/*`), department giữ `/hr/departments` (R-DEC-29) + archive; `GET /org/tree?as_of=`; assignments; employee CRUD v2.1 nối phân công; ghi cơ cấu `hr:admin` (R-DEC-30) — sửa `core/permissions.py` + `permission_matrix.py`; audit + outbox `hr.org_structure_changed` | `modules/hr/{routes,schemas,services}`, `core/permissions.py`, `auth/permission_matrix.py`, `core/events/registry.py` | 10 §7.2.1, §9.2 | TC-M12-04..07, TC-M12-11 | ☐ |
+| T-614 | API ADM: `GET/POST/PATCH /platform/users`, `POST /platform/users/{id}/deactivate` + `/reactivate` (R-DEC-36), `GET /platform/roles`; audit-logs EP-52 thêm `from`/`to`/`actor_type`; thu hồi refresh token khi khóa/đổi role; audit + outbox `auth.user_access_changed` mọi mutation | `modules/auth/{routes/users.py,services/user_admin_service.py,repositories}`, `modules/platform/{routes,services/audit_query.py}` | 10 §7.2.1 | TC-M12-06, TC-M12-08..11 | ☐ |
+| T-615 | Field-level security tổng quát: registry `core/field_policy.py` mask mức 3/4 ở serializer mọi module (không chỉ HR), dùng chung cho audit/event/PII filter (R-DEC-34) | `core/field_policy.py`, `core/audit.py`, `modules/*/schemas` | 05 §2.4, 02 §5 | TC-M12-12 | ☐ |
+| T-616 | Notification in-app: `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET/PATCH /notifications/preferences` (quyền `(token)` — R-DEC-31); `notifications.tenant_id` | `modules/platform/{routes/notifications.py,services/notification_service.py,models}` | 10 §7.2.1, 05 §2.4 | TC-M12-13, TC-M12-14, TC-M12-16 | ☐ |
+| T-616b | Email (R-DEC-20/33): `platform/services/email_sender.py` (`smtplib`) + Celery task retry 3 lần, idempotent theo `notification.id` (`email_status`), job beat quét `PENDING`; template theo `kind` + link, không `title/body`, không mức 3–4; `SMTP_*` qua ConfigService + `.env.example` placeholder; Mailpit trong `docker-compose.yml`; tùy chọn theo loại (`notification_preferences`, R-DEC-32) | `modules/platform/services/email_sender.py`, `workers/*`, `core/config.py`, `.env.example`, `docker-compose.yml` | R-DEC-20, 05 §2.4 | TC-M12-14, TC-M12-15 | ☐ |
+| T-617 | Seed bổ sung Organization ABC + phân công effective-dated (≥ 1 NV có lịch sử chuyển phòng); `seed_snapshot.json` cho mock | `apps/api/src/app/seed/**` | 08 §2.1, R-DEC-23 | TC-M12-17 | ☐ |
+| T-617F | FE trên mock: SCR-51 `/admin/org`, SCR-52 `/admin/positions`, SCR-53 `/admin/users`, SCR-54 `/admin/roles`, SCR-14 lọc, chuông Header; mock router + i18n vi/en | `apps/web/src/{app/(app)/admin/**,features/admin/**,components/shell/Header.tsx,mocks/**}`, `messages/{vi,en}.json` | 06 §3.4 | TC-M12-18 | ☐ |
+| T-618 | Nối + E2E `admin-org.spec.ts` (ADM tạo phòng ban → gán NV → CEO thấy trên cây; `as_of` quá khứ; khóa user; EMP bị 403; email trên Mailpit); đóng phase | `apps/web/e2e/admin-org.spec.ts` | 09 §6.3 | TC-M12-19 | ☐ |
+
+**Thứ tự:** T-611S ⏸ → T-611 → T-612 → T-615 → T-613 → T-614 → T-616 → T-616b → T-617 → T-617F (song song sau C) → T-618 ⏸.
 
 **Exit:** dựng cây tổ chức bằng tay (một phần UC-07); xem cơ cấu tại mốc quá khứ; email nhận được trên Mailpit; service ≥ 80%, bảo mật ≥ 90%.
 
@@ -465,6 +469,7 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.3.0 (đề xuất — Spec lock M1.2, chờ human duyệt bước S):** §6.3 mở rộng bảng task theo cột §6.2 (File chính | Spec | TC); thêm T-611S (bước S, ◐) và T-617F (FE trên mock); ghi rõ BusinessUnit hoãn, giữ `/hr/departments`, ghi cơ cấu `hr:admin`, reactivate, preferences email, thứ tự task; FE ghi SCR-51..54.
 - **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §6.2 thêm dòng T-610c (dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` bật bằng `DEMO_MODE` + `DEMO_LOGIN_AUTOFILL`, nút con mắt); trạng thái ◐ chờ human test tay + full suite.
 - **Change 1.1.0 (human duyệt 2026-10-23 — đợt code, R-DEC-15/19):** thêm §6 Task đợt code: quy trình S→C→F→B→N→R, bản đồ phase M1.0–M3.5, bảng T-601..T-910 theo phase (FE trên mock → BE → nối), rủi ro; Open questions chuyển thành §7, đóng OQ-09-01/02, cập nhật OQ-09-03, thêm OQ-09-05.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).

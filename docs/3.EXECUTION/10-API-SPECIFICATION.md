@@ -219,7 +219,7 @@ API path `/api/v1/<domain>/<resource>`. EP theo domain P0 (D01–D28, phần P0 
 
 ### 7.2. Danh mục EP đã chốt (cập nhật theo phase)
 
-> M1.1 (nền build) **không thêm endpoint mới**: mock FE chạy ở BFF Next.js (`API_MODE=mock`), không phải API backend. Endpoint của M1.2 trở đi được thêm vào đây ở bước Spec lock của phase tương ứng (09 §6).
+> M1.1 (nền build) **không thêm endpoint mới**: mock FE chạy ở BFF Next.js (`API_MODE=mock`), không phải API backend. Endpoint của M1.2 trở đi được thêm vào đây ở bước Spec lock của phase tương ứng (09 §6). M1.2: §7.2.1.
 
 | EP | Method | Path | Permission | EP v2.1 | Ghi chú |
 |---|---|---|---|---|---|
@@ -228,6 +228,63 @@ API path `/api/v1/<domain>/<resource>`. EP theo domain P0 (D01–D28, phần P0 
 | EP-ADM-02 | POST | `/auth/refresh` | public | EP-06 | Xoay vòng; tái sử dụng → thu hồi chuỗi |
 | EP-ADM-03 | POST | `/auth/logout` | (token) | EP-07 | |
 | EP-ADM-04 | GET | `/auth/me` | (token) | EP-03 | `UserOut` |
+
+#### 7.2.1. M1.2 — D01 Organization · D02 Admin · D05 Notification (Spec lock M1.2 — đề xuất, chờ human duyệt)
+
+**Quy ước chung M1.2:** envelope/phân trang/mã lỗi theo §10, §1.4 (**không thêm mã lỗi mới**). Mọi `POST` dưới đây bắt buộc `Idempotency-Key` (thiếu → `400 BAD_REQUEST`); `PATCH` nhận `If-Match` hoặc body `version` (lệch → `409 CONFLICT_STATE`, như EP-81/82 v2.1). Mọi mutation ghi `ENT-AuditLog` (`action = <module>.<verb>`) + `ENT-OutboxEvent` (§9.2) **trong cùng transaction**; repository lọc `tenant_id` (R-DEC-21) — bản ghi tenant khác → `404 NOT_FOUND`. Field mức 3/4 trả `{ "masked": true }` theo policy T-615 (05 §2.4). `DELETE` = **archive** (soft delete `deleted_at` + `valid_to`), không xóa cứng (FR-ORG-03) → `204`.
+
+**Prefix (R-DEC-29, đề xuất):** giữ nguyên `/hr/departments`, `/hr/employees` của v2.1 (EP-81/82 — FE SCR-48 + test đang dùng, đổi path = breaking); resource **mới** của D01 dùng `/org/*` theo §7.1. **Quyền cơ cấu (R-DEC-30, đề xuất):** đọc = `hr:read` (có cô lập khối `require_pillar_permission`, như EP-81); ghi cơ cấu = `hr:admin` (CEO, ADM, DIR khối O). POST/PATCH `/hr/departments` đổi `hr:write` → `hr:admin` (tập role là **siêu tập** của trước: DIR-O giữ quyền, thêm CEO/ADM → không breaking với người dùng hiện có).
+
+**Data scope đọc cơ cấu (`hr:read`):** CEO, DIR khối O, ADM (scope mới `s` = **chỉ cơ cấu**, R-DEC-30) → toàn tổ chức; MGR → phòng ban của mình (+ phòng con); EMP, REV → `403 FORBIDDEN_SCOPE` với `/org/tree`, `/org/assignments`; DIR ngoài khối O → `403 FORBIDDEN_ROLE` (pillar, như EP-81). ADM với scope `s` gọi `/hr/employees*`, salary-history, hiring-plans → `403 FORBIDDEN_SCOPE` (02 §2: ADM không đọc bản ghi nghiệp vụ) — chọn nhân viên khi gán dùng `members[]` của EP-ORG-24 (chỉ mã, tên, vị trí). Ghi cơ cấu (`hr:admin`) dùng `require_pillar_permission` (DIR chỉ khối O).
+
+| EP | Method | Path | Permission | EP v2.1 | Ghi chú (request → response) |
+|---|---|---|---|---|---|
+| EP-ORG-01 | GET | `/org/organizations` | `hr:read` | — | Lọc `q`, `include_archived` (mặc định false); sort `name`/`code` → `OrganizationOut[]` (05 §2.4) + `meta.pagination` |
+| EP-ORG-02 | POST | `/org/organizations` | `hr:admin` | — | `{code, name, legal_name?, tax_code?, valid_from?}` → `201 OrganizationOut`. Trùng `code` → `409 DUPLICATE_RESOURCE`. Idempotency-Key. Audit `hr.organization_create`; event `hr.org_structure_changed` |
+| EP-ORG-03 | GET | `/org/organizations/{id}` | `hr:read` | — | → `OrganizationOut` |
+| EP-ORG-04 | PATCH | `/org/organizations/{id}` | `hr:admin` | — | `{name?, legal_name?, tax_code?, version}` → `OrganizationOut`. Audit `hr.organization_update` |
+| EP-ORG-05 | DELETE | `/org/organizations/{id}` | `hr:admin` | — | Archive; còn phòng ban live → `422 BUSINESS_RULE_VIOLATION` (`details.reason=has_live_children`) → `204` |
+| EP-ORG-06 | GET | `/hr/departments` | `hr:read` | EP-81 | Giữ path + tham số v2.1 (`parent_id`, sort `name`/`code`); **thêm** lọc `organization_id`, `as_of` (phòng ban hiệu lực tại ngày) → `DepartmentOut[]` (**thêm** `organization_id`, `valid_from`, `valid_to`) |
+| EP-ORG-07 | POST | `/hr/departments` | `hr:admin` | EP-81 | Body v2.1 `{name, code, parent_id?, manager_id?}` **+** `organization_id` (bắt buộc), `valid_from?` (mặc định hôm nay) → `201 DepartmentOut`. `parent_id` khác tổ chức / không tồn tại → `422 BUSINESS_RULE_VIOLATION`; trùng `code` → `409 DUPLICATE_RESOURCE`. Permission đổi `hr:write` → `hr:admin` (R-DEC-30). Audit `hr.department_create` |
+| EP-ORG-08 | GET | `/hr/departments/{id}` | `hr:read` | EP-81 | → `DepartmentOut` |
+| EP-ORG-09 | PATCH | `/hr/departments/{id}` | `hr:admin` | EP-81 | `{name?, code?, parent_id?, manager_id?, version}`; `parent_id` tạo vòng (chính nó/hậu duệ) → `422 BUSINESS_RULE_VIOLATION` (`details.reason=parent_cycle`); `organization_id` không đổi qua PATCH → `DepartmentOut`. Audit `hr.department_update` |
+| EP-ORG-10 | DELETE | `/hr/departments/{id}` | `hr:admin` | — | Archive (`deleted_at`, `valid_to = hôm nay`); còn team/phòng con live hoặc phân công hiện hành → `422 BUSINESS_RULE_VIOLATION` → `204`. Audit `hr.department_archive` |
+| EP-ORG-11 | GET | `/org/teams` | `hr:read` | — | Lọc `department_id`, `as_of` → `TeamOut[]` |
+| EP-ORG-12 | POST | `/org/teams` | `hr:admin` | — | `{department_id, code, name, lead_employee_id?, valid_from?}` → `201 TeamOut`. Idempotency-Key. Audit `hr.team_create` |
+| EP-ORG-13 | GET | `/org/teams/{id}` | `hr:read` | — | → `TeamOut` |
+| EP-ORG-14 | PATCH | `/org/teams/{id}` | `hr:admin` | — | `{name?, code?, lead_employee_id?, version}` (không đổi `department_id` — tạo team mới) → `TeamOut` |
+| EP-ORG-15 | DELETE | `/org/teams/{id}` | `hr:admin` | — | Archive; còn phân công hiện hành → `422` → `204` |
+| EP-ORG-16 | GET | `/org/positions` | `hr:read` | — | Lọc `department_id`, `q` → `PositionOut[]` (`headcount_budget`, `filled` = số phân công hiện hành, `vacant`) |
+| EP-ORG-17 | POST | `/org/positions` | `hr:admin` | — | `{department_id, code, title, level?, headcount_budget, reports_to_position_id?}` → `201 PositionOut`. Idempotency-Key. Audit `hr.position_create` |
+| EP-ORG-18 | GET | `/org/positions/{id}` | `hr:read` | — | → `PositionOut` |
+| EP-ORG-19 | PATCH | `/org/positions/{id}` | `hr:admin` | — | `{title?, level?, headcount_budget?, reports_to_position_id?, version}` → `PositionOut` |
+| EP-ORG-20 | DELETE | `/org/positions/{id}` | `hr:admin` | — | Archive; còn phân công hiện hành → `422` → `204` |
+| EP-ORG-21 | GET | `/org/assignments` | `hr:read` | — | Lọc `employee_id`, `department_id`, `as_of` (hiệu lực tại ngày; bỏ trống = toàn bộ lịch sử); sort `valid_from` → `EmployeeAssignmentOut[]` |
+| EP-ORG-22 | POST | `/org/assignments` | `hr:admin` | — | `{employee_id, department_id, team_id?, position_id?, manager_id?, valid_from, reason?}` → `201 EmployeeAssignmentOut`. **Đóng** phân công hiện hành (`valid_to = valid_from` mới) và **mở** bản mới trong một transaction + cập nhật cache `employees.department_id/team_id/position_id/manager_id`. `valid_from` > hôm nay, ≤ `valid_from` của phân công hiện hành, chồng khoảng, `team`/`position` không thuộc `department_id`, `manager_id = employee_id` → `422 BUSINESS_RULE_VIOLATION`. Idempotency-Key. Audit `hr.assignment_create` |
+| EP-ORG-23 | PATCH | `/org/assignments/{id}` | `hr:admin` | — | Chỉ sửa `reason`, `manager_id`, `valid_to` (đóng sớm; không tạo chồng/khoảng trống ngược) + `version` → `EmployeeAssignmentOut`. Audit `hr.assignment_update` |
+| EP-ORG-24 | GET | `/org/tree` | `hr:read` | — | `as_of=YYYY-MM-DD` (mặc định hôm nay; sai định dạng → `400`), `organization_id?` (mặc định tổ chức đầu tiên). → `OrgTreeOut {as_of, organization, departments[]: {id, code, name, parent_id, manager_id, headcount, teams[]: {id, code, name, lead_employee_id, headcount}, members[]: {employee_id, employee_code, full_name, team_id, position_id, position_title, manager_id}}}` — danh sách phẳng có `parent_id` (FE dựng cây); chỉ phòng ban/team/phân công **hiệu lực tại `as_of`**; `headcount` tính từ phân công. Không chứa field mức 3–4 |
+| EP-HR-01 | GET | `/hr/employees` | `hr:read` | EP-82 | Giữ v2.1 (`department_id`, `status`, `q`, scope MGR/EMP/REV như cũ); `EmployeeOut` mask mức 3/4 theo T-615 |
+| EP-HR-02 | POST | `/hr/employees` | `hr:write` | EP-82 | Giữ v2.1; **thêm**: tạo phân công đầu tiên `valid_from = hire_date` cùng transaction. Idempotency-Key |
+| EP-HR-03 | GET | `/hr/employees/{id}` | `hr:read` | EP-82 | Giữ v2.1 |
+| EP-HR-04 | PATCH | `/hr/employees/{id}` | `hr:write` | EP-82 | Giữ v2.1; **thêm** `effective_from?` (mặc định hôm nay): đổi `department_id`/`title`(position)/`manager_id` → đóng + mở phân công như EP-ORG-22 |
+| EP-HR-05 | DELETE | `/hr/employees/{id}` | `hr:write` | EP-82 | Giữ v2.1; đóng phân công hiện hành (`valid_to = hôm nay`) |
+| EP-ADM-05 | GET | `/platform/users` | `platform:read` | — | Lọc `role_code`, `is_active`, `department_id`, `q` (email/tên); sort `email`/`full_name`/`created_at` → `UserAdminOut[]` `{id, email, full_name, role_id, role_code, scope_pillars[], department_id, employee_id, locale, is_active, is_service_account, last_login_at, locked_until, created_at, updated_at, version}` — **không bao giờ** `password_hash`. Module sở hữu: `auth` (router mount ở `/platform/users`, 07 §1.1) |
+| EP-ADM-06 | POST | `/platform/users` | `platform:admin` | — | `{email, full_name, role_code, scope_pillars?, department_id?, employee_id?, locale?, initial_password}` (write-only, argon2id, ≥ 12 ký tự) → `201 UserAdminOut`. `scope_pillars` khác rỗng khi role ≠ DIR, `role_code=AI` không phải service account → `422 BUSINESS_RULE_VIOLATION`; ADM cấp role `CEO` → `403 FORBIDDEN_SCOPE` (R-DEC-36); trùng email/employee_id → `409 DUPLICATE_RESOURCE`. Idempotency-Key. Audit `auth.user_create` (mask `password`); event `auth.user_access_changed` |
+| EP-ADM-07 | GET | `/platform/users/{id}` | `platform:read` | — | → `UserAdminOut` |
+| EP-ADM-08 | PATCH | `/platform/users/{id}` | `platform:admin` | — | `{full_name?, role_code?, scope_pillars?, department_id?, employee_id?, locale?, version}` → `UserAdminOut`. Đổi `role_code`/`scope_pillars` → **thu hồi mọi refresh token** của user (access token cũ hết hạn ≤ 15 phút); tự đổi role của chính mình → `422`. Không nhận `is_active`/`password` (dùng EP-ADM-09/10). Audit `auth.user_update` |
+| EP-ADM-09 | POST | `/platform/users/{id}/deactivate` | `platform:admin` | — | `{reason}` → `200 UserAdminOut` (`is_active=false`); **thu hồi mọi refresh token** (mọi family) → refresh sau đó `401 REFRESH_TOKEN_INVALID`, login `401 INVALID_CREDENTIALS`; tự khóa chính mình → `422 BUSINESS_RULE_VIOLATION`; đã khóa → trả trạng thái hiện tại (idempotent). Idempotency-Key. Audit `auth.user_deactivate` |
+| EP-ADM-10 | POST | `/platform/users/{id}/reactivate` | `platform:admin` | — | `{reason}` → `200 UserAdminOut` (`is_active=true`, reset `failed_login_count`, `locked_until`). Idempotency-Key. Audit `auth.user_reactivate`. (Thêm so với 09 T-614 để FE "khóa/mở" — R-DEC-36) |
+| EP-ADM-11 | GET | `/platform/roles` | `platform:read` | — | → `RoleOut[]` `{id, code, role_ref, name_vi, name_en, permissions[], scope_rules, pillars[]}` — 7 role, **chỉ đọc** (ma trận = `auth/permission_matrix.py`) |
+| EP-ADM-12 | GET | `/platform/audit-logs` | `platform:read` | EP-52 | Giữ path + tham số v2.1 (`action`, `target_type`, `target_id`, `actor_user_id`); **thêm** `from`, `to` (ISO 8601 UTC, lọc `occurred_at`, `from > to` → `400`), `actor_type` ∈ `USER/AI/SYSTEM`; lọc theo tenant; `before`/`after` đã mask → `AuditLogOut[]` |
+| EP-NTF-01 | GET | `/notifications` | (token) | — | Chỉ thông báo có `recipient_id = sub` (R-DEC-31). Lọc `unread_only`, `kind`; sort `created_at` desc → `NotificationOut[]` `{id, kind, title, body, link, ref_schema, ref_table, ref_id, read_at, created_at}` + `meta.unread_count` |
+| EP-NTF-02 | POST | `/notifications/{id}/read` | (token) | — | → `200 NotificationOut`; đã đọc → giữ `read_at` cũ (idempotent); của người khác / tenant khác → `404 NOT_FOUND`. Idempotency-Key (quy ước POST hành động) |
+| EP-NTF-03 | POST | `/notifications/read-all` | (token) | — | `{up_to?}` (mặc định now) → `200 {updated}`; chỉ thông báo của người gọi. Idempotency-Key |
+| EP-NTF-04 | GET | `/notifications/preferences` | (token) | — | → `NotificationPreferenceOut[]` `{kind, email_enabled, is_default}` đủ mọi `notification_kind` (dòng chưa lưu = mặc định 05 §2.4) |
+| EP-NTF-05 | PATCH | `/notifications/preferences` | (token) | — | `{items: [{kind, email_enabled}]}` → `NotificationPreferenceOut[]`; `kind` lạ → `422 VALIDATION_ERROR`. Upsert theo `(user_id, kind)`. Audit `platform.notification_preference_update` |
+
+- **Mỗi endpoint đúng một permission** trừ EP-NTF-* (`(token)` — dữ liệu của chính người gọi, cùng tiền lệ EP-ADM-03/04; R-DEC-31). Ma trận cần thêm `hr:admin` (CEO, ADM, DIR) và `hr:read` scope `s` cho ADM (R-DEC-30) — sửa `auth/permission_matrix.py` ở bước B.
+- **Email (T-616b, R-DEC-20/33):** không có endpoint — job beat `notifications.dispatch_email` quét `email_status=PENDING`, Celery task gửi qua `smtplib`, idempotent theo `notification.id`; nội dung = template theo `kind` + locale + link, **không** chèn `title`/`body`.
+- Route path tĩnh (`/notifications/read-all`, `/notifications/preferences`) khai báo trước route có `{id}`.
 
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
@@ -275,6 +332,8 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 | `meeting.summarized` | Biên bản họp được tóm tắt | D12 Meeting | UC-02/UC-06 meeting → execution |
 | `decision.logged` | Ghi Decision Log (`log_decision`) | D28 Decision Log | Đo North Star, đối chiếu 30/60/90 ngày (FR-DEC-02) |
 | `risk.detected` | Rủi ro tự sinh từ event/ngưỡng | D25 Risk (P1) | BO-10 phát hiện rủi ro sớm (backlog phần nâng cao) |
+| `hr.org_structure_changed` *(M1.2, đề xuất R-DEC-35)* | Tạo/sửa/archive Organization, Department, Team, Position, EmployeeAssignment (EP-ORG-02..23, EP-HR-02/04/05) | D01 Organization | Payload `{entity, entity_id, change ∈ created/updated/archived, department_id?, employee_id?, valid_from?}` — chỉ mã tham chiếu. Consumer M1.2: chưa có (relay + webhook NFR-INT-01); dự kiến consumer metric headcount/cache phạm vi (M2.1) |
+| `auth.user_access_changed` *(M1.2, đề xuất R-DEC-35)* | Tạo user, đổi role/`scope_pillars`, khóa/mở (EP-ADM-06/08/09/10) | D02 Admin & Security | Payload `{user_id, change ∈ created/role_changed/deactivated/reactivated, role_code}` — không email/tên. Consumer M1.2: chưa có (audit bảo mật/AI Observe sau) |
 
 > Danh mục đầy đủ + cặp **publish/consume** chốt khi chi tiết hóa (R-DEC-09); `risk.detected` thuộc D25 (P1) nên chỉ liệt kê, chi tiết ở đợt sau. Tên event giữ convention BRD (`<entity>.<verb>`), ánh xạ sang `EVT-*` của `main` ở đợt code.
 
@@ -296,6 +355,7 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — Spec lock M1.2, R-DEC-29..36, chờ human duyệt bước S):** §7.2.1 bảng EP M1.2: EP-ORG-01..24 (organization/department/team/position/assignment CRUD + `GET /org/tree?as_of=`; giữ `/hr/departments` EP-81 — R-DEC-29; ghi cơ cấu `hr:admin` — R-DEC-30), EP-HR-01..05 (giữ `/hr/employees` EP-82 + nối phân công effective-dated), EP-ADM-05..12 (user admin `/platform/users` + deactivate/reactivate thu hồi refresh token, `/platform/roles`, audit-logs EP-52 thêm `from`/`to`/`actor_type`), EP-NTF-01..05 (inbox `(token)` của chính mình — R-DEC-31, read/read-all, preferences email — R-DEC-32). §9.2 thêm `hr.org_structure_changed`, `auth.user_access_changed` (R-DEC-35). Không thêm mã lỗi (§1.4 giữ nguyên).
 - **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/18/19/21):** thêm §1.4 bảng mã lỗi phản chiếu `core/errors.py` (R-DEC-18; sửa 4 contract test hỏng); thêm `tenant_id` vào envelope event §9.1 + quy tắc tenant context (R-DEC-21); thêm §7.1 quy ước domain code/prefix path `EP-<DOMAIN>-NN` và §7.2 danh mục EP đã chốt (bắt đầu với EP-SYS-01, EP-ADM-01..04 ↔ EP-01/02/06/07/03 v2.1); §10 trỏ mã lỗi về §1.4.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên **spec-level P0** — giải thích đầy đủ 13 metadata tool (bảng ý nghĩa mức contract); 4 phân loại tool kèm **quy tắc quyền/Autonomy/approval mỗi loại** (§3); thêm Agent & Orchestrator (thành phần AI Platform liên quan contract, agent P0 + tool chính, luồng §11.5, quyền agent ∩ người §4.4); **Autonomy & kill switch** (§5); danh mục **tool IDP** đầy đủ (tên + mục đích + loại + quyền, §6); **grounding contract SourceRef** (§8); **envelope event + danh mục event P0** kèm domain nguồn và mục đích Observe (§9); bổ sung OQ-10-04..06. Giữ R-DEC-09 (không EP-*/field DB/T-*/TC-* chi tiết).
