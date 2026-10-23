@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { loginAs, loginWithPassword } from "./helpers";
+import { login, loginAs, loginWithPassword } from "./helpers";
 import { cleanupReviewDocs, rootEnv, seedReviewDoc } from "./support/seed";
 
-/** T-516 — full regression across the 5 demo roles (CEO, CFO, REVIEWER, HR, ADMIN). */
+/**
+ * T-516 regression across the demo roles, extended in T-609 (TC-M11-15) to the 7 v3 roles:
+ * CEO, DIR (CFO, HR), MGR, EMP, REV, ADM here; ROLE-AI refusal in login.spec.
+ */
 test.afterAll(() => cleanupReviewDocs());
 
 const SLUGS = { F: "finance", O: "operations", C: "customer", U: "product", S: "strategy" } as const;
@@ -101,3 +104,28 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
   await page.goto("/home/pillar/finance");
   await expect(page.getByTestId("forbidden")).toBeVisible();
 });
+
+test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open", async ({ page }) => {
+  await login(page, "manager@abc.demo");
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-40");
+  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  await page.getByTestId("nav-work").click();
+  await expect(page).toHaveURL(/\/work$/);
+  await page.goto("/work/approvals");
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-43");
+  await page.getByTestId("nav-ask").click();
+  await expect(page.getByTestId("chat-input")).toBeVisible();
+});
+
+test("EMP: personal scope — goals/work frames, no approvals, no admin", async ({ page }) => {
+  await login(page, "employee@abc.demo");
+  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  await page.getByTestId("nav-goals").click();
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-41");
+  await expect(page.getByTestId("nav-admin")).toHaveCount(0);
+  for (const denied of ["/work/approvals", "/admin", "/business/finance/invoices"]) {
+    await page.goto(denied);
+    await expect(page.getByTestId("forbidden")).toBeVisible();
+  }
+});
+

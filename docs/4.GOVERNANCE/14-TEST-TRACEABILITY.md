@@ -79,7 +79,7 @@ Quy ước `TC-M<mốc><phase>-NN` (R-DEC-19). Trạng thái: `Planned → Imple
 | TC-M11-12 | Sidebar 8 mục + Quản trị đúng ma trận role 06 §3.2/§3.4 (default-deny) | FE unit + E2E | T-607 | 06 §3.4 | Implemented |
 | TC-M11-13 | Route v2.1 (`/dashboard`, `/ai`, `/idp/review[/id]`, `/finance/invoices`, `/hr/employees`, `/approvals`, `/dashboard/pillar/[slug]`) → 308 tới route v3 | E2E | T-607 | 06 §3.4 | Implemented |
 | TC-M11-14 | Tool product/risk không được quảng bá cho model; Executive mặc định không có card U/S | unit + E2E | T-608 | R-DEC-16 | Implemented |
-| TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Planned |
+| TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Implemented |
 
 Ngưỡng: TC-M11-02..05, 10 thuộc nhóm **bảo mật** (coverage ≥ 90%, gap = blocking). TC của M1.2 trở đi thêm ở bước Spec lock từng phase (09 §6.0).
 
