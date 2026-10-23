@@ -14,13 +14,20 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     Text,
+    UniqueConstraint,
     event,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, ORMExecuteState, Session, mapped_column
 
-from app.core.base_model import DEFAULT_TENANT_ID, BusinessModel, ConfigModel, LogModel
+from app.core.base_model import (
+    DEFAULT_TENANT_ID,
+    BusinessModel,
+    ConfigModel,
+    LogModel,
+    TenantMixin,
+)
 from app.core.columns import currency, fk, measure, money, schema_args, sr, txt
 from app.core.enums import (
     ACTOR_TYPE,
@@ -28,6 +35,7 @@ from app.core.enums import (
     ALERT_STATUS,
     APPROVAL_STATUS,
     AUTONOMY_LEVEL,
+    EMAIL_STATUS,
     LINEAGE_KIND,
     METRIC_UNIT,
     METRIC_VALUE_KIND,
@@ -282,7 +290,22 @@ class Notification(LogModel):
     __tablename__ = "notifications"
     __table_args__ = (
         Index("ix_notifications_recipient_id_read_at", "recipient_id", "read_at"),
+        Index("ix_notifications_email_status_created_at", "email_status", "created_at"),
         {"schema": S},
+    )
+
+    # M1.2 (05 §2.4, R-DEC-33): LogModel has no TenantMixin → own column (like outbox_events);
+    # EP-NTF filters tenant + recipient explicitly.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True,
+        server_default=text(f"'{DEFAULT_TENANT_ID}'"),
+    )  # fmt: skip
+    email_status: Mapped[str] = mapped_column(
+        EMAIL_STATUS, nullable=False, server_default=text("'NOT_REQUIRED'")
+    )
+    email_sent_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    email_attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
     )
 
     recipient_id: Mapped[uuid.UUID] = sr(nullable=False, index=False)
@@ -294,6 +317,20 @@ class Notification(LogModel):
     ref_table: Mapped[str | None] = txt(nullable=True)
     ref_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+
+
+class NotificationPreference(ConfigModel, TenantMixin):
+    """ENT-NotificationPreference (05 §2.4, R-DEC-32) — no row = code default."""
+
+    __tablename__ = "notification_preferences"
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", name="uq_notification_preferences_user_id_kind"),
+        {"schema": S},
+    )
+
+    user_id: Mapped[uuid.UUID] = sr(nullable=False)
+    kind: Mapped[str] = mapped_column(NOTIFICATION_KIND, nullable=False)
+    email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
 
 class OutboxEvent(LogModel):

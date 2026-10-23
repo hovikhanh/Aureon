@@ -17,6 +17,7 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.platform.models import ApprovalRequest
+from app.modules.platform.routes.notifications import router as notifications_router
 from app.modules.platform.schemas import (
     ApprovalRequestOut,
     AuditLogOut,
@@ -118,3 +119,9 @@ async def decide_approval(
     )
     await db.commit()
     return out
+
+
+# M1.2 T-616: EP-NTF-01..05 `/notifications` (token only, R-DEC-31) in the same module router.
+module_router = EnvelopeRouter(tags=["platform"])
+module_router.include_router(router)
+module_router.include_router(notifications_router)

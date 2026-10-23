@@ -22,6 +22,8 @@ _SUSPICIOUS = re.compile(
 )
 # Request bodies / auth plumbing are not response data (credentials are never serialised out).
 _NOT_DATA = {"LoginIn", "TokenOut", "RefreshIn"}
+# Delivery flags / counters about a channel, not personal data.
+_FLAG = re.compile(r"_(enabled|status|sent_at|attempts)$")
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,6 @@ def test_no_sensitive_field_outside_registry() -> None:
         for name, sch in schemas.items()
         if name not in _NOT_DATA
         for prop in sch.get("properties", {})
-        if _SUSPICIOUS.search(prop) and prop not in declared
+        if _SUSPICIOUS.search(prop) and not _FLAG.search(prop) and prop not in declared
     ]
     assert leaks == [], f"declare in core/field_policy.py: {leaks}"

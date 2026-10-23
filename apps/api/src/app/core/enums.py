@@ -37,6 +37,9 @@ NOTIFICATION_KIND = pg_enum(
     "alert", "review_assigned", "review_escalated", "task_assigned", "approval_requested",
     "approval_decided", "report_ready", "ai_action", "document_ready", "reminder", "system",
 )  # fmt: skip
+EMAIL_STATUS = pg_enum(  # M1.2 R-DEC-33
+    "platform", "email_status", "NOT_REQUIRED", "PENDING", "SENT", "FAILED"
+)
 RECORD_SOURCE = pg_enum(
     "platform", "record_source", "MANUAL", "IDP", "IMPORT", "AI", "EVENT", "SEED"
 )
@@ -63,6 +66,6 @@ SHARED_ENUMS: tuple[ENUM, ...] = (
     PILLAR, ACTOR_TYPE, CONFIDENCE_BAND, PERIOD_TYPE, METRIC_UNIT, THRESHOLD_DIRECTION,
     METRIC_VALUE_KIND, SCOPE_TYPE, VALUE_ORIGIN, THRESHOLD_STATUS, ALERT_SEVERITY, ALERT_STATUS,
     LINEAGE_KIND, NOTIFICATION_KIND, RECORD_SOURCE, DATA_CLASSIFICATION, APPROVAL_STATUS,
-    REPORT_KIND, REPORT_FORMAT, REPORT_STATUS, OUTBOX_STATUS, PROCESSING_STATUS,
+    REPORT_KIND, REPORT_FORMAT, REPORT_STATUS, OUTBOX_STATUS, PROCESSING_STATUS, EMAIL_STATUS,
     ROLE_CODE, AUTONOMY_LEVEL,
 )  # fmt: skip

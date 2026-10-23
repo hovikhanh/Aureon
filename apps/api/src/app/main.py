@@ -15,7 +15,7 @@ from app.modules.finance.routes.router import router as finance_router
 from app.modules.hr.routes.router import router as hr_router
 from app.modules.idp.routes.router import router as idp_router
 from app.modules.platform.routes.health import router as health_router
-from app.modules.platform.routes.router import router as platform_router
+from app.modules.platform.routes.router import module_router as platform_router
 from app.modules.product.routes.router import router as product_router
 from app.modules.risk.routes.router import router as risk_router
 from app.modules.sales.routes.router import router as sales_router

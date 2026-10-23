@@ -80,3 +80,46 @@ class AuditLogOut(BaseModel):
     before: object | None = None
     after: object | None = None
     why: str | None = None
+
+
+# ---------- M1.2 T-616 notifications (EP-NTF-01..05, 10 §7.2.1) ----------
+NotificationKind = Literal[
+    "alert", "review_assigned", "review_escalated", "task_assigned", "approval_requested",
+    "approval_decided", "report_ready", "ai_action", "document_ready", "reminder", "system",
+]  # fmt: skip
+
+
+class NotificationOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    title: str
+    body: str
+    link: str | None
+    ref_schema: str | None
+    ref_table: str | None
+    ref_id: uuid.UUID | None
+    read_at: datetime | None
+    created_at: datetime
+
+
+class ReadAllIn(BaseModel):
+    up_to: datetime | None = None
+
+
+class ReadAllOut(BaseModel):
+    updated: int
+
+
+class NotificationPreferenceOut(BaseModel):
+    kind: str
+    email_enabled: bool
+    is_default: bool
+
+
+class PreferenceItem(BaseModel):
+    kind: NotificationKind
+    email_enabled: bool
+
+
+class PreferencesIn(BaseModel):
+    items: list[PreferenceItem] = Field(min_length=1, max_length=20)

@@ -18,6 +18,8 @@ from app.modules.platform.models import (
     DataLineage,
     Metric,
     MetricValue,
+    Notification,
+    NotificationPreference,
     OutboxEvent,
     ProcessedEvent,
 )
@@ -213,3 +215,54 @@ class AlertRepository(BaseRepository[Alert]):
             Alert.status.in_(("OPEN", "ACKNOWLEDGED")),
         )  # fmt: skip
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+
+class NotificationRepository:
+    """EP-NTF (R-DEC-31): every query is pinned to `recipient_id` + current tenant."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    def _mine(self, user_id: uuid.UUID) -> Select[Notification]:
+        return select(Notification).where(
+            Notification.recipient_id == user_id, Notification.tenant_id == require_tenant()
+        )
+
+    async def page(
+        self, user_id: uuid.UUID, *, unread_only: bool, kind: str | None, limit: int, offset: int
+    ) -> tuple[Sequence[Notification], int, int]:
+        stmt = self._mine(user_id)
+        if unread_only:
+            stmt = stmt.where(Notification.read_at.is_(None))
+        if kind:
+            stmt = stmt.where(Notification.kind == kind)
+        total = int(await self.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
+        unread_q = self._mine(user_id).where(Notification.read_at.is_(None)).subquery()
+        unread = int(await self.db.scalar(select(func.count()).select_from(unread_q)) or 0)
+        stmt = stmt.order_by(Notification.created_at.desc(), Notification.id)
+        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
+        return rows, total, unread
+
+    async def mine(self, user_id: uuid.UUID, notification_id: uuid.UUID) -> Notification | None:
+        stmt = self._mine(user_id).where(Notification.id == notification_id).with_for_update()
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def read_all(self, user_id: uuid.UUID, up_to: datetime, at: datetime) -> int:
+        res = await self.db.execute(
+            update(Notification)
+            .where(Notification.recipient_id == user_id,
+                   Notification.tenant_id == require_tenant(),
+                   Notification.read_at.is_(None), Notification.created_at <= up_to)
+            .values(read_at=at)
+        )  # fmt: skip
+        return int(getattr(res, "rowcount", 0) or 0)
+
+
+class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
+    model = NotificationPreference
+
+    async def of_user(self, user_id: uuid.UUID) -> dict[str, NotificationPreference]:
+        stmt = self._scoped(select(NotificationPreference)).where(
+            NotificationPreference.user_id == user_id
+        )
+        return {p.kind: p for p in (await self.db.execute(stmt)).scalars().all()}

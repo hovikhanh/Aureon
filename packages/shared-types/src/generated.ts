@@ -941,6 +941,11 @@ export type Envelope_MitigationOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_NotificationOut_ = {
+  data: NotificationOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_ObjectiveOut_ = {
   data: ObjectiveOut;
   meta?: Meta | null;
@@ -978,6 +983,11 @@ export type Envelope_ProductOut_ = {
 
 export type Envelope_ProjectOut_ = {
   data: ProjectOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ReadAllOut_ = {
+  data: ReadAllOut;
   meta?: Meta | null;
 };
 
@@ -1243,6 +1253,16 @@ export type Envelope_list_MilestoneOut__ = {
 
 export type Envelope_list_MitigationOut__ = {
   data: MitigationOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_NotificationOut__ = {
+  data: NotificationOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_NotificationPreferenceOut__ = {
+  data: NotificationPreferenceOut[];
   meta?: Meta | null;
 };
 
@@ -2063,6 +2083,7 @@ export type Meta = {
   request_id?: string | null;
   generated_at?: string | null;
   pagination?: Pagination | null;
+  unread_count?: number | null;
 };
 
 export type MetricCreate = {
@@ -2199,6 +2220,25 @@ export type MitigationUpdate = {
 export type ModelGatewayCheck = {
   mode: string;
   primary: string;
+};
+
+export type NotificationOut = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  link: string | null;
+  ref_schema: string | null;
+  ref_table: string | null;
+  ref_id: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+export type NotificationPreferenceOut = {
+  kind: string;
+  email_enabled: boolean;
+  is_default: boolean;
 };
 
 export type ObjectiveCreate = {
@@ -2375,6 +2415,15 @@ export type PositionUpdate = {
   reports_to_position_id?: string | null;
 };
 
+export type PreferenceItem = {
+  kind: "alert" | "review_assigned" | "review_escalated" | "task_assigned" | "approval_requested" | "approval_decided" | "report_ready" | "ai_action" | "document_ready" | "reminder" | "system";
+  email_enabled: boolean;
+};
+
+export type PreferencesIn = {
+  items: PreferenceItem[];
+};
+
 export type ProductCreate = {
   code: string;
   name: string;
@@ -2484,6 +2533,14 @@ export type ProjectUpdate = {
   actual_end_date?: string | null;
   status?: ("planned" | "active" | "on_hold" | "done" | "cancelled") | null;
   budget_amount?: number | null;
+};
+
+export type ReadAllIn = {
+  up_to?: string | null;
+};
+
+export type ReadAllOut = {
+  updated: number;
 };
 
 export type ReasonIn = {
@@ -3805,6 +3862,26 @@ export interface ApiOperations {
   "POST /api/v1/idp/review-queue/merge": {
     request: MergeIn;
     response: Envelope_MergeOut_;
+  };
+  "GET /api/v1/notifications": {
+    request: void;
+    response: Envelope_list_NotificationOut__;
+  };
+  "GET /api/v1/notifications/preferences": {
+    request: void;
+    response: Envelope_list_NotificationPreferenceOut__;
+  };
+  "PATCH /api/v1/notifications/preferences": {
+    request: PreferencesIn;
+    response: Envelope_list_NotificationPreferenceOut__;
+  };
+  "POST /api/v1/notifications/read-all": {
+    request: ReadAllIn;
+    response: Envelope_ReadAllOut_;
+  };
+  "POST /api/v1/notifications/{notification_id}/read": {
+    request: void;
+    response: Envelope_NotificationOut_;
   };
   "GET /api/v1/org/assignments": {
     request: void;
