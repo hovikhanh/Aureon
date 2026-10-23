@@ -66,20 +66,22 @@ Quy ước `TC-M<mốc><phase>-NN` (R-DEC-19). Trạng thái: `Planned → Imple
 |---|---|---|---|---|---|
 | TC-SYS-003 | OpenAPI + code khớp 10 (mã lỗi §1.4 hai chiều, public EP, envelope) | contract | T-602 | 10 §1.4, §7.2 | **Passed** (11/11, sau khi khôi phục §1.4) |
 | TC-M11-01 | Mọi lớp `AppError` + `AI_ERROR_CODES` + `_HTTP_CODES` có trong 10 §1.4 đúng HTTP status | contract | T-602 | R-DEC-18 | Passed |
-| TC-M11-02 | Repository nghiệp vụ lọc `tenant_id` theo tenant context; tenant B không đọc/sửa/xóa bản ghi tenant A (trả 404) | integration (bảo mật) | T-603 | R-DEC-13/21, 05 §2.3 | Implemented |
-| TC-M11-03 | Thiếu tenant context → repository raise (fail closed), không trả dữ liệu | unit (bảo mật) | T-603 | 05 §2.3 | Implemented |
-| TC-M11-04 | Outbox ghi `tenant_id`; consumer set tenant từ envelope; event thiếu `tenant_id` → DLQ | event | T-603 | 10 §9.1 | Implemented |
-| TC-M11-05 | Test kiến trúc: không `select(<BusinessModel>)` ngoài repository; migration `0010` downgrade/upgrade sạch | architecture | T-603 | CLAUDE.md §4.3, 05 §2.3 | Implemented |
-| TC-M11-06 | Seed v3: 7 phòng ban + quy mô đúng 08 §2.1 (±), user demo đủ role + `scope_pillars` đúng, chạy 2 lần không tạo trùng | integration | T-603b | 08 §2.1, R-DEC-23 | Implemented |
-| TC-M11-07 | Seed v3 có dữ liệu tối thiểu UC-01/02/03/04/06/07 (08 §4) trên entity đã có | integration | T-603b | 08 §4 | Implemented |
-| TC-M11-08 | `generated.ts` sinh lại trùng file đã commit (drift check) | contract | T-605 | R-DEC-19 | Implemented |
-| TC-M11-09 | Mock BFF trả envelope/lỗi/phân trang đúng quy ước 10 §10; SSE giả đúng thứ tự event | FE unit (Vitest) | T-604 | 10 §10 | Implemented |
-| TC-M11-10 | `API_MODE=mock` bị từ chối khi `NODE_ENV=production`; mock login cấp đúng claim 7 role | FE unit (bảo mật) | T-604 | R-DEC-25 | Implemented |
-| TC-M11-11 | Playwright project `mock` chạy xanh không có backend | E2E | T-606 | — | Implemented |
-| TC-M11-12 | Sidebar 8 mục + Quản trị đúng ma trận role 06 §3.2/§3.4 (default-deny) | FE unit + E2E | T-607 | 06 §3.4 | Implemented |
-| TC-M11-13 | Route v2.1 (`/dashboard`, `/ai`, `/idp/review[/id]`, `/finance/invoices`, `/hr/employees`, `/approvals`, `/dashboard/pillar/[slug]`) → 308 tới route v3 | E2E | T-607 | 06 §3.4 | Implemented |
-| TC-M11-14 | Tool product/risk không được quảng bá cho model; Executive mặc định không có card U/S | unit + E2E | T-608 | R-DEC-16 | Implemented |
-| TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Implemented |
+| TC-M11-02 | Repository nghiệp vụ lọc `tenant_id` theo tenant context; tenant B không đọc/sửa/xóa bản ghi tenant A (trả 404) | integration (bảo mật) | T-603 | R-DEC-13/21, 05 §2.3 | Passed |
+| TC-M11-03 | Thiếu tenant context → repository raise (fail closed), không trả dữ liệu | unit (bảo mật) | T-603 | 05 §2.3 | Passed |
+| TC-M11-04 | Outbox ghi `tenant_id`; consumer set tenant từ envelope; event thiếu `tenant_id` → DLQ | event | T-603 | 10 §9.1 | Passed |
+| TC-M11-05 | Test kiến trúc: không `select(<BusinessModel>)` ngoài repository; migration `0010` downgrade/upgrade sạch | architecture | T-603 | CLAUDE.md §4.3, 05 §2.3 | Passed |
+| TC-M11-06 | Seed v3: 7 phòng ban + quy mô đúng 08 §2.1 (±), user demo đủ role + `scope_pillars` đúng, chạy 2 lần không tạo trùng | integration | T-603b | 08 §2.1, R-DEC-23 | Passed |
+| TC-M11-07 | Seed v3 có dữ liệu tối thiểu UC-01/02/03/04/06/07 (08 §4) trên entity đã có | integration | T-603b | 08 §4 | Passed |
+| TC-M11-08 | `generated.ts` sinh lại trùng file đã commit (drift check) | contract | T-605 | R-DEC-19 | Passed |
+| TC-M11-09 | Mock BFF trả envelope/lỗi/phân trang đúng quy ước 10 §10; SSE giả đúng thứ tự event | FE unit (Vitest) | T-604 | 10 §10 | Passed |
+| TC-M11-10 | `API_MODE=mock` bị từ chối khi `NODE_ENV=production`; mock login cấp đúng claim 7 role | FE unit (bảo mật) | T-604 | R-DEC-25 | Passed |
+| TC-M11-11 | Playwright project `mock` chạy xanh không có backend | E2E | T-606 | — | Passed |
+| TC-M11-12 | Sidebar 8 mục + Quản trị đúng ma trận role 06 §3.2/§3.4 (default-deny) | FE unit + E2E | T-607 | 06 §3.4 | Passed |
+| TC-M11-13 | Route v2.1 (`/dashboard`, `/ai`, `/idp/review[/id]`, `/finance/invoices`, `/hr/employees`, `/approvals`, `/dashboard/pillar/[slug]`) → 308 tới route v3 | E2E | T-607 | 06 §3.4 | Passed |
+| TC-M11-14 | Tool product/risk không được quảng bá cho model; Executive mặc định không có card U/S | unit + E2E | T-608 | R-DEC-16 | Passed |
+| TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Passed |
+
+**Kết quả đóng M1.1 (T-610, 2026-10-23):** TC-M11-01..15 Passed — pytest 807 passed (`--cov=app` 97%; bảo mật: `core/security` 100%, `core/permissions` 100%, `core/tenant` 98%, `core/pii` 100%, `auth_service` 91%, `action_registry` 95%, `autonomy` 92%, `kill_switch_service` 100%, mọi `services/scope.py` ≥ 95%), Vitest 78, contract 14, `alembic downgrade -1 && upgrade head` sạch, Playwright `mock` 28/28 (không backend) + `real` 58/58.
 
 Ngưỡng: TC-M11-02..05, 10 thuộc nhóm **bảo mật** (coverage ≥ 90%, gap = blocking). TC của M1.2 trở đi thêm ở bước Spec lock từng phase (09 §6.0).
 

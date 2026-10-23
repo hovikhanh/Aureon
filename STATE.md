@@ -1,14 +1,35 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: Phase 1 DONE (refactor nền v2.1 → model v3)
+## Status: M1.1 DONE (nền build v3) — chờ human review/PR
 
 | Field | Value |
 |---|---|
 | Last updated | 2026-10-23 (Asia/Saigon) |
 | Dòng sản phẩm | **Aureon v3 — AI-EOS** (chính thức duy nhất). v2.1 archived (`docs/_archive/v2.1/`) |
-| Branch | `ai-eos` → `origin/ai-eos` (commit `8ec9cdb`); `main` giữ nền v2.1 demo |
-| Phase | **M1.1 đang code (docs duyệt)** · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
-| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.4) |
+| Branch | `v3/m1.1-foundation` (local, **chưa push**) ← `ai-eos`; `main` giữ nền v2.1 demo |
+| Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
+
+## M1.1 — Nền build v3 (09 §6.2) — đã làm
+| Task | Commit | Nội dung |
+|---|---|---|
+| T-602 | `6dc3d7c` | 10 §1.4 phản chiếu `core/errors.py`; contract test xanh |
+| T-603 | `a4687a6` | Lọc `tenant_id` fail-closed (repo + outbox/consumer, migration `0010`) |
+| T-603b | `4059b5e` | Seed v3 ABC theo 08 §2.1 (7 phòng ban, 154 NV, 10 user + `ai-agent`), `seed_snapshot.json` |
+| T-605 | `4ee0d8e` | `packages/shared-types` sinh từ OpenAPI + drift check |
+| T-604 | `77201b5` | Mock BFF `API_MODE=mock` (cấm ở production), mock login 7 role |
+| T-606 | `d80bde8` | Playwright 2 project `mock` / `real`; tag `@mock`, `@mock-only` |
+| T-607 | `12f8170` | IA v3: Sidebar 8 mục + Quản trị, route v3, 308 từ route v2.1, "Sắp có"; fix IDP CEO-scope |
+| T-608 | `b112bc9` | Đóng băng product/risk: `p1_frozen`, Executive mặc định F/O/C, 5 trụ chỉ ở SCR-03 |
+| T-609 | `65072d3` | E2E login + điều hướng 7 role trên `real` |
+
+**Verify đóng phase (2026-10-23):** gate DoD xanh · pytest 807 (`--cov` 97%, bảo mật ≥ 91%) · Vitest 78 ·
+contract 14 · alembic `downgrade -1 && upgrade head` sạch · Playwright `mock` 28/28 (không backend) · `real` 58/58
+(web `next start` :3200 + API host :4100 trên DB dev — container `web`/`api` :3000/:4000 còn image cũ).
+
+**Rủi ro / nợ còn lại:** image docker `api`/`web` chưa rebuild (buildx permission); FIN-06 ≈ 8% (08 ghi ~12%,
+human chốt giữ); DQ-01 phụ thuộc giờ hệ thống; `scripts/gen_demo_docs.py` còn assert 45 NV; mock router chỉ phủ
+dashboard + ai; dropdown demo chỉ 5 tài khoản (các vai khác gõ mật khẩu `.env`).
 
 ## Phase 1 — đã làm (R-DEC-07/08/12/12a/13)
 - **7 role v3** (`CEO/DIR/MGR/EMP/REV/ADM/AI`) thay 10 role F.O.C.U.S. `DIR` = union quyền 5 C-level cũ.
@@ -34,7 +55,7 @@
 
 ## Kế tiếp
 - **Kế hoạch build MVP v3: `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` §6** (M1.1→M3.5, vòng S→C→F→B→N→R; quyết định 13 §2ter R-DEC-15..27).
-- Đang ở **M1.1** (nhánh `v3/m1.1-foundation`): T-601/T-601b xong (Spec lock M1.1), contract test 11/11 xanh. Docs Spec lock M1.1 **đã duyệt** (12 §1.1.0, 2026-10-23). **Sẵn sàng code T-602→T-610** theo 09 §6.2.
+- **M1.1 xong** trên nhánh `v3/m1.1-foundation` (chưa push). Kế: human review → PR → `ai-eos`, rồi Spec lock M1.2 (09 §6.0).
 - (Tuỳ chọn) P1.6 enforce `tenant_id` filtering trong repositories/services (mới có model + migration + JWT claim).
 - Chạy E2E login 7 role khi docker sẵn sàng; nếu fail → fix rồi mới đóng hẳn.
 - Phase 2 theo `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` (review + fix gate giữa các phase).
