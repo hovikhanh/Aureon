@@ -62,6 +62,17 @@ export function visiblePillars(role: string, perms: readonly string[], scopePill
   return PILLARS.filter((p) => scope.includes(p.code) && queryable(p) && (inKhoi(p.code) || p.code === "F"));
 }
 
+/** R-DEC-16: product (U) and risk (S) are frozen at P1 — off the Executive default view. */
+export const P1_FROZEN_PILLARS: readonly PillarCode[] = ["U", "S"];
+
+/**
+ * Executive default (`/home`, SCR-40 interim): visible pillars minus the frozen ones. The full
+ * five-pillar F.O.C.U.S layout is optional and lives only on SCR-03 (03 §1, 06 §3.1).
+ */
+export function executivePillars(role: string, perms: readonly string[], scopePillars: readonly string[] = []): PillarDef[] {
+  return visiblePillars(role, perms, scopePillars).filter((p) => !P1_FROZEN_PILLARS.includes(p.code));
+}
+
 const RANK: Record<PillarStatus, number> = { no_data: -1, ok: 0, warning: 1, critical: 2 };
 
 export function worstStatus(statuses: PillarStatus[]): PillarStatus {

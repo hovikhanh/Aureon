@@ -7,17 +7,25 @@ test.afterAll(() => cleanupReviewDocs());
 
 const SLUGS = { F: "finance", O: "operations", C: "customer", U: "product", S: "strategy" } as const;
 
-test("CEO: 5 pillar cards each drill down, 13 alerts", async ({ page }) => {
+test("CEO: F/O/C cards drill down, 5-pillar layout on SCR-03, 13 alerts", async ({ page }) => {
   await loginAs(page, "ceo@abc.demo");
   await expect(page.getByTestId("alert-row")).toHaveCount(13);
-  for (const [code, slug] of Object.entries(SLUGS)) {
+  for (const code of ["O", "C"] as const) {
     await expect(page.getByTestId(`pillar-${code}`)).toHaveAttribute("data-status", /ok|warning|critical/);
     await page.getByTestId(`pillar-${code}`).click();
-    await expect(page).toHaveURL(new RegExp(`/home/pillar/${slug}`));
+    await expect(page).toHaveURL(new RegExp(`/home/pillar/${SLUGS[code]}`));
     await expect(page.getByTestId("pillar-detail")).toHaveAttribute("data-pillar", code);
     await page.goBack();
     await expect(page.getByTestId("pillar-grid")).toBeVisible();
   }
+  // R-DEC-16: U/S only through the optional five-pillar layout (SCR-03 tabs)
+  await page.getByTestId("five-pillar-link").click();
+  for (const [code, slug] of Object.entries(SLUGS)) {
+    await page.getByTestId(`pillar-tab-${code}`).click();
+    await expect(page).toHaveURL(new RegExp(`/home/pillar/${slug}`));
+    await expect(page.getByTestId(`pillar-tab-${code}`)).toHaveAttribute("aria-current", "page");
+  }
+  await page.goto("/home");
   await expect(page.getByTestId("alert-row").first()).toHaveAttribute("data-severity", "critical");
 });
 

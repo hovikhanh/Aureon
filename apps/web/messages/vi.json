@@ -125,7 +125,8 @@
     },
     "S": {
       "name": "Chiến lược & Rủi ro"
-    }
+    },
+    "tabs": "Bố cục 5 trụ F.O.C.U.S (tùy chọn)"
   },
   "status": {
     "ok": "Đúng kế hoạch",
@@ -165,7 +166,8 @@
         "q3": "Quý 3 ({period})",
         "q4": "Quý 4 ({period})"
       }
-    }
+    },
+    "fivePillarLink": "Xem bố cục 5 trụ"
   },
   "metric": {
     "METRIC-FIN-01": "Doanh thu vs kế hoạch",

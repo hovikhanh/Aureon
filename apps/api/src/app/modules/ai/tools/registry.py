@@ -4,16 +4,20 @@
 public API. A turn's available tools = tools whose `required_permissions` the asker holds
 (`available_for`, P06, 02 §7.2) minus those removed by the autonomy / kill-switch layer (T-310).
 `advertisable_for` additionally drops `declare_to_model=False` (APPROVAL layer never sent to the
-model, §7.3) and — for classification routing (§7.4, 07 §6.5) — callers may further filter by
-`max_classification`. Adding a tool here is a contract change (§7.2 rule 4): update 10 §7 + 00
-§4.8 + 02 §7.3 first.
+model, §7.3) and `p1_frozen` tools (product/risk, R-DEC-16); for classification routing (§7.4,
+07 §6.5) callers may further filter by `max_classification`. Adding a tool here is a contract
+change (§7.2 rule 4): update 10 §7 + 00 §4.8 + 02 §7.3 first.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from app.modules.ai.tools.spec import ToolDef
 
 CLASSIFICATION_RANK = {"INTERNAL": 1, "CONFIDENTIAL": 2, "SECRET": 3}
+# R-DEC-16: modules frozen at P1 — their tools carry `p1_frozen` and are not advertised.
+P1_FROZEN_DOMAINS = frozenset({"product", "risk"})
 
 
 def _read(
@@ -515,7 +519,10 @@ _V21_TOOLS: tuple[ToolDef, ...] = (
     ),
 )
 
-TOOLS: tuple[ToolDef, ...] = (*_READ_TOOLS, *_WRITE_TOOLS, *_V21_TOOLS)
+TOOLS: tuple[ToolDef, ...] = tuple(
+    replace(t, p1_frozen=True) if t.domain in P1_FROZEN_DOMAINS else t
+    for t in (*_READ_TOOLS, *_WRITE_TOOLS, *_V21_TOOLS)
+)
 
 _BY_NAME: dict[str, ToolDef] = {t.name: t for t in TOOLS}
 if len(_BY_NAME) != len(TOOLS):  # pragma: no cover - guards against a duplicate TOOL-* name
@@ -538,10 +545,13 @@ def available_for(permissions: frozenset[str]) -> tuple[ToolDef, ...]:
 def advertisable_for(
     permissions: frozenset[str], *, max_classification: str | None = None
 ) -> tuple[ToolDef, ...]:
-    """Tools sent to the model: available, `declare_to_model`, within classification ceiling."""
+    """Tools sent to the model: available, `declare_to_model`, not `p1_frozen` (R-DEC-16),
+    within the classification ceiling."""
     ceiling = CLASSIFICATION_RANK.get(max_classification or "SECRET", 3)
     return tuple(
         t
         for t in available_for(permissions)
-        if t.declare_to_model and CLASSIFICATION_RANK[t.classification] <= ceiling
+        if t.declare_to_model
+        and not t.p1_frozen
+        and CLASSIFICATION_RANK[t.classification] <= ceiling
     )

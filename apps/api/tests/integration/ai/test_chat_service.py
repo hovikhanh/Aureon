@@ -140,6 +140,16 @@ async def test_confidential_prompt_caps_tools_to_internal(db_session) -> None:
     assert "TOOL-get_finance_dashboard" in names  # INTERNAL aggregate tool
 
 
+async def test_p1_frozen_tools_not_sent_to_model(db_session) -> None:
+    """TC-M11-14 (R-DEC-16): the CEO holds product/risk permissions, yet no product/risk tool
+    reaches the model's tool list."""
+    gw = ScriptedGateway(ChatResponse(content="ok", provider="fixture", model="x"))
+    await ChatService(db_session, gw).chat(principal("CEO"), "tóm tắt tuần này", locale="vi")
+    names = {t.name for t in gw.requests[0].tools}
+    assert "TOOL-get_finance_dashboard" in names
+    assert not {n for n in names if "product" in n or "risk" in n}
+
+
 async def test_turn_persists_conversation_message_toolcall(db_session) -> None:
     gw = _tool_then_answer("TOOL-get_risk_dashboard", "Có 3 rủi ro mức cao.")
     turn = await ChatService(db_session, gw).chat(

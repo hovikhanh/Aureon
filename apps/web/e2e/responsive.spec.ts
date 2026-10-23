@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/** 06 breakpoints: ≥1440 · 1280–1439 · 768–1279 (sidebar icons) · <768 (drawer). No horizontal scroll. */
+/**
+ * 06 breakpoints: ≥1440 · 1280–1439 · 768–1279 (sidebar icons) · <768 (drawer). No horizontal scroll.
+ * Executive default = 3 cards F/O/C (U/S frozen, R-DEC-16) → one row from 768px up.
+ */
 const VIEWPORTS = [
-  { w: 1440, h: 900, sidebar: "full", cols: 5 },
-  { w: 1280, h: 800, sidebar: "full", cols: 5 },
-  { w: 768, h: 1024, sidebar: "icons", cols: 2 },
+  { w: 1440, h: 900, sidebar: "full", cols: 3 },
+  { w: 1280, h: 800, sidebar: "full", cols: 3 },
+  { w: 768, h: 1024, sidebar: "icons", cols: 3 },
   { w: 390, h: 844, sidebar: "drawer", cols: 1 },
 ] as const;
 

@@ -3,17 +3,19 @@ import { loginAs } from "./helpers";
 
 test.describe("SCR-02 CEO dashboard (T-505)", () => {
   // v3 demo picture (08 §5, seed T-603b): Cash runway 🔴 → F critical; never "all green" (DD-02).
-  test("5 pillar cards with the v3 demo statuses + 13 alerts, drill-down", async ({ page }) => {
+  // R-DEC-16: Executive default has no U/S card (TC-M11-14); 5 pillars only on SCR-03.
+  test("Executive default: F/O/C cards (no U/S) with v3 statuses + 13 alerts, drill-down", async ({ page }) => {
     await loginAs(page, "ceo@abc.demo");
     await expect(page).toHaveURL(/\/home$/);
     const grid = page.getByTestId("pillar-grid");
-    for (const code of ["F", "O", "C", "U", "S"]) {
+    await expect(grid.locator("> [data-testid^=pillar-]")).toHaveCount(3);
+    await expect(grid.getByTestId("pillar-U")).toHaveCount(0);
+    await expect(grid.getByTestId("pillar-S")).toHaveCount(0);
+    for (const code of ["F", "O", "C"]) {
       await expect(grid.getByTestId(`pillar-${code}`)).toHaveAttribute("data-status", /ok|warning|critical/);
     }
-    const statuses = await Promise.all(
-      ["F", "O", "C", "U", "S"].map((c) => grid.getByTestId(`pillar-${c}`).getAttribute("data-status")),
-    );
-    expect(statuses).toEqual(["critical", "critical", "warning", "warning", "critical"]); // F O C U S
+    const statuses = await Promise.all(["F", "O", "C"].map((c) => grid.getByTestId(`pillar-${c}`).getAttribute("data-status")));
+    expect(statuses).toEqual(["critical", "critical", "warning"]); // F O C
 
     const rows = page.getByTestId("alert-row");
     await expect(rows).toHaveCount(13);
@@ -27,9 +29,9 @@ test.describe("SCR-02 CEO dashboard (T-505)", () => {
   });
 
   test("partial failure: one pillar unavailable, others render", async ({ page }) => {
-    await page.route("**/api/backend/risk/dashboard**", (r) => r.fulfill({ status: 500, body: "{}" }));
+    await page.route("**/api/backend/sales/dashboard**", (r) => r.fulfill({ status: 500, body: "{}" }));
     await loginAs(page, "ceo@abc.demo");
-    await expect(page.getByTestId("pillar-S")).toHaveAttribute("data-status", "unavailable");
+    await expect(page.getByTestId("pillar-C")).toHaveAttribute("data-status", "unavailable");
     await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", "critical");
   });
 

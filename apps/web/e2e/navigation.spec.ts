@@ -76,3 +76,23 @@ test.describe("v2.1 routes redirect 308 (TC-M11-13)", { tag: "@mock" }, () => {
     await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fhome/);
   });
 });
+
+test.describe("product/risk frozen (TC-M11-14, R-DEC-16)", { tag: "@mock" }, () => {
+  test("CEO Executive default has no U/S card; the 5 pillars live only on SCR-03", async ({ page }) => {
+    await login(page, "ceo@abc.demo");
+    const grid = page.getByTestId("pillar-grid");
+    await expect(grid.getByTestId("pillar-F")).toBeVisible();
+    await expect(grid.getByTestId("pillar-U")).toHaveCount(0);
+    await expect(grid.getByTestId("pillar-S")).toHaveCount(0);
+    await expect(page.locator("[data-testid^=nav-product], [data-testid^=nav-risk]")).toHaveCount(0);
+    await page.getByTestId("five-pillar-link").click();
+    await expect(page).toHaveURL(/\/home\/pillar\/finance/);
+    await expect(page.getByTestId("pillar-tabs").locator("a")).toHaveCount(5);
+  });
+
+  test("a DIR scoped to F gets no five-pillar link", async ({ page }) => {
+    await login(page, "cfo@abc.demo");
+    await expect(page.getByTestId("pillar-F")).toBeVisible();
+    await expect(page.getByTestId("five-pillar-link")).toHaveCount(0);
+  });
+});
