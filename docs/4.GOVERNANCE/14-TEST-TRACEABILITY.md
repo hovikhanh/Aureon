@@ -80,6 +80,7 @@ Quy ước `TC-M<mốc><phase>-NN` (R-DEC-19). Trạng thái: `Planned → Imple
 | TC-M11-13 | Route v2.1 (`/dashboard`, `/ai`, `/idp/review[/id]`, `/finance/invoices`, `/hr/employees`, `/approvals`, `/dashboard/pillar/[slug]`) → 308 tới route v3 | E2E | T-607 | 06 §3.4 | Passed |
 | TC-M11-14 | Tool product/risk không được quảng bá cho model; Executive mặc định không có card U/S | unit + E2E | T-608 | R-DEC-16 | Passed |
 | TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Passed |
+| TC-M11-16 | `DEMO_ACCOUNTS` khớp tập user seed (email/role/khối), có nhãn vi+en, test id duy nhất; 10 nút đăng nhập nhanh đăng nhập được mà **HTML trang `/login` không chứa mật khẩu** | FE unit + E2E | T-610b | 06 §3.4 | **Passed** (Vitest 84; `real` 58/58; grep HTML = 0 mật khẩu) |
 
 **Kết quả đóng M1.1 (T-610, 2026-10-23):** TC-M11-01..15 Passed — pytest 808 passed (`--cov=app` 97%; bảo mật: `core/security` 100%, `core/permissions` 100%, `core/tenant` 98%, `core/pii` 100%, `auth_service` 91%, `action_registry` 95%, `autonomy` 92%, `kill_switch_service` 100%, mọi `services/scope.py` ≥ 95%), Vitest 80, contract 14, `alembic downgrade -1 && upgrade head` sạch, Playwright `mock` 28/28 (không backend) + `real` 58/58.
 

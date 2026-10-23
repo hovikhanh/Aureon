@@ -85,7 +85,7 @@
     "emailInvalid": "Email không hợp lệ",
     "passwordRequired": "Vui lòng nhập mật khẩu",
     "demoAccounts": "Tài khoản demo",
-    "demoHint": "Chọn tài khoản để điền email; mật khẩu demo do quản trị cung cấp.",
+    "demoHint": "Bấm một nút để đăng nhập ngay bằng tài khoản demo; mật khẩu do server điền, không gửi ra trình duyệt.",
     "signingIn": "Đang đăng nhập…"
   },
   "role": {
@@ -102,7 +102,12 @@
     "cfo": "Giám đốc tài chính",
     "vp_sales": "Giám đốc kinh doanh",
     "hr_manager": "Giám đốc nhân sự",
-    "reviewer": "Reviewer"
+    "cpo": "Giám đốc sản phẩm",
+    "manager": "Trưởng phòng Vận hành",
+    "office_manager": "Trưởng phòng Hành chính",
+    "employee": "Nhân viên",
+    "reviewer": "Reviewer",
+    "admin": "Quản trị hệ thống"
   },
   "header": {
     "language": "Ngôn ngữ",

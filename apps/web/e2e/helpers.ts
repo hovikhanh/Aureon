@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { DEMO_ACCOUNTS } from "../src/lib/demo-accounts";
+import { test, type Page } from "@playwright/test";
+import { DEMO_ACCOUNTS, demoTestId } from "../src/lib/demo-accounts";
 import { MOCK_LOGIN_PASSWORD } from "./support/mock";
 import { rootEnv } from "./support/seed";
 
@@ -40,13 +40,12 @@ async function submit(page: Page): Promise<void> {
   await page.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
 
-/** Demo quick-login (DEMO_MODE): pick the account; the password is resolved server-side. */
+/** Demo quick-login (DEMO_MODE): one click per account; the password is resolved server-side. */
 export async function loginAs(page: Page, email: string): Promise<void> {
   if (isMockProject()) return loginWithPassword(page, email, MOCK_LOGIN_PASSWORD);
   await page.goto("/login");
-  await page.getByTestId("demo-select").selectOption(email);
-  await expect(page.getByLabel("Email")).toHaveValue(email);
-  await submit(page);
+  await page.getByTestId(demoTestId(email)).click();
+  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
 
 /** Typed credential login (accounts outside the demo dropdown, e.g. ADMIN). */

@@ -85,7 +85,7 @@
     "emailInvalid": "Invalid email",
     "passwordRequired": "Please enter your password",
     "demoAccounts": "Demo accounts",
-    "demoHint": "Pick an account to fill the email; demo passwords are provided by the admin.",
+    "demoHint": "Click a button to sign in with that demo account; the password is filled server-side and never sent to the browser.",
     "signingIn": "Signing in…"
   },
   "role": {
@@ -100,9 +100,14 @@
   "demoAccount": {
     "ceo": "CEO",
     "cfo": "CFO",
-    "vp_sales": "VP Sales",
-    "hr_manager": "HR Manager",
-    "reviewer": "Reviewer"
+    "vp_sales": "Sales Director",
+    "hr_manager": "HR Director",
+    "cpo": "Product Director",
+    "manager": "Operations Manager",
+    "office_manager": "Office Manager",
+    "employee": "Employee",
+    "reviewer": "Reviewer",
+    "admin": "System Admin"
   },
   "header": {
     "language": "Language",

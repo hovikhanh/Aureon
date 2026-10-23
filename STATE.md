@@ -22,14 +22,21 @@
 | T-607 | `12f8170` | IA v3: Sidebar 8 mục + Quản trị, route v3, 308 từ route v2.1, "Sắp có"; fix IDP CEO-scope |
 | T-608 | `b112bc9` | Đóng băng product/risk: `p1_frozen`, Executive mặc định F/O/C, 5 trụ chỉ ở SCR-03 |
 | T-609 | `65072d3` | E2E login + điều hướng 7 role trên `real` |
+| T-610b | (chưa commit) | Rebuild image `api`/`web`; **đăng nhập nhanh 10 role** bằng nút (mật khẩu giải ở server, không ra browser); gỡ `NEXT_PUBLIC_DEMO_PASSWORD_*` khỏi `.env.example` |
 
 **Verify đóng phase (2026-10-23):** gate DoD xanh · pytest 808 (`--cov` 97%, bảo mật ≥ 91%) · Vitest 80 ·
 contract 14 · alembic `downgrade -1 && upgrade head` sạch · Playwright `mock` 28/28 (không backend) · `real` 58/58
 (web `next start` :3200 + API host :4100 trên DB dev — container `web`/`api` :3000/:4000 còn image cũ).
 
-**Rủi ro / nợ còn lại:** image docker `api`/`web` chưa rebuild (buildx permission); FIN-06 ≈ 8% (08 ghi ~12%,
+
+**Verify T-610b (2026-10-23):** lint/typecheck sạch · Vitest **84** (thêm `demo-accounts.test.ts`) ·
+Playwright `real` **58/58** trên stack docker `:3000`/`:4000` (image mới) · HTML `/login` không chứa mật khẩu ·
+9 service compose healthy.
+
+**Rủi ro / nợ còn lại:** FIN-06 ≈ 8% (08 ghi ~12%,
 human chốt giữ); DQ-01 phụ thuộc giờ hệ thống; `scripts/gen_demo_docs.py` còn assert 45 NV; mock router chỉ phủ
-dashboard + ai; dropdown demo chỉ 5 tài khoản (các vai khác gõ mật khẩu `.env`).
+dashboard + ai; dashboard 3 cấp theo role vẫn là "Sắp có" cho MGR/EMP/REV/ADM (M2.1); bộ tài liệu mẫu
+`data/DOC-01..07` vẫn là bản v2.1, chưa khớp seed ABC mới.
 
 ## Phase 1 — đã làm (R-DEC-07/08/12/12a/13)
 - **7 role v3** (`CEO/DIR/MGR/EMP/REV/ADM/AI`) thay 10 role F.O.C.U.S. `DIR` = union quyền 5 C-level cũ.

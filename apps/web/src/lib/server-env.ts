@@ -10,7 +10,12 @@ const DEMO_PASSWORD_ENV: Record<string, readonly string[]> = {
   "cfo@abc.demo": ["DEMO_CFO_PASSWORD"],
   "sales@abc.demo": ["DEMO_VP_SALES_PASSWORD", "DEMO_SALES_PASSWORD"],
   "hr@abc.demo": ["DEMO_HR_MANAGER_PASSWORD", "DEMO_HR_PASSWORD"],
+  "cpo@abc.demo": ["DEMO_CPO_PASSWORD", "DEMO_RISK_MANAGER_PASSWORD"],
+  "manager@abc.demo": ["DEMO_MANAGER_PASSWORD"],
+  "office@abc.demo": ["DEMO_OFFICE_MANAGER_PASSWORD", "DEMO_MANAGER_PASSWORD"],
+  "employee@abc.demo": ["DEMO_EMPLOYEE_PASSWORD"],
   "reviewer@abc.demo": ["DEMO_REVIEWER_PASSWORD"],
+  "admin@abc.demo": ["DEMO_ADMIN_PASSWORD"],
 };
 
 export function demoPasswordFor(email: string): string | undefined {
