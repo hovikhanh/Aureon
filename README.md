@@ -1,11 +1,19 @@
-# Aureon v2.1 — Enterprise OS với IDP + AI Assistant
+# Aureon v3 — AI-EOS (AI-First Enterprise Operating System)
 
-> **"Digital Chief of Staff"** cho CEO doanh nghiệp Việt Nam: *biết công ty đang đạt mục tiêu
-> đến đâu, vì sao, và giao việc được ngay — với dữ liệu nhập vào dễ như gửi một file.*
+> **"One Enterprise. One Source of Truth. One AI Operating Layer."**
+> *CEO biết công ty đang đạt mục tiêu đến đâu, vì sao, và giao việc được ngay — với dữ liệu nhập vào dễ như gửi một file.*
 
-Aureon hợp nhất **Executive Dashboard F.O.C.U.S**, **Intelligent Document Processing (IDP)** và
-**Trợ lý AI có nguồn** trên một Modular Monolith (FastAPI + Next.js). Mọi con số truy ngược được
-tới bản ghi và tài liệu gốc. Dữ liệu demo: công ty giả định **TNHH TM&DV ABC** (~150 NV, kỳ Q3/2026).
+Aureon v3 là **hệ điều hành doanh nghiệp lấy AI làm trung tâm**, nối liền một vòng lặp:
+**Capture → Data → Intelligence → Decision → Action → Measurement → Feedback**. AI đóng vai
+Assistant/Analyst/Advisor/Planner/Orchestrator/Agent tùy mức tự chủ (**Autonomy L0–L3**, L4 khóa)
+doanh nghiệp cho phép. Mọi con số truy ngược được tới bản ghi và tài liệu gốc (grounding — không bịa số).
+
+Nền code tái dùng từ Aureon v2.1 (Modular Monolith FastAPI + Next.js), đang refactor dần sang
+model v3 theo từng phase có kiểm chứng FE→BE. Dữ liệu demo: công ty giả định **TNHH TM&DV ABC**
+(~150 NV, 7 phòng ban, kỳ Q3/2026).
+
+> Dòng sản phẩm chính thức **duy nhất** là Aureon v3 — AI-EOS. Aureon v2.1 đã **archived**
+> (`docs/_archive/v2.1/`), chỉ tra cứu lịch sử. Canonical: `_reference/SOURCE-BRD-v1.1.md` (+ Bổ sung) + `SOURCE-UIUX.md`.
 
 ---
 
@@ -21,33 +29,47 @@ open http://localhost:3000              # Web · API: http://localhost:4000/heal
 
 Service `api` tự chạy `alembic upgrade head` + seed (idempotent) khi khởi động. 9 service
 (`postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web`) healthy trong
-~2 phút (ClamAV lần đầu tải signature lâu hơn). Reset dữ liệu demo: `./scripts/demo_reset.sh`.
+~2 phút (ClamAV lần đầu tải signature lâu hơn). Reset dữ liệu demo: `./scripts/demo_reset.sh -y`.
 Kịch bản trình diễn 5 phút: [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
+
+## Vai trò (R-DEC-08) — 7 role BRD + AI Agent
+
+| ID | Vai trò | Phạm vi | ID | Vai trò | Phạm vi |
+|---|---|---|---|---|---|
+| ROLE-CEO | CEO | Toàn doanh nghiệp | ROLE-REV | Reviewer | Hàng chờ review |
+| ROLE-DIR | Director/Executive | Khối/phòng ban | ROLE-ADM | Admin | Cấu hình nền tảng |
+| ROLE-MGR | Manager | Team | ROLE-AI | AI Agent (actor) | Quyền agent ∩ người được phục vụ |
+| ROLE-EMP | Employee | Cá nhân & việc được giao | | | |
+
+**ROLE-DIR gộp 5 giám đốc khối** (R-DEC-12); khối phụ trách phân biệt bằng `scope_pillars`
+(⊆ F.O.C.U.S), enforce ở server mỗi request (R-DEC-12a). Mọi business entity mang `tenant_id`
+(single-tenant ở MVP, sẵn sàng đa tenant — R-DEC-07/13).
 
 ## Demo accounts
 
 Mật khẩu lấy từ `.env` (`DEMO_<ROLE>_PASSWORD`) — không commit, không đặt vào `NEXT_PUBLIC_*`.
 Ở `DEMO_MODE=true` màn hình login có dropdown chọn nhanh tài khoản (mật khẩu điền phía server).
 
-| Email | Vai trò | Thấy gì |
-|---|---|---|
-| `ceo@abc.demo` | CEO | Cả 5 trụ F.O.C.U.S, 13 alert, AI Chat, phê duyệt |
-| `cfo@abc.demo` | CFO | Trụ F + S, Finance drill-down, hóa đơn |
-| `sales@abc.demo` | VP_SALES | Trụ C (Customer & Growth) |
-| `hr@abc.demo` | HR_MANAGER | Trụ O (Operations & People) |
-| `reviewer@abc.demo` | REVIEWER | Hàng chờ review IDP |
+| Email | Role v3 | Khối (scope_pillars) | Thấy gì |
+|---|---|---|---|
+| `ceo@abc.demo` | CEO | — (toàn bộ) | Cả 5 trụ F.O.C.U.S, 13 alert, AI Chat, phê duyệt |
+| `cfo@abc.demo` | DIR | **F** (Finance) | Trụ F, Finance drill-down, hóa đơn; duyệt kế hoạch tuyển dụng (cổng ngân sách) |
+| `sales@abc.demo` | DIR | **C** (Customer) | Trụ C (Customer & Growth) |
+| `hr@abc.demo` | DIR | **O** (Operations) | Trụ O (Operations & People), quỹ lương |
+| `reviewer@abc.demo` | REV | — | Hàng chờ review IDP |
 
-Seed còn 5 tài khoản khác (`cpo@`, `risk@`, `manager@`, `employee@`, `admin@abc.demo`) cho đủ 10 vai trò.
+Seed còn 5 tài khoản (`cpo@`→DIR{U}, `risk@`→DIR{S}, `manager@`→MGR, `employee@`→EMP, `admin@abc.demo`→ADM)
+cho đủ 10 tài khoản demo (08 §2) ánh xạ vào 7 role v3.
 
 ## Tính năng
 
 | Khối | Nội dung |
 |---|---|
-| **Dashboard F.O.C.U.S** | 5 trụ: **F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk. **32 metric** tính sẵn (metric store), **13 alert** mở trong seed demo (11 WARNING + 2 CRITICAL). Layout demo: F🟢 C🟢 U🟡 O🟡 S🔴 |
+| **Dashboard F.O.C.U.S** | 5 trụ: **F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk. **32 metric** tính sẵn (metric store), **13 alert** mở trong seed demo (11 WARNING + 2 CRITICAL). Layout demo: F🟢 C🟢 U🟡 O🟡 S🔴. Pillar card thu hẹp theo khối của DIR |
 | **Finance drill-down** | 6 metric với sparkline 12 tháng, lineage 3 cấp: metric → bản ghi → tài liệu gốc |
-| **AI Assistant** | Chat SSE, **43 tool** lọc theo quyền người hỏi, citation `[n]` → nguồn, không bịa số (P05), PII filter, Autonomy L0–L3 + undo + kill switch |
-| **IDP (Domain 22)** | **5 kênh upload C1–C5**, quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry vào Finance |
-| **Governance** | RBAC 10 vai trò (`<domain>:<action>`), JWT RS256, audit log append-only, Transactional Outbox + Celery |
+| **AI Assistant** | Chat SSE, **43 tool** lọc theo quyền người hỏi, citation `[n]` → nguồn, không bịa số (P05), PII filter, Autonomy L0–L3 + undo + kill switch (L4 khóa) |
+| **IDP (D03)** | **5 kênh upload C1–C5**, quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry vào Finance |
+| **Governance** | RBAC 7 role (`<domain>:<action>`) + ABAC pillar-scope + field-level (mức 4), JWT RS256, `tenant_id` mọi entity, audit log append-only, Transactional Outbox + Celery |
 
 ## Kiến trúc
 
@@ -107,14 +129,15 @@ Test gọi provider thật chỉ chạy khi cho phép: `RUN_LIVE_TESTS=true uv r
 
 | Bộ | Số lượng |
 |---|---|
-| Backend pytest | **777** (coverage 96%) |
+| Backend pytest | **770 passed** (+ 4 pre-existing contract fail — xem 14 §1.4) |
 | Frontend Vitest | **18** |
-| E2E Playwright | **30** |
+| E2E Playwright | **30** (cần full stack docker để chạy) |
 
 ## Tài liệu
 
-Spec sống ở `docs/` (00–14); hợp đồng vận hành agent ở `CLAUDE.md`; trạng thái build ở `STATE.md`;
-quyết định ở `docs/4.GOVERNANCE/13-DECISION-LOG.md`.
+Spec sống ở `docs/` (00–14, bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`); hợp đồng vận hành agent ở
+`CLAUDE.md`; trạng thái build ở `STATE.md`; quyết định ở `docs/4.GOVERNANCE/13-DECISION-LOG.md`;
+truy nguyên test ở `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md`.
 
 ## License
 

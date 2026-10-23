@@ -1,41 +1,51 @@
-# Aureon v2.1 — DEMO READY
+# Aureon v3 — AI-EOS · Build State
 
-## Status: ✅ Demo-ready
+## Status: Phase 1 DONE (refactor nền v2.1 → model v3)
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-22 21:30 (Asia/Saigon) |
-| Sub-sprint | **S5d DONE** (T-513..T-518) · S5b-lite accepted (DEC-241) · S5a DONE |
-| Gates | A ✅ · B ✅ (0 DEC open+blocking; DEC-242/243 non-blocking resolved) · C ✅ (14 §2.6.1) |
+| Last updated | 2026-10-23 (Asia/Saigon) |
+| Dòng sản phẩm | **Aureon v3 — AI-EOS** (chính thức duy nhất). v2.1 archived (`docs/_archive/v2.1/`) |
+| Branch | `ai-eos` → `origin/ai-eos` (commit `8ec9cdb`); `main` giữ nền v2.1 demo |
+| Phase | **P1 DONE** — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
+| Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.4) |
 
-## What works (demo-able):
-- Login (5 demo accounts; + ADMIN via password)
-- Dashboard F.O.C.U.S (F🟢 C🟢 U🟡 O🟡 S🔴, 13 alerts)
-- Finance drill-down (6 metrics + lineage)
-- AI Chat (demo mode: 1,2–1,3 s measured on the full stack; live: 9–13 s)
-- IDP Review (queue → detail → correct → approve → finance invoice)
-- HR employees list (`/hr/employees`), ADMIN audit log (`/admin/audit`, EP-52)
-- Health: `/health`, `/health/ready`, `/health/live`, `/metrics`, EP-01 `/api/v1/health`, web `/api/health`
+## Phase 1 — đã làm (R-DEC-07/08/12/12a/13)
+- **7 role v3** (`CEO/DIR/MGR/EMP/REV/ADM/AI`) thay 10 role F.O.C.U.S. `DIR` = union quyền 5 C-level cũ.
+- **`scope_pillars`** (⊆ F.O.C.U.S) phân biệt khối của DIR, enforce server-side mỗi request (R-DEC-12a):
+  Finance-DIR={F}, Sales-DIR={C}, HR-DIR={O}, Product-DIR={U}, Risk-DIR={S}.
+- **`tenant_id`** mọi business entity (`TenantMixin`, 47 bảng) + JWT claim; migration `0009_v3_roles_tenant` reversible + backfill.
+- **Cô lập khối per-module**: record/write theo khối; aggregate (`:query`) mở cho mọi DIR; dashboard HR giới hạn
+  khối O/F/S; hiring-approve = Finance-DIR (cổng ngân sách); mức 4 (lương) chỉ CEO + HR-DIR, payroll aggregate thêm Finance-DIR.
+- **Autonomy L0–L3 (L4 khóa) + kill switch**: xác nhận còn nguyên, không coupling role cũ.
+- **FE**: messages vi/en role.*, LoginForm demoAccount.*, pillars (CEO+DIR = all 5), demo-accounts → v3 codes.
+- **Docs** (R-DEC-14 cho đợt code): 05 field-level; 13 R-DEC-12/12a/13/14; 14 §1.4 trạng thái Phase 1.
 
-## What's deferred (post-demo):
-- S4c: Full lineage 4-cấp (ENT-DataLineage, EP-13/14)
-- S4d: C2/C4/C5 breadth
-- S5b-full: 4 drill-down O/C/U/S
-- S5c: Approval, Report, Cash Flow screens + PWA mobile
-- Daily finance series (sparkline 12 monthly only)
+## Gate verify (phiên code Phase 1)
+- BE `uv run pytest`: **770 passed** (toàn bộ role/scope xanh; gồm `test_auth` login + `test_seed` 7 role/10 user).
+- FE: `pnpm lint` ✅ · `pnpm typecheck` ✅ · `pnpm test` **18/18** ✅.
+- `uv run ruff check .` ✅ · `uv run mypy` ✅ (263 files).
+- **E2E Playwright: CHƯA chạy lại** trong phiên resume (docker DOWN) — chờ môi trường có docker rồi `pnpm test:e2e`.
 
-## Test counts:
-- BE: **777** tests passed, coverage **96%** (+25 vs S5b-lite: health 6, EP-52 audit 2, …)
-- FE: **18** Vitest
-- E2E: **30** Playwright (25 + 5 role regression), 30/30 on 2 consecutive runs
+## Nợ kỹ thuật tiền-tồn (KHÔNG do Phase 1)
+- 4 case `tests/contract/test_api_contract.py` FAIL: khi promote doc 10 sang v3 (commit `7a31c10`, trước Phase 1),
+  bảng mã lỗi `### 1.4.` bị gỡ ("chốt danh sách đầy đủ ở đợt code — R-DEC-09"). Test parse bảng không còn tồn tại.
+  Xử lý ở task riêng: viết lại contract test lấy mã lỗi từ `core/errors.py` (cần DEC về nguồn-sự-thật mã lỗi).
 
-## Quick start:
-`docker compose -f docker-compose.full.yml up -d`
-`open http://localhost:3000`
-Demo accounts: ceo@abc.demo / cfo@abc.demo / reviewer@abc.demo (password in .env)
-Reset before each demo: `./scripts/demo_reset.sh -y` · Script: `docs/DEMO-SCRIPT.md`
+## Kế tiếp
+- (Tuỳ chọn) P1.6 enforce `tenant_id` filtering trong repositories/services (mới có model + migration + JWT claim).
+- Chạy E2E login 7 role khi docker sẵn sàng; nếu fail → fix rồi mới đóng hẳn.
+- Phase 2 theo `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` (review + fix gate giữa các phase).
 
-## T-518 final verification checklist (2026-10-22)
+---
+
+# Lịch sử nền v2.1 (archived — chỉ tra cứu)
+
+> Dưới đây là nhật ký build của **nền Aureon v2.1** (5 trụ F.O.C.U.S, 10 role, demo-ready, sprint S0→S5d,
+> push lên `main`). Nền này được **tái sử dụng** làm điểm xuất phát cho v3 và refactor dần theo phase.
+> Các con số (777 test, 5/10 demo account role cũ, DEC-2xx) phản ánh trạng thái v2.1, KHÔNG phải v3 hiện tại.
+
+## [v2.1] T-518 final verification checklist (2026-10-22)
 - [x] `docker compose -f docker-compose.full.yml up` → 9 services healthy (cold start 26 s)
 - [x] Login CEO → dashboard F🟢 C🟢 U🟡 O🟡 S🔴 with 13 alerts (E2E `dashboard.spec.ts`, `roles.spec.ts`)
 - [x] Chat "Doanh thu Q3?" → 1,32 s total (TTFB 0,25 s) with citations [1][2][3]; "Top 5 khách hàng?" 1,17 s
@@ -46,7 +56,7 @@ Reset before each demo: `./scripts/demo_reset.sh -y` · Script: `docs/DEMO-SCRIP
 - [x] `scripts/demo_reset.sh` works (~13 s, verified 5 users · 32 metrics · 13 alerts · 1 NEEDS_REVIEW)
 - [x] Git clean, pushed to main
 
-## S5d demo polish + release (done 2026-10-22, direct route)
+## [v2.1] S5d demo polish + release (done 2026-10-22, direct route)
 - **Governance** `929b167`: S5b-lite accepted, DEC-241 approved, S5b-full deferred.
 - **T-513** `cc54910` `docker-compose.full.yml`: postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web on `aureon-net`; healthchecks on all 9; persistent volumes pg/minio/ollama/clamav (+redis); `env_file: .env` + in-network host overrides; `api` = `alembic upgrade head && python -m app.seed && uvicorn`; worker/beat wait for api healthy; JWT keys `./keys:ro`; OmniRoute via `host.docker.internal`. New `apps/web/Dockerfile` (Next 15 build, NEXT_PUBLIC_* non-secret build args only). Fixed api image perms (`pyproject.toml` unreadable for uid 1000).
 - **T-514** `5c40d05` root `README.md` rewritten for v2.1 (quick start, accounts, features, mermaid, tests, license) + `docs/DEMO-SCRIPT.md` (5-min walkthrough + pre-demo checklist + troubleshooting).
