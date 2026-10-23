@@ -1,0 +1,2668 @@
+{
+ "company": "Công ty TNHH TM&DV ABC",
+ "departments": [
+  {
+   "code": "BOD",
+   "head": "NV-0001",
+   "name": "Ban Giám đốc",
+   "teams": []
+  },
+  {
+   "code": "SAL",
+   "head": "NV-0004",
+   "name": "Kinh doanh",
+   "teams": [
+    {
+     "code": "SAL-HCM",
+     "name": "Sales TP.HCM"
+    },
+    {
+     "code": "SAL-HN",
+     "name": "Sales Hà Nội"
+    },
+    {
+     "code": "SAL-KA",
+     "name": "Khách hàng lớn"
+    }
+   ]
+  },
+  {
+   "code": "SVC",
+   "head": "NV-0041",
+   "name": "Vận hành & Dịch vụ",
+   "teams": [
+    {
+     "code": "SVC-LOG",
+     "name": "Kho vận & giao nhận"
+    },
+    {
+     "code": "SVC-CARE",
+     "name": "Bảo trì ABC Care"
+    },
+    {
+     "code": "SVC-CS",
+     "name": "Chăm sóc khách hàng"
+    }
+   ]
+  },
+  {
+   "code": "FIN",
+   "head": "NV-0088",
+   "name": "Tài chính — Kế toán",
+   "teams": [
+    {
+     "code": "FIN-ACC",
+     "name": "Kế toán"
+    }
+   ]
+  },
+  {
+   "code": "HR",
+   "head": "NV-0100",
+   "name": "Nhân sự",
+   "teams": [
+    {
+     "code": "HR-OPS",
+     "name": "Tuyển dụng & C&B"
+    }
+   ]
+  },
+  {
+   "code": "PRD",
+   "head": "NV-0108",
+   "name": "Sản phẩm/Công nghệ (ABC Order)",
+   "teams": [
+    {
+     "code": "PRD-BE",
+     "name": "Backend ABC Order"
+    },
+    {
+     "code": "PRD-APP",
+     "name": "Ứng dụng & dữ liệu"
+    }
+   ]
+  },
+  {
+   "code": "ADM",
+   "head": "NV-0139",
+   "name": "Hành chính — Trợ lý",
+   "teams": [
+    {
+     "code": "ADM-OFF",
+     "name": "Hành chính văn phòng"
+    }
+   ]
+  }
+ ],
+ "employees": [
+  {
+   "code": "NV-0001",
+   "department": "BOD",
+   "full_name": "Nguyễn Văn An",
+   "hire_date": "2012-03-01",
+   "manager": null,
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0002",
+   "department": "BOD",
+   "full_name": "Vũ Thanh Khánh",
+   "hire_date": "2015-02-11",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0003",
+   "department": "BOD",
+   "full_name": "Dương Hữu Sơn",
+   "hire_date": "2015-03-20",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0004",
+   "department": "SAL",
+   "full_name": "Lê Hoàng Giang",
+   "hire_date": "2015-04-26",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0005",
+   "department": "SAL",
+   "full_name": "Hồ Minh Long",
+   "hire_date": "2015-06-02",
+   "manager": "NV-0004",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0006",
+   "department": "SAL",
+   "full_name": "Phạm Ngọc Thảo",
+   "hire_date": "2015-07-09",
+   "manager": "NV-0004",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0007",
+   "department": "SAL",
+   "full_name": "Bùi Đức Duy",
+   "hire_date": "2015-08-15",
+   "manager": "NV-0004",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0008",
+   "department": "SAL",
+   "full_name": "Trần Thị Nam",
+   "hire_date": "2015-09-21",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0009",
+   "department": "SAL",
+   "full_name": "Võ Quốc Trang",
+   "hire_date": "2015-10-28",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0010",
+   "department": "SAL",
+   "full_name": "Lý Thu Hà",
+   "hire_date": "2015-12-04",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0011",
+   "department": "SAL",
+   "full_name": "Phan Văn Nhung",
+   "hire_date": "2016-01-10",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0012",
+   "department": "SAL",
+   "full_name": "Ngô Thanh Tú",
+   "hire_date": "2016-02-16",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0013",
+   "department": "SAL",
+   "full_name": "Hoàng Hữu Hiếu",
+   "hire_date": "2016-03-24",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0014",
+   "department": "SAL",
+   "full_name": "Đỗ Kim Phúc",
+   "hire_date": "2016-04-30",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0015",
+   "department": "SAL",
+   "full_name": "Lê Minh Yến",
+   "hire_date": "2016-06-06",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0016",
+   "department": "SAL",
+   "full_name": "Đặng Ngọc Hùng",
+   "hire_date": "2016-07-13",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0017",
+   "department": "SAL",
+   "full_name": "Nguyễn Đức Quyên",
+   "hire_date": "2016-08-19",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0018",
+   "department": "SAL",
+   "full_name": "Vũ Thị Bảo",
+   "hire_date": "2016-09-25",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0019",
+   "department": "SAL",
+   "full_name": "Dương Quốc Linh",
+   "hire_date": "2016-11-01",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0020",
+   "department": "SAL",
+   "full_name": "Huỳnh Thu Tâm",
+   "hire_date": "2016-12-08",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0021",
+   "department": "SAL",
+   "full_name": "Hồ Văn Dũng",
+   "hire_date": "2017-01-14",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0022",
+   "department": "SAL",
+   "full_name": "Phạm Thanh Mai",
+   "hire_date": "2017-02-20",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0023",
+   "department": "SAL",
+   "full_name": "Bùi Hữu Thắng",
+   "hire_date": "2017-03-29",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0024",
+   "department": "SAL",
+   "full_name": "Trần Kim Giang",
+   "hire_date": "2017-05-05",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0025",
+   "department": "SAL",
+   "full_name": "Võ Minh Nga",
+   "hire_date": "2017-06-11",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0026",
+   "department": "SAL",
+   "full_name": "Lý Ngọc Trí",
+   "hire_date": "2017-07-18",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0027",
+   "department": "SAL",
+   "full_name": "Phan Đức Hải",
+   "hire_date": "2017-08-24",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0028",
+   "department": "SAL",
+   "full_name": "Ngô Thị Phong",
+   "hire_date": "2017-09-30",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0029",
+   "department": "SAL",
+   "full_name": "Hoàng Quốc Vy",
+   "hire_date": "2017-11-06",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0030",
+   "department": "SAL",
+   "full_name": "Đỗ Thu Hòa",
+   "hire_date": "2017-12-13",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0031",
+   "department": "SAL",
+   "full_name": "Lê Văn Quân",
+   "hire_date": "2018-01-19",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0032",
+   "department": "SAL",
+   "full_name": "Đặng Thanh Anh",
+   "hire_date": "2018-02-25",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0033",
+   "department": "SAL",
+   "full_name": "Nguyễn Hữu Khánh",
+   "hire_date": "2018-04-03",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0034",
+   "department": "SAL",
+   "full_name": "Vũ Kim Sơn",
+   "hire_date": "2018-05-10",
+   "manager": "NV-0007",
+   "status": "active",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0035",
+   "department": "SAL",
+   "full_name": "Dương Minh Châu",
+   "hire_date": "2018-06-16",
+   "manager": "NV-0005",
+   "status": "active",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0036",
+   "department": "SAL",
+   "full_name": "Huỳnh Ngọc Long",
+   "hire_date": "2018-07-23",
+   "manager": "NV-0006",
+   "status": "active",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0037",
+   "department": "SAL",
+   "full_name": "Hồ Đức Thảo",
+   "hire_date": "2026-09-15",
+   "manager": "NV-0007",
+   "status": "probation",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0038",
+   "department": "SAL",
+   "full_name": "Phạm Thị Duy",
+   "hire_date": "2026-10-05",
+   "manager": "NV-0005",
+   "status": "probation",
+   "team": "SAL-HCM"
+  },
+  {
+   "code": "NV-0039",
+   "department": "SAL",
+   "full_name": "Bùi Quốc Nam",
+   "hire_date": "2018-11-11",
+   "manager": "NV-0006",
+   "status": "terminated",
+   "team": "SAL-HN"
+  },
+  {
+   "code": "NV-0040",
+   "department": "SAL",
+   "full_name": "Trần Thu Trang",
+   "hire_date": "2018-12-18",
+   "manager": "NV-0007",
+   "status": "terminated",
+   "team": "SAL-KA"
+  },
+  {
+   "code": "NV-0041",
+   "department": "SVC",
+   "full_name": "Hoàng Minh Tuấn",
+   "hire_date": "2019-01-24",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0042",
+   "department": "SVC",
+   "full_name": "Lý Thanh Nhung",
+   "hire_date": "2019-03-02",
+   "manager": "NV-0041",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0043",
+   "department": "SVC",
+   "full_name": "Phan Hữu Tú",
+   "hire_date": "2019-04-08",
+   "manager": "NV-0041",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0044",
+   "department": "SVC",
+   "full_name": "Ngô Kim Hiếu",
+   "hire_date": "2019-05-15",
+   "manager": "NV-0041",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0045",
+   "department": "SVC",
+   "full_name": "Hoàng Minh Phúc",
+   "hire_date": "2019-06-21",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0046",
+   "department": "SVC",
+   "full_name": "Ngô Thị Lan",
+   "hire_date": "2019-07-28",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0047",
+   "department": "SVC",
+   "full_name": "Lê Đức Hùng",
+   "hire_date": "2019-09-03",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0048",
+   "department": "SVC",
+   "full_name": "Đặng Thị Quyên",
+   "hire_date": "2019-10-10",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0049",
+   "department": "SVC",
+   "full_name": "Nguyễn Quốc Bảo",
+   "hire_date": "2019-11-16",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0050",
+   "department": "SVC",
+   "full_name": "Vũ Thu Linh",
+   "hire_date": "2019-12-23",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0051",
+   "department": "SVC",
+   "full_name": "Dương Văn Tâm",
+   "hire_date": "2020-01-29",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0052",
+   "department": "SVC",
+   "full_name": "Huỳnh Thanh Dũng",
+   "hire_date": "2020-03-06",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0053",
+   "department": "SVC",
+   "full_name": "Hồ Hữu Mai",
+   "hire_date": "2020-04-12",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0054",
+   "department": "SVC",
+   "full_name": "Phạm Kim Thắng",
+   "hire_date": "2020-05-19",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0055",
+   "department": "SVC",
+   "full_name": "Bùi Minh Giang",
+   "hire_date": "2020-06-25",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0056",
+   "department": "SVC",
+   "full_name": "Trần Ngọc Nga",
+   "hire_date": "2020-08-01",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0057",
+   "department": "SVC",
+   "full_name": "Võ Đức Trí",
+   "hire_date": "2020-09-07",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0058",
+   "department": "SVC",
+   "full_name": "Lý Thị Hải",
+   "hire_date": "2020-10-14",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0059",
+   "department": "SVC",
+   "full_name": "Phan Quốc Phong",
+   "hire_date": "2020-11-20",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0060",
+   "department": "SVC",
+   "full_name": "Ngô Thu Vy",
+   "hire_date": "2020-12-27",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0061",
+   "department": "SVC",
+   "full_name": "Hoàng Văn Hòa",
+   "hire_date": "2021-02-02",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0062",
+   "department": "SVC",
+   "full_name": "Đỗ Thanh Quân",
+   "hire_date": "2021-03-11",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0063",
+   "department": "SVC",
+   "full_name": "Lê Hữu Anh",
+   "hire_date": "2021-04-17",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0064",
+   "department": "SVC",
+   "full_name": "Đặng Kim Khánh",
+   "hire_date": "2021-05-24",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0065",
+   "department": "SVC",
+   "full_name": "Nguyễn Minh Sơn",
+   "hire_date": "2021-06-30",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0066",
+   "department": "SVC",
+   "full_name": "Vũ Ngọc Châu",
+   "hire_date": "2021-08-06",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0067",
+   "department": "SVC",
+   "full_name": "Dương Đức Long",
+   "hire_date": "2021-09-12",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0068",
+   "department": "SVC",
+   "full_name": "Huỳnh Thị Thảo",
+   "hire_date": "2021-10-19",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0069",
+   "department": "SVC",
+   "full_name": "Hồ Quốc Duy",
+   "hire_date": "2021-11-25",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0070",
+   "department": "SVC",
+   "full_name": "Phạm Thu Nam",
+   "hire_date": "2022-01-01",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0071",
+   "department": "SVC",
+   "full_name": "Bùi Văn Trang",
+   "hire_date": "2022-02-07",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0072",
+   "department": "SVC",
+   "full_name": "Trần Thanh Hà",
+   "hire_date": "2022-03-16",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0073",
+   "department": "SVC",
+   "full_name": "Võ Hữu Nhung",
+   "hire_date": "2022-04-22",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0074",
+   "department": "SVC",
+   "full_name": "Lý Kim Tú",
+   "hire_date": "2022-05-29",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0075",
+   "department": "SVC",
+   "full_name": "Phan Minh Hiếu",
+   "hire_date": "2022-07-05",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0076",
+   "department": "SVC",
+   "full_name": "Ngô Ngọc Phúc",
+   "hire_date": "2022-08-11",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0077",
+   "department": "SVC",
+   "full_name": "Hoàng Đức Yến",
+   "hire_date": "2022-09-17",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0078",
+   "department": "SVC",
+   "full_name": "Đỗ Thị Hùng",
+   "hire_date": "2022-10-24",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0079",
+   "department": "SVC",
+   "full_name": "Lê Quốc Quyên",
+   "hire_date": "2022-11-30",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0080",
+   "department": "SVC",
+   "full_name": "Đặng Thu Bảo",
+   "hire_date": "2023-01-06",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0081",
+   "department": "SVC",
+   "full_name": "Nguyễn Văn Linh",
+   "hire_date": "2023-02-12",
+   "manager": "NV-0042",
+   "status": "active",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0082",
+   "department": "SVC",
+   "full_name": "Vũ Thanh Tâm",
+   "hire_date": "2023-03-21",
+   "manager": "NV-0043",
+   "status": "active",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0083",
+   "department": "SVC",
+   "full_name": "Dương Hữu Dũng",
+   "hire_date": "2023-04-27",
+   "manager": "NV-0044",
+   "status": "active",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0084",
+   "department": "SVC",
+   "full_name": "Huỳnh Kim Mai",
+   "hire_date": "2026-09-15",
+   "manager": "NV-0042",
+   "status": "probation",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0085",
+   "department": "SVC",
+   "full_name": "Hồ Minh Thắng",
+   "hire_date": "2026-10-05",
+   "manager": "NV-0043",
+   "status": "probation",
+   "team": "SVC-CARE"
+  },
+  {
+   "code": "NV-0086",
+   "department": "SVC",
+   "full_name": "Phạm Ngọc Giang",
+   "hire_date": "2023-08-16",
+   "manager": "NV-0044",
+   "status": "terminated",
+   "team": "SVC-CS"
+  },
+  {
+   "code": "NV-0087",
+   "department": "SVC",
+   "full_name": "Bùi Đức Nga",
+   "hire_date": "2023-09-22",
+   "manager": "NV-0042",
+   "status": "terminated",
+   "team": "SVC-LOG"
+  },
+  {
+   "code": "NV-0088",
+   "department": "FIN",
+   "full_name": "Trần Thị Minh",
+   "hire_date": "2023-10-29",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0089",
+   "department": "FIN",
+   "full_name": "Võ Quốc Hải",
+   "hire_date": "2023-12-05",
+   "manager": "NV-0088",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0090",
+   "department": "FIN",
+   "full_name": "Lý Thu Phong",
+   "hire_date": "2024-01-11",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0091",
+   "department": "FIN",
+   "full_name": "Phan Văn Vy",
+   "hire_date": "2024-02-17",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0092",
+   "department": "FIN",
+   "full_name": "Ngô Thanh Hòa",
+   "hire_date": "2024-03-25",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0093",
+   "department": "FIN",
+   "full_name": "Hoàng Hữu Quân",
+   "hire_date": "2024-05-01",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0094",
+   "department": "FIN",
+   "full_name": "Đỗ Kim Anh",
+   "hire_date": "2024-06-07",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0095",
+   "department": "FIN",
+   "full_name": "Lê Minh Khánh",
+   "hire_date": "2024-07-14",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0096",
+   "department": "FIN",
+   "full_name": "Đặng Ngọc Sơn",
+   "hire_date": "2024-08-20",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0097",
+   "department": "FIN",
+   "full_name": "Nguyễn Đức Châu",
+   "hire_date": "2024-09-26",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0098",
+   "department": "FIN",
+   "full_name": "Vũ Thị Long",
+   "hire_date": "2024-11-02",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0099",
+   "department": "FIN",
+   "full_name": "Dương Quốc Thảo",
+   "hire_date": "2024-12-09",
+   "manager": "NV-0089",
+   "status": "active",
+   "team": "FIN-ACC"
+  },
+  {
+   "code": "NV-0100",
+   "department": "HR",
+   "full_name": "Phạm Thị Hạnh",
+   "hire_date": "2025-01-15",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0101",
+   "department": "HR",
+   "full_name": "Hồ Văn Nam",
+   "hire_date": "2025-02-21",
+   "manager": "NV-0100",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0102",
+   "department": "HR",
+   "full_name": "Phạm Thanh Trang",
+   "hire_date": "2025-03-30",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0103",
+   "department": "HR",
+   "full_name": "Bùi Hữu Hà",
+   "hire_date": "2025-05-06",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0104",
+   "department": "HR",
+   "full_name": "Trần Kim Nhung",
+   "hire_date": "2025-06-12",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0105",
+   "department": "HR",
+   "full_name": "Võ Minh Tú",
+   "hire_date": "2025-07-19",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0106",
+   "department": "HR",
+   "full_name": "Lý Ngọc Hiếu",
+   "hire_date": "2025-08-25",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0107",
+   "department": "HR",
+   "full_name": "Phan Đức Phúc",
+   "hire_date": "2025-10-01",
+   "manager": "NV-0101",
+   "status": "active",
+   "team": "HR-OPS"
+  },
+  {
+   "code": "NV-0108",
+   "department": "PRD",
+   "full_name": "Đỗ Quang Huy",
+   "hire_date": "2025-11-07",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0109",
+   "department": "PRD",
+   "full_name": "Hoàng Quốc Hùng",
+   "hire_date": "2025-12-14",
+   "manager": "NV-0108",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0110",
+   "department": "PRD",
+   "full_name": "Đỗ Thu Quyên",
+   "hire_date": "2015-02-07",
+   "manager": "NV-0108",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0111",
+   "department": "PRD",
+   "full_name": "Lê Văn Bảo",
+   "hire_date": "2015-03-16",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0112",
+   "department": "PRD",
+   "full_name": "Trịnh Văn Khoa",
+   "hire_date": "2015-04-22",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0113",
+   "department": "PRD",
+   "full_name": "Nguyễn Hữu Tâm",
+   "hire_date": "2015-05-29",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0114",
+   "department": "PRD",
+   "full_name": "Vũ Kim Dũng",
+   "hire_date": "2015-07-05",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0115",
+   "department": "PRD",
+   "full_name": "Dương Minh Mai",
+   "hire_date": "2015-08-11",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0116",
+   "department": "PRD",
+   "full_name": "Huỳnh Ngọc Thắng",
+   "hire_date": "2015-09-17",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0117",
+   "department": "PRD",
+   "full_name": "Hồ Đức Giang",
+   "hire_date": "2015-10-24",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0118",
+   "department": "PRD",
+   "full_name": "Phạm Thị Nga",
+   "hire_date": "2015-11-30",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0119",
+   "department": "PRD",
+   "full_name": "Bùi Quốc Trí",
+   "hire_date": "2016-01-06",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0120",
+   "department": "PRD",
+   "full_name": "Trần Thu Hải",
+   "hire_date": "2016-02-12",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0121",
+   "department": "PRD",
+   "full_name": "Võ Văn Phong",
+   "hire_date": "2016-03-20",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0122",
+   "department": "PRD",
+   "full_name": "Lý Thanh Vy",
+   "hire_date": "2016-04-26",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0123",
+   "department": "PRD",
+   "full_name": "Phan Hữu Hòa",
+   "hire_date": "2016-06-02",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0124",
+   "department": "PRD",
+   "full_name": "Ngô Kim Quân",
+   "hire_date": "2016-07-09",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0125",
+   "department": "PRD",
+   "full_name": "Hoàng Minh Anh",
+   "hire_date": "2016-08-15",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0126",
+   "department": "PRD",
+   "full_name": "Đỗ Ngọc Khánh",
+   "hire_date": "2016-09-21",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0127",
+   "department": "PRD",
+   "full_name": "Lê Đức Sơn",
+   "hire_date": "2016-10-28",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0128",
+   "department": "PRD",
+   "full_name": "Đặng Thị Châu",
+   "hire_date": "2016-12-04",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0129",
+   "department": "PRD",
+   "full_name": "Nguyễn Quốc Long",
+   "hire_date": "2017-01-10",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0130",
+   "department": "PRD",
+   "full_name": "Vũ Thu Thảo",
+   "hire_date": "2017-02-16",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0131",
+   "department": "PRD",
+   "full_name": "Dương Văn Duy",
+   "hire_date": "2017-03-25",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0132",
+   "department": "PRD",
+   "full_name": "Huỳnh Thanh Nam",
+   "hire_date": "2017-05-01",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0133",
+   "department": "PRD",
+   "full_name": "Hồ Hữu Trang",
+   "hire_date": "2017-06-07",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0134",
+   "department": "PRD",
+   "full_name": "Phạm Kim Hà",
+   "hire_date": "2017-07-14",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0135",
+   "department": "PRD",
+   "full_name": "Bùi Minh Nhung",
+   "hire_date": "2017-08-20",
+   "manager": "NV-0109",
+   "status": "active",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0136",
+   "department": "PRD",
+   "full_name": "Trần Ngọc Tú",
+   "hire_date": "2017-09-26",
+   "manager": "NV-0110",
+   "status": "active",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0137",
+   "department": "PRD",
+   "full_name": "Võ Đức Hiếu",
+   "hire_date": "2026-10-05",
+   "manager": "NV-0109",
+   "status": "probation",
+   "team": "PRD-BE"
+  },
+  {
+   "code": "NV-0138",
+   "department": "PRD",
+   "full_name": "Lý Thị Phúc",
+   "hire_date": "2017-12-09",
+   "manager": "NV-0110",
+   "status": "terminated",
+   "team": "PRD-APP"
+  },
+  {
+   "code": "NV-0139",
+   "department": "ADM",
+   "full_name": "Lương Thị Mai",
+   "hire_date": "2018-01-15",
+   "manager": "NV-0001",
+   "status": "active",
+   "team": null
+  },
+  {
+   "code": "NV-0140",
+   "department": "ADM",
+   "full_name": "Ngô Thu Hùng",
+   "hire_date": "2018-02-21",
+   "manager": "NV-0139",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0141",
+   "department": "ADM",
+   "full_name": "Vũ Đức Thắng",
+   "hire_date": "2018-03-30",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0142",
+   "department": "ADM",
+   "full_name": "Đỗ Thanh Bảo",
+   "hire_date": "2018-05-06",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0143",
+   "department": "ADM",
+   "full_name": "Lê Hữu Linh",
+   "hire_date": "2018-06-12",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0144",
+   "department": "ADM",
+   "full_name": "Đặng Kim Tâm",
+   "hire_date": "2018-07-19",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0145",
+   "department": "ADM",
+   "full_name": "Nguyễn Minh Dũng",
+   "hire_date": "2018-08-25",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0146",
+   "department": "ADM",
+   "full_name": "Vũ Ngọc Mai",
+   "hire_date": "2018-10-01",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0147",
+   "department": "ADM",
+   "full_name": "Dương Đức Thắng",
+   "hire_date": "2018-11-07",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0148",
+   "department": "ADM",
+   "full_name": "Huỳnh Thị Giang",
+   "hire_date": "2018-12-14",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0149",
+   "department": "ADM",
+   "full_name": "Hồ Quốc Nga",
+   "hire_date": "2019-01-20",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0150",
+   "department": "ADM",
+   "full_name": "Phạm Thu Trí",
+   "hire_date": "2019-02-26",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0151",
+   "department": "ADM",
+   "full_name": "Bùi Văn Hải",
+   "hire_date": "2019-04-04",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0152",
+   "department": "ADM",
+   "full_name": "Trần Thanh Phong",
+   "hire_date": "2019-05-11",
+   "manager": "NV-0140",
+   "status": "active",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0153",
+   "department": "ADM",
+   "full_name": "Võ Hữu Vy",
+   "hire_date": "2026-10-05",
+   "manager": "NV-0140",
+   "status": "probation",
+   "team": "ADM-OFF"
+  },
+  {
+   "code": "NV-0154",
+   "department": "ADM",
+   "full_name": "Lý Kim Hòa",
+   "hire_date": "2019-07-24",
+   "manager": "NV-0140",
+   "status": "terminated",
+   "team": "ADM-OFF"
+  }
+ ],
+ "kpis": [
+  {
+   "code": "KPI-CO-01",
+   "department": null,
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 23.4,
+    "2026-08": 24.6,
+    "2026-09": 25.5
+   },
+   "name": "Doanh thu thuần (tỷ)",
+   "target": 27.0,
+   "unit": "tỷ VND"
+  },
+  {
+   "code": "KPI-CO-02",
+   "department": null,
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 18.5,
+    "2026-08": 18.4,
+    "2026-09": 18.2
+   },
+   "name": "Biên lợi nhuận gộp (%)",
+   "target": 20.0,
+   "unit": "%"
+  },
+  {
+   "code": "KPI-SAL-01",
+   "department": "SAL",
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 5.4,
+    "2026-08": 4.6,
+    "2026-09": 3.9
+   },
+   "name": "Doanh số mới khách hàng lớn (tỷ)",
+   "target": 6.0,
+   "unit": "tỷ VND"
+  },
+  {
+   "code": "KPI-SAL-02",
+   "department": "SAL",
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 12,
+    "2026-08": 11,
+    "2026-09": 10
+   },
+   "name": "Số cơ hội mới",
+   "target": 12,
+   "unit": "cơ hội"
+  },
+  {
+   "code": "KPI-SVC-01",
+   "department": "SVC",
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 94,
+    "2026-08": 95,
+    "2026-09": 96
+   },
+   "name": "Tỷ lệ bảo trì đúng SLA (%)",
+   "target": 95,
+   "unit": "%"
+  },
+  {
+   "code": "KPI-SVC-02",
+   "department": "SVC",
+   "direction": "LOWER_IS_BETTER",
+   "measurements": {
+    "2026-07": 2.1,
+    "2026-08": 2.0,
+    "2026-09": 1.9
+   },
+   "name": "Thời gian giao hàng TB (ngày)",
+   "target": 2.0,
+   "unit": "ngày"
+  },
+  {
+   "code": "KPI-FIN-01",
+   "department": "FIN",
+   "direction": "LOWER_IS_BETTER",
+   "measurements": {
+    "2026-07": 48,
+    "2026-08": 46,
+    "2026-09": 45
+   },
+   "name": "DSO (ngày)",
+   "target": 45,
+   "unit": "ngày"
+  },
+  {
+   "code": "KPI-FIN-02",
+   "department": "FIN",
+   "direction": "LOWER_IS_BETTER",
+   "measurements": {
+    "2026-07": 12.5,
+    "2026-08": 12.2,
+    "2026-09": 12.0
+   },
+   "name": "Chi phí vận hành / doanh thu (%)",
+   "target": 12,
+   "unit": "%"
+  },
+  {
+   "code": "KPI-HR-01",
+   "department": "HR",
+   "direction": "LOWER_IS_BETTER",
+   "measurements": {
+    "2026-07": 34,
+    "2026-08": 32,
+    "2026-09": 31
+   },
+   "name": "Thời gian tuyển dụng TB (ngày)",
+   "target": 30,
+   "unit": "ngày"
+  },
+  {
+   "code": "KPI-PRD-01",
+   "department": "PRD",
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 30,
+    "2026-08": 31,
+    "2026-09": 33
+   },
+   "name": "Đơn hàng qua ABC Order (%)",
+   "target": 35,
+   "unit": "%"
+  },
+  {
+   "code": "KPI-PRD-02",
+   "department": "PRD",
+   "direction": "LOWER_IS_BETTER",
+   "measurements": {
+    "2026-07": 2,
+    "2026-08": 2,
+    "2026-09": 1
+   },
+   "name": "Sự cố nghiêm trọng / tháng",
+   "target": 2,
+   "unit": "sự cố"
+  },
+  {
+   "code": "KPI-ADM-01",
+   "department": "ADM",
+   "direction": "HIGHER_IS_BETTER",
+   "measurements": {
+    "2026-07": 88,
+    "2026-08": 90,
+    "2026-09": 92
+   },
+   "name": "Hồ sơ số hóa đúng hạn (%)",
+   "target": 90,
+   "unit": "%"
+  }
+ ],
+ "meeting": {
+  "decisions": [
+   "Ưu tiên thu hồi công nợ quá hạn > 30 ngày trong tháng 10",
+   "Tạm dừng tuyển mới khối hỗ trợ tới hết Q4",
+   "Tập trung đội Sales vào 5 cơ hội lớn nhất Q4"
+  ],
+  "held_at": "2026-09-30T02:00:00+00:00",
+  "title": "Họp giao ban tháng 10/2026"
+ },
+ "metrics": [
+  {
+   "code": "METRIC-CUS-01",
+   "period_key": "2026-Q4",
+   "pillar": "C",
+   "status": "warning",
+   "unit": "RATIO",
+   "value": 2.7
+  },
+  {
+   "code": "METRIC-CUS-02",
+   "period_key": "2026-09",
+   "pillar": "C",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 100.0
+  },
+  {
+   "code": "METRIC-CUS-03",
+   "period_key": "2026-09",
+   "pillar": "C",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 103.7
+  },
+  {
+   "code": "METRIC-CUS-04",
+   "period_key": "2026-09",
+   "pillar": "C",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 43.4
+  },
+  {
+   "code": "METRIC-CUS-05",
+   "period_key": "2026-09",
+   "pillar": "C",
+   "status": "ok",
+   "unit": "SCORE",
+   "value": 33.2
+  },
+  {
+   "code": "METRIC-CUS-06",
+   "period_key": "2026-09",
+   "pillar": "C",
+   "status": "ok",
+   "unit": "DAYS",
+   "value": 60.0
+  },
+  {
+   "code": "METRIC-DQ-01",
+   "period_key": "2026-10",
+   "pillar": null,
+   "status": "ok",
+   "unit": "SCORE",
+   "value": 88.6
+  },
+  {
+   "code": "METRIC-FIN-01",
+   "period_key": "2026-09",
+   "pillar": "F",
+   "status": "warning",
+   "unit": "PCT",
+   "value": 86.4
+  },
+  {
+   "code": "METRIC-FIN-02",
+   "period_key": "2026-Q3",
+   "pillar": "F",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 18.4
+  },
+  {
+   "code": "METRIC-FIN-03",
+   "period_key": "2026-09",
+   "pillar": "F",
+   "status": "critical",
+   "unit": "MONTHS",
+   "value": 5.3
+  },
+  {
+   "code": "METRIC-FIN-04",
+   "period_key": "2026-Q3",
+   "pillar": "F",
+   "status": "ok",
+   "unit": "DAYS",
+   "value": 54.4
+  },
+  {
+   "code": "METRIC-FIN-05",
+   "period_key": "2026-10",
+   "pillar": "F",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 7.9
+  },
+  {
+   "code": "METRIC-FIN-06",
+   "period_key": "2026-Q3",
+   "pillar": "F",
+   "status": "warning",
+   "unit": "PCT",
+   "value": 8.0
+  },
+  {
+   "code": "METRIC-FIN-07",
+   "period_key": "2026-10",
+   "pillar": "F",
+   "status": "ok",
+   "unit": "PCT",
+   "value": -7.0
+  },
+  {
+   "code": "METRIC-HR-01",
+   "period_key": "2026-09",
+   "pillar": "O",
+   "status": "ok",
+   "unit": "VND",
+   "value": 1996604414.0
+  },
+  {
+   "code": "METRIC-HR-02",
+   "period_key": "2026-09",
+   "pillar": "O",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 4.2
+  },
+  {
+   "code": "METRIC-HR-03",
+   "period_key": "2026-10",
+   "pillar": "O",
+   "status": "warning",
+   "unit": "PCT",
+   "value": 12.0
+  },
+  {
+   "code": "METRIC-HR-04",
+   "period_key": "2026-10",
+   "pillar": "O",
+   "status": "warning",
+   "unit": "COUNT",
+   "value": 1.0
+  },
+  {
+   "code": "METRIC-OPS-01",
+   "period_key": "2026-10",
+   "pillar": "O",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 85.0
+  },
+  {
+   "code": "METRIC-OPS-02",
+   "period_key": "2026-10",
+   "pillar": "O",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 10.0
+  },
+  {
+   "code": "METRIC-OPS-03",
+   "period_key": "2026-10",
+   "pillar": "O",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 75.0
+  },
+  {
+   "code": "METRIC-PRD-01",
+   "period_key": "2026-09",
+   "pillar": "U",
+   "status": "ok",
+   "unit": "COUNT",
+   "value": 5410.0
+  },
+  {
+   "code": "METRIC-PRD-02",
+   "period_key": "2026-09",
+   "pillar": "U",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 1.8
+  },
+  {
+   "code": "METRIC-PRD-03",
+   "period_key": "2026-09",
+   "pillar": "U",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 44.9
+  },
+  {
+   "code": "METRIC-PRD-04",
+   "period_key": "2026-09",
+   "pillar": "U",
+   "status": "warning",
+   "unit": "PCT",
+   "value": 66.7
+  },
+  {
+   "code": "METRIC-PRD-05",
+   "period_key": "2026-09",
+   "pillar": "U",
+   "status": "warning",
+   "unit": "PCT",
+   "value": 66.7
+  },
+  {
+   "code": "METRIC-RSK-01",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "critical",
+   "unit": "COUNT",
+   "value": 3.0
+  },
+  {
+   "code": "METRIC-RSK-02",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "critical",
+   "unit": "COUNT",
+   "value": 1.0
+  },
+  {
+   "code": "METRIC-RSK-03",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "warning",
+   "unit": "COUNT",
+   "value": 2.0
+  },
+  {
+   "code": "METRIC-RSK-04",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "warning",
+   "unit": "SCORE",
+   "value": 11.8
+  },
+  {
+   "code": "METRIC-RSK-05",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "warning",
+   "unit": "COUNT",
+   "value": 1.0
+  },
+  {
+   "code": "METRIC-RSK-06",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 75.0
+  }
+ ],
+ "okrs": [
+  {
+   "code": "OKR-CO",
+   "department": null,
+   "key_results": [
+    {
+     "baseline": 0,
+     "confidence": "MEDIUM",
+     "current": 16.5,
+     "target": 85,
+     "title": "Doanh thu Q4 đạt 85 tỷ",
+     "unit": "tỷ VND"
+    },
+    {
+     "baseline": 5.25,
+     "confidence": "LOW",
+     "current": 5.25,
+     "target": 6,
+     "title": "Runway ≥ 6 tháng cuối quý",
+     "unit": "tháng"
+    },
+    {
+     "baseline": 18.2,
+     "confidence": "MEDIUM",
+     "current": 18.4,
+     "target": 20,
+     "title": "Biên lợi nhuận gộp ≥ 20%",
+     "unit": "%"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "Tăng trưởng có lãi, giữ dòng tiền an toàn"
+  },
+  {
+   "code": "OKR-SAL",
+   "department": "SAL",
+   "key_results": [
+    {
+     "baseline": 0,
+     "confidence": "MEDIUM",
+     "current": 2,
+     "target": 6,
+     "title": "Ký 6 hợp đồng khách hàng lớn",
+     "unit": "hợp đồng"
+    },
+    {
+     "baseline": 2.4,
+     "confidence": "LOW",
+     "current": 2.52,
+     "target": 3.0,
+     "title": "Pipeline trọng số ≥ 3x chỉ tiêu",
+     "unit": "x"
+    },
+    {
+     "baseline": 60,
+     "confidence": "HIGH",
+     "current": 63,
+     "target": 65,
+     "title": "Tỷ lệ thắng ≥ 65%",
+     "unit": "%"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "Mở rộng khách hàng lớn"
+  },
+  {
+   "code": "OKR-SVC",
+   "department": "SVC",
+   "key_results": [
+    {
+     "baseline": 94,
+     "confidence": "HIGH",
+     "current": 96,
+     "target": 97,
+     "title": "Bảo trì đúng SLA ≥ 97%",
+     "unit": "%"
+    },
+    {
+     "baseline": 2.1,
+     "confidence": "MEDIUM",
+     "current": 1.9,
+     "target": 1.8,
+     "title": "Giao hàng TB ≤ 1,8 ngày",
+     "unit": "ngày"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "Dịch vụ đúng hẹn"
+  },
+  {
+   "code": "OKR-FIN",
+   "department": "FIN",
+   "key_results": [
+    {
+     "baseline": 48,
+     "confidence": "MEDIUM",
+     "current": 45,
+     "target": 42,
+     "title": "DSO ≤ 42 ngày",
+     "unit": "ngày"
+    },
+    {
+     "baseline": 12.5,
+     "confidence": "MEDIUM",
+     "current": 12.0,
+     "target": 11.5,
+     "title": "Chi phí vận hành ≤ 11,5% doanh thu",
+     "unit": "%"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "Kỷ luật dòng tiền"
+  },
+  {
+   "code": "OKR-HR",
+   "department": "HR",
+   "key_results": [
+    {
+     "baseline": 0,
+     "confidence": "MEDIUM",
+     "current": 3,
+     "target": 14,
+     "title": "Tuyển đủ 14 vị trí kế hoạch",
+     "unit": "người"
+    },
+    {
+     "baseline": 34,
+     "confidence": "MEDIUM",
+     "current": 31,
+     "target": 28,
+     "title": "Thời gian tuyển TB ≤ 28 ngày",
+     "unit": "ngày"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "Đủ người cho tăng trưởng"
+  },
+  {
+   "code": "OKR-PRD",
+   "department": "PRD",
+   "key_results": [
+    {
+     "baseline": 30,
+     "confidence": "HIGH",
+     "current": 33,
+     "target": 35,
+     "title": "35% đơn hàng qua ABC Order",
+     "unit": "%"
+    },
+    {
+     "baseline": 2,
+     "confidence": "HIGH",
+     "current": 1,
+     "target": 1,
+     "title": "≤ 1 sự cố nghiêm trọng / tháng",
+     "unit": "sự cố"
+    },
+    {
+     "baseline": 0,
+     "confidence": "LOW",
+     "current": 0,
+     "target": 1,
+     "title": "Ra mắt ABC Insight beta",
+     "unit": "mốc"
+    }
+   ],
+   "period_key": "2026-Q4",
+   "title": "ABC Order thành kênh chính"
+  }
+ ],
+ "projects": [
+  {
+   "code": "PRJ-ERP",
+   "department": "FIN",
+   "name": "Triển khai ERP kho",
+   "planned_end_date": "2026-11-30",
+   "start_date": "2026-07-01",
+   "tasks_done": 3,
+   "tasks_total": 6
+  },
+  {
+   "code": "PRJ-HN",
+   "department": "SAL",
+   "name": "Mở rộng chi nhánh Hà Nội",
+   "planned_end_date": "2027-03-31",
+   "start_date": "2026-09-01",
+   "tasks_done": 1,
+   "tasks_total": 4
+  },
+  {
+   "code": "PRJ-ORD4",
+   "department": "PRD",
+   "name": "ABC Order 4.0",
+   "planned_end_date": "2027-06-30",
+   "start_date": "2026-10-01",
+   "tasks_done": 0,
+   "tasks_total": 4
+  },
+  {
+   "code": "PRJ-CRM",
+   "department": "SAL",
+   "name": "Chuẩn hóa CRM khách hàng lớn",
+   "planned_end_date": "2026-12-31",
+   "start_date": "2026-06-01",
+   "tasks_done": 4,
+   "tasks_total": 6
+  },
+  {
+   "code": "PRJ-CARE",
+   "department": "SVC",
+   "name": "Gói bảo trì ABC Care 2027",
+   "planned_end_date": "2027-01-31",
+   "start_date": "2026-08-01",
+   "tasks_done": 2,
+   "tasks_total": 5
+  },
+  {
+   "code": "PRJ-WMS",
+   "department": "SVC",
+   "name": "Tối ưu kho Bình Dương",
+   "planned_end_date": "2026-12-15",
+   "start_date": "2026-05-01",
+   "tasks_done": 5,
+   "tasks_total": 7
+  },
+  {
+   "code": "PRJ-DATA",
+   "department": "PRD",
+   "name": "Kho dữ liệu điều hành",
+   "planned_end_date": "2027-02-28",
+   "start_date": "2026-09-15",
+   "tasks_done": 1,
+   "tasks_total": 5
+  },
+  {
+   "code": "PRJ-HRIS",
+   "department": "HR",
+   "name": "Số hóa hồ sơ nhân sự",
+   "planned_end_date": "2026-12-31",
+   "start_date": "2026-08-15",
+   "tasks_done": 2,
+   "tasks_total": 4
+  },
+  {
+   "code": "PRJ-OFFICE",
+   "department": "ADM",
+   "name": "Chuyển văn phòng Hà Nội",
+   "planned_end_date": "2026-11-30",
+   "start_date": "2026-09-01",
+   "tasks_done": 3,
+   "tasks_total": 6
+  },
+  {
+   "code": "PRJ-KA",
+   "department": "SAL",
+   "name": "Chương trình khách hàng chiến lược",
+   "planned_end_date": "2026-12-31",
+   "start_date": "2026-07-15",
+   "tasks_done": 3,
+   "tasks_total": 5
+  }
+ ],
+ "reference_date": "2026-10-20",
+ "tasks": [
+  {
+   "assignee": "NV-0046",
+   "due_date": "2026-10-01",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-01",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0045",
+   "due_date": "2026-10-02",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-02",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0047",
+   "due_date": "2026-10-03",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-03",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0048",
+   "due_date": "2026-10-04",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-04",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0049",
+   "due_date": "2026-10-05",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-05",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0050",
+   "due_date": "2026-10-06",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-06",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0051",
+   "due_date": "2026-10-07",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-07",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0052",
+   "due_date": "2026-10-08",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-08",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0008",
+   "due_date": "2026-10-09",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-09",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0009",
+   "due_date": "2026-10-10",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-10",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0010",
+   "due_date": "2026-10-11",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-11",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0011",
+   "due_date": "2026-10-12",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-12",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0012",
+   "due_date": "2026-10-13",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-13",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0013",
+   "due_date": "2026-10-14",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-14",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0014",
+   "due_date": "2026-10-15",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-15",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0111",
+   "due_date": "2026-10-16",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-16",
+   "status": "blocked"
+  },
+  {
+   "assignee": "NV-0112",
+   "due_date": "2026-10-17",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-17",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0113",
+   "due_date": "2026-10-18",
+   "estimate_hours": 6,
+   "from_meeting": true,
+   "key": "T-18",
+   "status": "in_progress"
+  },
+  {
+   "assignee": "NV-0114",
+   "due_date": "2026-10-19",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-19",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0115",
+   "due_date": "2026-10-20",
+   "estimate_hours": 6,
+   "from_meeting": false,
+   "key": "T-20",
+   "status": "done"
+  },
+  {
+   "assignee": "NV-0046",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L000",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0045",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L010",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0047",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L020",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0048",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L030",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0049",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L040",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0050",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L050",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0051",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L060",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0052",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L070",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0008",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L080",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0009",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L090",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0010",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L100",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0011",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L110",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0012",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L120",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0013",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L130",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0014",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L140",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0111",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L150",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0112",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L160",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0113",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L170",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0114",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L180",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0115",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L190",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0090",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L200",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0091",
+   "due_date": "2026-10-25",
+   "estimate_hours": 24,
+   "from_meeting": false,
+   "key": "T-L210",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0091",
+   "due_date": "2026-10-28",
+   "estimate_hours": 22,
+   "from_meeting": false,
+   "key": "T-L211",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0141",
+   "due_date": "2026-10-25",
+   "estimate_hours": 24,
+   "from_meeting": false,
+   "key": "T-L220",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0141",
+   "due_date": "2026-10-28",
+   "estimate_hours": 22,
+   "from_meeting": false,
+   "key": "T-L221",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0142",
+   "due_date": "2026-10-25",
+   "estimate_hours": 24,
+   "from_meeting": false,
+   "key": "T-L230",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0142",
+   "due_date": "2026-10-28",
+   "estimate_hours": 22,
+   "from_meeting": false,
+   "key": "T-L231",
+   "status": "todo"
+  },
+  {
+   "assignee": "NV-0102",
+   "due_date": "2026-10-25",
+   "estimate_hours": 8,
+   "from_meeting": false,
+   "key": "T-L240",
+   "status": "todo"
+  }
+ ],
+ "users": [
+  {
+   "department": "BOD",
+   "email": "ceo@abc.demo",
+   "employee": "NV-0001",
+   "full_name": "Nguyễn Văn An",
+   "is_service_account": false,
+   "role": "CEO",
+   "scope_pillars": []
+  },
+  {
+   "department": "SAL",
+   "email": "sales@abc.demo",
+   "employee": "NV-0004",
+   "full_name": "Lê Hoàng Giang",
+   "is_service_account": false,
+   "role": "DIR",
+   "scope_pillars": [
+    "C"
+   ]
+  },
+  {
+   "department": "FIN",
+   "email": "cfo@abc.demo",
+   "employee": "NV-0088",
+   "full_name": "Trần Thị Minh",
+   "is_service_account": false,
+   "role": "DIR",
+   "scope_pillars": [
+    "F"
+   ]
+  },
+  {
+   "department": "HR",
+   "email": "hr@abc.demo",
+   "employee": "NV-0100",
+   "full_name": "Phạm Thị Hạnh",
+   "is_service_account": false,
+   "role": "DIR",
+   "scope_pillars": [
+    "O"
+   ]
+  },
+  {
+   "department": "PRD",
+   "email": "cpo@abc.demo",
+   "employee": "NV-0108",
+   "full_name": "Đỗ Quang Huy",
+   "is_service_account": false,
+   "role": "DIR",
+   "scope_pillars": [
+    "U"
+   ]
+  },
+  {
+   "department": "SVC",
+   "email": "manager@abc.demo",
+   "employee": "NV-0041",
+   "full_name": "Hoàng Minh Tuấn",
+   "is_service_account": false,
+   "role": "MGR",
+   "scope_pillars": []
+  },
+  {
+   "department": "ADM",
+   "email": "office@abc.demo",
+   "employee": "NV-0139",
+   "full_name": "Lương Thị Mai",
+   "is_service_account": false,
+   "role": "MGR",
+   "scope_pillars": []
+  },
+  {
+   "department": "SVC",
+   "email": "employee@abc.demo",
+   "employee": "NV-0046",
+   "full_name": "Ngô Thị Lan",
+   "is_service_account": false,
+   "role": "EMP",
+   "scope_pillars": []
+  },
+  {
+   "department": "ADM",
+   "email": "reviewer@abc.demo",
+   "employee": "NV-0141",
+   "full_name": "Vũ Đức Thắng",
+   "is_service_account": false,
+   "role": "REV",
+   "scope_pillars": []
+  },
+  {
+   "department": "PRD",
+   "email": "admin@abc.demo",
+   "employee": "NV-0112",
+   "full_name": "Trịnh Văn Khoa",
+   "is_service_account": false,
+   "role": "ADM",
+   "scope_pillars": []
+  },
+  {
+   "department": "BOD",
+   "email": "ai-agent@abc.demo",
+   "employee": null,
+   "full_name": "Trợ lý AI Aureon",
+   "is_service_account": true,
+   "role": "AI",
+   "scope_pillars": []
+  }
+ ]
+}

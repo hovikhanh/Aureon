@@ -21,20 +21,22 @@ PRODUCT_SPLIT = (("ABC Supply", "product_sales", 75), ("ABC Care", "service", 16
 # COGS: Q3 = 60 tỷ (DOC-01, margin 18,4 %); other months 81 % of revenue.
 COGS_MIL: dict[str, int] = {"2026-07": 19_080, "2026-08": 20_070, "2026-09": 20_850}
 COGS_RATIO_PCT = 81
-# Q3 budget vs actual opex by department, triệu (T-237 rebalance: every department within
-# budget → METRIC-FIN-06 variance ≤ 0 → pillar F green). Payroll share recomputed below.
+# Q3 budget vs actual opex by department, triệu. T-603b (08 §5): Kinh doanh overspends by
+# 8,0 % (3.618 / 3.350) → METRIC-FIN-06 🟠 warning (catalog warn > 0, crit > 10 — human chose
+# ~8 % over 08's "~12 %" to stay amber, 2026-10-23); every other department within budget.
 Q3_BUDGET_ACTUAL_MIL: dict[str, tuple[int, int]] = {
-    "BOD": (900, 880), "FIN": (1_100, 1_070), "SAL": (3_350, 3_280), "LOG": (1_850, 1_790),
-    "SVC": (1_200, 1_160), "PRD": (800, 770), "HRA": (400, 390),
+    "BOD": (900, 880), "FIN": (1_100, 1_070), "SAL": (3_350, 3_618), "SVC": (3_050, 2_950),
+    "HR": (400, 390), "PRD": (800, 770), "ADM": (450, 430),
 }  # fmt: skip
 Q3_PAYROLL_MIL = 8_000
-# Month-end cash (tỷ × 1000 = triệu). T-237 rebalance: the recent monthly drops are flattened
-# so BR-FIN-01 burn over Jul–Sep ≈ 1,5 tỷ → METRIC-FIN-03 runway ≈ 13,6 tháng (≥ 12 → green).
+# Month-end cash, triệu. T-603b (08 §5 — cash runway 🔴 is the demo's main alert): a steady
+# ~0,9 tỷ/month decline to 06/2026, then 2,4 tỷ/month over Jul–Sep → BR-FIN-01 net burn 2,4 tỷ,
+# runway = 12.600 / 2.400 = 5,25 months (< 6 → critical). 10/2026 = balance on 18/10.
 CASH_MIL: dict[str, int] = {
-    "2025-07": 30_000, "2025-08": 29_400, "2025-09": 28_900, "2025-10": 28_400,
-    "2025-11": 28_000, "2025-12": 27_500, "2026-01": 27_000, "2026-02": 26_500,
-    "2026-03": 26_000, "2026-04": 25_600, "2026-05": 25_300, "2026-06": 24_900,
-    "2026-07": 23_700, "2026-08": 22_100, "2026-09": 20_400, "2026-10": 18_400,
+    "2025-07": 30_000, "2025-08": 29_100, "2025-09": 28_100, "2025-10": 27_200,
+    "2025-11": 26_300, "2025-12": 25_400, "2026-01": 24_400, "2026-02": 23_500,
+    "2026-03": 22_600, "2026-04": 21_700, "2026-05": 20_700, "2026-06": 19_800,
+    "2026-07": 17_400, "2026-08": 15_000, "2026-09": 12_600, "2026-10": 11_000,
 }  # fmt: skip
 # Oct 1–20 expenses — T-237 rebalance: net burn projected ≈ 2,3 tỷ vs forecast 2,5 tỷ →
 # METRIC-FIN-07 variance ≈ −7 % (≤ 10 → green). (exp − 16.500) × 31 / 20 ≈ 2.325 → exp ≈ 18.000.
@@ -51,8 +53,9 @@ FORECAST_MIL: dict[str, dict[str, tuple[int, int]]] = {
 FORECAST_CONFIDENCE = {"base": 75, "optimistic": 60, "pessimistic": 70}
 
 # 08 §10.4 base scenario, triệu: (inflow_receivables, inflow_other, payables, payroll, opex,
-# other_out). Start 19/10/2026, opening 18.400.
-CASH_FLOW_BASE_MIL: tuple[tuple[int, int, int, int, int, int], ...] = (
+# other_out). Start 19/10/2026, opening 11.000 (= 18/10 balance). Receivables = M1.0 weekly
+# collections × 1,25 (T-603b: lower opening cash; the base scenario stays positive).
+_CF_M10: tuple[tuple[int, int, int, int, int, int], ...] = (
     (4_200, 300, 2_100, 2_925, 800, 900), (5_200, 100, 6_200, 0, 800, 660),
     (4_800, 100, 5_400, 0, 800, 0), (5_000, 150, 5_200, 0, 800, 0),
     (4_600, 100, 4_300, 2_925, 800, 900), (4_400, 100, 5_900, 0, 800, 0),
@@ -61,8 +64,9 @@ CASH_FLOW_BASE_MIL: tuple[tuple[int, int, int, int, int, int], ...] = (
     (6_900, 100, 4_500, 0, 800, 0), (7_200, 100, 4_400, 0, 800, 0),
     (4_725, 150, 4_200, 0, 800, 0),
 )  # fmt: skip
+CASH_FLOW_BASE_MIL = tuple((r * 5 // 4, *rest) for r, *rest in _CF_M10)
 CASH_FLOW_START = "2026-10-19"
-CASH_FLOW_OPENING_MIL = 18_400
+CASH_FLOW_OPENING_MIL = 11_000
 COLLECTION_PCT = {"optimistic": 95, "base": 85, "pessimistic": 75}
 
 # T-237 rebalance — open receivables carried across the trailing quarters so METRIC-FIN-04 DSO

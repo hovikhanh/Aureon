@@ -61,7 +61,7 @@ async def main() -> None:
         "Tien hang: 10000000\nThue suat: 10%\nTien thue: 1000000\nTong cong: 11000000\n"
     )
     data = _pdf_with_text(text)
-    user = Principal(user_id=uuid.uuid4(), role="REVIEWER", permissions=frozenset(ROLE_PERMISSIONS["REVIEWER"]))
+    user = Principal(user_id=uuid.uuid4(), role="REV", permissions=frozenset(ROLE_PERMISSIONS["REV"]))  # v3 role (R-DEC-12)
     async with get_sessionmaker()() as db:
         f = UploadFile(filename=f"hoa-don-{number}.pdf", content_type="application/pdf", chunks=iter([data]))
         res = await UploadService(db).upload(user, [f])

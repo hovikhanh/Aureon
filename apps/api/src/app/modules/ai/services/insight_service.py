@@ -36,6 +36,7 @@ from app.modules.ai.schemas import (
 from app.modules.ai.services.prompt_guard import wrap_data
 from app.modules.dashboard.services.dashboard_service import (
     DashboardService,
+    metric_visible,
     visible_pillars,
 )
 
@@ -164,8 +165,16 @@ class InsightService:
         )  # fmt: skip
         out: list[InsightOut] = []
         for ins in rows:
-            # hide an insight whose pillar the viewer cannot see (scope, 02 §6)
+            # hide an insight whose pillar the viewer cannot see (scope, 02 §6), or whose
+            # evidence holds a metric outside the viewer's field scope — e.g. a DIR {O} sees
+            # pillar F only for the public METRIC-FIN-01 headline (02 §6.1), not runway / budget
             if ins.pillar is not None and ins.pillar not in pillars:
+                continue
+            if not all(
+                metric_visible(user, str(ev.get("id")), ins.pillar)
+                for ev in ins.sources or []
+                if ev.get("type") == "metric_value"
+            ):
                 continue
             out.append(self._to_out(ins))
         return out

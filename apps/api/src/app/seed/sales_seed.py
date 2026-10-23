@@ -53,13 +53,13 @@ OPEN: list[tuple[int, str, int, int]] = [
     (19, "lead", 50, 10), (7, "lead", 18, 10), (8, "lead", 15, 10), (9, "lead", 12, 10),
 ]  # fmt: skip
 TARGETS = {
-    # T-237 rebalance: Sep team target 26,0 tỷ → attainment 25,5/26,0 = 98,1 % (≥ 90 → FIN-01
-    # green); Q4 target lowered → METRIC-CUS-01 pipeline coverage ≥ 2,8x (green).
-    ("MONTH", "2026-09"): 26_000,
+    # T-603b (08 §5): Sep team target 29,5 tỷ → attainment 25,5 / 29,5 = 86,4 % (< 90 → FIN-01
+    # 🟠, UC-03 "Investigate"); Q4 target 20,0 tỷ → METRIC-CUS-01 coverage ≈ 2,6x (🟠, < 2,8).
+    ("MONTH", "2026-09"): 29_500,
     ("MONTH", "2026-10"): 27_000,
     ("MONTH", "2026-11"): 28_000,
     ("MONTH", "2026-12"): 30_000,
-    ("QUARTER", "2026-Q4"): 18_000,
+    ("QUARTER", "2026-Q4"): 20_000,
 }  # fmt: skip (triệu)
 
 

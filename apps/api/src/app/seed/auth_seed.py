@@ -6,12 +6,15 @@ Users: keyed by e-mail; password only from env (`DEMO_<ROLE>_PASSWORD`, fallback
 `DEMO_PASSWORD`) — an account whose password is not configured is skipped, never created
 with a default. The hash is replaced only when the env password no longer verifies.
 
-R-DEC-12a: 10 demo accounts giữ nguyên (phủ UC demo), nhưng 5 C-level map vào ROLE-DIR và
-phân biệt bằng `scope_pillars` (Finance-DIR={F}, Sales-DIR={C}, HR-DIR={O}…). `env_key` giữ
-tên biến mật khẩu cũ (`DEMO_CFO_PASSWORD`…) để không phá cấu hình dev.
+T-603b (08 §2.1, R-DEC-23/27): 10 tài khoản người + 1 actor AI. DIR phân biệt bằng
+`scope_pillars` (Kinh doanh {C}, Tài chính {F}, Nhân sự {O}, Sản phẩm/Công nghệ {U}); mỗi tài
+khoản gắn `department_id` + `employee_id` của seed HR. `env_key` giữ tên biến mật khẩu cũ
+(`DEMO_CFO_PASSWORD`…) để không phá cấu hình dev.
 """
 
 import logging
+import secrets
+import uuid
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -22,6 +25,8 @@ from app.core.config import ConfigService, get_config
 from app.core.security import hash_password, verify_password
 from app.modules.auth.models import Role, User
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS, ROLE_REFS, ROLE_SCOPES
+from app.seed.ids import seed_uuid
+from app.seed.org_data import BY_NAME
 
 log = logging.getLogger("app.seed")
 
@@ -55,22 +60,34 @@ class UserSpec:
     email: str
     full_name: str
     env_key: str  # tên biến mật khẩu dev (giữ tên C-level cũ để không phá .env)
+    dept: str  # phòng ban (08 §2.1) — `org_data.DEPARTMENTS[*].code`
     scope_pillars: tuple[str, ...] = ()  # khối phụ trách của DIR (R-DEC-12a)
 
 
-# 08 §2 — 10 demo accounts. 5 C-level → DIR, phân biệt bằng scope_pillars (R-DEC-12a).
+# 08 §2.1 + 09 §6.2 T-603b — 10 tài khoản demo người. Email giữ như M1.0 để không phá E2E;
+# `risk@` (DIR {S}) bỏ vì product/risk đóng băng (R-DEC-16), owner rủi ro = CEO.
 DEMO_USERS: tuple[UserSpec, ...] = (
-    UserSpec("CEO", "ceo@abc.demo", "Nguyễn Văn An", "CEO"),
-    UserSpec("DIR", "cfo@abc.demo", "Trần Thị Minh", "CFO", ("F",)),
-    UserSpec("DIR", "sales@abc.demo", "Lê Hoàng Giang", "VP_SALES", ("C",)),
-    UserSpec("DIR", "hr@abc.demo", "Phạm Thị Hạnh", "HR_MANAGER", ("O",)),
-    UserSpec("REV", "reviewer@abc.demo", "Vũ Đức Thắng", "REVIEWER"),
-    UserSpec("DIR", "cpo@abc.demo", "Đỗ Quang Huy", "CPO", ("U",)),
-    UserSpec("DIR", "risk@abc.demo", "Bùi Thu Trang", "RISK_MANAGER", ("S",)),
-    UserSpec("MGR", "manager@abc.demo", "Hoàng Minh Tuấn", "MANAGER"),
-    UserSpec("EMP", "employee@abc.demo", "Ngô Thị Lan", "EMPLOYEE"),
-    UserSpec("ADM", "admin@abc.demo", "Trịnh Văn Khoa", "ADMIN"),
+    UserSpec("CEO", "ceo@abc.demo", "Nguyễn Văn An", "CEO", "BOD"),
+    UserSpec("DIR", "sales@abc.demo", "Lê Hoàng Giang", "VP_SALES", "SAL", ("C",)),
+    UserSpec("DIR", "cfo@abc.demo", "Trần Thị Minh", "CFO", "FIN", ("F",)),
+    UserSpec("DIR", "hr@abc.demo", "Phạm Thị Hạnh", "HR_MANAGER", "HR", ("O",)),
+    UserSpec("DIR", "cpo@abc.demo", "Đỗ Quang Huy", "CPO", "PRD", ("U",)),
+    UserSpec("MGR", "manager@abc.demo", "Hoàng Minh Tuấn", "MANAGER", "SVC"),
+    UserSpec("MGR", "office@abc.demo", "Lương Thị Mai", "OFFICE_MANAGER", "ADM"),
+    UserSpec("EMP", "employee@abc.demo", "Ngô Thị Lan", "EMPLOYEE", "SVC"),
+    UserSpec("REV", "reviewer@abc.demo", "Vũ Đức Thắng", "REVIEWER", "ADM"),
+    UserSpec("ADM", "admin@abc.demo", "Trịnh Văn Khoa", "ADMIN", "PRD"),
 )
+# ROLE-AI actor (R-DEC-27): service account, không đăng nhập bằng mật khẩu (hash ngẫu nhiên,
+# không bao giờ log), tạo một lần.
+AI_AGENT = UserSpec("AI", "ai-agent@abc.demo", "Trợ lý AI Aureon", "AI", "BOD")
+
+
+def _links(spec: UserSpec) -> tuple[uuid.UUID, uuid.UUID | None]:
+    """(department_id, employee_id) — deterministic ids shared with the HR seed."""
+    person = BY_NAME.get(spec.full_name)
+    emp = seed_uuid("employee", person.code) if person and spec.role != "AI" else None
+    return seed_uuid("department", spec.dept), emp
 
 
 @dataclass
@@ -114,6 +131,33 @@ async def seed_roles(session: AsyncSession, report: SeedReport) -> dict[str, Rol
     return existing
 
 
+async def _upsert(
+    session: AsyncSession, spec: UserSpec, role_id: uuid.UUID, password: str | None
+) -> Outcome:
+    """Create / re-sync one account. `password=None` → service account (random, unusable)."""
+    dept, emp = _links(spec)
+    want = {"role_id": role_id, "full_name": spec.full_name, "department_id": dept,
+            "employee_id": emp, "scope_pillars": list(spec.scope_pillars),
+            "is_service_account": password is None}  # fmt: skip
+    user = (
+        await session.execute(select(User).where(User.email == spec.email))
+    ).scalar_one_or_none()
+    if user is None:
+        secret = password if password is not None else secrets.token_urlsafe(32)
+        session.add(User(email=spec.email, password_hash=hash_password(secret), **want))
+        return "created"
+    changed = {k: v for k, v in want.items() if getattr(user, k) != v}
+    for k, v in changed.items():
+        setattr(user, k, v)
+    if user.deleted_at is not None or not user.is_active:
+        user.deleted_at, user.is_active, changed["active"] = None, True, True
+    if password is not None and not verify_password(user.password_hash, password):
+        user.password_hash, changed["password"] = hash_password(password), True
+    if changed:
+        user.version += 1
+    return "updated" if changed else "unchanged"
+
+
 async def seed_users(
     session: AsyncSession, roles: dict[str, Role], report: SeedReport, cfg: ConfigService
 ) -> None:
@@ -124,34 +168,9 @@ async def seed_users(
             report.users[spec.email] = "skipped"
             continue
         password = secret.get_secret_value()
-        role_id = roles[spec.role].id
-        pillars = list(spec.scope_pillars)
-        stmt = select(User).where(User.email == spec.email)
-        user = (await session.execute(stmt)).scalar_one_or_none()
-        if user is None:
-            session.add(
-                User(
-                    email=spec.email,
-                    password_hash=hash_password(password),
-                    full_name=spec.full_name,
-                    role_id=role_id,
-                    scope_pillars=pillars,
-                )
-            )
-            report.users[spec.email] = "created"
-            continue
-        changed = False
-        if user.role_id != role_id or user.full_name != spec.full_name:
-            user.role_id, user.full_name, changed = role_id, spec.full_name, True
-        if list(user.scope_pillars) != pillars:
-            user.scope_pillars, changed = pillars, True
-        if user.deleted_at is not None or not user.is_active:
-            user.deleted_at, user.is_active, changed = None, True, True
-        if not verify_password(user.password_hash, password):
-            user.password_hash, changed = hash_password(password), True
-        if changed:
-            user.version += 1
-        report.users[spec.email] = "updated" if changed else "unchanged"
+        report.users[spec.email] = await _upsert(session, spec, roles[spec.role].id, password)
+        await session.flush()
+    report.users[AI_AGENT.email] = await _upsert(session, AI_AGENT, roles["AI"].id, None)
     await session.flush()
 
 

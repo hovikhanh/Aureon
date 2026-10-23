@@ -50,12 +50,14 @@ async def test_domain_timeout_and_error_degrade(
     r = await make_risk(api, category="financial")
 
     async def slow(*_a: Any, **_k: Any) -> None:
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)  # > DOMAIN_TIMEOUT_S below
 
     async def boom(*_a: Any, **_k: Any) -> None:
         raise RuntimeError("down")
 
-    monkeypatch.setattr(scenario_service, "DOMAIN_TIMEOUT_S", 0.05)
+    # Budget must still fit the REAL hr query (seed v3: ~150 employees, slower under --cov):
+    # 0.05 s cancelled it mid-flight and broke the shared session (PendingRollbackError).
+    monkeypatch.setattr(scenario_service, "DOMAIN_TIMEOUT_S", 0.5)
     monkeypatch.setattr(FinanceAnalyticsService, "what_if_runway", slow)
     monkeypatch.setattr(SalesAnalytics, "pipeline", boom)
     res = await _run(api, [r["id"]], assumptions={"name": "Stress", "extra_monthly_cost": 10})
