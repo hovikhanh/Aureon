@@ -72,12 +72,25 @@ V21_VALUES = (
 
 # 10→7 (R-DEC-12) and a best-effort 7→10 inverse for downgrade (DIR→CFO by default).
 MAP_10_TO_7 = {
-    "CEO": "CEO", "CFO": "DIR", "VP_SALES": "DIR", "HR_MANAGER": "DIR", "CPO": "DIR",
-    "RISK_MANAGER": "DIR", "MANAGER": "MGR", "EMPLOYEE": "EMP", "REVIEWER": "REV", "ADMIN": "ADM",
+    "CEO": "CEO",
+    "CFO": "DIR",
+    "VP_SALES": "DIR",
+    "HR_MANAGER": "DIR",
+    "CPO": "DIR",
+    "RISK_MANAGER": "DIR",
+    "MANAGER": "MGR",
+    "EMPLOYEE": "EMP",
+    "REVIEWER": "REV",
+    "ADMIN": "ADM",
 }
 MAP_7_TO_10 = {
-    "CEO": "CEO", "DIR": "CFO", "MGR": "MANAGER", "EMP": "EMPLOYEE", "REV": "REVIEWER",
-    "ADM": "ADMIN", "AI": "ADMIN",  # AI không tồn tại ở v2.1 → gần nhất ADMIN (chỉ cho downgrade)
+    "CEO": "CEO",
+    "DIR": "CFO",
+    "MGR": "MANAGER",
+    "EMP": "EMPLOYEE",
+    "REV": "REVIEWER",
+    "ADM": "ADMIN",
+    "AI": "ADMIN",  # AI không tồn tại ở v2.1 → gần nhất ADMIN (chỉ cho downgrade)
 }
 
 
@@ -94,8 +107,7 @@ def _swap_enum(old: str, new: str, mapping: dict[str, str], new_values: tuple[st
     for schema, table, col in ROLE_COLS_SCALAR:
         expr = _case_sql(col, mapping, tmp)
         op.execute(
-            f'ALTER TABLE "{schema}"."{table}" '
-            f'ALTER COLUMN "{col}" TYPE {tmp} USING ({expr})'
+            f'ALTER TABLE "{schema}"."{table}" ALTER COLUMN "{col}" TYPE {tmp} USING ({expr})'
         )
     for schema, table, col in ROLE_COLS_ARRAY:
         # Remap each element without a subquery: cast to text[], chain array_replace, cast to new[].
@@ -131,7 +143,9 @@ def upgrade() -> None:
         "users",
         sa.Column(
             "scope_pillars",
-            sa.ARRAY(sa.dialects.postgresql.ENUM(name="pillar", schema="platform", create_type=False)),
+            sa.ARRAY(
+                sa.dialects.postgresql.ENUM(name="pillar", schema="platform", create_type=False)
+            ),
             nullable=False,
             server_default=sa.text("'{}'"),
         ),
