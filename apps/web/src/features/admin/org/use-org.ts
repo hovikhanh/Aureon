@@ -13,10 +13,9 @@ export type TeamOut = Api.TeamOut;
 export type TreeDept = OrgTreeOut["departments"][number];
 export type TreeMember = TreeDept["members"][number];
 
-export const todayIso = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+/** "Today" as the API sees it: EP-ORG-* compare `valid_from` / `as_of` with the UTC date
+ *  (`hr/services/org_service._today`). A local date would be "future" between 00:00–07:00 ICT. */
+export const todayIso = (): string => new Date().toISOString().slice(0, 10);
 
 export function useOrgTree(asOf: string) {
   return useQuery({

@@ -277,7 +277,7 @@ function createAssignment(req: MockRequest) {
   const from = String(b.valid_from);
   if (from > today()) rule("valid_from cannot be in the future", "future", { field: "valid_from" });
   const current = s.assignments.find((a) => a.employee_id === b.employee_id && a.valid_to === null);
-  if (current && from <= current.valid_from) rule("valid_from must be after the current assignment start", "overlap", { field: "valid_from" });
+  if (current && from <= current.valid_from) rule("valid_from must be after the current assignment start", "not_after_current", { field: "valid_from" });
   if (current) Object.assign(current, { valid_to: from, version: current.version + 1, updated_at: now() });
   const row: MAssignment = { id: newId("assignment"), version: 1, employee_id: String(b.employee_id), department_id: String(b.department_id), team_id: b.team_id ?? null,
     position_id: b.position_id ?? null, manager_id: b.manager_id ?? null, valid_from: from, valid_to: null, reason: b.reason ?? null, created_at: now(), updated_at: now() };

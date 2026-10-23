@@ -45,8 +45,8 @@ export function NotificationBell() {
     prev.current = unread;
   }, [unread, res.isSuccess, t]);
   const refresh = () => qc.invalidateQueries({ queryKey: qk.notifications() });
-  const read = useMutation({ mutationFn: (id: string) => apiRequest(`/notifications/${id}/read`, { method: "POST" }), onSettled: refresh });
-  const readAll = useMutation({ mutationFn: () => apiRequest<{ updated: number }>("/notifications/read-all", { method: "POST", body: {} }), onSettled: refresh });
+  const read = useMutation({ mutationFn: (id: string) => apiRequest(`/notifications/${id}/read`, { method: "POST", idempotent: true }), onSettled: refresh });
+  const readAll = useMutation({ mutationFn: () => apiRequest<{ updated: number }>("/notifications/read-all", { method: "POST", idempotent: true, body: {} }), onSettled: refresh });
   const openItem = async (n: Api.NotificationOut) => {
     setOpen(false);
     await read.mutateAsync(n.id).catch(() => undefined);

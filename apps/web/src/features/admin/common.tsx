@@ -9,7 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { Label } from "@/components/ui/label";
 
 const KNOWN = ["FORBIDDEN_ROLE", "FORBIDDEN_SCOPE", "CONFLICT_STATE", "VALIDATION_ERROR", "DUPLICATE_RESOURCE", "BUSINESS_RULE_VIOLATION", "RATE_LIMIT_EXCEEDED"];
-const REASONS = ["has_live_children", "parent_cycle", "overlap", "future", "team_outside_department", "position_outside_department", "manager_self", "self_change", "ai_not_grantable", "pillars_only_dir", "not_found"];
+const REASONS = ["has_live_children", "parent_cycle", "overlap", "not_after_current", "future", "team_outside_department", "position_outside_department", "manager_self", "self_change", "ai_not_grantable", "pillars_only_dir", "not_found"];
 
 /** i18n text for an API error — `BUSINESS_RULE_VIOLATION` is refined by `details.reason`. */
 export function useErrorText(): (e: unknown) => string {

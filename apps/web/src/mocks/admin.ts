@@ -121,8 +121,13 @@ function patchUser(req: MockRequest) {
   return ok(u);
 }
 
-const setActive = (active: boolean) => (req: MockRequest) => {
+/** Same rule as the API (`core/idempotency`): action POSTs need an Idempotency-Key. */
+function requireIdem(req: MockRequest): void {
   if (!req.headers.get("idempotency-key")?.trim()) throw new MockHttpError(400, "BAD_REQUEST", "Idempotency-Key header is required", { header: "Idempotency-Key" });
+}
+
+const setActive = (active: boolean) => (req: MockRequest) => {
+  requireIdem(req);
   const u = findUser(req.params.id);
   const reason = String(obj(req).reason ?? "").trim();
   if (!reason) invalid("reason");
@@ -194,6 +199,7 @@ function listNotifications(req: MockRequest) {
 }
 
 function markRead(req: MockRequest) {
+  requireIdem(req);
   const n = inbox(req.claims).items.find((x) => x.id === req.params.id);
   if (!n) throw new MockHttpError(404, "NOT_FOUND", "notification not found");
   n.read_at ??= new Date().toISOString();
@@ -201,6 +207,7 @@ function markRead(req: MockRequest) {
 }
 
 function readAll(req: MockRequest) {
+  requireIdem(req);
   const upTo = (obj(req).up_to as string | undefined) ?? new Date().toISOString();
   let updated = 0;
   for (const n of inbox(req.claims).items) if (n.read_at === null && n.created_at <= upTo) { n.read_at = new Date().toISOString(); updated += 1; }

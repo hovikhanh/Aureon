@@ -477,7 +477,7 @@
       "label": "Reason",
       "has_live_children": "Cannot archive: it still has sub-departments, teams or current assignments. Move them first.",
       "parent_cycle": "This parent would create a cycle.",
-      "overlap": "The effective date must be after the current assignment start.",
+      "overlap": "The period overlaps another assignment.",
       "future": "The effective date cannot be in the future.",
       "team_outside_department": "The team is not in the selected department.",
       "position_outside_department": "The position is not in the selected department.",
@@ -485,7 +485,8 @@
       "self_change": "You cannot lock yourself or change your own role.",
       "ai_not_grantable": "The AI role cannot be granted to a user.",
       "pillars_only_dir": "Only a Director has khối (pillars).",
-      "not_found": "A related record was not found (it may be archived)."
+      "not_found": "A related record was not found (it may be archived).",
+      "not_after_current": "The effective date must be after the current assignment start."
     }
   },
   "orgAdmin": {
@@ -629,7 +630,7 @@
   },
   "rolesAdmin": {
     "title": "Roles & permissions",
-    "hint": "7 roles × <domain>:<action>. The small mark next to ✓ is the data scope.",
+    "hint": "7 roles × domain:action. The small mark next to ✓ is the data scope.",
     "caption": "Role and permission matrix",
     "permission": "Permission",
     "granted": "Granted",

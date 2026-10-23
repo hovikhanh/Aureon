@@ -85,9 +85,11 @@ describe("mock notifications", () => {
     const inbox = await call<{ id: string }[]>("/notifications?unread_only=true&limit=10", { claims: EMP });
     expect(inbox.status).toBe(200);
     expect(inbox.json!.meta!.unread_count).toBe(3);
-    const one = await call(`/notifications/${inbox.json!.data[0]!.id}/read`, { method: "POST", claims: EMP });
+    // EP-NTF-02/03 require an Idempotency-Key like the real API (missing → 400)
+    expect((await call("/notifications/read-all", { method: "POST", claims: EMP, body: {} })).status).toBe(400);
+    const one = await call(`/notifications/${inbox.json!.data[0]!.id}/read`, { method: "POST", claims: EMP, headers: IDEM });
     expect(one.status).toBe(200);
-    const all = await call<{ updated: number }>("/notifications/read-all", { method: "POST", claims: EMP, body: {} });
+    const all = await call<{ updated: number }>("/notifications/read-all", { method: "POST", claims: EMP, headers: IDEM, body: {} });
     expect(all.json!.data.updated).toBe(2);
     const prefs = await call<{ kind: string; email_enabled: boolean }[]>("/notifications/preferences", { method: "PATCH", claims: EMP, body: { items: [{ kind: "alert", email_enabled: true }] } });
     expect(prefs.json!.data.find((p) => p.kind === "alert")?.email_enabled).toBe(true);

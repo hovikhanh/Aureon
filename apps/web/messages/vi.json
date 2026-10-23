@@ -477,7 +477,7 @@
       "label": "Lý do",
       "has_live_children": "Không thể lưu trữ: đơn vị còn phòng ban con, team hoặc nhân viên đang được phân công. Hãy chuyển họ đi trước.",
       "parent_cycle": "Không thể chọn đơn vị cha này vì sẽ tạo vòng lặp.",
-      "overlap": "Ngày hiệu lực phải sau ngày bắt đầu của phân công hiện tại.",
+      "overlap": "Khoảng hiệu lực trùng với một phân công khác.",
       "future": "Ngày hiệu lực không được ở tương lai.",
       "team_outside_department": "Team không thuộc phòng ban đã chọn.",
       "position_outside_department": "Vị trí không thuộc phòng ban đã chọn.",
@@ -485,7 +485,8 @@
       "self_change": "Không thể tự khóa hoặc tự đổi vai trò của chính mình.",
       "ai_not_grantable": "Không thể cấp vai trò Trợ lý AI cho người dùng.",
       "pillars_only_dir": "Chỉ Giám đốc khối mới có khối phụ trách.",
-      "not_found": "Không tìm thấy dữ liệu liên quan (có thể đã bị lưu trữ)."
+      "not_found": "Không tìm thấy dữ liệu liên quan (có thể đã bị lưu trữ).",
+      "not_after_current": "Ngày hiệu lực phải sau ngày bắt đầu của phân công hiện tại."
     }
   },
   "orgAdmin": {
@@ -629,7 +630,7 @@
   },
   "rolesAdmin": {
     "title": "Vai trò & quyền",
-    "hint": "Ma trận 7 vai trò × quyền <domain>:<action>. Chữ nhỏ cạnh ✓ là phạm vi dữ liệu.",
+    "hint": "Ma trận 7 vai trò × quyền domain:action. Chữ nhỏ cạnh ✓ là phạm vi dữ liệu.",
     "caption": "Ma trận vai trò và quyền",
     "permission": "Quyền",
     "granted": "Có quyền",
