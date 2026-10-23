@@ -6,7 +6,8 @@
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { API_BASE, demoPasswordFor } from "./server-env";
+import { mockAuthorize } from "@/mocks/auth";
+import { API_BASE, DEMO_MODE, demoPasswordFor, isMockMode } from "./server-env";
 
 interface TokenOut {
   access_token: string;
@@ -58,6 +59,8 @@ export const authOptions: NextAuthOptions = {
       credentials: { email: { type: "email" }, password: { type: "password" }, demo: { type: "text" } },
       async authorize(creds) {
         const email = (creds?.email ?? "").trim();
+        // T-604: API_MODE=mock (server env, refused in production) → 7-role mock claims.
+        if (isMockMode()) return mockAuthorize(email, creds?.password ?? "", DEMO_MODE && creds?.demo === "true");
         let password = creds?.password ?? "";
         if (creds?.demo === "true" && !password) password = demoPasswordFor(email) ?? "";
         if (!email || !password) throw new Error("INVALID_CREDENTIALS");

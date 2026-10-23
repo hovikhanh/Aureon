@@ -1,10 +1,11 @@
 """`python -m app.seed.snapshot` — export `seed_snapshot.json` for the mock FE (T-603b → T-604).
 
-Deterministic view of the v3 seed: org chart, demo accounts (no passwords), projects, tasks,
-KPIs, OKRs, the October meeting and the current company metric values (read through the
-platform's public `MetricQueryService` after a seed + recompute). No level-4 data (salary,
-PII) and no timestamps that change between runs, so the committed file only changes when the
-seed changes (drift-checked by `tests/integration/test_seed_v3.py`).
+Deterministic view of the v3 seed: org chart, demo accounts (no passwords), the JWT
+permission matrix of the 7 roles (mock login claims), projects, tasks, KPIs, OKRs, the
+October meeting and the current company metric values (read through the platform's public
+`MetricQueryService` after a seed + recompute). No level-4 data (salary, PII) and no
+timestamps that change between runs, so the committed file only changes when the seed
+changes (drift-checked by `tests/integration/test_seed_v3.py`).
 """
 
 import asyncio
@@ -18,6 +19,7 @@ from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import REPO_ROOT
 from app.core.db import get_engine, get_sessionmaker
 from app.core.tenant import tenant_scope
+from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 from app.modules.platform.services.metric_query import MetricQueryService
 from app.seed import exec_data as X
 from app.seed.auth_seed import AI_AGENT, DEMO_USERS
@@ -91,7 +93,8 @@ async def metrics(db: AsyncSession) -> list[dict[str, Any]]:
 
 def build(metric_rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"reference_date": REFERENCE.isoformat(), "company": "Công ty TNHH TM&DV ABC",
-            "users": _users(), **_org(), **_execution(), "metrics": metric_rows}  # fmt: skip
+            "users": _users(), **_org(), **_execution(), "metrics": metric_rows,
+            "role_permissions": {r: sorted(p) for r, p in ROLE_PERMISSIONS.items()}}  # fmt: skip
 
 
 def render(data: dict[str, Any]) -> str:
