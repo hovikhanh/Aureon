@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SNAPSHOT, type RoleCode } from "@/mocks/fixtures";
 import { LEGACY_ROUTES, legacyRedirect } from "./legacy-routes";
-import { ROUTE_RULES, canAccess, landingFor, visibleNav } from "./permissions";
+import { ROUTE_RULES, canAccess, landingFor, safeCallback, visibleNav } from "./permissions";
 
 /** The real JWT permission matrix of each role (exported from the BE by the seed snapshot). */
 const perms = (r: RoleCode) => SNAPSHOT.role_permissions[r];
@@ -71,5 +71,20 @@ describe("v2.1 → v3 redirects (TC-M11-13 map)", () => {
     const src = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
     const roots = new Set([...ROUTE_RULES.map((r) => r.prefix), ...LEGACY_ROUTES.map(([f]) => f)].map((p) => `/${p.split("/")[1]}`));
     for (const root of roots) expect(src, root).toContain(`"${root}/:path*"`);
+  });
+});
+
+describe("default deny + safe callback (review M1.1)", () => {
+  it("a path without a route rule is closed to every role", () => {
+    expect(canAccess("/unknown", "CEO", perms("CEO"))).toBe(false);
+    expect(canAccess("/homework", "CEO", perms("CEO"))).toBe(false);
+  });
+
+  it("callbackUrl stays same-origin", () => {
+    const o = "https://aureon.test";
+    expect(safeCallback("/home?period=2026-10", o)).toBe("/home?period=2026-10");
+    for (const bad of [null, "", "//evil.com", "/\\evil.com", "https://evil.com", "home"]) {
+      expect(safeCallback(bad, o)).toBe("/");
+    }
   });
 });

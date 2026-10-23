@@ -23,7 +23,7 @@
 | T-608 | `b112bc9` | Đóng băng product/risk: `p1_frozen`, Executive mặc định F/O/C, 5 trụ chỉ ở SCR-03 |
 | T-609 | `65072d3` | E2E login + điều hướng 7 role trên `real` |
 
-**Verify đóng phase (2026-10-23):** gate DoD xanh · pytest 807 (`--cov` 97%, bảo mật ≥ 91%) · Vitest 78 ·
+**Verify đóng phase (2026-10-23):** gate DoD xanh · pytest 808 (`--cov` 97%, bảo mật ≥ 91%) · Vitest 80 ·
 contract 14 · alembic `downgrade -1 && upgrade head` sạch · Playwright `mock` 28/28 (không backend) · `real` 58/58
 (web `next start` :3200 + API host :4100 trên DB dev — container `web`/`api` :3000/:4000 còn image cũ).
 

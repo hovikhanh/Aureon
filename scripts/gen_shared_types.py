@@ -18,7 +18,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "packages" / "shared-types" / "src" / "generated.ts"
@@ -108,7 +108,8 @@ def obj(schema: dict[str, Any], indent: str) -> str:
 def json_schema(content: dict[str, Any] | None) -> dict[str, Any] | None:
     for mime, media in (content or {}).items():
         if "json" in mime and "schema" in media:
-            return media["schema"]  # type: ignore[no-any-return]
+            # OpenAPI media objects are untyped JSON; `schema` is always a JSON-Schema object.
+            return cast(dict[str, Any], media["schema"])
     return None
 
 

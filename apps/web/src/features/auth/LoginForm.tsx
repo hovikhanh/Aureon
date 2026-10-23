@@ -6,6 +6,7 @@ import { z } from "zod";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { safeCallback } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,8 +49,7 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
       setError(messageFor(res?.error ?? "INTERNAL_ERROR"));
       return;
     }
-    const cb = params.get("callbackUrl");
-    window.location.assign(cb && cb.startsWith("/") && !cb.startsWith("//") ? cb : "/");
+    window.location.assign(safeCallback(params.get("callbackUrl"), window.location.origin));
   });
 
   return (

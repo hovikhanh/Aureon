@@ -74,7 +74,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    method: "POST", pattern: "/dashboard/alerts/:id/acknowledge", permission: "dashboard:read",
+    method: "POST", pattern: "/dashboard/alerts/:id/acknowledge", permission: "dashboard:write",
     handler: (req) => {
       requireIdempotency(req);
       const a = sessionFor(req.claims.sub).alerts.find((x) => x.id === req.params.id);

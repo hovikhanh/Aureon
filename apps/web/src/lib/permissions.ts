@@ -65,9 +65,25 @@ export function ruleFor(pathname: string) {
   return ROUTE_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`));
 }
 
+/** Pages outside the role-gated (app) tree, open to any signed-in user. */
+const PUBLIC_PAGES = new Set(["/", "/403"]);
+
+/** Default deny (06 §3.3): a path with no rule is closed — every (app) route must declare one. */
 export function canAccess(pathname: string, role: string, perms: readonly string[]): boolean {
   const rule = ruleFor(pathname);
-  return rule ? allowed(rule, role, perms) : true;
+  if (rule) return allowed(rule, role, perms);
+  return PUBLIC_PAGES.has(pathname);
+}
+
+/** Same-origin relative callback only (no `//host`, no `/\host` which browsers treat as `//`). */
+export function safeCallback(cb: string | null, origin: string): string {
+  if (!cb || !cb.startsWith("/") || cb.includes("\\")) return "/";
+  try {
+    const url = new URL(cb, origin);
+    return url.origin === origin ? url.pathname + url.search + url.hash : "/";
+  } catch {
+    return "/";
+  }
 }
 
 export function visibleNav(role: string, perms: readonly string[]): NavItem[] {

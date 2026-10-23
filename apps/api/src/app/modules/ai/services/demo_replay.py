@@ -95,7 +95,8 @@ async def build_answer(executor: ToolExecutor, entry: DemoEntry, locale: str) ->
     refs: dict[str, SourceRef] = {}
     calls: list[dict[str, Any]] = []
     for tool in entry.tools:
-        result = await executor.run(tool, {})
+        # recorded server-side intent, not a model call → frozen pillar reads allowed (R-DEC-16)
+        result = await executor.run(tool, {}, allow_frozen=True)
         calls.append({"tool": tool, "status": result.status, "latency_ms": result.latency_ms})
         if result.status != "ok":
             return None

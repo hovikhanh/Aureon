@@ -145,6 +145,16 @@ async def test_tool_executor_rejects_unknown_write_and_forbidden(db_session) -> 
     assert (await emp.run("TOOL-get_finance_dashboard", {})).status == "forbidden"
 
 
+async def test_tool_executor_refuses_p1_frozen_unless_curated(db_session) -> None:
+    """TC-M11-14 (R-DEC-16): a model naming a frozen product/risk tool gets AI_TOOL_NOT_AVAILABLE;
+    only the curated demo replay may opt in with `allow_frozen`."""
+    ex = ToolExecutor(db_session, principal("CEO"))
+    for name in ("TOOL-get_risk_dashboard", "TOOL-get_product_dashboard", "TOOL-list_risks"):
+        assert (await ex.run(name, {})).error_code == "AI_TOOL_NOT_AVAILABLE"
+    curated = await ex.run("TOOL-get_risk_dashboard", {}, allow_frozen=True)
+    assert curated.status == "ok"
+
+
 async def test_tool_executor_unknown_metric_is_no_data(db_session) -> None:
     ex = ToolExecutor(db_session, principal("CEO"))
     r = await ex.run("TOOL-get_metric", {"metric_code": "METRIC-DOES-NOT-EXIST"})

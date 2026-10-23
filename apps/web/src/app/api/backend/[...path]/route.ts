@@ -19,7 +19,9 @@ const UNAUTH = { error: { code: "UNAUTHENTICATED", message: "no session", detail
 
 /** T-604: API_MODE=mock → in-process mock router (no backend); claims from the mock token. */
 async function mock(req: NextRequest, path: string[]): Promise<Response> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET ?? "" });
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "auth not configured", details: {} } }, { status: 500 });
+  const token = await getToken({ req, secret });
   const claims = decodeMockToken(token?.accessToken);
   if (!claims) return NextResponse.json(UNAUTH, { status: 401 });
   const raw = ["GET", "HEAD"].includes(req.method) ? "" : await req.text();
