@@ -689,8 +689,8 @@ export type EmployeeOut = {
   updated_at: string;
   employee_code: string;
   full_name: string;
-  email: string | null;
-  phone: string | null;
+  email: string | Masked | null;
+  phone: string | Masked | null;
   department_id: string;
   title: string | null;
   contract_type: ("full_time" | "part_time" | "contract" | "intern") | null;

@@ -13,13 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events.envelope import OUTBOX, EventEnvelope, utcnow
 from app.core.events.registry import is_registered
+from app.core.field_policy import SENSITIVE_KEYS
 from app.core.pii import PIIHit, scan_payload
 from app.core.request_context import current_request_id
 from app.core.tenant import require_tenant
 
 # 10 §8.1: payload carries ids + aggregates only — never level 3–4 data (02 §6.3).
 # Key names below + content patterns in `core.pii` (DEC-176).
-FORBIDDEN_PAYLOAD_KEYS: frozenset[str] = frozenset(
+FORBIDDEN_PAYLOAD_KEYS: frozenset[str] = SENSITIVE_KEYS | frozenset(
     {
         "salary", "base_salary", "gross_salary", "net_salary", "salary_amount",
         "date_of_birth", "dob", "address", "national_id", "cccd", "bank_account",

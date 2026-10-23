@@ -26,6 +26,7 @@ from app.core.errors import (
     SalaryDeniedError,
 )
 from app.core.events.outbox import publish_in_tx
+from app.core.field_policy import mask_fields
 from app.core.pagination import PageParams
 from app.modules.hr.models import Department, Employee, SalaryHistory
 from app.modules.hr.repositories import (
@@ -45,7 +46,6 @@ from app.modules.hr.schemas import (
     EmployeeOut,
     EmployeeStatus,
     EmployeeUpdate,
-    Masked,
     SalaryCreate,
     SalaryOut,
 )
@@ -104,16 +104,19 @@ def salary_out(s: SalaryHistory) -> SalaryOut:
     )  # fmt: skip
 
 
-def employee_out(e: Employee, title: str | None, *, level4: bool) -> EmployeeOut:
-    """Build the DTO; without `level4` every level-4 field is `{ masked: true }` (02 §6.3)."""
-    sensitive: dict[str, Any] = {f: getattr(e, f) if level4 else Masked() for f in LEVEL4_FIELDS}
+def employee_out(e: Employee, title: str | None, *, user: Principal | None) -> EmployeeOut:
+    """Build the DTO; fields the caller may not see → `{ masked: true }` via the field-policy
+    registry (T-615, R-DEC-34). `user=None` = internal full view (audit — masked by `core.audit`).
+    """
+    raw = {f: getattr(e, f) for f in (*LEVEL4_FIELDS, "email", "phone")}
     return EmployeeOut(
         id=e.id, version=e.version, created_at=e.created_at, updated_at=e.updated_at,
-        employee_code=e.employee_code, full_name=e.full_name, email=e.email, phone=e.phone,
+        employee_code=e.employee_code, full_name=e.full_name,
         department_id=e.department_id, title=title,
         contract_type=CONTRACT_FROM_DB.get(e.contract_type) if e.contract_type else None,
         status=cast(EmployeeStatus, e.status), hire_date=e.hire_date,
-        termination_date=e.termination_date, manager_id=e.manager_id, **sensitive,
+        termination_date=e.termination_date, manager_id=e.manager_id,
+        **mask_fields("hr.employees", user, raw),
     )  # fmt: skip
 
 
@@ -283,7 +286,7 @@ class HrService:
     async def _out(self, user: Principal, e: Employee) -> EmployeeOut:
         titles = await self.positions.titles([e.position_id] if e.position_id else [])
         return employee_out(e, titles.get(e.position_id) if e.position_id else None,
-                            level4=sees_level4(user))  # fmt: skip
+                            user=user)  # fmt: skip
 
     async def list_employees(
         self, user: Principal, page: PageParams, *, department_id: uuid.UUID | None,
@@ -307,9 +310,8 @@ class HrService:
             where=where,
         )  # fmt: skip
         titles = await self.positions.titles([e.position_id for e in items if e.position_id])
-        lvl4 = sees_level4(user)
         return [
-            employee_out(e, titles.get(e.position_id) if e.position_id else None, level4=lvl4)
+            employee_out(e, titles.get(e.position_id) if e.position_id else None, user=user)
             for e in items
         ], total
 
@@ -405,7 +407,7 @@ class HrService:
         await self.db.refresh(obj)
         out = await self._out(user, obj)
         await self._audit("hr.employee_create", "employees", obj, after=employee_out(
-            obj, out.title, level4=True))  # fmt: skip
+            obj, out.title, user=None))  # fmt: skip
         await self._lifecycle_events(obj, None)
         return out
 
@@ -414,7 +416,7 @@ class HrService:
     ) -> EmployeeOut:
         obj = await self.get_employee_row(user, id_)
         old_status = obj.status
-        before = employee_out(obj, (await self._out(user, obj)).title, level4=True)
+        before = employee_out(obj, (await self._out(user, obj)).title, user=None)
         data = body.model_dump(exclude_unset=True, exclude={"version", "effective_from"})
         effective = body.effective_from or today()
         if effective > today():
@@ -445,13 +447,13 @@ class HrService:
         await self.db.refresh(obj)
         out = await self._out(user, obj)
         await self._audit("hr.employee_update", "employees", obj, before,
-                          employee_out(obj, out.title, level4=True))  # fmt: skip
+                          employee_out(obj, out.title, user=None))  # fmt: skip
         await self._lifecycle_events(obj, old_status)
         return out
 
     async def delete_employee(self, user: Principal, id_: uuid.UUID) -> None:
         obj = await self.get_employee_row(user, id_)
-        before = employee_out(obj, None, level4=True)
+        before = employee_out(obj, None, user=None)
         obj.updated_by = user.user_id
         await self.org.close_current(obj.id, today(), actor=user.user_id)  # T-612
         await self.employees.soft_delete(obj)

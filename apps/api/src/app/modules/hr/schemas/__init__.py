@@ -18,6 +18,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.field_policy import Masked as Masked
+
 EmployeeStatus = Literal["probation", "active", "on_leave", "terminated"]
 ContractType = Literal["full_time", "part_time", "contract", "intern"]
 HiringPriority = Literal["low", "medium", "high", "critical"]
@@ -31,12 +33,6 @@ EMAIL_RE = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 def currency_field() -> Any:
     return Field(default="VND", pattern=r"^[A-Z]{3}$")
-
-
-class Masked(BaseModel):
-    """Placeholder for a level-4 field the caller may not see (02 §6.3)."""
-
-    masked: Literal[True] = True
 
 
 class _Out(BaseModel):
@@ -124,8 +120,8 @@ class EmployeeUpdate(_Patch, _EmployeeLevel4):
 class EmployeeOut(_Out):
     employee_code: str
     full_name: str
-    email: str | None
-    phone: str | None
+    email: str | Masked | None  # level 3 — masked for ADM scope `s` (R-DEC-34)
+    phone: str | Masked | None
     department_id: uuid.UUID
     title: str | None
     contract_type: ContractType | None

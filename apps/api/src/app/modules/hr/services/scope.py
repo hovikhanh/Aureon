@@ -17,11 +17,12 @@ import uuid
 
 from app.core.deps import Principal
 from app.core.errors import ScopeDeniedError
+from app.core.field_policy import STRUCTURE_ONLY_ROLES as STRUCTURE_ONLY_ROLES
+from app.core.field_policy import sees_level4 as sees_level4
 
 DEPARTMENT_ROLES = frozenset({"MGR"})
 SELF_ROLES = frozenset({"EMP"})
 # R-DEC-30: ADM `hr:read ◑s` = org structure only — employee / salary / hiring records → 403.
-STRUCTURE_ONLY_ROLES = frozenset({"ADM"})
 NO_RECORD_ROLES = frozenset({"REV"}) | STRUCTURE_ONLY_ROLES
 # Who may read the org structure (EP-ORG-*): EMP / REV → FORBIDDEN_SCOPE (10 §7.2.1).
 NO_STRUCTURE_ROLES = frozenset({"EMP", "REV"})
@@ -30,11 +31,6 @@ NO_STRUCTURE_ROLES = frozenset({"EMP", "REV"})
 def _dir_with_pillar(user: Principal, pillar: str) -> bool:
     """DIR phụ trách khối `pillar` (scope_pillars rỗng = toàn khối, dùng cho role cấp cao)."""
     return user.role == "DIR" and (not user.scope_pillars or pillar in user.scope_pillars)
-
-
-def sees_level4(user: Principal) -> bool:
-    # CEO toàn phần; HR-DIR (khối O) thấy level-4 (02 §6.2). ex-HR_MANAGER → DIR+O.
-    return user.role == "CEO" or _dir_with_pillar(user, "O")
 
 
 def sees_payroll(user: Principal) -> bool:

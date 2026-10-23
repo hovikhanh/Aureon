@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import TableClause
 
 from app.core.enums import ACTOR_TYPE, ROLE_CODE
+from app.core.field_policy import SENSITIVE_KEYS
 from app.core.pii import MASK, mask_payload
 from app.core.request_context import current_request_id
 
@@ -33,13 +34,13 @@ __all__ = [
 
 ActorType = Literal["USER", "AI", "SYSTEM"]
 
-# Level 3–4 fields masked in before/after (10 §1.8, 02 §6.3).
-MASKED_KEYS: frozenset[str] = frozenset(
+# Level 3–4 fields masked in before/after (10 §1.8, 02 §6.3): the field-policy registry
+# (T-615, R-DEC-34) + aliases / credentials that never appear as API fields.
+MASKED_KEYS: frozenset[str] = SENSITIVE_KEYS | frozenset(
     {
-        "salary", "base_salary", "gross_salary", "net_salary", "salary_amount", "allowance",
-        "date_of_birth", "address", "national_id", "cccd", "bank_account",
-        "bank_account_number", "emergency_contact", "password", "password_hash", "token",
-        "refresh_token", "token_hash", "access_token",
+        "salary", "gross_salary", "net_salary", "salary_amount", "allowance", "cccd",
+        "bank_account_number", "password", "password_hash", "token", "refresh_token",
+        "token_hash", "access_token",
     }
 )  # fmt: skip
 

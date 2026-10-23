@@ -206,3 +206,15 @@ async def test_tenant_isolation(api: ApiClient) -> None:
         assert (await api.call("GET", url, "CEO", tenant_id=TENANT_B)).status_code == 404
     other = await api.call("GET", "/org/tree", "CEO", tenant_id=TENANT_B)
     assert other.status_code == 404
+
+
+# ---------- TC-M12-12 field policy over HTTP (T-615) ----------
+async def test_field_policy_masks_employee(api: ApiClient) -> None:
+    dept = await make_department(api)
+    emp = await make_employee(api, dept["id"], phone="0901234567")
+    url = f"/hr/employees/{emp['id']}"
+    full = data(await api.call("GET", url, "HR_MANAGER"))
+    assert full["email"] == emp["email"] and full["national_id"] == "079090001234"
+    mgr = data(await api.call("GET", url, "MANAGER", department_id=dept["id"]))
+    assert mgr["email"] == emp["email"] and mgr["phone"] == "0901234567"
+    assert mgr["national_id"] == {"masked": True} and mgr["date_of_birth"] == {"masked": True}
