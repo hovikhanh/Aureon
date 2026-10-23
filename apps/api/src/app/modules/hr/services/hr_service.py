@@ -31,6 +31,7 @@ from app.modules.hr.models import Department, Employee, SalaryHistory
 from app.modules.hr.repositories import (
     DepartmentRepository,
     EmployeeRepository,
+    OrganizationRepository,
     PositionRepository,
     SalaryRepository,
 )
@@ -179,13 +180,23 @@ class HrService:
             parent = await self.departments.get(node)
             node, depth = (parent.parent_id if parent else None), depth + 1
 
+    async def _default_organization(self) -> uuid.UUID:
+        """T-611: the tenant's single live Organization (EP-ORG-07 makes it explicit, T-613)."""
+        orgs = await OrganizationRepository(self.db).live()
+        if len(orgs) != 1:
+            raise BusinessRuleError(
+                "organization_id required", details={"field": "organization_id"}
+            )
+        return orgs[0].id
+
     async def create_department(self, user: Principal, body: DepartmentCreate) -> DepartmentOut:
         if await self.departments.by_code(body.code) is not None:
             raise DuplicateResourceError("department code exists", details={"code": body.code})
         await self._check_refs(body.parent_id, body.manager_id)
         obj = Department(
-            code=body.code, name=body.name, aliases=[], parent_id=body.parent_id,
-            head_employee_id=body.manager_id, source="MANUAL", created_by=user.user_id,
+            organization_id=await self._default_organization(), code=body.code, name=body.name,
+            aliases=[], parent_id=body.parent_id, head_employee_id=body.manager_id,
+            valid_from=datetime.now(UTC).date(), source="MANUAL", created_by=user.user_id,
         )  # fmt: skip
         self.db.add(obj)
         await self._flush_unique("department code")

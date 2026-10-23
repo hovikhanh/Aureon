@@ -8,16 +8,32 @@ from sqlalchemy import ColumnElement, and_, func, or_, select
 
 from app.core.base_repository import BaseRepository
 from app.core.crypto_columns import decrypted_bigint
-from app.modules.hr.models import Department, Employee, HiringPlan, Position, SalaryHistory
+from app.modules.hr.models import (
+    Department,
+    Employee,
+    HiringPlan,
+    Organization,
+    Position,
+    SalaryHistory,
+)
 
 OPEN_PLAN_STATUSES = ("approved", "in_progress")
+
+
+class OrganizationRepository(BaseRepository[Organization]):
+    model = Organization
+
+    async def live(self) -> Sequence[Organization]:
+        stmt = self._live().order_by(Organization.valid_from, Organization.code)
+        return (await self.db.execute(stmt)).scalars().all()
 
 
 class DepartmentRepository(BaseRepository[Department]):
     model = Department
 
     async def by_code(self, code: str) -> Department | None:
-        stmt = select(Department).where(Department.code == code)  # UQ covers deleted rows too
+        """Live department of the current tenant with `code` (05 §2.4 unique live per tenant)."""
+        stmt = self._live().where(Department.code == code)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
 

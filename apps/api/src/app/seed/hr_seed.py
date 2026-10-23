@@ -16,13 +16,25 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
-from app.modules.hr.models import Department, Employee, HiringPlan, SalaryHistory, Team
-from app.modules.hr.repositories import DepartmentRepository
+from app.modules.hr.models import (
+    Department,
+    Employee,
+    HiringPlan,
+    Organization,
+    SalaryHistory,
+    Team,
+)
+from app.modules.hr.repositories import DepartmentRepository, OrganizationRepository
 from app.modules.hr.services.hr_service import normalize_name
 from app.seed.ids import seed_uuid
 from app.seed.org_data import DEPARTMENTS, PEOPLE
 
 SEED: dict[str, Any] = {"source": "SEED"}
+# 08 §2.1 / 05 §2.4 (T-611): one legal entity; org/department/team validity starts at the
+# company's first hire so `as_of` trees cover every seeded assignment.
+ORG_CODE, ORG_NAME = "ABC", "Công ty TNHH TM&DV ABC"
+ORG_ID = seed_uuid("organization", ORG_CODE)
+ORG_VALID_FROM = date(2012, 1, 1)
 SALARY_MONTHS = (date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1))
 # code, dept, title/position, headcount, filled, status, start, target fill date
 # T-237 rebalance: exactly ONE plan is late and by ≤ 45 days (HP-2026-07, 40 days at 20/10) →
@@ -57,22 +69,33 @@ def _fake_pii(n: int) -> dict[str, Any]:
             "date_of_birth": date(1985 + n % 15, 1 + n % 12, 1 + n % 27)}  # fmt: skip
 
 
-async def seed_org(db: AsyncSession) -> int:
-    if await _has(db, Department):
+async def _seed_organization(db: AsyncSession) -> int:
+    """Idempotent by id: migration `0011` may already have backfilled ABC with this id."""
+    if await OrganizationRepository(db).get(ORG_ID) is not None:
         return 0
+    db.add(Organization(id=ORG_ID, code=ORG_CODE, name=ORG_NAME, legal_name=ORG_NAME,
+                        valid_from=ORG_VALID_FROM, **SEED))  # fmt: skip
+    await db.flush()
+    return 1
+
+
+async def seed_org(db: AsyncSession) -> int:
+    orgs = await _seed_organization(db)
+    if await _has(db, Department):
+        return orgs
     db.add_all([
-        Department(id=seed_uuid("department", d.code), code=d.code, name=d.name, aliases=[],
-                   **SEED)
+        Department(id=seed_uuid("department", d.code), organization_id=ORG_ID, code=d.code,
+                   name=d.name, aliases=[], valid_from=ORG_VALID_FROM, **SEED)
         for d in DEPARTMENTS
     ])  # fmt: skip
     await db.flush()
     teams = [(d.code, code, name) for d in DEPARTMENTS for code, name in d.teams]
     db.add_all([
         Team(id=seed_uuid("team", code), department_id=seed_uuid("department", dept), code=code,
-             name=name, **SEED)
+             name=name, valid_from=ORG_VALID_FROM, **SEED)
         for dept, code, name in teams
     ])  # fmt: skip
-    return len(DEPARTMENTS) + len(teams)
+    return orgs + len(DEPARTMENTS) + len(teams)
 
 
 async def seed_employees(db: AsyncSession) -> int:
