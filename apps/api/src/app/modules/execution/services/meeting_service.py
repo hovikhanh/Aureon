@@ -8,7 +8,7 @@ import uuid
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, Date, any_, literal, select
+from sqlalchemy import ColumnElement, Date, any_, literal
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -185,7 +185,7 @@ class MeetingService(ExecBase):
         """Decisions have no `department_id` (05) → department of their meeting."""
         own: list[ColumnElement[bool]] = [Decision.owner_id == user.user_id]
         if scope.level(user) == "d" and user.department_id is not None:
-            dept_meetings = select(Meeting.id).where(Meeting.department_id == user.department_id)
+            dept_meetings = MeetingRepository.ids_where(Meeting.department_id == user.department_id)
             own.append(Decision.meeting_id.in_(dept_meetings))
         return scope.predicate(user, "read", own=own)
 

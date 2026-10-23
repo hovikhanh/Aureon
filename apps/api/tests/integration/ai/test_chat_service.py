@@ -26,10 +26,26 @@ from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 pytestmark = pytest.mark.integration
 
 
+# ex 10-role F.O.C.U.S → 7-role v3 (+ scope_pillars khối) — R-DEC-12/12a.
+_LEGACY: dict[str, tuple[str, frozenset[str]]] = {
+    "CEO": ("CEO", frozenset()),
+    "CFO": ("DIR", frozenset({"F"})),
+    "VP_SALES": ("DIR", frozenset({"C"})),
+    "HR_MANAGER": ("DIR", frozenset({"O"})),
+    "CPO": ("DIR", frozenset({"U"})),
+    "RISK_MANAGER": ("DIR", frozenset({"S"})),
+    "MANAGER": ("MGR", frozenset()),
+    "EMPLOYEE": ("EMP", frozenset()),
+    "REVIEWER": ("REV", frozenset()),
+    "ADMIN": ("ADM", frozenset()),
+}
+
+
 def principal(role: str) -> Principal:
+    v3, pillars = _LEGACY.get(role, (role, frozenset()))
     return Principal(
-        user_id=uuid.uuid4(), role=role,
-        permissions=frozenset(ROLE_PERMISSIONS[role]), email=f"{role.lower()}@abc.test",
+        user_id=uuid.uuid4(), role=v3, scope_pillars=pillars,
+        permissions=frozenset(ROLE_PERMISSIONS[v3]), email=f"{v3.lower()}@abc.test",
     )  # fmt: skip
 
 
@@ -122,6 +138,16 @@ async def test_confidential_prompt_caps_tools_to_internal(db_session) -> None:
     names = {t.name for t in gw.requests[0].tools}
     assert "TOOL-list_invoices" not in names  # CONFIDENTIAL record tool
     assert "TOOL-get_finance_dashboard" in names  # INTERNAL aggregate tool
+
+
+async def test_p1_frozen_tools_not_sent_to_model(db_session) -> None:
+    """TC-M11-14 (R-DEC-16): the CEO holds product/risk permissions, yet no product/risk tool
+    reaches the model's tool list."""
+    gw = ScriptedGateway(ChatResponse(content="ok", provider="fixture", model="x"))
+    await ChatService(db_session, gw).chat(principal("CEO"), "tóm tắt tuần này", locale="vi")
+    names = {t.name for t in gw.requests[0].tools}
+    assert "TOOL-get_finance_dashboard" in names
+    assert not {n for n in names if "product" in n or "risk" in n}
 
 
 async def test_turn_persists_conversation_message_toolcall(db_session) -> None:

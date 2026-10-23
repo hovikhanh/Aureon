@@ -1,8 +1,33 @@
-/** 5 demo accounts (08 §2, DEC-136). Emails only — passwords stay server-side. */
-export const DEMO_ACCOUNTS = [
-  { email: "ceo@abc.demo", role: "CEO" },
-  { email: "cfo@abc.demo", role: "CFO" },
-  { email: "sales@abc.demo", role: "VP_SALES" },
-  { email: "hr@abc.demo", role: "HR_MANAGER" },
-  { email: "reviewer@abc.demo", role: "REVIEWER" },
+/**
+ * 10 demo accounts (08 §2.1, DEC-136, seed `auth_seed.DEMO_USERS`) of the SCR-13 dropdown.
+ * Emails only — passwords live in server env `DEMO_*_PASSWORD` and reach the login form only via
+ * `api/demo-credentials` (R-DEC-28, whitelist = this list); never in `NEXT_PUBLIC_*` (CLAUDE §5.8).
+ * `role` is the v3 role_code (R-DEC-12); `pillar` is the DIR khối (R-DEC-12a) shown in the
+ * option label so DIR accounts stay distinguishable.
+ */
+export interface DemoAccount {
+  email: string;
+  role: "CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM";
+  /** i18n key under `demoAccount.*`. */
+  labelKey: string;
+  /** F.O.C.U.S khối for DIR accounts (empty = full scope). */
+  pillar?: "F" | "O" | "C" | "U";
+}
+
+export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
+  { email: "ceo@abc.demo", role: "CEO", labelKey: "ceo" },
+  { email: "cfo@abc.demo", role: "DIR", labelKey: "cfo", pillar: "F" },
+  { email: "sales@abc.demo", role: "DIR", labelKey: "vp_sales", pillar: "C" },
+  { email: "hr@abc.demo", role: "DIR", labelKey: "hr_manager", pillar: "O" },
+  { email: "cpo@abc.demo", role: "DIR", labelKey: "cpo", pillar: "U" },
+  { email: "manager@abc.demo", role: "MGR", labelKey: "manager" },
+  { email: "office@abc.demo", role: "MGR", labelKey: "office_manager" },
+  { email: "employee@abc.demo", role: "EMP", labelKey: "employee" },
+  { email: "reviewer@abc.demo", role: "REV", labelKey: "reviewer" },
+  { email: "admin@abc.demo", role: "ADM", labelKey: "admin" },
 ] as const;
+
+/** `data-testid` of a dropdown `<option>` (E2E + manual testing). */
+export function demoTestId(email: string): string {
+  return `demo-login-${email.split("@")[0]}`;
+}

@@ -2,12 +2,13 @@
 
 02 §5.3 marks per role (mirrored from `auth.permission_matrix.ROLE_SCOPES`, which `execution`
 may not import — DEC-125):
-- CEO: everything (`●`); HR_MANAGER `execution:query` is `●` (workload of the company).
-- `◑d` (CFO, VP_SALES, HR_MANAGER read/write, CPO, RISK_MANAGER, MANAGER): rows of their own
+- CEO: everything (`●`); DIR `execution:query` is `●` (workload of the company).
+- `◑d` (DIR = ex CFO/VP_SALES/HR_MANAGER/CPO/RISK_MANAGER, MGR): rows of their own
   department **plus** rows where they are the owner / assignee / chair / attendee (DEC-220).
-- `◑o` (EMPLOYEE): only rows where they are owner / assignee (task), chair / attendee
+- `◑o` (EMP): only rows where they are owner / assignee (task), chair / attendee
   (meeting), owner (decision, objective, KR, KPI, initiative).
 A `◑d` caller without `department_id` in the JWT keeps only the "own" part.
+Role codes v3 (R-DEC-12): CEO/DIR/MGR/EMP/REV/ADM/AI.
 """
 
 import uuid
@@ -21,9 +22,9 @@ from app.core.errors import ScopeDeniedError
 
 Level = Literal["all", "d", "o"]
 
-_D_ROLES = frozenset({"CFO", "VP_SALES", "HR_MANAGER", "CPO", "RISK_MANAGER", "MANAGER"})
-_O_ROLES = frozenset({"EMPLOYEE"})
-_FULL_QUERY = frozenset({"CEO", "HR_MANAGER"})
+_D_ROLES = frozenset({"DIR", "MGR"})  # ex 5 C-level + MANAGER (R-DEC-12)
+_O_ROLES = frozenset({"EMP"})
+_FULL_QUERY = frozenset({"CEO", "DIR"})  # ex {CEO, HR_MANAGER}; HR_MANAGER → DIR
 
 
 def level(user: Principal, action: str = "read") -> Level:

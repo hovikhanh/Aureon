@@ -38,6 +38,9 @@ class ToolDef:
     cost_estimate: CostEstimate
     # `declare_to_model=False` → never advertised to the LLM (APPROVAL layer, §7.3).
     declare_to_model: bool = True
+    # R-DEC-16: product (D22) / risk (D25) frozen at P1 — kept runnable server-side, but never
+    # advertised to the model at P0 (`advertisable_for`).
+    p1_frozen: bool = False
     parameters: dict[str, object] = field(default_factory=dict)
 
     @property

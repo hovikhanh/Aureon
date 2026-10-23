@@ -39,10 +39,10 @@ async def test_insert_and_list(db_session: AsyncSession) -> None:
         before={"status": "OPEN"},
         after={"status": "PAID", "amount_paid": 27_500_000},
         why="test",
-        actor=Actor(type="USER", user_id=uuid.uuid4(), role="CFO"),
+        actor=Actor(type="USER", user_id=uuid.uuid4(), role="DIR"),
     )
     assert row.actor_type == "USER"
-    assert row.actor_role == "CFO"
+    assert row.actor_role == "DIR"
     assert row.occurred_at is not None
     items, total = await repo.list(target_id=tid)
     assert total == 1
@@ -139,7 +139,7 @@ class FakeInvoiceService:
 
 
 async def test_decorator_writes_in_same_tx(db_session: AsyncSession) -> None:
-    set_actor(Actor(type="USER", user_id=uuid.uuid4(), role="CFO"))
+    set_actor(Actor(type="USER", user_id=uuid.uuid4(), role="DIR"))
     try:
         inv = uuid.uuid4()
         await FakeInvoiceService(db_session).pay(inv)
@@ -151,7 +151,7 @@ async def test_decorator_writes_in_same_tx(db_session: AsyncSession) -> None:
     assert (row.action, row.target_schema, row.target_table) == (
         "finance.invoice_pay", "finance", "invoices",
     )  # fmt: skip
-    assert row.actor_role == "CFO"
+    assert row.actor_role == "DIR"
     assert row.after == {"id": str(inv), "status": "PAID", "bank_account": MASK}
     assert "request_id" in row.metadata_
 
@@ -197,7 +197,7 @@ async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
 async def test_login_logout_reuse_are_audited(
     db_session: AsyncSession, client: httpx.AsyncClient, roles: dict[str, Role]
 ) -> None:
-    role = roles["CFO"]
+    role = roles["DIR"]
     user = User(
         email=f"cfo-{uuid.uuid4().hex[:6]}@abc.test",
         password_hash=hash_password("pw-123456"),
@@ -227,5 +227,5 @@ async def test_login_logout_reuse_are_audited(
     actions = sorted(i.action for i in items)
     assert actions == ["auth.login", "auth.login", "auth.logout", "auth.refresh_reuse"]
     login_row = next(i for i in items if i.action == "auth.login")
-    assert (login_row.actor_type, login_row.actor_role) == ("USER", "CFO")
+    assert (login_row.actor_type, login_row.actor_role) == ("USER", "DIR")
     assert all("token" not in str(i.metadata_) for i in items)

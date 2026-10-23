@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.errors import NotFoundError
+from app.core.tenant import require_tenant
 from app.modules.idp.models import (
     DocumentPage,
     DocumentType,
@@ -35,6 +36,7 @@ from app.modules.idp.models import (
     SourceDocument,
     ValidationRule,
 )
+from app.modules.idp.repositories import SourceDocumentRepository
 from app.modules.idp.services.extractor import Extractor
 from app.modules.idp.services.malware_scan import MalwareScanService
 from app.modules.idp.services.preprocess import extract_pages
@@ -235,7 +237,7 @@ class Pipeline:
             ReviewAssignment(
                 source_document_id=doc.id,
                 kind="ASSIGN",
-                to_role_code="REVIEWER",
+                to_role_code="REV",
                 due_at=due_at,
                 is_current=True,
             )
@@ -261,9 +263,9 @@ class Pipeline:
 
     # -------- persistence helpers --------
     async def _get_doc(self, document_id: uuid.UUID) -> SourceDocument:
-        doc = (
-            await self.db.execute(select(SourceDocument).where(SourceDocument.id == document_id))
-        ).scalar_one()
+        doc = await SourceDocumentRepository(self.db).by_id(document_id, live=False)
+        if doc is None:
+            raise NotFoundError("document not found")
         return doc
 
     async def _latest_job(self, document_id: uuid.UUID) -> ExtractionJob:
@@ -349,10 +351,11 @@ class Pipeline:
 def enqueue_pipeline(document_id: uuid.UUID) -> None:
     """Hand a document to the pipeline out of band (Celery). A missing broker (tests/dev without
     a worker) is tolerated — the document stays `UPLOADED` until a worker or a direct call runs
-    the pipeline."""
+    the pipeline. The caller's tenant travels with the task (R-DEC-21)."""
+    tenant = str(require_tenant())  # outside try: no tenant is a bug, not a missing broker
     try:
         from app.workers.idp_pipeline import process_document
 
-        process_document.delay(str(document_id))
+        process_document.delay(str(document_id), tenant)
     except Exception:
         return

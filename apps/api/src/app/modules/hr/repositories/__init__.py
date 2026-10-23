@@ -8,16 +8,33 @@ from sqlalchemy import ColumnElement, and_, func, or_, select
 
 from app.core.base_repository import BaseRepository
 from app.core.crypto_columns import decrypted_bigint
-from app.modules.hr.models import Department, Employee, HiringPlan, Position, SalaryHistory
+from app.modules.hr.models import (
+    Department,
+    Employee,
+    EmployeeAssignment,
+    HiringPlan,
+    Organization,
+    Position,
+    SalaryHistory,
+)
 
 OPEN_PLAN_STATUSES = ("approved", "in_progress")
+
+
+class OrganizationRepository(BaseRepository[Organization]):
+    model = Organization
+
+    async def live(self) -> Sequence[Organization]:
+        stmt = self._live().order_by(Organization.valid_from, Organization.code)
+        return (await self.db.execute(stmt)).scalars().all()
 
 
 class DepartmentRepository(BaseRepository[Department]):
     model = Department
 
     async def by_code(self, code: str) -> Department | None:
-        stmt = select(Department).where(Department.code == code)  # UQ covers deleted rows too
+        """Live department of the current tenant with `code` (05 §2.4 unique live per tenant)."""
+        stmt = self._live().where(Department.code == code)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
 
@@ -49,8 +66,66 @@ def employed_on(day: date) -> ColumnElement[bool]:
     )
 
 
+def effective_at(model: type[EmployeeAssignment], as_of: date) -> ColumnElement[bool]:
+    """Half-open `[valid_from, valid_to)` contains `as_of` (05 §2.4)."""
+    return and_(model.valid_from <= as_of, or_(model.valid_to.is_(None), model.valid_to > as_of))
+
+
+class AssignmentRepository(BaseRepository[EmployeeAssignment]):
+    model = EmployeeAssignment
+
+    async def current(self, employee_id: uuid.UUID) -> EmployeeAssignment | None:
+        stmt = self._live().where(
+            EmployeeAssignment.employee_id == employee_id, EmployeeAssignment.valid_to.is_(None)
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def overlapping(
+        self, employee_id: uuid.UUID, start: date, end: date | None, *, exclude: uuid.UUID | None
+    ) -> bool:
+        """Any live row of the employee intersecting `[start, end)` (other than `exclude`)."""
+        stmt = self._live().where(
+            EmployeeAssignment.employee_id == employee_id,
+            or_(EmployeeAssignment.valid_to.is_(None), EmployeeAssignment.valid_to > start),
+        )
+        if end is not None:
+            stmt = stmt.where(EmployeeAssignment.valid_from < end)
+        if exclude is not None:
+            stmt = stmt.where(EmployeeAssignment.id != exclude)
+        return (await self.db.execute(stmt.limit(1))).first() is not None
+
+    async def history(
+        self,
+        *,
+        employee_id: uuid.UUID | None = None,
+        department_id: uuid.UUID | None = None,
+        as_of: date | None = None,
+        limit: int = 20,
+        offset: int = 0,
+        order: str = "asc",
+        within: set[uuid.UUID] | None = None,
+    ) -> tuple[Sequence[EmployeeAssignment], int]:
+        where: list[ColumnElement[bool]] = []
+        if within is not None:
+            where.append(EmployeeAssignment.department_id.in_(within))
+        if employee_id is not None:
+            where.append(EmployeeAssignment.employee_id == employee_id)
+        if department_id is not None:
+            where.append(EmployeeAssignment.department_id == department_id)
+        if as_of is not None:
+            where.append(effective_at(EmployeeAssignment, as_of))
+        return await self.list_page(
+            limit=limit, offset=offset, sort_by="valid_from", order=order, where=where
+        )
+
+
 class EmployeeRepository(BaseRepository[Employee]):
     model = Employee
+
+    async def lock(self, employee_id: uuid.UUID) -> Employee | None:
+        """`SELECT … FOR UPDATE` on the live employee — serialises assignment writes (T-612)."""
+        stmt = self._live().where(Employee.id == employee_id).with_for_update()
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def by_email(self, email: str) -> Employee | None:
         stmt = self._live().where(Employee.email == email)

@@ -70,10 +70,12 @@ async def test_metric_rbac(api: ApiClient) -> None:
         department_id=uuid.uuid4(),
     )
     assert mgr.status_code == 403 and mgr.json()["error"]["code"] == "FORBIDDEN_SCOPE"
-    for role in ("CFO", "VP_SALES", "RISK_MANAGER", "CPO"):
+    # R-DEC-12a: mọi DIR có product:query → đọc tổng hợp (gồm HR-DIR, ex HR_MANAGER).
+    for role in ("CFO", "VP_SALES", "RISK_MANAGER", "CPO", "HR_MANAGER"):
         r = await api.call("GET", f"/product/products/{p['id']}/metrics", role)
         assert r.status_code == 200, role
-    for role in ("HR_MANAGER", "EMPLOYEE", "REVIEWER", "ADMIN"):
+    # Vai không phải DIR và không có product:query → 403.
+    for role in ("EMPLOYEE", "REVIEWER", "ADMIN"):
         r = await api.call("GET", f"/product/products/{p['id']}/metrics", role)
         assert r.status_code == 403, role
 

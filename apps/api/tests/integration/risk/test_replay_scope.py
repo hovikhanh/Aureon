@@ -57,6 +57,7 @@ async def test_manager_write_scope_and_linked_reader(
     assert moved.status_code == 200
     unlinked = await make_risk(api, category="legal", likelihood=1, impact=1, owner_id=None)
     assert (await api.call("GET", f"/risk/risks/{unlinked['id']}", "CPO")).status_code == 403
-    cpo = Principal(user_id=uuid.uuid4(), role="CPO")
+    # ex CPO → Product-DIR (khối U): linked reader của risk gắn với product (R-DEC-12a).
+    cpo = Principal(user_id=uuid.uuid4(), role="DIR", scope_pillars=frozenset({"U"}))
     dash = await RiskDashboardService(db_session).dashboard(cpo, None, today=date(2037, 1, 1))
     assert dash.pillar == "S"  # scoped register path (linked filter applied)

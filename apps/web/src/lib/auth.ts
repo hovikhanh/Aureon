@@ -6,7 +6,9 @@
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { API_BASE, demoPasswordFor } from "./server-env";
+import { mockAuthorize } from "@/mocks/auth";
+import { API_BASE, DEMO_MODE, demoPasswordFor, isMockMode } from "./server-env";
+import { scopePillarsOf } from "./token-claims";
 
 interface TokenOut {
   access_token: string;
@@ -42,6 +44,7 @@ export async function refreshTokens(token: JWT): Promise<JWT> {
       expiresAt: Date.now() + d.expires_in * 1000,
       permissions: d.user.permissions,
       role: d.user.role_code,
+      scopePillars: scopePillarsOf(d.access_token),
       error: undefined,
     };
   } catch {
@@ -58,6 +61,8 @@ export const authOptions: NextAuthOptions = {
       credentials: { email: { type: "email" }, password: { type: "password" }, demo: { type: "text" } },
       async authorize(creds) {
         const email = (creds?.email ?? "").trim();
+        // T-604: API_MODE=mock (server env, refused in production) → 7-role mock claims.
+        if (isMockMode()) return mockAuthorize(email, creds?.password ?? "", DEMO_MODE && creds?.demo === "true");
         let password = creds?.password ?? "";
         if (creds?.demo === "true" && !password) password = demoPasswordFor(email) ?? "";
         if (!email || !password) throw new Error("INVALID_CREDENTIALS");
@@ -75,6 +80,7 @@ export const authOptions: NextAuthOptions = {
           name: d.user.full_name,
           role: d.user.role_code,
           permissions: d.user.permissions,
+          scopePillars: scopePillarsOf(d.access_token),
           accessToken: d.access_token,
           refreshToken: d.refresh_token,
           expiresAt: Date.now() + d.expires_in * 1000,
@@ -92,6 +98,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           permissions: user.permissions,
+          scopePillars: user.scopePillars,
           accessToken: user.accessToken,
           refreshToken: user.refreshToken,
           expiresAt: user.expiresAt,
@@ -108,6 +115,7 @@ export const authOptions: NextAuthOptions = {
         name: token.name ?? "",
         role: token.role,
         permissions: token.permissions,
+        scopePillars: token.scopePillars ?? [],
       };
       if (token.error) session.error = token.error;
       return session;

@@ -1,4 +1,4 @@
-"""TC-SEED-002/003 (T-236, DEC-208): Sales/HR + product/risk/execution seed + exit criteria.
+"""TC-SEED-002/003 (T-236, T-603b seed v3): Sales/HR + product/risk/execution seed + criteria.
 
 Runs the seed groups inside the rolled-back test session (each group skips when `source='SEED'`
 rows already exist, so the assertions are on the resulting DB state, not on return values).
@@ -51,10 +51,11 @@ async def test_seed_shape_and_dashboards(api: ApiClient, db_session: AsyncSessio
         and sum(stages[s] for s in ("lead", "qualified", "proposal")) == 10
     )
     assert await _count(db_session, SalesTarget, SalesTarget.period_key == "2026-Q4") == 1
-    assert await _count(db_session, Department) == 5 and await _count(db_session, Team) == 3
+    # T-603b (08 §2.1): 7 departments, 11 teams, 154 people (142 active / 6 probation / 6 left).
+    assert await _count(db_session, Department) == 7 and await _count(db_session, Team) == 11
     st = Counter((await db_session.execute(
         select(Employee.status).where(Employee.source == "SEED"))).scalars())  # fmt: skip
-    assert st == {"active": 5, "probation": 3, "terminated": 2}
+    assert st == {"active": 142, "probation": 6, "terminated": 6}
     assert await _count(db_session, HiringPlan) == 5
     months = (await db_session.execute(
         select(func.count(func.distinct(SalaryHistory.effective_date)))
@@ -70,7 +71,7 @@ async def test_seed_shape_and_dashboards(api: ApiClient, db_session: AsyncSessio
 
 
 async def test_seed_product_risk_execution_populate_all_metrics(db_session: AsyncSession) -> None:
-    """TC-SEED-003: product / risk / execution seed → all 32 metrics valued, ≥ 10 alerts."""
+    """TC-SEED-003: product / risk / execution seed → all 32 metrics valued, alerts raised."""
     owner = uuid.uuid4()
     await seed_hr(db_session, owner, uuid.uuid4())
     await seed_sales(db_session, owner)
@@ -81,7 +82,7 @@ async def test_seed_product_risk_execution_populate_all_metrics(db_session: Asyn
     assert await _count(db_session, Product) == 3 and await _count(db_session, Feature) == 5
     assert await _count(db_session, Risk) == 8 and await _count(db_session, Mitigation) == 4
     assert await _count(db_session, Risk, Risk.status == "proposed") == 2
-    assert await _count(db_session, Initiative) == 4 and await _count(db_session, Task) == 28
+    assert await _count(db_session, Initiative) == 4 and await _count(db_session, Task) == 100
     unlinked = select(func.count()).select_from(Revenue).where(
         Revenue.source == "SEED", Revenue.client_id.is_(None))  # fmt: skip
     assert (await db_session.execute(unlinked)).scalar_one() == 0
@@ -98,4 +99,4 @@ async def test_seed_product_risk_execution_populate_all_metrics(db_session: Asyn
     )).scalar_one()  # fmt: skip
     assert valued == 32
     open_alerts = select(func.count()).select_from(Alert).where(Alert.status == "OPEN")
-    assert (await db_session.execute(open_alerts)).scalar_one() >= 10
+    assert (await db_session.execute(open_alerts)).scalar_one() >= 13  # 08 §5 v3 (DEC-231 sup.)

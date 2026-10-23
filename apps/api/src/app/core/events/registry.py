@@ -38,5 +38,14 @@ EVENT_TYPES: frozenset[str] = frozenset(
 )
 
 
+# M1.2 extension (R-DEC-35, 10 §9.2) — IDs allocated in 10, not in 00 §4.5 (human 2026-10-23).
+EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "auth.user_access_changed",
+        "hr.org_structure_changed",
+    }
+)
+
+
 def is_registered(event_type: str) -> bool:
-    return event_type in EVENT_TYPES
+    return event_type in EVENT_TYPES or event_type in EXTENSION_EVENT_TYPES

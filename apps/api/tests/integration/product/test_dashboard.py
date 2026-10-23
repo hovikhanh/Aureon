@@ -102,11 +102,13 @@ async def test_dashboard_periods_and_rbac(api: ApiClient) -> None:
     for bad in ("custom", "2037-13", "x"):
         r = await api.call("GET", "/product/dashboard", "CPO", params={"period": bad})
         assert r.status_code == 400 and r.json()["error"]["code"] == "BAD_REQUEST", bad
-    for role in ("CEO", "CFO", "VP_SALES", "RISK_MANAGER"):
+    # R-DEC-12a: mọi DIR có product:query → đọc dashboard tổng hợp (gồm HR-DIR, ex HR_MANAGER).
+    for role in ("CEO", "CFO", "VP_SALES", "RISK_MANAGER", "HR_MANAGER"):
         await dash(api, role=role)
     mgr = await api.call("GET", "/product/dashboard", "MANAGER")
     assert mgr.status_code == 200
-    for role in ("HR_MANAGER", "EMPLOYEE", "REVIEWER", "ADMIN"):
+    # Vai không phải DIR và không có product:query → 403.
+    for role in ("EMPLOYEE", "REVIEWER", "ADMIN"):
         r = await api.call("GET", "/product/dashboard", role)
         assert r.status_code == 403 and r.json()["error"]["code"] == "FORBIDDEN_ROLE", role
     default = await api.call("GET", "/product/dashboard", "CPO")

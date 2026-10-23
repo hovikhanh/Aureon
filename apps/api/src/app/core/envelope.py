@@ -25,6 +25,7 @@ class Meta(BaseModel):
     request_id: str | None = None
     generated_at: datetime | None = None
     pagination: Pagination | None = None
+    unread_count: int | None = None  # EP-NTF-01 only (10 §7.2.1)
 
 
 class Envelope[T](BaseModel):
@@ -40,6 +41,7 @@ class Page[T]:
     total: int
     limit: int
     offset: int
+    unread_count: int | None = None
 
 
 def page_meta(*, total: int, limit: int, offset: int) -> Pagination:
@@ -60,5 +62,7 @@ def to_envelope(result: object) -> object:
         return result
     if isinstance(result, Page):
         pagination = page_meta(total=result.total, limit=result.limit, offset=result.offset)
-        return Envelope[object](data=list(result.items), meta=build_meta(pagination))
+        meta = build_meta(pagination)
+        meta.unread_count = result.unread_count
+        return Envelope[object](data=list(result.items), meta=meta)
     return Envelope[object](data=result, meta=build_meta())

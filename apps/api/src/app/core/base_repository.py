@@ -8,10 +8,25 @@ from typing import Any
 from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.base_model import Base
+from app.core.base_model import Base, TenantMixin
 from app.core.errors import ConflictStateError
+from app.core.tenant import TenantMismatchError, require_tenant
 
 MAX_LIMIT = 100  # DEC-130
+
+
+def tenant_ids_where(model: Any, *clauses: ColumnElement[bool]) -> Select[tuple[uuid.UUID]]:
+    """Tenant-scoped `SELECT id FROM model WHERE …` for `col.in_(…)` scope predicates.
+
+    Module repositories expose it per model (e.g. `MeetingRepository.ids_where`) so services
+    never build SQL on a business entity themselves (R-DEC-21, TC-M11-05).
+    """
+    stmt = select(model.id)
+    if issubclass(model, TenantMixin):
+        stmt = stmt.where(model.tenant_id == require_tenant())
+    for clause in clauses:
+        stmt = stmt.where(clause)
+    return stmt
 
 
 class BaseRepository[ModelT: Base]:
@@ -28,11 +43,26 @@ class BaseRepository[ModelT: Base]:
     def _col(self, attr: str) -> Any:
         return getattr(self.model, attr)
 
+    @property
+    def _tenant_scoped(self) -> bool:
+        return issubclass(self.model, TenantMixin)
+
+    def _scoped[*Ts](self, stmt: Select[*Ts]) -> Select[*Ts]:
+        """Layer 1 (R-DEC-21): `WHERE tenant_id = current_tenant`; no context → raise."""
+        if self._tenant_scoped:
+            stmt = stmt.where(self._col("tenant_id") == require_tenant())
+        return stmt
+
     def _live(self) -> Select[ModelT]:
-        stmt = select(self.model)
+        stmt: Select[ModelT] = self._scoped(select(self.model))
         if self._has("deleted_at"):
             stmt = stmt.where(self._col("deleted_at").is_(None))
         return stmt
+
+    @classmethod
+    def ids_where(cls, *clauses: ColumnElement[bool]) -> Select[tuple[uuid.UUID]]:
+        """`tenant_ids_where(cls.model, …)` — subquery for a service-side scope predicate."""
+        return tenant_ids_where(cls.model, *clauses)
 
     async def get(self, id_: uuid.UUID) -> ModelT | None:
         result = await self.db.execute(self._live().where(self._col("id") == id_))
@@ -84,6 +114,10 @@ class BaseRepository[ModelT: Base]:
         return items, total
 
     async def create(self, **values: Any) -> ModelT:
+        if self._tenant_scoped:
+            tenant = require_tenant()
+            if values.setdefault("tenant_id", tenant) != tenant:
+                raise TenantMismatchError("create() for another tenant")
         obj = self.model(**values)
         self.db.add(obj)
         await self.db.flush()
@@ -98,6 +132,8 @@ class BaseRepository[ModelT: Base]:
         `SELECT … FOR UPDATE` and compared, so two concurrent PATCHes with the same version
         cannot both win: the second waits for the lock, sees the bumped version → 409.
         """
+        if self._tenant_scoped and values.get("tenant_id", require_tenant()) != require_tenant():
+            raise TenantMismatchError("update() cannot move a row to another tenant")
         if self._has("version"):
             if expected_version is not None:
                 await self.db.refresh(obj, attribute_names=["version"], with_for_update=True)

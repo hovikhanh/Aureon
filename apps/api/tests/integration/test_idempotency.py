@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from redis.exceptions import RedisError
 
 from app.core import idempotency as idem_mod
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.handlers import install_error_handlers
 from app.core.idempotency import Idem
 from app.core.routing import EnvelopeRouter
@@ -52,7 +53,7 @@ def _app() -> FastAPI:
 def _auth() -> dict[str, str]:
     token, _ = sign_access_token(
         user_id=uuid.uuid4(), email="cfo@abc.test", role="CFO", role_id="r",
-        permissions=["finance:write"], department_id=None,
+        permissions=["finance:write"], department_id=None, tenant_id=DEFAULT_TENANT_ID,
     )  # fmt: skip
     return {"Authorization": f"Bearer {token}"}
 

@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
 from app.core.deps import Principal
+from app.core.field_policy import strip_for_model
 from app.core.model_gateway.types import (
     ChatRequest,
     ChatResponse,
@@ -258,12 +259,16 @@ class ChatService:
 _EMPTY: dict[str, Any] = {"type": "object", "properties": {}}
 
 
+# Tool-result keys whose level-3 children belong to external parties → `CLI-xxxx` (5.5).
+_CLIENT_KEYS = ("contacts", "contact", "client", "clients", "customer", "customers")
+
+
 def _summarise(result: ToolResult) -> str:
     """Compact JSON for the model: status, the small `data` dict, and source labels only."""
     if result.status != "ok":
         return json.dumps({"status": result.status, "error": result.error_code})
     return json.dumps(
-        {"status": "ok", "data": result.data,
+        {"status": "ok", "data": strip_for_model(result.data, client_keys=_CLIENT_KEYS),
          "sources": [s.label for s in result.sources]},
         ensure_ascii=False,
     )  # fmt: skip

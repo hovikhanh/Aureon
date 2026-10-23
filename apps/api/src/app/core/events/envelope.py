@@ -18,13 +18,18 @@ from app.core.enums import OUTBOX_STATUS, PROCESSING_STATUS
 
 
 class EventEnvelope(BaseModel):
-    """`{event_id, event_type, occurred_at, version, correlation_id, producer, payload}`."""
+    """`{event_id, event_type, occurred_at, version, correlation_id, tenant_id, producer, payload}`.
+
+    `tenant_id` (R-DEC-21, 10 §9.1) is optional only so a message WITHOUT it can be parsed
+    and routed to the DLQ by the consumer (fail closed) instead of crashing the worker.
+    """
 
     event_id: uuid.UUID
     event_type: str
     occurred_at: datetime
     version: int = Field(default=1, ge=1)
     correlation_id: str | None = None
+    tenant_id: uuid.UUID | None = None
     producer: str
     payload: dict[str, Any]
 
@@ -47,6 +52,7 @@ OUTBOX: TableClause = table(
     column("aggregate_id"),
     column("occurred_at"),
     column("payload", JSONB),
+    column("tenant_id"),
     column("status", OUTBOX_STATUS),
     column("attempts"),
     column("published_at"),

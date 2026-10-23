@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.deps import get_db
 from app.core.events.bus import ConsumerRegistry
 from app.core.events.consumer import MAX_ATTEMPTS, RETRY_BACKOFF_SECONDS, Outcome, consume
@@ -134,14 +135,22 @@ async def admin_client(
         yield c
 
 
+# ex 10-role F.O.C.U.S → 7-role v3 (R-DEC-12). DLQ là platform (cross-pillar), không cần khối.
+_LEGACY = {"CEO": "CEO", "CFO": "DIR", "VP_SALES": "DIR", "HR_MANAGER": "DIR", "CPO": "DIR",
+           "RISK_MANAGER": "DIR", "MANAGER": "MGR", "EMPLOYEE": "EMP", "REVIEWER": "REV",
+           "ADMIN": "ADM"}  # fmt: skip
+
+
 def _auth(role: str) -> dict[str, str]:
+    v3 = _LEGACY.get(role, role)
     token, _ = sign_access_token(
         user_id=uuid.uuid4(),
-        email=f"{role.lower()}@abc.test",
-        role=role,
+        email=f"{v3.lower()}@abc.test",
+        role=v3,
         role_id=str(uuid.uuid4()),
-        permissions=ROLE_PERMISSIONS[role],
+        permissions=ROLE_PERMISSIONS[v3],
         department_id=None,
+        tenant_id=DEFAULT_TENANT_ID,
     )
     return {"Authorization": f"Bearer {token}"}
 

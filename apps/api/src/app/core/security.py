@@ -106,6 +106,8 @@ class AccessClaims:
     jti: str
     iat: datetime
     exp: datetime
+    tenant_id: uuid.UUID | None = None
+    scope_pillars: tuple[str, ...] = ()
 
 
 def sign_access_token(
@@ -116,6 +118,8 @@ def sign_access_token(
     role_id: str,
     permissions: tuple[str, ...] | list[str],
     department_id: uuid.UUID | None,
+    tenant_id: uuid.UUID | None = None,
+    scope_pillars: tuple[str, ...] | list[str] = (),
     now: datetime | None = None,
     ttl_seconds: int | None = None,
 ) -> tuple[str, int]:
@@ -131,6 +135,8 @@ def sign_access_token(
         "role_id": role_id,
         "permissions": sorted(permissions),
         "department_id": str(department_id) if department_id else None,
+        "tenant_id": str(tenant_id) if tenant_id else None,
+        "scope_pillars": sorted(scope_pillars),
         "iat": int(issued.timestamp()),
         "exp": int((issued + timedelta(seconds=ttl)).timestamp()),
         "iss": cfg.jwt_issuer,
@@ -157,6 +163,7 @@ def verify_access_token(token: str) -> AccessClaims:
             options={"require": ["sub", "exp", "iat", "jti", "iss", "aud"]},
         )
         dept = data.get("department_id")
+        tenant = data.get("tenant_id")
         return AccessClaims(
             sub=uuid.UUID(data["sub"]),
             email=str(data["email"]),
@@ -167,6 +174,8 @@ def verify_access_token(token: str) -> AccessClaims:
             jti=str(data["jti"]),
             iat=datetime.fromtimestamp(int(data["iat"]), UTC),
             exp=datetime.fromtimestamp(int(data["exp"]), UTC),
+            tenant_id=uuid.UUID(tenant) if tenant else None,
+            scope_pillars=tuple(data.get("scope_pillars") or ()),
         )
     except jwt.ExpiredSignatureError as exc:
         raise UnauthenticatedError("token expired") from exc

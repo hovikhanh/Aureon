@@ -1,9 +1,9 @@
 """EP-80 HR dashboard (FR-HR-06, 10 §5) and EP-87 workload (METRIC-HR-03).
 
-Scope (02 §6.2, 02 §5.3 `hr:query`): CEO / HR_MANAGER / CFO / RISK_MANAGER see company
-aggregates; MANAGER (`hr:query d`) sees their own department. `summary.payroll_total` is the
+Scope (02 §6.2, 02 §5.3 `hr:query`): CEO + HR-DIR/Finance-DIR (R-DEC-12a) see company
+aggregates; MGR (`hr:query d`) sees their own department. `summary.payroll_total` is the
 aggregate payroll fund (sum of each on-payroll employee's latest `base_salary` at period end)
-and is present only for CEO, HR_MANAGER, CFO — for every other role the key is **omitted**,
+and is present only for CEO + HR-DIR/Finance-DIR — for every other role the key is **omitted**,
 never `null` (DEC-197). No individual salary or PII is ever returned.
 
 `revenue_per_employee` (METRIC-HR-01) needs finance revenue: `hr` must not import finance
@@ -21,7 +21,7 @@ from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
-from app.core.errors import ScopeDeniedError
+from app.core.errors import PermissionDeniedError, ScopeDeniedError
 from app.modules.execution.services.workload import workload as execution_workload
 from app.modules.hr.models import Employee, HiringPlan
 from app.modules.hr.repositories import (
@@ -49,7 +49,7 @@ from app.modules.hr.services.metrics import (
     turnover_status,
     worst,
 )
-from app.modules.hr.services.scope import DEPARTMENT_ROLES, sees_payroll
+from app.modules.hr.services.scope import DEPARTMENT_ROLES, sees_hr_dashboard, sees_payroll
 from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 
 CURRENCY = "VND"
@@ -73,6 +73,8 @@ class HrDashboardService:
         return requested
 
     async def dashboard(self, user: Principal, period: Period, today: date) -> HrDashboardOut:
+        if not sees_hr_dashboard(user):
+            raise PermissionDeniedError("hr dashboard outside your pillar scope")
         dept = self._department(user, None)
         emp_where: list[ColumnElement[bool]] = []
         plan_where: list[ColumnElement[bool]] = []

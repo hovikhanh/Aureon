@@ -11,7 +11,7 @@ const MAX_AGE = 7 * 24 * 3600;
 // Single-flight refresh per refresh token (concurrent widget queries share one rotation).
 const inflight = new Map<string, Promise<JWT>>();
 
-export async function readToken(req: NextRequest): Promise<{ token: JWT | null; refreshed: boolean }> {
+export async function readToken(req: NextRequest): Promise<{ token: JWT | null; refreshed: boolean; revoked?: boolean }> {
   const token = await getToken({ req, secret: SECRET });
   if (!token?.accessToken) return { token: null, refreshed: false };
   if (Date.now() < token.expiresAt - 30_000) return { token, refreshed: false };
@@ -23,8 +23,16 @@ export async function readToken(req: NextRequest): Promise<{ token: JWT | null; 
     p.finally(() => setTimeout(() => inflight.delete(key), 30_000)).catch(() => undefined);
   }
   const next = await p;
-  if (next.error) return { token: null, refreshed: false };
+  // refresh refused (user locked / role changed / token reuse → EP-ADM-08/09) → session is dead
+  if (next.error) return { token: null, refreshed: false, revoked: true };
   return { token: next, refreshed: true };
+}
+
+/** Drop the NextAuth session cookie (incl. chunks) so middleware stops treating the user as signed in. */
+export function clearSession(res: NextResponse): void {
+  for (const name of [SESSION_COOKIE, ...[0, 1, 2, 3].map((i) => `${SESSION_COOKIE}.${i}`)]) {
+    res.cookies.set(name, "", { httpOnly: true, sameSite: "lax", path: "/", secure: SECURE, maxAge: 0 });
+  }
 }
 
 export async function persistToken(res: NextResponse, token: JWT): Promise<void> {

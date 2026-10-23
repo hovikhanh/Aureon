@@ -39,20 +39,38 @@ export function pillarBySlug(slug: string): PillarDef | undefined {
   return PILLARS.find((p) => p.slug === slug);
 }
 
-/** Pillar scope per role (CLAUDE §1.4, 06 §2.3 "F.O.C.U.S" row). Out-of-scope pillars are hidden. */
+/**
+ * Pillar scope per role v3 (CLAUDE §1.4, R-DEC-12). Out-of-scope pillars are hidden.
+ * CEO + DIR span all five pillars at the role level; a DIR is narrowed to its khối
+ * (`scope_pillars`, R-DEC-12a) exactly like the API's `dashboard.visible_pillars`.
+ * MGR/EMP/REV/ADM have no executive pillar card.
+ */
 export const ROLE_PILLARS: Record<string, readonly PillarCode[]> = {
   CEO: ["F", "O", "C", "U", "S"],
-  CFO: ["F", "S"],
-  VP_SALES: ["C"],
-  HR_MANAGER: ["O"],
-  CPO: ["U"],
-  RISK_MANAGER: ["S"],
+  DIR: ["F", "O", "C", "U", "S"],
 };
 
-/** Visible pillars = role scope ∩ permission on at least one source endpoint. */
-export function visiblePillars(role: string, perms: readonly string[]): PillarDef[] {
+/**
+ * Visible pillars = role scope ∩ query permission ∩ khối (empty `scopePillars` = toàn khối).
+ * Exception mirrored from the API: F stays visible with `finance:query` (public headline
+ * METRIC-FIN-01, 02 §6.1) — the API narrows the F metrics themselves.
+ */
+export function visiblePillars(role: string, perms: readonly string[], scopePillars: readonly string[] = []): PillarDef[] {
   const scope = ROLE_PILLARS[role] ?? [];
-  return PILLARS.filter((p) => scope.includes(p.code) && p.sources.some((s) => perms.includes(s.permission)));
+  const inKhoi = (c: PillarCode) => scopePillars.length === 0 || scopePillars.includes(c);
+  const queryable = (p: PillarDef) => p.sources.some((s) => perms.includes(s.permission));
+  return PILLARS.filter((p) => scope.includes(p.code) && queryable(p) && (inKhoi(p.code) || p.code === "F"));
+}
+
+/** R-DEC-16: product (U) and risk (S) are frozen at P1 — off the Executive default view. */
+export const P1_FROZEN_PILLARS: readonly PillarCode[] = ["U", "S"];
+
+/**
+ * Executive default (`/home`, SCR-40 interim): visible pillars minus the frozen ones. The full
+ * five-pillar F.O.C.U.S layout is optional and lives only on SCR-03 (03 §1, 06 §3.1).
+ */
+export function executivePillars(role: string, perms: readonly string[], scopePillars: readonly string[] = []): PillarDef[] {
+  return visiblePillars(role, perms, scopePillars).filter((p) => !P1_FROZEN_PILLARS.includes(p.code));
 }
 
 const RANK: Record<PillarStatus, number> = { no_data: -1, ok: 0, warning: 1, critical: 2 };

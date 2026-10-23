@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.ai.models import AIAction
 from app.modules.ai.services.verification import due_checkpoints, verify_action_outcomes
 from app.worker import celery_app
-from app.workers import jobs
+from app.workers import jobs, notifications
 
 EXPECTED = {
     "daily-burn-check": ("app.jobs.daily_burn_check", "9", "0"),
@@ -41,7 +41,10 @@ def test_beat_schedule_registers_jobs() -> None:
         assert _hours(entry["schedule"]) == hour and str(entry["schedule"]._orig_minute) == minute
     assert celery_app.conf.timezone == "Asia/Ho_Chi_Minh"
     # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay + check-review-sla (T-412)
-    assert len(sched) == 8
+    # + notification e-mail sweep (T-616b)
+    assert len(sched) == 9
+    mail = sched["dispatch-notification-emails"]
+    assert mail["task"] == notifications.dispatch_email.name and mail["task"] in celery_app.tasks
 
 
 @pytest.fixture

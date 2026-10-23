@@ -18,11 +18,28 @@ from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 pytestmark = pytest.mark.integration
 
 
+# ex 10-role F.O.C.U.S → 7-role v3 (+ scope_pillars khối) — R-DEC-12/12a.
+_LEGACY: dict[str, tuple[str, frozenset[str]]] = {
+    "CEO": ("CEO", frozenset()),
+    "CFO": ("DIR", frozenset({"F"})),
+    "VP_SALES": ("DIR", frozenset({"C"})),
+    "HR_MANAGER": ("DIR", frozenset({"O"})),
+    "CPO": ("DIR", frozenset({"U"})),
+    "RISK_MANAGER": ("DIR", frozenset({"S"})),
+    "MANAGER": ("MGR", frozenset()),
+    "EMPLOYEE": ("EMP", frozenset()),
+    "REVIEWER": ("REV", frozenset()),
+    "ADMIN": ("ADM", frozenset()),
+}
+
+
 def principal(role: str) -> Principal:
+    v3, pillars = _LEGACY.get(role, (role, frozenset()))
     return Principal(
         user_id=uuid.uuid4(),
-        role=role,
-        permissions=frozenset(ROLE_PERMISSIONS[role]),
+        role=v3,
+        scope_pillars=pillars,
+        permissions=frozenset(ROLE_PERMISSIONS[v3]),
     )
 
 
@@ -72,8 +89,9 @@ async def test_reads_filter_by_audience_and_scope(db_session) -> None:
     emp = await svc.list_for(principal("EMPLOYEE"))
     assert len(ceo) >= len(hr), "CEO sees at least as many insights as HR"
     assert len(emp) == 0, "EMPLOYEE has no pillar scope → no insights"
-    # HR only sees O-pillar insights (its audience + scope)
-    assert all(i.pillar == "O" for i in hr)
+    # HR (DIR {O}) only sees O-pillar insights: seed v3 also raises an F insight (runway 🔴)
+    # whose evidence is outside HR's finance scope (only the FIN-01 headline) → hidden.
+    assert [i.pillar for i in hr] == ["O"]
 
 
 async def test_dismiss_removes_from_active_list(db_session) -> None:
@@ -87,11 +105,21 @@ async def test_dismiss_removes_from_active_list(db_session) -> None:
     assert len(after) == len(before) - 1
 
 
-async def test_pillar_without_breach_yields_no_insight(db_session) -> None:
+async def test_pillar_without_breach_yields_no_insight(
+    db_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Seed v3 (08 §5, R-DEC-23 — DEC-230 superseded) has an exception in every pillar, so a
+    # healthy pillar is simulated: every metric of the dashboard reads GREEN → no insight.
+    from app.modules.dashboard.services.dashboard_service import DashboardService
+
+    real = DashboardService.metrics
+
+    async def all_ok(self, *a, **kw):  # type: ignore[no-untyped-def]
+        return [m.model_copy(update={"status": "ok"}) for m in await real(self, *a, **kw)]
+
+    monkeypatch.setattr(DashboardService, "metrics", all_ok)
     svc = InsightService(db_session)
-    # generate twice for the same pillar set; a healthy pillar returns None
     results = [await svc.generate_for_pillar(principal("CEO"), p) for p in ("F", "C")]
-    # F/C are healthy in the official demo layout (F🟢 C🟢) → None
     assert results == [None, None]
 
 

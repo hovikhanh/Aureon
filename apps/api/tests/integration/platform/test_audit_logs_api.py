@@ -17,7 +17,7 @@ async def test_admin_lists_masked_audit_logs(api: ApiClient, db_session: AsyncSe
         target_table="employees",
         target_id=target,
         before={"salary": 1}, after={"salary": 2, "title": "Lead"},
-        actor=Actor(type="USER", user_id=uuid.uuid4(), role="HR_MANAGER"),
+        actor=Actor(type="USER", user_id=uuid.uuid4(), role="DIR"),
     )  # fmt: skip
     res = await api.call("GET", "/platform/audit-logs", "ADMIN", params={"target_id": str(target)})
     assert res.status_code == 200, res.text

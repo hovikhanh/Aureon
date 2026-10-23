@@ -19,8 +19,8 @@ pytestmark = pytest.mark.integration
 def _emp(dept: uuid.UUID, uid: uuid.UUID | None = None) -> Principal:
     return Principal(
         user_id=uid or uuid.uuid4(),
-        role="EMPLOYEE",
-        permissions=frozenset(ROLE_PERMISSIONS["EMPLOYEE"]),
+        role="EMP",
+        permissions=frozenset(ROLE_PERMISSIONS["EMP"]),
         department_id=dept,
     )
 
@@ -61,8 +61,22 @@ async def test_admin_sees_everything(db_session, idp_store) -> None:
     r = await UploadService(db_session).upload(submitter, [_file()])
     admin = Principal(
         user_id=uuid.uuid4(),
-        role="ADMIN",
-        permissions=frozenset(ROLE_PERMISSIONS["ADMIN"]),
+        role="ADM",
+        permissions=frozenset(ROLE_PERMISSIONS["ADM"]),
         department_id=None,
     )
     assert await IdpQueryService(db_session).get_document(admin, r.document_ids[0]) is not None
+
+
+async def test_ceo_with_a_department_sees_every_department(db_session, idp_store) -> None:
+    """02 §2: ROLE-CEO scope = toàn doanh nghiệp, even when seeded into the BGĐ department."""
+    r = await UploadService(db_session).upload(_emp(uuid.uuid4()), [_file()])
+    ceo = Principal(
+        user_id=uuid.uuid4(),
+        role="CEO",
+        permissions=frozenset(ROLE_PERMISSIONS["CEO"]),
+        department_id=uuid.uuid4(),
+    )
+    q = IdpQueryService(db_session)
+    assert await q.get_document(ceo, r.document_ids[0]) is not None
+    assert await q.get_document(_emp(uuid.uuid4()), r.document_ids[0]) is None

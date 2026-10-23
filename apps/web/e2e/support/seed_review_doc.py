@@ -5,6 +5,8 @@ Pipeline, with a fixture gateway (no live LLM — CLAUDE §6.6 #7). Dev DB only;
 Prints `{"document_id": ..., "invoice_number": ...}` as the last stdout line.
 
 Run: PYTHONPATH=apps/api/src:apps/api .venv/bin/python apps/web/e2e/support/seed_review_doc.py
+`--commit` also approves it (EP-31 service, ACT-create_invoice) so the finance lineage has an
+IDP-sourced invoice — the v3 seed (T-603b) no longer ships one.
 `--cleanup` soft-deletes E2E documents still waiting for review (`hoa-don-E2E*`, NEEDS_REVIEW /
 IN_REVIEW) so backend queue tests see a clean dev DB; committed / rejected ones are kept.
 """
@@ -15,18 +17,21 @@ import asyncio
 import json
 import sys
 import time
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import update
 
 from app.core.config import get_config
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.db import get_sessionmaker
+from app.core.tenant import tenant_scope
 from app.core.deps import Principal
 from app.core.model_gateway import ChatResponse
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.auth.repositories import UserRepository
 from app.modules.idp.models import SourceDocument
+from app.modules.idp.services.commit_service import CommitService
 from app.modules.idp.services.pipeline import Pipeline
 from app.modules.idp.services.upload_service import UploadFile, UploadService
 from tests.integration.idp.sample_docs import _pdf_with_text
@@ -49,7 +54,7 @@ class _FixtureInvoiceGateway:
         return ChatResponse(content="", provider="fixture", model="e2e", data=self.data)
 
 
-async def main() -> None:
+async def main(*, commit: bool = False) -> None:
     get_config()
     number = f"E2E{int(time.time() * 1000) % 10_000_000_000:010d}"
     text = (
@@ -59,14 +64,30 @@ async def main() -> None:
         "Tien hang: 10000000\nThue suat: 10%\nTien thue: 1000000\nTong cong: 11000000\n"
     )
     data = _pdf_with_text(text)
-    user = Principal(user_id=uuid.uuid4(), role="REVIEWER", permissions=frozenset(ROLE_PERMISSIONS["REVIEWER"]))
     async with get_sessionmaker()() as db:
+        # Upload as the seeded reviewer so the doc is in that reviewer's department queue
+        # (EP-28 is department-scoped, 04 §8.2; REV has a department since seed v3, T-603b).
+        rev = await UserRepository(db).by_email("reviewer@abc.demo")
+        if rev is None:
+            raise SystemExit("reviewer@abc.demo missing — run the seed first")
+        user = Principal(
+            user_id=rev.id,
+            role="REV",
+            permissions=frozenset(ROLE_PERMISSIONS["REV"]),
+            department_id=rev.department_id,
+            tenant_id=DEFAULT_TENANT_ID,
+        )
         f = UploadFile(filename=f"hoa-don-{number}.pdf", content_type="application/pdf", chunks=iter([data]))
         res = await UploadService(db).upload(user, [f])
         doc_id = res.document_ids[0]
         outcome = await Pipeline(db, _FixtureInvoiceGateway(number)).run(doc_id)
         await db.commit()
-    print(json.dumps({"document_id": str(doc_id), "invoice_number": number, "status": outcome.status}))
+        status = outcome.status
+        if commit:  # `--commit`: approve through EP-31's service (Action Registry → finance)
+            await CommitService(db).approve(user, doc_id, comment="e2e lineage fixture")
+            await db.commit()
+            status = "COMMITTED"
+    print(json.dumps({"document_id": str(doc_id), "invoice_number": number, "status": status}))
 
 
 async def cleanup() -> None:
@@ -86,4 +107,8 @@ async def cleanup() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(cleanup() if "--cleanup" in sys.argv else main())
+    with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: repositories fail closed without tenant
+        if "--cleanup" in sys.argv:
+            asyncio.run(cleanup())
+        else:
+            asyncio.run(main(commit="--commit" in sys.argv))

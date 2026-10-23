@@ -34,8 +34,8 @@ pytestmark = pytest.mark.integration
 def _reviewer(dept: uuid.UUID | None = None, uid: uuid.UUID | None = None) -> Principal:
     return Principal(
         user_id=uid or uuid.uuid4(),
-        role="REVIEWER",
-        permissions=frozenset(ROLE_PERMISSIONS["REVIEWER"]),
+        role="REV",
+        permissions=frozenset(ROLE_PERMISSIONS["REV"]),
         department_id=dept,
     )
 
@@ -112,11 +112,18 @@ async def test_queue_department_scoping(db_session, idp_store) -> None:
     assert total_b == 0
     # admin / no-department sees it
     admin = Principal(
-        user_id=uuid.uuid4(), role="ADMIN",
-        permissions=frozenset(ROLE_PERMISSIONS["ADMIN"]), department_id=None,
+        user_id=uuid.uuid4(), role="ADM",
+        permissions=frozenset(ROLE_PERMISSIONS["ADM"]), department_id=None,
     )  # fmt: skip
     _, total_admin = await ReviewService(db_session).queue(admin, PageParams(), QueueFilters())
     assert total_admin == 1
+    # CEO seeded into another department still sees the whole company (02 §2)
+    ceo = Principal(
+        user_id=uuid.uuid4(), role="CEO",
+        permissions=frozenset(ROLE_PERMISSIONS["CEO"]), department_id=dept_b,
+    )  # fmt: skip
+    _, total_ceo = await ReviewService(db_session).queue(ceo, PageParams(), QueueFilters())
+    assert total_ceo == 1
 
 
 # -------------------------------------------------------------- T-407 detail
@@ -497,9 +504,9 @@ async def test_reassign_to_role(db_session, idp_store) -> None:
     user = _reviewer()
     doc_id = await _ingest_invoice(db_session, user)
     out = await ReviewService(db_session).reassign(
-        user, doc_id, to_user_id=None, to_role_code="MANAGER", reason="escalate manually"
+        user, doc_id, to_user_id=None, to_role_code="MGR", reason="escalate manually"
     )
-    assert out.assignment.to_role_code == "MANAGER"
+    assert out.assignment.to_role_code == "MGR"
 
 
 async def test_reassign_requires_exactly_one_target(db_session, idp_store) -> None:
@@ -509,7 +516,7 @@ async def test_reassign_requires_exactly_one_target(db_session, idp_store) -> No
     doc_id = await _ingest_invoice(db_session, user)
     with pytest.raises(ValidationError):
         await ReviewService(db_session).reassign(
-            user, doc_id, to_user_id=uuid.uuid4(), to_role_code="MANAGER", reason="both"
+            user, doc_id, to_user_id=uuid.uuid4(), to_role_code="MGR", reason="both"
         )
 
 

@@ -13,7 +13,7 @@ from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
-from app.core.deps import Principal, get_db, require_permission
+from app.core.deps import Principal, get_db, require_permission, require_pillar_permission
 from app.core.envelope import Page
 from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
@@ -63,8 +63,9 @@ from app.modules.finance.services.invoice_service import InvoiceService
 router = EnvelopeRouter(tags=["finance"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
-Reader = Annotated[Principal, Depends(require_permission("finance:read"))]
-Writer = Annotated[Principal, Depends(require_permission("finance:write"))]
+# Bản ghi/chi tiết tài chính cô lập theo khối F (R-DEC-12a): DIR ngoài khối F → 403.
+Reader = Annotated[Principal, Depends(require_pillar_permission("finance:read"))]
+Writer = Annotated[Principal, Depends(require_pillar_permission("finance:write"))]
 
 
 def period_query(name: str = "period") -> Any:

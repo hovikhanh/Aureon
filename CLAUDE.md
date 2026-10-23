@@ -1,83 +1,84 @@
-# CLAUDE.md — Aureon v2
+# CLAUDE.md — Aureon v3 (AI-EOS)
 
 > **Hợp đồng vận hành** giữa AI Agent và dự án. Đọc file này TRƯỚC mọi task. Vi phạm = task bị từ chối.
-> Áp dụng cho **Aureon v2** (DEC-124 → DEC-137). Bản v1 (4 trụ, 5 role, HS256) lưu ở nhánh git `v1`.
-> **Thứ tự ưu tiên khi mâu thuẫn:** quy tắc vận hành / an toàn ở file này luôn thắng. Về nội dung sản phẩm và kỹ thuật, `_reference/` là Canonical Source chính thức (DEC-144). `docs/` là living spec version 2.1.0 phản ánh implementation. Mọi mâu thuẫn giữa `docs/` và `_reference/` → ưu tiên `_reference/`, cập nhật `docs/` tương ứng.
+
+> ## 🧭 0. Dòng sản phẩm chính thức (ĐỌC TRƯỚC)
+>
+> Dự án **chỉ còn một dòng chính thức: Aureon v3 — AI-EOS** (AI-First Enterprise Operating System).
+>
+> | Mục | Giá trị |
+> |---|---|
+> | Tên sản phẩm | **Aureon v3 — AI-EOS** |
+> | Nguồn canonical | `_reference/SOURCE-BRD-v1.1.md` + `SOURCE-BRD-v1.1-Bổ sung.md` + `SOURCE-UIUX.md` |
+> | Doc set chính thức (`current`, v1.0.0) | `docs/1.CONTEXT/` · `docs/2.PRODUCT/` · `docs/3.EXECUTION/` · `docs/4.GOVERNANCE/` (00–14, bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`) |
+> | Gate A/B/C | `docs/4.GOVERNANCE/12-DOC-AUDIT.md` / `13-DECISION-LOG.md` / `14-TEST-TRACEABILITY.md` |
+> | Decisions AI-EOS | `docs/4.GOVERNANCE/13-DECISION-LOG.md` (R-DEC-05..11) |
+> | **KHÔNG đọc cho build** | `docs/_archive/v2.1/` (Aureon v2.1 cũ — archived); `_reference/SOURCE-BRD-v1.0.md` (historical baseline) |
+>
+> - **Aureon v2.1** (5 trụ F.O.C.U.S, 10 role, demo-ready) đã **archived** ở `docs/_archive/v2.1/` — chỉ tra cứu lịch sử khi human yêu cầu rõ, **không nạp cho build v3**. Codebase v2.1 trong `apps/` được **tái sử dụng** làm nền và refactor dần sang model v3 theo từng phase (xem 09).
+> - Mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/`, cập nhật `docs/` tương ứng và ghi vào 13.
+> - **Thứ tự ưu tiên khi mâu thuẫn:** quy tắc vận hành / an toàn ở file này luôn thắng. Về nội dung sản phẩm/kỹ thuật, `_reference/` là Canonical Source; `docs/` là living spec v1.0.0 phản ánh implementation.
 
 ---
 
 ## 1. Project
 
-**Aureon v2 — "Digital Chief of Staff"**. Hợp nhất A-EMS (BRD v1.0, 5 trụ F.O.C.U.S), AI-EOS (BRD v1.1, Domain 22 Data Capture & IDP, Autonomy L0–L4) và đề xuất UI/UX AI-EOS.
+**Aureon v3 — AI-EOS** = **AI-First Enterprise Operating System**. Không phải ERP/CRM/HRM/PM/BI/chatbot, mà là hệ điều hành doanh nghiệp lấy AI làm trung tâm, nối liền một vòng lặp: **Capture → Data → Intelligence → Decision → Action → Measurement → Feedback**.
 
-**Lời hứa:** *"CEO biết công ty đang đạt mục tiêu đến đâu, vì sao, và giao việc được ngay — với dữ liệu nhập vào dễ như gửi một file."*
+**Tầm nhìn:** *One Enterprise. One Source of Truth. One AI Operating Layer.* AI đóng vai Assistant/Analyst/Advisor/Planner/Orchestrator/Agent tùy mức tự chủ (Autonomy L0–L4) doanh nghiệp cho phép.
 
-### 1.1. Năm khối sản phẩm
+**Lời hứa MVP:** *"CEO biết công ty đang đạt mục tiêu đến đâu, vì sao, và giao việc được ngay — với dữ liệu nhập vào dễ như gửi một file."*
+
+> Chi tiết sản phẩm: `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` (3 hệ thống hợp nhất, 28 domain/5 lớp, 7 role + AI Agent, MVP 90 ngày). §1.1–§1.6 dưới đây tóm tắt để tra nhanh; §2–§12 là quy tắc kỹ thuật/vận hành chung cho codebase (tái dùng nền v2.1, refactor theo v3).
+
+### 1.1. Khối sản phẩm (Aureon v3 — AI-EOS)
 
 | # | Khối | Tóm tắt | Spec |
 |---|---|---|---|
-| 1 | **Executive Dashboard F.O.C.U.S** | 5 trụ (**F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk), 31 metric, 31 alert (1-1), trạng thái trụ ok/warning/critical, drill-down ≤ 3 click tới tài liệu gốc | 03 |
-| 2 | **Domain modules** | Finance, Sales, HR, Product, Risk, Execution (họp, quyết định, task, OKR/KPI) — CRUD, quy tắc `BR-*`, event | 03, 05, 10 |
-| 3 | **Data Capture & IDP (Domain 22)** | 5 kênh C1–C5, phân loại → trích xuất → kiểm tra → review song song → ghi qua Action Registry; lineage tới trang tài liệu; 9 doc type | 04 |
-| 4 | **AI Core — Trợ lý AI** | ⌘K + Panel ngữ cảnh + Chat SSE; tool calling lọc theo quyền; mọi con số có nguồn; insight chủ động; Autonomy L0–L3 + kill switch; feed "AI đã làm" | 03, 06, 07, 10 |
-| 5 | **Data Foundation & Governance** | Metric store, lineage, data quality, audit, RBAC 10 vai trò | 02, 05, 07 |
+| 1 | **Data Capture & IDP (D03)** | Kênh C1–C10 (P0 = C1–C5); phân loại → trích xuất → kiểm tra → review song song → ghi qua Action Registry; lineage tới trang tài liệu; 14 doc type | 04 |
+| 2 | **Data Foundation** | FR-DATA-01..08: MDM, DQ Score, Freshness, Lineage, Event backbone, Metric Store/semantic layer, effective-dated, export | 05 |
+| 3 | **Domain điều hành & thực thi** | Strategy/KPI/OKR/Performance (D07–D10), Task/Workload/Meeting/Calendar/Knowledge (D11–D14), vận hành KD (Finance/HR/Sales…) | 03, 05, 10 |
+| 4 | **AI Platform (D26) & CEO Assistant (D27)** | 13 thành phần (Model Gateway đa provider, Agent Runtime, Policy/Approval/Audit/Evaluation Engine…); tool theo quyền; grounding mọi con số; Autonomy L0–L3 + kill switch; Daily Briefing | 03, 06, 07, 10 |
+| 5 | **Executive Intelligence & Reporting (D27/D28)** | 3 cấp dashboard (Executive/Department/Employee), bộ chỉ số sức khỏe chuẩn, insight 9 phần, Reporting, Decision Log 30/60/90 | 03 |
 
 ### 1.2. Kiến trúc tóm tắt
 
-**Modular Monolith** (DEC-125): một app FastAPI + Celery worker/beat, **11 module**, **một schema PostgreSQL cho mỗi module** (10 schema; `dashboard` không có schema riêng). Liên module chỉ qua `services` public hoặc **domain event qua Transactional Outbox + Celery/Redis** (DEC-126). Mọi LLM call qua **ModelGateway đa provider** (DEC-131). JWT **RS256** (DEC-129).
+**Modular Monolith** (R-DEC-06, kế thừa nền v2.1 DEC-125): một app FastAPI + Celery worker/beat, **một schema PostgreSQL/domain-group**; 28 domain BRD gom vào cụm module (ánh xạ 11 module nền `main`, xem `07` §1.1). AI Platform (D26/D27) là cụm module logic cùng process (không tách deployable ở P0). Liên module chỉ qua `services` public hoặc **domain event qua Transactional Outbox + Celery/Redis** (DEC-126). Mọi LLM call qua **ModelGateway đa provider** (DEC-131). JWT **RS256** (DEC-129). **Single-tenant + `tenant_id` mọi entity** (R-DEC-07).
 
-### 1.3. Phạm vi
+### 1.3. Phạm vi P0 (R-DEC-05 — MVP first)
 
-Phạm vi v2.0 (Aureon v2.1 docs):
-- 5 trụ F.O.C.U.S: Finance, Operations, Customer, Product, Strategy/Risk
-- 10 vai trò: CEO, CFO, VP_SALES, HR_MANAGER, CPO, RISK_MANAGER, MANAGER, EMPLOYEE, REVIEWER, ADMIN
-- IDP v2.0: 5 kênh C1-C5 (voice C2 = mock STT), review song song, reassign/merge
-- Approval cơ bản (rule theo giá trị ≥500M cần 2 người, SLA, escalate)
-- Reporting tối thiểu (PDF + Excel, mẫu ngày/tuần/tháng/HĐQT)
-- Meeting transcript mock (upload thủ công, không tích hợp Meet/Zoom/Teams)
-- Dòng tiền 13 tuần, DQ Score (metric 32), 13 risk categories
+- **20 domain P0** / 6 P1 / 1 P2 (tập khóa ở `docs/4.GOVERNANCE/TRACEABILITY-SKELETON.md` §12bis). P1/P2 vào backlog (`09`).
+- **7 role BRD + AI Agent actor** (R-DEC-08, `02`): ROLE-CEO / ROLE-DIR / ROLE-MGR / ROLE-EMP / ROLE-REV / ROLE-ADM / ROLE-AI. Giữ bảng ánh xạ sang 10 role F.O.C.U.S của nền v2.1.
+- **IDP:** kênh C1–C5 P0; review song song; confidence/STP; undo.
+- **Autonomy L0–L3** (L4 khóa, mở ở phase 5); kill switch.
+- **AI Platform:** ModelGateway đa provider + on-prem; grounding (không bịa số); PII filter.
+- **Doc type, demo data:** `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md`.
 
-Hoãn sang v2.1 (ghi rõ trong DEC-150):
-- Knowledge RAG, MFA, Calendar sync, Voice C2 STT thật
-- Multi-agent orchestrator (6 agent profiles), prompt versioning
-- Word export, effective-dated org, bulk edit grid
+**Yêu cầu nằm ngoài tập P0 → raise decision, không tự build.** Chi tiết scope + lộ trình: `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` + `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md`.
 
-**Trong phạm vi (IN):** 5 trụ / 31 metric / 31 alert · 6 domain module · IDP 5 kênh C1–C5, 9 doc type, UC-06/07/08 · Trợ lý AI (chat SSE, tool theo quyền, source chip, insight, what-if) · Autonomy L0–L3 + undo + kill switch · **10 vai trò** (DEC-128) · ModelGateway 6 provider + fallback · VI mặc định + EN (DEC-135) · web responsive + PWA mobile · seed công ty ABC ~150 NV (DEC-136).
+### 1.4. Vai trò (R-DEC-08) — 7 role BRD + AI Agent
 
-**Ngoài phạm vi (OUT):** microservice tách deployable, RabbitMQ, API Gateway riêng · kênh C6–C10 (email, Zalo/Slack/Teams, XML NĐ 123, Drive, webhook) · integration thật (MISA, Fast, Bravo, ngân hàng, cổng hóa đơn, Meet bot) · Procurement, Workflow Engine, chữ ký số · Autonomy L4, fine-tune model · multi-tenant, đa pháp nhân, billing · SSO/LDAP/MFA, **self-register** (DEC-137) · mobile native.
-
-**Yêu cầu nằm ngoài danh sách IN → raise decision, không tự build.** Chi tiết: `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` §3.
-
-### 1.4. Vai trò (DEC-128) — mã code dùng trong JWT, seed, test
-
-| ID | Mã code | Trụ | ID | Mã code | Trụ |
+| ID | Vai trò | Phạm vi | ID | Vai trò | Phạm vi |
 |---|---|---|---|---|---|
-| ROLE-01 | `CEO` | F O C U S | ROLE-06 | `CPO` | U |
-| ROLE-02 | `CFO` | F, S | ROLE-07 | `RISK_MANAGER` | S |
-| ROLE-03 | `VP_SALES` | C | ROLE-08 | `MANAGER` | Đơn vị của mình |
-| ROLE-04 | `HR_MANAGER` | O | ROLE-09 | `EMPLOYEE` | Việc của tôi |
-| ROLE-05 | `REVIEWER` | Hàng chờ review | ROLE-10 | `ADMIN` | AI Control Center (không đọc bản ghi nghiệp vụ) |
+| ROLE-CEO | CEO | Toàn doanh nghiệp | ROLE-REV | Reviewer | Hàng chờ review |
+| ROLE-DIR | Director/Executive | Khối/phòng ban | ROLE-ADM | Admin | Cấu hình nền tảng |
+| ROLE-MGR | Manager | Team | ROLE-AI | AI Agent (actor) | Quyền agent ∩ người được phục vụ |
+| ROLE-EMP | Employee | Cá nhân & việc được giao | | | |
 
-### 1.5. Doanh nghiệp giả định (DEC-136)
+> Chi tiết RBAC+ABAC+field-level, RACI, Approval Matrix, Autonomy: `docs/2.PRODUCT/02-PERSONAS-PERMISSIONS.md`. **Nền code v2.1** hiện mang 10 role F.O.C.U.S (CEO/CFO/VP_SALES/HR_MANAGER/CPO/RISK_MANAGER/MANAGER/EMPLOYEE/REVIEWER/ADMIN) — refactor dần sang 7 role v3 theo phase (bảng ánh xạ ở skeleton §12).
 
-**Công ty TNHH TM&DV ABC** — phân phối thiết bị văn phòng + bảo trì + nền tảng "ABC Order"; ~150 nhân sự, 7 phòng ban, ~300 tỷ VNĐ/năm; TP.HCM + chi nhánh Hà Nội. Kỳ demo T9 / Q3 2026, `DEMO_REFERENCE_DATE=2026-10-20`. 9 doc type: `FINANCIAL_REPORT`, `INVOICE`, `SALES_REPORT`, `CONTRACT`, `MEETING_MINUTES`, `EMPLOYEE_LIST`, `KPI_OKR`, `PRODUCT_REPORT`, `RISK_REGISTER`. Chi tiết: `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md`.
+### 1.5. Doanh nghiệp giả định
 
-### 1.6. Trạng thái hiện tại (2026-10-22) — ✅ DEMO READY
+**Công ty TNHH TM&DV ABC** — phân phối thiết bị văn phòng + bảo trì + nền tảng "ABC Order"; ~150 nhân sự, 7 phòng ban, ~300 tỷ VNĐ/năm; TP.HCM + chi nhánh Hà Nội. `DEMO_REFERENCE_DATE=2026-10-20`. Chi tiết + tập dữ liệu P0: `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md`.
 
-Nguồn chi tiết: `STATE.md` (cập nhật sau mỗi sub-sprint). Mục này chỉ là tóm tắt.
+### 1.6. Trạng thái hiện tại (2026-10-23)
 
 | Mục | Trạng thái |
 |---|---|
-| Tài liệu | 00–14 v2.1.0 — Gate A đạt; DEC mới nhất **DEC-243** (0 DEC open + blocking) |
-| Sprint | **S0 → S5d xong** (S5d = T-513..T-518 theo brief, khác đánh số 09). S5b-lite accepted (DEC-241) |
-| Code trên `main` | **v2.1** Modular Monolith 11 module, RS256, ModelGateway, IDP v2, Next.js 15 FE. Commit cuối `398ece3` (pushed) |
-| Demo-able | Login 5 tài khoản demo (+ ADMIN bằng mật khẩu) · Dashboard F.O.C.U.S **F🟢 C🟢 U🟡 O🟡 S🔴**, 13 alert · Finance drill-down 6 metric + lineage 3 tầng · AI Chat SSE (demo replay ~1,2–1,3 s; live 9–13 s) · IDP review → approve → hóa đơn Finance · `/hr/employees` · `/admin/audit` (EP-52) |
-| Test | BE pytest **777** pass, coverage **96%** · FE Vitest **18** · E2E Playwright **30** (ổn định 2 lượt liên tiếp) · contract 11 |
-| Hạ tầng | `docker-compose.full.yml` — 9 service healthy (postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web) trên `aureon-net`; `api` tự `alembic upgrade head` + seed. `docker-compose.yml` = hạ tầng cho dev trên host |
-| Health | `/health` (`dependencies` db/redis/ollama/clamav; ollama/clamav down → `degraded` vẫn 200), `/health/ready`, `/health/live`, `/metrics` (DEC-242); EP-01 `/api/v1/health`; web `/api/health` |
-| Demo ops | `./scripts/demo_reset.sh -y` (~13 s: truncate 10 schema → seed → xóa storage + queue → 1 hóa đơn NEEDS_REVIEW → verify) · kịch bản `docs/DEMO-SCRIPT.md` · `README.md` gốc |
-| Hoãn sau demo | S4c lineage 4 cấp (EP-13/14) · S4d C2/C4/C5 · S5b-full drill-down O/C/U/S (T-512) · S5c Approval/Report/Cash Flow + PWA · chuỗi daily finance · 09 T-513 seed v2.1 · EP-52 lọc `from/to/actor_type`, SCR-26 |
-| Backup v1 | Nhánh `v1` (commit `a5161f6`) |
+| Tài liệu v3 | 00–14 **`current` v1.0.0** (Aureon v3 — AI-EOS), Gate A/B/C đạt; Q1–Q6 đã chốt (R-DEC-05..10) |
+| v2.1 (archived) | `docs/_archive/v2.1/` — không đọc cho build; chỉ tra cứu lịch sử |
+| Codebase `apps/` | **Nền v2.1 demo-ready** (Modular Monolith 11 module, RS256, ModelGateway, IDP, Next.js 15): BE pytest ~777, FE Vitest 18, E2E 30; `docker-compose.full.yml` 9 service. **Tái sử dụng** làm nền, refactor sang model v3 theo phase (`09`) |
+| Kế tiếp | Phân rã build v3 theo phase có kiểm chứng FE→BE (`docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md`); mỗi phase review + fix rồi mới qua phase sau |
 
 ---
 
@@ -392,7 +393,7 @@ Check theo thứ tự A → B → C. Fail bất kỳ gate nào → trả về `B
 
 **Sau khi làm task:** cập nhật `14-TEST-TRACEABILITY.md` (`Planned → Implemented → Passed/Failed`).
 
-🚨 v2.1 specific:
+🚨 Lưu ý kỹ thuật (nền codebase, áp dụng khi refactor v3):
 - bge-m3 là embedding, KHÔNG chat. Local chat: qwen2.5:7b-instruct (env LOCAL_CHAT_MODEL).
 - Classified data: Confidential → không fallback cloud; Secret → không LLM.
 - AI hallucination khi tool call → luôn yêu cầu evidence + verification 24h/7d.
@@ -406,9 +407,11 @@ Check theo thứ tự A → B → C. Fail bất kỳ gate nào → trả về `B
 | Đường dẫn | Lý do |
 |---|---|
 | Bất kỳ file `status: archived` | Đã thay thế |
-| Nhánh `v1` khi build v2 | Chỉ để tham khảo lịch sử khi human yêu cầu; spec v1 không dùng cho build |
+| `docs/_archive/v2.1/` (Aureon v2.1 cũ) | Dòng sản phẩm đã thay bằng Aureon v3 — AI-EOS; chỉ tra cứu lịch sử khi human yêu cầu rõ, **không nạp cho build** |
+| Nhánh `v1` | Chỉ để tham khảo lịch sử khi human yêu cầu; không dùng cho build |
+| `_reference/SOURCE-BRD-v1.0.md` | Historical baseline — không nạp vào doc loading matrix / build prompt |
 
-> `_reference/` **không còn bị cấm đọc** — là nguồn gốc chính thức (Canonical Source) cho Aureon v2 (DEC-144, DEC-145). Mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/` trừ khi có DEC mới hơn nói ngược lại; ghi gap vào `13-DECISION-LOG.md`.
+> `_reference/` (SOURCE-BRD-v1.1 + Bổ sung + SOURCE-UIUX) **không bị cấm đọc** — là nguồn gốc chính thức (Canonical Source) cho Aureon v3 — AI-EOS. Mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/` trừ khi có DEC mới hơn nói ngược lại; ghi gap vào `13-DECISION-LOG.md`.
 
 Ngoại lệ chỉ khi human giao rõ một task hợp nhất tài liệu **và** có DEC resolved ghi phạm vi + thời hạn. Thông tin không có trong `docs/` → **raise vào `13-DECISION-LOG.md`**, không tự tra archive hay nguồn ngoài.
 
@@ -587,26 +590,25 @@ Prompt template chi tiết cho từng loại (gồm thêm tool AI `TOOL-*` và e
 |---|---|---|---|
 | 00 | `docs/1.CONTEXT/00-INDEX.md` | Bản đồ tài liệu + **ID registry** | Đầu mọi session |
 | 01 | `docs/1.CONTEXT/01-PROJECT-OVERVIEW.md` | Tầm nhìn, scope, KPI, nguyên tắc P01–P09, roadmap S0–S5 | Đầu mọi session |
-| 02 | `docs/2.PRODUCT/02-PERSONAS-PERMISSIONS.md` | 10 vai trò, user stories, ma trận `<domain>:<action>`, scoping, mức nhạy cảm | Auth, role, AI tool filter |
-| 03 | `docs/2.PRODUCT/03-DASHBOARD-SPEC.md` | 5 trụ F.O.C.U.S, 31 metric / 31 alert, BR, FR domain, insight, briefing | Dashboard, metric, domain module |
-| 04 | `docs/2.PRODUCT/04-IDP-FEATURE-SPEC.md` | Domain 22: 5 kênh, pipeline, state machine, review, Action Registry | IDP, import, review |
-| 05 | `docs/2.PRODUCT/05-DATA-MODEL.md` | ERD theo schema module, 64 entity, event, outbox | DB, migration |
-| 06 | `docs/2.PRODUCT/06-UI-UX-SPEC.md` | IA, SCR-01..28, design system v2, component AI, luồng F1–F5 | UI |
-| 07 | `docs/3.EXECUTION/07-TECH-ARCHITECTURE.md` | Modular Monolith, luồng, ModelGateway, cấu hình & secret, NFR-01..28 | Hạ tầng, AI Core, quyết định kỹ thuật |
-| 08 | `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md` | Công ty ABC ~150 NV, 9 tài liệu mẫu, seed | Seed, demo data |
-| 09 | `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` | Checklist T-001..T-5xx, 6 mốc S0–S5, DoD | Plan sprint, nhận task |
-| 10 | `docs/3.EXECUTION/10-API-SPECIFICATION.md` | **Contract nguồn duy nhất** — API, SSE, Tool Registry, event | Mọi task code / gọi API |
-| 11 | `docs/3.EXECUTION/11-AGENT-WORKFLOW.md` | Loading matrix, gates, EPCC, prompt templates, routing build-agent | Đầu session, khi bị block |
+| 02 | `docs/2.PRODUCT/02-PERSONAS-PERMISSIONS.md` | 7 role BRD + AI Agent, RACI, ma trận quyền + ABAC + field-level, 4 mức phân loại, Autonomy L0–L4, Approval Matrix, governance | Auth, role, AI tool filter |
+| 03 | `docs/2.PRODUCT/03-DASHBOARD-SPEC.md` | 3 cấp dashboard, CEO Assistant 12 năng lực, Daily Briefing, bộ chỉ số sức khỏe, insight 9 phần, Reporting, Decision Log | Dashboard, metric, domain module |
+| 04 | `docs/2.PRODUCT/04-IDP-FEATURE-SPEC.md` | D03 Data Capture: kênh C1–C10 (P0 C1–C5), pipeline, 14 doc type, FR-DC, state machine, review, Action Registry | IDP, import, review |
+| 05 | `docs/2.PRODUCT/05-DATA-MODEL.md` | Data Foundation (FR-DATA-01..08), 13 nhóm entity, quan hệ, event, outbox (field-level chốt ở đợt code) | DB, migration |
+| 06 | `docs/2.PRODUCT/06-UI-UX-SPEC.md` | Persona, IA theo vai trò, design system, component AI theo Autonomy, luồng F1–F5, WCAG AA | UI |
+| 07 | `docs/3.EXECUTION/07-TECH-ARCHITECTURE.md` | Modular Monolith + ánh xạ 11 module `main`, 13 thành phần AI Platform (AIC-*), ModelGateway, NFR | Hạ tầng, AI Core, quyết định kỹ thuật |
+| 08 | `docs/3.EXECUTION/08-DEMO-DATA-SPEC.md` | Công ty ABC ~150 NV, bộ dữ liệu P0 theo UC, chỉ số demo | Seed, demo data |
+| 09 | `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` | Lộ trình MVP 3 mốc + 5 phase, ma trận ưu tiên 28 domain, cổng nghiệm thu (T-* chốt ở đợt code) | Plan phase, nhận task |
+| 10 | `docs/3.EXECUTION/10-API-SPECIFICATION.md` | **Contract** — Tool Registry 13 metadata, phân loại tool, event backbone, grounding contract | Mọi task code / gọi API |
+| 11 | `docs/3.EXECUTION/11-AGENT-WORKFLOW.md` | Loading matrix theo domain AI-EOS, gates A/B/C, EPCC, routing build-agent | Đầu session, khi bị block |
 | 12 | `docs/4.GOVERNANCE/12-DOC-AUDIT.md` | Trạng thái tài liệu | **Gate A** |
-| 13 | `docs/4.GOVERNANCE/13-DECISION-LOG.md` | Trạng thái quyết định, Model Routing Log | **Gate B** |
-| 14 | `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` | Ma trận spec ↔ task ↔ test | **Gate C** |
+| 13 | `docs/4.GOVERNANCE/13-DECISION-LOG.md` | Trạng thái quyết định (R-DEC-05..11), Model Routing Log | **Gate B** |
+| 14 | `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` | Chiến lược test, ma trận UC→acceptance, grounding/anti-injection/autonomy (TC-* chốt ở đợt code) | **Gate C** |
+
+**File hỗ trợ (4.GOVERNANCE):** `TRACEABILITY-SKELETON.md` (ID registry nguồn — P0 locked), `REVIEW-REPORT.md` (self-review), `REBUILD-PLAN.md` (Q1–Q6 + lịch sử tái cấu trúc).
 
 **Tooling trong repo:** subagent `.claude/agents/doc-reviewer.md` (read-only, audit tài liệu 5 mục) · slash command `.claude/commands/gen-spec.md`, `git-commit.md`, `git-sync.md`. `AGENT.md` là alias trỏ về file này.
 
-**Nguồn gốc chính thức:** `_reference/` (Canonical Source — DEC-144, DEC-145; xem §6.2). **Không đọc:** file `archived`, nhánh `v1` khi build v2.
-
-Thêm: docs/4.GOVERNANCE/GAP-ANALYSIS-v2.1.md — Gap analysis BRD v1.1 ↔ docs v2.0.
-Đảm bảo danh sách 12 file docs v2.1.0 đầy đủ.
+**Nguồn gốc chính thức:** `_reference/` (Canonical Source — SOURCE-BRD-v1.1 + Bổ sung + SOURCE-UIUX; xem §6.2). **Không đọc cho build:** `docs/_archive/v2.1/` (Aureon v2.1), `_reference/SOURCE-BRD-v1.0.md`, nhánh `v1`.
 
 ---
 
@@ -652,13 +654,14 @@ Không được chuyển sang bước tiếp theo nếu gate tương ứng chưa
 
 ## 12. Version
 
-- **CLAUDE.md version:** 2.2.1
-- **Last updated:** 2026-10-22
-- **Applies to:** Aureon v2.1
+- **CLAUDE.md version:** 3.0.0
+- **Last updated:** 2026-10-23
+- **Applies to:** **Aureon v3 — AI-EOS** (dòng sản phẩm chính thức duy nhất). Aureon v2.1 đã archived (`docs/_archive/v2.1/`).
 - **Maintainer:** @CyEyes
-- **Change:** Viết lại theo spec v2 (00–14 `current` 2.0.0): 5 trụ F.O.C.U.S / 31 metric, 10 role, Modular Monolith 11 module, outbox + event, RS256, ModelGateway đa provider, `require_permission`, phân trang `limit/offset`, IDP v2, loading matrix đầy đủ, `_reference/` hết ngoại lệ, sửa lệnh `uv run mypy`, gỡ `pnpm db:seed` (DEC-062). Xử lý nội dung của 13 §5.2 (nợ đồng bộ CLAUDE.md), 07 OQ-04, 11 OQ-01/03/05, 12 OQ-02 — trạng thái các mục đó trong 07/11/12/13 cần human cập nhật riêng. Bản 1.1.0 lưu ở nhánh `v1`.
-- **Change (DEC-145, 2026-10-19):** gỡ `_reference/` khỏi §6.2 "Cấm đọc" và §9; `_reference/` là Canonical Source (DEC-144). Agent sửa theo ủy quyền ngoại lệ duy nhất của human.
-**Change log (2026-10-22):**
+- **Change 3.0.0 (2026-10-23 — human giao rõ: promote Aureon v3):** Chuyển CLAUDE.md sang **dòng chính thức Aureon v3 — AI-EOS**. §0 thay Branch-aware loading bằng "Dòng sản phẩm chính thức" (một dòng, không còn tách nhánh). §1 viết lại Project theo AI-EOS (vòng lặp Capture→…→Feedback, 5 khối sản phẩm v3, Modular Monolith R-DEC-06, 7 role + AI Agent R-DEC-08, phạm vi P0 R-DEC-05). §6.2 "Cấm đọc" trỏ `docs/_archive/v2.1/` + v1.0 baseline. §9 References mô tả lại 00–14 theo nội dung v3 + file hỗ trợ (skeleton/review-report/rebuild-plan). Doc set chính thức = `docs/1.CONTEXT`–`4.GOVERNANCE/` (00–14 `current` v1.0.0). **Canonical = `_reference/SOURCE-BRD-v1.1.md`(+Bổ sung)+SOURCE-UIUX.md.** §2–§5, §7–§8, §10–§11 (stack, lệnh, convention code, EPCC, loading matrix, governance) giữ nguyên làm quy tắc kỹ thuật cho codebase tái dùng từ nền v2.1 (một số DEC-1xx của nền v2.1 vẫn áp dụng trong khi refactor dần sang model v3). Codebase `apps/` tái dùng, refactor theo phase (`09`). Mọi quy tắc an toàn giữ nguyên.
+- **Change 2.3.0 (2026-10-22):** (lịch sử) R-DEC-11 — thêm §0 Branch-aware loading tách hai dòng `main`(v2.1)/`ai-eos`(v3). Đã thay thế bởi 3.0.0.
+- **Change (DEC-145, 2026-10-19):** gỡ `_reference/` khỏi §6.2 "Cấm đọc" và §9; `_reference/` là Canonical Source (DEC-144).
+**Change log cũ:**
 - 2.2.1 (2026-10-22): §1.6 cập nhật trạng thái DEMO READY sau S5d (human yêu cầu): sprint S0→S5d, test 777/18/30, compose full stack 9 service, health endpoints, demo reset, danh sách hoãn.
 - 2.2.0 (2026-10-20): Reclassify _reference as canonical, adopt BRD ID scheme (DEC-144/146), scope v2.0/v2.1 split (DEC-153), 12 deps resolved (DEC-138..142), SLA split (DEC-158).
 - 2.1.0 (2026-10-19): v2.1 architecture after AI-EOS merge.

@@ -90,3 +90,23 @@ def test_approval_tools_never_advertised_to_model() -> None:
 def test_get_tool_lookup() -> None:
     assert get_tool("TOOL-get_finance_dashboard").domain == "finance"  # type: ignore[union-attr]
     assert get_tool("TOOL-nope") is None
+
+
+def test_p1_frozen_product_risk_tools_not_advertised() -> None:
+    """TC-M11-14 (R-DEC-16): product/risk tools are tagged `p1_frozen` and never sent to the
+    model, even to a holder of every permission; they stay in the catalog (EP-119) and runnable."""
+    frozen = {t.name for t in all_tools() if t.p1_frozen}
+    assert frozen == {
+        "TOOL-get_product_dashboard",
+        "TOOL-get_product_metrics",
+        "TOOL-get_risk_dashboard",
+        "TOOL-list_risks",
+        "TOOL-run_risk_scenario",
+        "TOOL-upsert_risk",
+        "TOOL-create_mitigation",
+    }
+    assert all(t.domain in ("product", "risk") for t in all_tools() if t.p1_frozen)
+    assert all(t.p1_frozen for t in all_tools() if t.domain in ("product", "risk"))
+    advertised = {t.name for t in advertisable_for(ALL_PERMS)}
+    assert advertised.isdisjoint(frozen)
+    assert frozen <= {t.name for t in available_for(ALL_PERMS)}

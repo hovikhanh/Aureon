@@ -552,3 +552,6 @@ export interface AuditLogOut {
   after: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
 }
+
+/** Types generated from the FastAPI OpenAPI (T-605, R-DEC-19) — `Api.<Schema>`, `Api.ApiOperations`. */
+export * as Api from "./generated";

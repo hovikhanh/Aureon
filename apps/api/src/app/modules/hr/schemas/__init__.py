@@ -8,7 +8,7 @@
 - EP-84 `salary_min/max` ↔ `salary_range_min/max`, `target_date` ↔ `target_fill_date`,
   `budget_amount` ↔ `budget_allocated`.
 
-Level-4 fields (02 §6.3) are typed `T | Masked`: only CEO / HR_MANAGER get the value, every
+Level-4 fields (02 §6.3) are typed `T | Masked`: only CEO / HR-DIR get the value, every
 other role gets `{ "masked": true }` (10 §4.8 EP-82).
 """
 
@@ -17,6 +17,8 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.core.field_policy import Masked as Masked
 
 EmployeeStatus = Literal["probation", "active", "on_leave", "terminated"]
 ContractType = Literal["full_time", "part_time", "contract", "intern"]
@@ -31,12 +33,6 @@ EMAIL_RE = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 def currency_field() -> Any:
     return Field(default="VND", pattern=r"^[A-Z]{3}$")
-
-
-class Masked(BaseModel):
-    """Placeholder for a level-4 field the caller may not see (02 §6.3)."""
-
-    masked: Literal[True] = True
 
 
 class _Out(BaseModel):
@@ -62,6 +58,8 @@ class DepartmentCreate(BaseModel):
     code: str = Field(min_length=1, max_length=50)
     parent_id: uuid.UUID | None = None
     manager_id: uuid.UUID | None = None
+    organization_id: uuid.UUID  # EP-ORG-07 (M1.2)
+    valid_from: date | None = None
 
 
 class DepartmentUpdate(_Patch):
@@ -76,6 +74,9 @@ class DepartmentOut(_Out):
     code: str
     parent_id: uuid.UUID | None
     manager_id: uuid.UUID | None
+    organization_id: uuid.UUID
+    valid_from: date
+    valid_to: date | None
 
 
 # ---------- EP-82 employees ----------
@@ -102,6 +103,7 @@ class EmployeeCreate(_EmployeeLevel4):
 
 
 class EmployeeUpdate(_Patch, _EmployeeLevel4):
+    effective_from: date | None = None  # EP-HR-04: start of the new assignment (default today)
     employee_code: str | None = Field(default=None, min_length=1, max_length=50)
     full_name: str | None = Field(default=None, min_length=1, max_length=200)
     email: str | None = Field(default=None, max_length=254, pattern=EMAIL_RE)
@@ -118,8 +120,8 @@ class EmployeeUpdate(_Patch, _EmployeeLevel4):
 class EmployeeOut(_Out):
     employee_code: str
     full_name: str
-    email: str | None
-    phone: str | None
+    email: str | Masked | None  # level 3 — masked for ADM scope `s` (R-DEC-34)
+    phone: str | Masked | None
     department_id: uuid.UUID
     title: str | None
     contract_type: ContractType | None

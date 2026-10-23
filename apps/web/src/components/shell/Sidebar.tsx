@@ -2,31 +2,37 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CheckSquare, ChevronsLeft, ChevronsRight, Inbox, LayoutDashboard, ScrollText, Sparkles, Users, X } from "lucide-react";
+import { BookOpen, Briefcase, CalendarDays, ChevronsLeft, ChevronsRight, Home, Inbox, ListChecks, Settings, Sparkles, Target, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { visibleNav, type NavKey } from "@/lib/permissions";
 
-const ICONS: Record<NavKey, typeof LayoutDashboard> = {
-  dashboard: LayoutDashboard,
-  idp: Inbox,
-  ai: Sparkles,
-  approvals: CheckSquare,
-  employees: Users,
-  audit: ScrollText,
+const ICONS: Record<NavKey, typeof Home> = {
+  home: Home,
+  ask: Sparkles,
+  goals: Target,
+  work: ListChecks,
+  meetings: CalendarDays,
+  data: Inbox,
+  business: Briefcase,
+  knowledge: BookOpen,
+  admin: Settings,
 };
 
 interface Props {
+  role: string;
   permissions: string[];
+  pillars: string[];
   mobileOpen: boolean;
   collapsed: boolean;
   onCloseMobile: () => void;
   onToggleCollapsed: () => void;
 }
 
-export function Sidebar({ permissions, mobileOpen, collapsed, onCloseMobile, onToggleCollapsed }: Props) {
+export function Sidebar({ role, permissions, pillars, mobileOpen, collapsed, onCloseMobile, onToggleCollapsed }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
-  const items = visibleNav(permissions);
+  // IA v3 (06 §3.1/§3.2): 8 main items + the separate "Quản trị" group, filtered by role.
+  const items = visibleNav(role, permissions, pillars);
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={onCloseMobile} aria-hidden />}
@@ -50,22 +56,23 @@ export function Sidebar({ permissions, mobileOpen, collapsed, onCloseMobile, onT
         <nav className="flex flex-1 flex-col gap-1 p-2" aria-label="primary">
           {items.map((item) => {
             const Icon = ICONS[item.key];
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`) ||
-              (item.key === "idp" && pathname.startsWith("/idp"));
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.key}
                 href={item.href}
+                data-group={item.group}
                 onClick={onCloseMobile}
                 data-testid={`nav-${item.key}`}
                 aria-current={active ? "page" : undefined}
                 title={t(item.key)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
-                  active && (item.key === "ai" ? "bg-ai-subtle text-ai" : "bg-primary/10 text-primary"),
+                  item.group === "admin" && "mt-auto border-t pt-3",
+                  active && (item.key === "ask" ? "bg-ai-subtle text-ai" : "bg-primary/10 text-primary"),
                 )}
               >
-                <Icon className={cn("h-5 w-5 shrink-0", item.key === "ai" && "text-ai")} aria-hidden />
+                <Icon className={cn("h-5 w-5 shrink-0", item.key === "ask" && "text-ai")} aria-hidden />
                 <span className={cn("md:hidden xl:inline", collapsed && "xl:hidden")}>{t(item.key)}</span>
               </Link>
             );

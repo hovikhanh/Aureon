@@ -120,8 +120,9 @@ async def test_unmatched_or_disabled_uses_model(db_session, demo_on, monkeypatch
 async def test_no_permission_no_replay(db_session, demo_on) -> None:
     """HR manager lacks finance tools → replay declines → model path (P06)."""
     hr = Principal(
-        user_id=uuid.uuid4(), role="HR_MANAGER",
-        permissions=frozenset(ROLE_PERMISSIONS["HR_MANAGER"]),
+        user_id=uuid.uuid4(), role="DIR",
+        permissions=frozenset(ROLE_PERMISSIONS["DIR"]),
+        scope_pillars=frozenset({"O"}),
     )  # fmt: skip
     turn = await ChatService(db_session, _NoModel()).chat(hr, "Doanh thu Q3?")
     assert turn.replayed is None

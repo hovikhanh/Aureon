@@ -9,6 +9,7 @@ export interface ShellUser {
   name: string;
   role: string;
   permissions: string[];
+  scopePillars?: string[];
 }
 
 export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
@@ -17,7 +18,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return (
     <div className="flex min-h-dvh">
       <Sidebar
+        role={user.role}
         permissions={user.permissions}
+        pillars={user.scopePillars ?? []}
         mobileOpen={mobileOpen}
         collapsed={collapsed}
         onCloseMobile={() => setMobileOpen(false)}

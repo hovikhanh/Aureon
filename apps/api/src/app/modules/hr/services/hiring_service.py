@@ -25,7 +25,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import Actor, record_audit
 from app.core.deps import Principal
-from app.core.errors import BusinessRuleError, ConflictStateError, NotFoundError
+from app.core.errors import (
+    BusinessRuleError,
+    ConflictStateError,
+    NotFoundError,
+    PermissionDeniedError,
+)
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
 from app.modules.hr.models import HiringPlan
@@ -246,6 +251,10 @@ class HiringPlanService:
     async def decide(self, user: Principal, id_: uuid.UUID, body: ApprovalIn) -> HiringPlanOut:
         """CFO approve / reject (FR-HR-07). Forecast cost is finance's job via
         `EVT-finance.forecast_updated` (10 §4.8) — hr publishes nothing here."""
+        # Cổng ngân sách: chỉ Finance-DIR (khối F) duyệt kế hoạch tuyển dụng (nền v2.1 chỉ CFO
+        # có hr:approve). DIR khối khác (VD HR-DIR) tuy có hr:approve union vẫn bị chặn (R-DEC-12a).
+        if user.role == "DIR" and user.scope_pillars and "F" not in user.scope_pillars:
+            raise PermissionDeniedError("hiring approval is reserved for the finance director")
         obj = await self.plans.get(id_)
         if obj is None:
             raise NotFoundError("hiring plan not found")

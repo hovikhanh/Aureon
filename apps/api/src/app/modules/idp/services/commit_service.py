@@ -32,7 +32,9 @@ from app.modules.idp.models import (
     ExtractionReview,
     SourceDocument,
 )
+from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import ActionRefOut, ApproveOut, DocumentOut
+from app.modules.idp.services.scope import document_visible
 
 UNDO_DAYS = 7
 _DEFAULT_PAYMENT_TERM_DAYS = 30
@@ -238,14 +240,7 @@ class CommitService:
 
     # ----------------------------------------------------------- helpers
     async def _doc(self, document_id: uuid.UUID) -> SourceDocument:
-        doc = (
-            await self.db.execute(
-                select(SourceDocument).where(
-                    SourceDocument.id == document_id,
-                    SourceDocument.deleted_at.is_(None),
-                )
-            )
-        ).scalar_one_or_none()
+        doc = await SourceDocumentRepository(self.db).by_id(document_id)
         if doc is None:
             raise NotFoundError("document not found")
         return doc
@@ -264,15 +259,7 @@ class CommitService:
         )
 
     async def _fields(self, job_id: uuid.UUID) -> list[ExtractedField]:
-        return list(
-            (
-                await self.db.execute(
-                    select(ExtractedField).where(ExtractedField.extraction_job_id == job_id)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        return await ExtractedFieldRepository(self.db).for_job(job_id)
 
     async def _doc_type_code(self, dt_id: uuid.UUID | None) -> str | None:
         if dt_id is None:
@@ -297,11 +284,7 @@ class CommitService:
 
     @staticmethod
     def _visible(user: Principal, doc: SourceDocument) -> bool:
-        if user.has("idp:admin") or user.department_id is None:
-            return True
-        if doc.submitted_by == user.user_id:
-            return True
-        return doc.department_id is not None and doc.department_id == user.department_id
+        return document_visible(user, doc)
 
 
 def _effective(field_: ExtractedField) -> Any:

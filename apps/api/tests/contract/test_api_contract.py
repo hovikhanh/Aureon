@@ -1,7 +1,10 @@
-"""TC-SYS-003 (contract) — the live OpenAPI and code agree with 10-API-SPECIFICATION.
+"""TC-SYS-003 / TC-M11-01 (contract) — the live OpenAPI and code agree with 10-API-SPECIFICATION.
 
-Parses 10 §1.4 (error-code table) and §4.1 (auth EPs) straight from the spec file, so a spec
-change without a code change (or the reverse) fails here.
+R-DEC-18: the source of truth for error codes is `core/errors.py` (+ `AI_ERROR_CODES`,
+`core/handlers._HTTP_CODES`); 10 §1.4 is the mirror table generated from code. This module
+checks both directions (every code class is in §1.4 with the same HTTP status, and every §1.4
+row is defined in code), plus the auth EPs of 10 §7.2, so a spec change without a code change
+(or the reverse) fails here.
 """
 
 import inspect
@@ -59,6 +62,10 @@ def test_every_error_class_uses_a_spec_code_and_status() -> None:
     for cls in _code_error_classes():
         assert cls.code in spec, f"{cls.__name__}.code={cls.code} not in 10 §1.4"
         assert spec[cls.code] == cls.status_code, cls.__name__
+    # Reverse direction (R-DEC-18): §1.4 is a mirror — no row without a code definition.
+    in_code = {c.code for c in _code_error_classes()} | {errors.AppError.code}
+    in_code |= set(errors.AI_ERROR_CODES) | set(_HTTP_CODES.values())
+    assert set(spec) - in_code == set(), "10 §1.4 lists codes missing from core/errors.py"
 
 
 def test_ai_codes_match_spec() -> None:

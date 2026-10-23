@@ -5,7 +5,8 @@ The brief named `POST /admin/dlq/{id}/retry`; 10 EP-56 (contract source) is
 """
 
 import uuid
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 
 from fastapi import Depends, Query, status
 
@@ -16,6 +17,7 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.platform.models import ApprovalRequest
+from app.modules.platform.routes.notifications import router as notifications_router
 from app.modules.platform.schemas import (
     ApprovalRequestOut,
     AuditLogOut,
@@ -51,8 +53,15 @@ async def list_audit_logs(
     target_type: Annotated[str | None, Query()] = None,
     target_id: Annotated[uuid.UUID | None, Query()] = None,
     actor_user_id: Annotated[uuid.UUID | None, Query()] = None,
+    actor_type: Annotated[Literal["USER", "AI", "SYSTEM"] | None, Query()] = None,
+    occurred_from: Annotated[datetime | None, Query(alias="from")] = None,
+    occurred_to: Annotated[datetime | None, Query(alias="to")] = None,
 ) -> Page[AuditLogOut]:
+    """EP-ADM-12: + `from`/`to` (ISO 8601 UTC on `occurred_at`) and `actor_type` (M1.2)."""
     return await AuditQueryService(db).list(
+        actor_type=actor_type,
+        occurred_from=occurred_from,
+        occurred_to=occurred_to,
         limit=page.limit,
         offset=page.offset,
         action=action,
@@ -110,3 +119,9 @@ async def decide_approval(
     )
     await db.commit()
     return out
+
+
+# M1.2 T-616: EP-NTF-01..05 `/notifications` (token only, R-DEC-31) in the same module router.
+module_router = EnvelopeRouter(tags=["platform"])
+module_router.include_router(router)
+module_router.include_router(notifications_router)

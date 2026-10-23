@@ -37,6 +37,9 @@ NOTIFICATION_KIND = pg_enum(
     "alert", "review_assigned", "review_escalated", "task_assigned", "approval_requested",
     "approval_decided", "report_ready", "ai_action", "document_ready", "reminder", "system",
 )  # fmt: skip
+EMAIL_STATUS = pg_enum(  # M1.2 R-DEC-33
+    "platform", "email_status", "NOT_REQUIRED", "PENDING", "SENT", "FAILED"
+)
 RECORD_SOURCE = pg_enum(
     "platform", "record_source", "MANUAL", "IDP", "IMPORT", "AI", "EVENT", "SEED"
 )
@@ -55,8 +58,7 @@ PROCESSING_STATUS = pg_enum("platform", "processing_status", "DONE", "DLQ")
 # --- cross-schema owned types ---
 ROLE_CODE = pg_enum(
     "auth", "role_code",
-    "CEO", "CFO", "VP_SALES", "HR_MANAGER", "REVIEWER", "CPO", "RISK_MANAGER", "MANAGER",
-    "EMPLOYEE", "ADMIN",
+    "CEO", "DIR", "MGR", "EMP", "REV", "ADM", "AI",  # 7 role BRD v3 + AI Agent (R-DEC-12)
 )  # fmt: skip
 AUTONOMY_LEVEL = pg_enum("ai", "autonomy_level", "L0", "L1", "L2", "L3")  # L4 out of scope
 
@@ -64,6 +66,6 @@ SHARED_ENUMS: tuple[ENUM, ...] = (
     PILLAR, ACTOR_TYPE, CONFIDENCE_BAND, PERIOD_TYPE, METRIC_UNIT, THRESHOLD_DIRECTION,
     METRIC_VALUE_KIND, SCOPE_TYPE, VALUE_ORIGIN, THRESHOLD_STATUS, ALERT_SEVERITY, ALERT_STATUS,
     LINEAGE_KIND, NOTIFICATION_KIND, RECORD_SOURCE, DATA_CLASSIFICATION, APPROVAL_STATUS,
-    REPORT_KIND, REPORT_FORMAT, REPORT_STATUS, OUTBOX_STATUS, PROCESSING_STATUS,
+    REPORT_KIND, REPORT_FORMAT, REPORT_STATUS, OUTBOX_STATUS, PROCESSING_STATUS, EMAIL_STATUS,
     ROLE_CODE, AUTONOMY_LEVEL,
 )  # fmt: skip

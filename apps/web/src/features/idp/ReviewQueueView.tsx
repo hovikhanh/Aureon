@@ -102,7 +102,7 @@ export function ReviewQueueView({ userId }: { userId: string }) {
                   <td className="px-3 py-2">{it.assigned_to ? (it.assigned_to === userId ? t("idp.filter.me") : `${it.assigned_to.slice(0, 8)}…`) : <span className="text-muted-foreground">{t("idp.unassigned")}</span>}</td>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{age(it.age_hours)}</td>
                   <td className="px-3 py-2">
-                    <Link href={`/idp/review/${it.document_id}`} className={buttonVariants({ size: "sm" })} data-testid="review-link">{t("buttons.review")}</Link>
+                    <Link href={`/data/review/${it.document_id}`} className={buttonVariants({ size: "sm" })} data-testid="review-link">{t("buttons.review")}</Link>
                   </td>
                 </tr>
               ))}

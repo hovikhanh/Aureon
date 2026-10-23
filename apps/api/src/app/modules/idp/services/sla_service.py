@@ -17,17 +17,17 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.config import get_config
 from app.modules.idp.models import ReviewAssignment, SourceDocument
+from app.modules.idp.repositories import SourceDocumentRepository
 
 EVT_ESCALATED = "idp.review_escalated"
 
-# role codes used for escalation targets (02 §1.4)
-MANAGER_ROLE = "MANAGER"
+# role codes used for escalation targets (02 §1.4, R-DEC-12)
+MANAGER_ROLE = "MGR"
 DEPT_HEAD_ROLE = "CEO"  # department-head stand-in for the demo org (04 §8.3 "escalate_to")
 
 
@@ -47,20 +47,7 @@ class SlaService:
         """Scan + escalate overdue reviews. Returns the escalated document ids."""
         now = now or _now()
         sla_hours = get_config().review_sla_hours
-        rows = (
-            await self.db.execute(
-                select(SourceDocument, ReviewAssignment)
-                .join(
-                    ReviewAssignment,
-                    ReviewAssignment.source_document_id == SourceDocument.id,
-                )
-                .where(
-                    SourceDocument.status.in_(("NEEDS_REVIEW", "IN_REVIEW")),
-                    SourceDocument.deleted_at.is_(None),
-                    ReviewAssignment.is_current.is_(True),
-                )
-            )
-        ).all()
+        rows = await SourceDocumentRepository(self.db).awaiting_review_with_assignment()
         escalated: list[uuid.UUID] = []
         for doc, current in rows:
             due = _aware(current.due_at)

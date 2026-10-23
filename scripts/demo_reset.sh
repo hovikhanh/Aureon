@@ -5,8 +5,12 @@
 #   3. clear object storage (local IDP store var/idp-storage + MinIO buckets)
 #   4. purge Celery queues + restart worker/beat
 #   5. put 1 INVOICE in NEEDS_REVIEW (fixture extraction, no live LLM)
-#   6. verify: 5 demo users · 32 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW
-# Usage: ./scripts/demo_reset.sh [-y]        (-y skips the confirmation prompt)
+#   6. verify (seed v3, T-603b): 7 departments · 154 employees · 10 demo users + AI actor ·
+#      32 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW; then export seed_snapshot.json (mock FE)
+# Usage: ./scripts/demo_reset.sh [-y] [--host]
+#   -y      skips the confirmation prompt
+#   --host  runs Python on the host venv even when the api container is up (the image does not
+#           mount the source — use it until the image is rebuilt with the current code)
 # DEV/DEMO ONLY — refuses APP_ENV=production. Never use `docker compose down -v` instead.
 set -euo pipefail
 
@@ -18,13 +22,15 @@ envval() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed 's/^"\(.*\)"$/\1/'
 PG_USER="$(envval POSTGRES_USER)"; PG_DB="$(envval POSTGRES_DB)"
 [[ "$(envval APP_ENV)" == "production" ]] && { echo "✗ APP_ENV=production — refusing to reset" >&2; exit 1; }
 
-if [[ "${1:-}" != "-y" && -t 0 ]]; then
+YES=0; HOST=0
+for a in "$@"; do case "$a" in -y) YES=1 ;; --host) HOST=1 ;; *) echo "✗ unknown arg $a" >&2; exit 2 ;; esac; done
+if [[ $YES == 0 && -t 0 ]]; then
   read -r -p "Reset ALL demo data in database '$PG_DB'? [y/N] " ans
   [[ "$ans" =~ ^[Yy]$ ]] || { echo "aborted"; exit 1; }
 fi
 
 psql_q() { "${COMPOSE[@]}" exec -T postgres psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -Atc "$1"; }
-api_running() { [[ -n "$("${COMPOSE[@]}" ps -q --status running api 2>/dev/null)" ]]; }
+api_running() { [[ $HOST == 0 && -n "$("${COMPOSE[@]}" ps -q --status running api 2>/dev/null)" ]]; }
 # Run Python in the api container when the full stack is up, else on the host venv.
 py() {
   if api_running; then "${COMPOSE[@]}" exec -T api python "$@";
@@ -69,15 +75,23 @@ else
 fi
 
 echo "▸ 6/6 verify"
-users=$(psql_q "SELECT count(*) FROM auth.users WHERE email IN ('ceo@abc.demo','cfo@abc.demo','sales@abc.demo','hr@abc.demo','reviewer@abc.demo')")
+users=$(psql_q "SELECT count(*) FROM auth.users WHERE email LIKE '%@abc.demo' AND NOT is_service_account AND is_active")
+ai=$(psql_q "SELECT count(*) FROM auth.users WHERE is_service_account AND email = 'ai-agent@abc.demo'")
+depts=$(psql_q "SELECT count(*) FROM hr.departments WHERE deleted_at IS NULL")
+emps=$(psql_q "SELECT count(*) FROM hr.employees WHERE deleted_at IS NULL")
 metrics=$(psql_q "SELECT count(*) FROM platform.metrics")
 alerts=$(psql_q "SELECT count(*) FROM platform.alerts WHERE status = 'OPEN'")
 review=$(psql_q "SELECT count(*) FROM idp.source_documents WHERE status = 'NEEDS_REVIEW' AND deleted_at IS NULL")
 ok=1
 check() { if [[ "$2" == "$3" ]]; then echo "  ✔ $1: $2"; else echo "  ✗ $1: $2 (expected $3)"; ok=0; fi; }
-check "demo users" "$users" 5
+check "departments" "$depts" 7
+check "employees" "$emps" 154
+check "demo users" "$users" 10
+check "AI actor" "$ai" 1
 check "metrics" "$metrics" 32
 check "open alerts" "$alerts" 13
 check "invoices NEEDS_REVIEW" "$review" 1
 echo "  (all users: $(psql_q 'SELECT count(*) FROM auth.users') — existing sessions must log in again)"
-[[ $ok == 1 ]] && echo "✅ demo reset complete" || { echo "✗ demo reset verification failed" >&2; exit 1; }
+[[ $ok == 1 ]] || { echo "✗ demo reset verification failed" >&2; exit 1; }
+PYTHONPATH="$ROOT/apps/api/src:$ROOT/apps/api" "$ROOT/.venv/bin/python" -m app.seed.snapshot
+echo "✅ demo reset complete"

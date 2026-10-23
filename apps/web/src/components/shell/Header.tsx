@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { setLocale } from "@/lib/locale-action";
 import type { ShellUser } from "./AppShell";
+import { NotificationBell } from "./NotificationBell";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -48,6 +49,7 @@ export function Header({ user, onOpenMenu }: { user: ShellUser; onOpenMenu: () =
             <DropdownMenuItem onSelect={() => switchLocale("en")} data-testid="locale-en">{t("header.en")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {user.role !== "AI" && <NotificationBell />}
         <Badge variant="primary" data-testid="role-badge" className="hidden sm:inline-flex">{t(`role.${user.role}` as "role.CEO")}</Badge>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -10,6 +10,7 @@ from fastapi import Depends, Request, Response, status
 
 from app.core.deps import CurrentUser, DbSession
 from app.core.routing import EnvelopeRouter
+from app.modules.auth.routes.users import router as users_router
 from app.modules.auth.schemas import LoginIn, RefreshIn, TokenOut, UserOut
 from app.modules.auth.services.auth_service import AuthService, ClientInfo
 
@@ -54,3 +55,9 @@ async def logout(body: RefreshIn, user: CurrentUser, svc: Service) -> Response:
 @router.get("/me", response_model=UserOut, summary="EP-03 Current session")
 async def me(user: CurrentUser, svc: Service) -> UserOut:
     return await svc.me(user.user_id)
+
+
+# M1.2 T-614: identity administration lives in `auth`, mounted under `/platform` (07 §1.1).
+module_router = EnvelopeRouter(tags=["auth"])
+module_router.include_router(router)
+module_router.include_router(users_router)

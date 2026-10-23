@@ -15,7 +15,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 async def users(db_session: AsyncSession, roles: dict[str, Role]) -> tuple[uuid.UUID, list[User]]:
     """25 users isolated by a fresh `department_id` (seeded demo users share the role)."""
-    role = roles["EMPLOYEE"]
+    role = roles["EMP"]
     dept = uuid.uuid4()
     tag = uuid.uuid4().hex[:6]
     pw = hash_password("x")

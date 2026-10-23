@@ -46,3 +46,72 @@ class TokenOut(BaseModel):
     expires_in: int
     refresh_token: str
     user: UserOut
+
+
+# ---------- M1.2 T-614 admin (EP-ADM-05..11, 10 §7.2.1) ----------
+RoleCode = Literal["CEO", "DIR", "MGR", "EMP", "REV", "ADM", "AI"]
+PillarCode = Literal["F", "O", "C", "U", "S"]
+Locale = Literal["vi", "en"]
+
+
+class UserAdminOut(BaseModel):
+    """EP-ADM-05 `UserAdminOut` — never `password_hash`."""
+
+    id: uuid.UUID
+    email: str
+    full_name: str
+    role_id: uuid.UUID
+    role_code: str
+    scope_pillars: list[str]
+    department_id: uuid.UUID | None
+    employee_id: uuid.UUID | None
+    locale: str
+    is_active: bool
+    is_service_account: bool
+    last_login_at: datetime | None
+    locked_until: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+
+class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=3, max_length=254, pattern=EMAIL_PATTERN)
+    full_name: str = Field(min_length=1, max_length=200)
+    role_code: RoleCode
+    scope_pillars: list[PillarCode] = Field(default_factory=list)
+    department_id: uuid.UUID | None = None
+    employee_id: uuid.UUID | None = None
+    locale: Locale = "vi"
+    initial_password: str = Field(min_length=12, max_length=256, repr=False)
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    role_code: RoleCode | None = None
+    scope_pillars: list[PillarCode] | None = None
+    department_id: uuid.UUID | None = None
+    employee_id: uuid.UUID | None = None
+    locale: Locale | None = None
+    version: int | None = None
+
+
+class ReasonIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class RoleOut(BaseModel):
+    id: uuid.UUID
+    code: str
+    role_ref: str
+    name_vi: str
+    name_en: str
+    permissions: list[str]
+    scope_rules: dict[str, object]
+    pillars: list[str]

@@ -60,6 +60,7 @@ class PlatformService:
             event_type=outbox.event_type,
             occurred_at=outbox.occurred_at,
             version=outbox.version,
+            tenant_id=outbox.tenant_id,  # R-DEC-21: replay keeps the event's tenant
             producer=outbox.aggregate_schema,
             payload=outbox.payload,
         )

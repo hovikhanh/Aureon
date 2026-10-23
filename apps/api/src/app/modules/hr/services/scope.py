@@ -1,33 +1,53 @@
 """HR data scoping + level-4 visibility (02 §6.2–6.3) — one source of truth for REST, dashboard
 and (later) AI tools.
 
-- CEO, HR_MANAGER: whole company, level-4 visible.
-- MANAGER: own department (`d`); level-4 masked.
-- EMPLOYEE: own profile only (`o`), matched by the JWT e-mail (DEC-196); level-4 masked.
-- REVIEWER: `hr:read ◑r` = only records of an assigned review — assignments arrive with IDP
+- CEO, HR-DIR (DIR phụ trách khối O): whole company, level-4 visible.
+- MGR: own department (`d`); level-4 masked.
+- EMP: own profile only (`o`), matched by the JWT e-mail (DEC-196); level-4 masked.
+- REV: `hr:read ◑r` = only records of an assigned review — assignments arrive with IDP
   (T-4xx), so until then every employee / hiring-plan read is `403 FORBIDDEN_SCOPE` (DEC-196).
-- Everyone else reaching an `hr:query` endpoint (CFO, RISK_MANAGER, CEO): company aggregates.
+- ADM: `hr:read ◑s` = org structure only (R-DEC-30) — record reads are `403 FORBIDDEN_SCOPE`.
+- Everyone else reaching an `hr:query` endpoint (Finance-DIR, CEO): company aggregates.
+
+R-DEC-12a: 5 C-level nền v2.1 gộp vào ROLE-DIR; phân biệt khối bằng `scope_pillars`.
+Level-4 lương chỉ CEO + HR-DIR (DIR có pillar `O`) — không nới cho DIR khối khác.
 """
 
 import uuid
 
 from app.core.deps import Principal
 from app.core.errors import ScopeDeniedError
+from app.core.field_policy import STRUCTURE_ONLY_ROLES as STRUCTURE_ONLY_ROLES
+from app.core.field_policy import sees_level4 as sees_level4
 
-LEVEL4_ROLES = frozenset({"CEO", "HR_MANAGER"})
-# Aggregate payroll fund (not individual salary): CEO, HR_MANAGER, CFO (02 §6.2, 05 §4.4).
-PAYROLL_AGGREGATE_ROLES = frozenset({"CEO", "HR_MANAGER", "CFO"})
-DEPARTMENT_ROLES = frozenset({"MANAGER"})
-SELF_ROLES = frozenset({"EMPLOYEE"})
-NO_RECORD_ROLES = frozenset({"REVIEWER"})
+DEPARTMENT_ROLES = frozenset({"MGR"})
+SELF_ROLES = frozenset({"EMP"})
+# R-DEC-30: ADM `hr:read ◑s` = org structure only — employee / salary / hiring records → 403.
+NO_RECORD_ROLES = frozenset({"REV"}) | STRUCTURE_ONLY_ROLES
+# Who may read the org structure (EP-ORG-*): EMP / REV → FORBIDDEN_SCOPE (10 §7.2.1).
+NO_STRUCTURE_ROLES = frozenset({"EMP", "REV"})
 
 
-def sees_level4(user: Principal) -> bool:
-    return user.role in LEVEL4_ROLES
+def _dir_with_pillar(user: Principal, pillar: str) -> bool:
+    """DIR phụ trách khối `pillar` (scope_pillars rỗng = toàn khối, dùng cho role cấp cao)."""
+    return user.role == "DIR" and (not user.scope_pillars or pillar in user.scope_pillars)
 
 
 def sees_payroll(user: Principal) -> bool:
-    return user.role in PAYROLL_AGGREGATE_ROLES
+    # Quỹ lương tổng (không phải lương cá nhân): CEO + HR-DIR (O) + Finance-DIR (F) (02 §6.2).
+    return user.role == "CEO" or _dir_with_pillar(user, "O") or _dir_with_pillar(user, "F")
+
+
+# Dashboard HR (headcount/attrition) mở cho CEO + DIR khối O/F/S (People/Finance/Risk quan tâm
+# nhân sự); DIR khối C/U (Sales/Product) KHÔNG xem → FORBIDDEN_ROLE. Nền v2.1: hr:query chỉ
+# CEO/CFO/HR_MANAGER/RISK_MANAGER có — R-DEC-12a tái lập bằng scope_pillars.
+_HR_DASHBOARD_PILLARS = frozenset({"O", "F", "S"})
+
+
+def sees_hr_dashboard(user: Principal) -> bool:
+    if user.role != "DIR":
+        return True  # CEO/MGR… do permission dependency + department scope quyết định
+    return not user.scope_pillars or bool(_HR_DASHBOARD_PILLARS & user.scope_pillars)
 
 
 def deny(what: str, **details: object) -> ScopeDeniedError:
@@ -55,3 +75,14 @@ def check_department(user: Principal, department_id: uuid.UUID | None) -> None:
         raise deny("hr records", role=user.role)
     if user.role in DEPARTMENT_ROLES and department_id != user.department_id:
         raise deny("department", department_id=department_id)
+
+
+def structure_scope(user: Principal) -> uuid.UUID | None:
+    """EP-ORG reads: department pin for MGR (own subtree), None = whole org; EMP/REV → 403."""
+    if user.role in NO_STRUCTURE_ROLES:
+        raise deny("org structure", role=user.role)
+    if user.role in DEPARTMENT_ROLES:
+        if user.department_id is None:
+            raise deny("org structure", role=user.role)
+        return user.department_id
+    return None

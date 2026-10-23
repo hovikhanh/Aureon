@@ -17,13 +17,14 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.events.outbox import publish_in_tx
 from app.core.metrics import METRIC_PROVIDERS, MetricReading
 from app.modules.platform.models import Alert, DataLineage, Metric, MetricValue, SystemSetting
+from app.modules.platform.repositories import AlertRepository, MetricValueRepository
 from app.modules.platform.services.catalog import BY_CODE, CATALOG, evaluate
 
 log = logging.getLogger(__name__)
@@ -126,16 +127,10 @@ class MetricStore:
 
     async def _store(self, m: Metric, r: MetricReading) -> tuple[MetricValue, str]:
         scope = uuid.UUID(r.scope_id) if r.scope_id else None
-        await self.db.execute(
-            update(MetricValue)
-            .where(
-                MetricValue.metric_id == m.id, MetricValue.kind == "ACTUAL",
-                MetricValue.period_key == r.period_key, MetricValue.scope_type == r.scope_type,
-                MetricValue.scope_id.is_(None) if scope is None
-                else MetricValue.scope_id == scope,
-                MetricValue.is_current.is_(True),
-            )
-            .values(is_current=False)
+        await MetricValueRepository(self.db).retire_current(
+            MetricValue.metric_id == m.id, MetricValue.kind == "ACTUAL",
+            MetricValue.period_key == r.period_key, MetricValue.scope_type == r.scope_type,
+            MetricValue.scope_id.is_(None) if scope is None else MetricValue.scope_id == scope,
         )  # fmt: skip
         status = status_of(m, r, self.thr)
         mv = MetricValue(
@@ -161,11 +156,7 @@ class MetricStore:
         return mv, status
 
     async def open_alert(self, metric_id: uuid.UUID, period_key: str) -> Alert | None:
-        stmt = select(Alert).where(
-            Alert.metric_id == metric_id, Alert.period_key == period_key,
-            Alert.status.in_(("OPEN", "ACKNOWLEDGED")), Alert.deleted_at.is_(None),
-        )  # fmt: skip
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        return await AlertRepository(self.db).open_for(metric_id, period_key)
 
     async def _alert(
         self, m: Metric, mv: MetricValue, r: MetricReading, status: str

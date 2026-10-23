@@ -1,4 +1,4 @@
-"""Schema `hr` — 8 tables (05 §4.4). Column groups follow 05 §2.1.
+"""Schema `hr` — 10 tables (05 §4.4 + M1.2 §2.4: organizations, employee_assignments).
 
 FK cycles (departments.head_employee_id ↔ employees.department_id, teams.lead_employee_id ↔
 employees.team_id) are broken with `use_alter=True` so create/drop order is deterministic.
@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import CITEXT, ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BusinessModel, LogModel
-from app.core.columns import currency, fk, money, schema_args, sr, ts, txt
+from app.core.columns import currency, fk, money, sr, ts, txt
 from app.core.crypto_columns import EncryptedBigInt, EncryptedText
 from app.core.enums import pg_enum
 
@@ -70,18 +70,53 @@ def _cyclic_fk(target: str) -> Any:
     )
 
 
+def _live_code_unique(table: str) -> Index:
+    """05 §2.4: `code` unique per tenant among live rows (an archived code can be reused)."""
+    return Index(
+        f"uq_{table}_tenant_id_code_live",
+        "tenant_id",
+        "code",
+        unique=True,
+        postgresql_where=text("deleted_at IS NULL"),
+    )
+
+
+def _valid_range() -> CheckConstraint:
+    """05 §2.4: half-open `[valid_from, valid_to)`; `valid_to IS NULL` = still in force."""
+    return CheckConstraint(
+        "valid_to IS NULL OR valid_to > valid_from", name="valid_to_after_valid_from"
+    )
+
+
+class Organization(BusinessModel):
+    """ENT-Organization (M1.2 T-611, R-DEC-24 — schema `hr`; BusinessUnit deferred OQ-05-06)."""
+
+    __tablename__ = "organizations"
+    __table_args__ = (_live_code_unique("organizations"), _valid_range(), {"schema": S})
+
+    code: Mapped[str] = txt()
+    name: Mapped[str] = txt()
+    legal_name: Mapped[str | None] = txt(nullable=True)
+    tax_code: Mapped[str | None] = txt(nullable=True)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
 class Department(BusinessModel):
     """ENT-Department — soft-ref target for `department_id` across all schemas (05 C7)."""
 
     __tablename__ = "departments"
-    __table_args__ = schema_args(S)
+    __table_args__ = (_live_code_unique("departments"), _valid_range(), {"schema": S})
 
-    code: Mapped[str] = txt(unique=True)
+    organization_id: Mapped[uuid.UUID] = fk(f"{S}.organizations.id")
+    code: Mapped[str] = txt()
     name: Mapped[str] = txt()
     aliases: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
     parent_id: Mapped[uuid.UUID | None] = fk(f"{S}.departments.id", nullable=True)
     head_employee_id: Mapped[uuid.UUID | None] = _cyclic_fk(f"{S}.employees.id")
     cost_center: Mapped[str | None] = txt(nullable=True)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Employee(BusinessModel):
@@ -135,12 +170,14 @@ class Team(BusinessModel):
     """ENT-Team (v2.1, DEC-147) — one team belongs to one department."""
 
     __tablename__ = "teams"
-    __table_args__ = schema_args(S)
+    __table_args__ = (_live_code_unique("teams"), _valid_range(), {"schema": S})
 
     department_id: Mapped[uuid.UUID] = fk(f"{S}.departments.id")
-    code: Mapped[str] = txt(unique=True)
+    code: Mapped[str] = txt()
     name: Mapped[str] = txt()
     lead_employee_id: Mapped[uuid.UUID | None] = _cyclic_fk(f"{S}.employees.id")
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Position(BusinessModel):
@@ -149,15 +186,50 @@ class Position(BusinessModel):
     __tablename__ = "positions"
     __table_args__ = (
         CheckConstraint("headcount_budget >= 0", name="headcount_budget_non_negative"),
+        _live_code_unique("positions"),
         {"schema": S},
     )
 
     department_id: Mapped[uuid.UUID] = fk(f"{S}.departments.id")
-    code: Mapped[str] = txt(unique=True)
+    code: Mapped[str] = txt()
     title: Mapped[str] = txt()
     level: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     headcount_budget: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     reports_to_position_id: Mapped[uuid.UUID | None] = fk(f"{S}.positions.id", nullable=True)
+
+
+class EmployeeAssignment(BusinessModel):
+    """ENT-EmployeeAssignment (M1.2 T-612, FR-ORG-04, 05 §2.4/§6ter) — effective-dated placement.
+
+    Half-open `[valid_from, valid_to)`; `valid_to IS NULL` = current. At most one current row per
+    employee (partial unique); no overlap is enforced by `OrgService` under a row lock on the
+    employee (no `btree_gist`, OQ-05-07). `employees.department_id/team_id/position_id/
+    manager_id` stay the cached *current* values, synced in the same transaction.
+    """
+
+    __tablename__ = "employee_assignments"
+    __table_args__ = (
+        _valid_range(),
+        CheckConstraint("manager_id IS NULL OR manager_id <> employee_id", name="manager_not_self"),
+        Index(
+            "uq_employee_assignments_employee_id_current",
+            "employee_id",
+            unique=True,
+            postgresql_where=text("valid_to IS NULL AND deleted_at IS NULL"),
+        ),
+        Index("ix_employee_assignments_employee_id_valid_from", "employee_id", "valid_from"),
+        Index("ix_employee_assignments_department_id_valid_from", "department_id", "valid_from"),
+        {"schema": S},
+    )
+
+    employee_id: Mapped[uuid.UUID] = fk(f"{S}.employees.id")
+    department_id: Mapped[uuid.UUID] = fk(f"{S}.departments.id")
+    team_id: Mapped[uuid.UUID | None] = fk(f"{S}.teams.id", nullable=True)
+    position_id: Mapped[uuid.UUID | None] = fk(f"{S}.positions.id", nullable=True)
+    manager_id: Mapped[uuid.UUID | None] = fk(f"{S}.employees.id", nullable=True)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str | None] = txt(nullable=True)
 
 
 class EmployeeSkill(BusinessModel):

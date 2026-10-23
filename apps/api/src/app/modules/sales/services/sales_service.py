@@ -11,7 +11,6 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -517,7 +516,7 @@ class SalesService:
             filters["status"] = status
         where: list[Any] = []
         if scope.is_department_scoped(user):
-            mine = select(Deal.id).where(Deal.department_id == user.department_id)
+            mine = DealRepository.ids_where(Deal.department_id == user.department_id)
             where.append(Contract.deal_id.in_(mine))
         if expiring_within_days is not None:
             today = now_utc().date()

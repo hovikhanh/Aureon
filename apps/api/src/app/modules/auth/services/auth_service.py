@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import Actor, record_audit
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import get_config
 from app.core.errors import InvalidCredentialsError, RefreshTokenInvalidError, UnauthenticatedError
 from app.core.security import (
@@ -79,6 +80,8 @@ class AuthService:
             role_id=str(role.id),
             permissions=role.permissions,
             department_id=user.department_id,
+            tenant_id=DEFAULT_TENANT_ID,  # single-tenant MVP (R-DEC-07/13)
+            scope_pillars=tuple(user.scope_pillars),  # R-DEC-12a — khối phụ trách của DIR
             now=now,
         )
         raw = new_refresh_token()
@@ -197,6 +200,13 @@ class AuthService:
         if user is None or not user.is_active:
             raise UnauthenticatedError("user not found or inactive")
         return self.user_out(user, await self._role_of(user))
+
+    async def email_contact(self, user_id: uuid.UUID) -> tuple[str, str] | None:
+        """`(email, locale)` of an active user for e-mail notifications (T-616b); else `None`."""
+        user = await self.users.get(user_id)
+        if user is None or not user.is_active or user.is_service_account:
+            return None
+        return user.email, user.locale
 
     async def find_user_by_role(
         self, role_code: str, *, department_id: uuid.UUID | None = None
