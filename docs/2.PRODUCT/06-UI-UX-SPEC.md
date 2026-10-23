@@ -323,10 +323,10 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 - OQ-06-06: Kênh đẩy briefing/duyệt (Zalo/Slack/Teams = C7, P1 backlog) ảnh hưởng thiết kế thông báo (UIUX §10.3 câu 4) — ngoài phạm vi P0; theo dõi ở 13-DECISION-LOG §3.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.1.0 (đề xuất — Spec lock M1.1, R-DEC-15/16/22/25):** thêm §3.4 bảng route v3 ↔ `SCR-*` ↔ redirect từ route v2.1 (giữ SCR v2.1 cho màn hình dùng tiếp, màn hình mới từ SCR-40); §5.3 ghi rõ P0 không offline/sinh trắc học, giọng nói chỉ nhập liệu ngắn, không ghi âm họp; đóng OQ-06-03.
+- **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/16/22/25):** thêm §3.4 bảng route v3 ↔ `SCR-*` ↔ redirect từ route v2.1 (giữ SCR v2.1 cho màn hình dùng tiếp, màn hình mới từ SCR-40); §5.3 ghi rõ P0 không offline/sinh trắc học, giọng nói chỉ nhập liệu ngắn, không ghi âm họp; đóng OQ-06-03.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 bám `_reference/SOURCE-UIUX.md` + BRD §12: bảng 5 persona (role/thiết bị/nỗi đau→nhu cầu/US) + 5 phát hiện thiết kế; IA 8 mục ↔ domain P0 + ma trận hiển thị theo vai trò + quy tắc điều hướng (default-deny, breadcrumb, bố cục trang chi tiết); mô tả bước-bước F1–F5 kèm ngoại lệ; wireframe CEO/Review/Mobile dạng text đầy đủ; bảng hành vi bộ component AI + quy tắc Autonomy L0–L3 (L4 khóa) + kill switch + xử lý AI sai/không biết; design system (token/màu/5 nhóm thành phần/trực quan hóa) + WCAG 2.1 AA chi tiết + định dạng VI/EN + chỉ số UX mục tiêu. Bổ sung OQ-06-04/05/06. Giữ nguyên ngữ nghĩa Q1–Q6/R-DEC.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

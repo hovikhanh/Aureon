@@ -7,7 +7,7 @@
 | Last updated | 2026-10-23 (Asia/Saigon) |
 | Dòng sản phẩm | **Aureon v3 — AI-EOS** (chính thức duy nhất). v2.1 archived (`docs/_archive/v2.1/`) |
 | Branch | `ai-eos` → `origin/ai-eos` (commit `8ec9cdb`); `main` giữ nền v2.1 demo |
-| Phase | **P1 DONE** — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
+| Phase | **M1.1 đang code (docs duyệt)** · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.4) |
 
 ## Phase 1 — đã làm (R-DEC-07/08/12/12a/13)
@@ -34,7 +34,7 @@
 
 ## Kế tiếp
 - **Kế hoạch build MVP v3: `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` §6** (M1.1→M3.5, vòng S→C→F→B→N→R; quyết định 13 §2ter R-DEC-15..27).
-- Đang ở **M1.1** (nhánh `v3/m1.1-foundation`): T-601/T-601b xong (Spec lock M1.1), contract test 11/11 xanh. ⏸ Chờ human duyệt diff docs (commit docs trên nhánh phase) rồi mới code T-603.
+- Đang ở **M1.1** (nhánh `v3/m1.1-foundation`): T-601/T-601b xong (Spec lock M1.1), contract test 11/11 xanh. Docs Spec lock M1.1 **đã duyệt** (12 §1.1.0, 2026-10-23). **Sẵn sàng code T-602→T-610** theo 09 §6.2.
 - (Tuỳ chọn) P1.6 enforce `tenant_id` filtering trong repositories/services (mới có model + migration + JWT claim).
 - Chạy E2E login 7 role khi docker sẵn sàng; nếu fail → fix rồi mới đóng hẳn.
 - Phase 2 theo `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` (review + fix gate giữa các phase).

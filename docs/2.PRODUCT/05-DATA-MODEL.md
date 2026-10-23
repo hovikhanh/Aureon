@@ -185,10 +185,10 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - OQ-05-05: Data classification mặc định per nhóm (§2.1) là đề xuất mức khái niệm; override per-field + chính sách LLM theo mức chốt ở 07/đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.2.0 (đề xuất — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
+- **Change 1.2.0 (human duyệt 2026-10-23 — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
 - **Change 1.1.0 (code round — human ủy quyền R-DEC-14, 2026-10-23):** Thêm §2.2 field-level đợt code Phase 1: `tenant_id UUID NOT NULL` + `TenantMixin` (R-DEC-13); `auth.role_code` enum 7 giá trị v3 (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + bảng gộp 10→7 (R-DEC-12). Chi tiết schema/migration ở code; mọi thay đổi reversible.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 (docs-first R-DEC-09 — không field-level DB): mỗi FR-DATA-01..08 thêm mô tả hành vi + tiêu chí chấp nhận; §2.1 data classification per nhóm entity; §3 bổ sung vai trò nghiệp vụ + entity P0 chính + liên kết lineage/event cho 13 nhóm; §4 sơ đồ quan hệ cốt lõi với cardinality mức khái niệm + giải thích chuỗi lineage; §6 mở rộng AI entity/grounding; §6bis Metric Store/Semantic layer; §6ter effective-dated scope P0; §7 event backbone (envelope, nguyên tắc outbox/idempotent, event→tác động); thêm OQ-05-04/05.

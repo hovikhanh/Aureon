@@ -168,10 +168,10 @@ Seed để **mỗi chỉ số P0 có giá trị tính được** từ dữ liệ
 - OQ-08-04: Giá trị số của chỉ số ở ngưỡng cảnh báo (burn rate, hệ số coverage, % quá tải cụ thể) — **mở, không blocking**: §5 chốt *trạng thái mục tiêu* (🔴/🟠/🟢) và dữ liệu nguồn; số cụ thể tính bằng script ở đợt code để tránh "tính nhẩm".
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.1.0 (đề xuất — R-DEC-27):** §2.1 trưởng Nhân sự = ROLE-DIR `{O}` (giữ quyền mức 4 đúng người), trưởng Vận hành & Dịch vụ = ROLE-MGR phạm vi phòng ban; ghi `scope_pillars` cho từng DIR.
+- **Change 1.1.0 (human duyệt 2026-10-23 — R-DEC-27):** §2.1 trưởng Nhân sự = ROLE-DIR `{O}` (giữ quyền mức 4 đúng người), trưởng Vận hành & Dịch vụ = ROLE-MGR phạm vi phòng ban; ghi `scope_pillars` cho từng DIR.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng spec-level P0 — thêm nguyên tắc dữ liệu demo DD-01..05 (§1.1); cấu trúc tổ chức mẫu ABC theo 7 phòng ban ↔ role ↔ UC/chỉ số (§2.1); seed theo 20 domain P0 kèm khối lượng gợi ý (§3); **bộ dữ liệu cần cho từng UC P0 UC-01/02/03/04/06/07 + kịch bản CEO 7 bước** với tiêu chí chấp nhận (§4); bảng chỉ số sức khỏe P0 ↔ dữ liệu nguồn ↔ trạng thái demo, chốt **Cash runway 🔴** là chỉ số cảnh báo chính + Quá tải 🟠 + Pipeline coverage 🟠 (§5); ràng buộc an toàn + single tenant ABC (§6); mapping sang `main` (§7); thêm OQ-08-03/04. (spec-level, chưa promote ở thời điểm đó); không viết seed code/field-level DB (R-DEC-09).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

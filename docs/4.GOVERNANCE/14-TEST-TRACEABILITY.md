@@ -186,10 +186,10 @@ Mỗi NFR nêu cách kiểm ở mức khung; ngưỡng số là baseline MVP (BR
 - OQ-14-03: Tập transcript/tài liệu chuẩn để đo recall ≥90% (UC-02/UC-06) và tập câu hỏi chuẩn cho grounding (UC-01/UC-03) — bộ dữ liệu đánh giá (AI-eval golden set) lập ở **đợt code**; cần thống nhất với seed demo (08). Ghi nhận, chưa blocking docs P0.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.1.0 (đề xuất — Spec lock M1.1, R-DEC-15/19):** thêm §1.5 test case M1.1 `TC-M11-01..15` (+ TC-SYS-003 Passed sau khi khôi phục 10 §1.4); quy ước `TC-M<mốc><phase>-NN`.
+- **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/19):** thêm §1.5 test case M1.1 `TC-M11-01..15` (+ TC-SYS-003 Passed sau khi khôi phục 10 §1.4); quy ước `TC-M<mốc><phase>-NN`.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0: thêm §1.1 nguyên tắc chiến lược (pyramid 6 trục gồm AI-eval) + §1.2 phạm vi P0 + §1.3 ngưỡng coverage/gate; §2 ma trận UC-01..08 với **tiêu chí nghiệm thu mức sản phẩm** + domain/FR xuyên suốt + loại test + map US→UC; §3 khung test theo **từng nhóm FR P0** với loại test cần (unit/integration/e2e/ai-eval) + trọng tâm kiểm; §4 **khung grounding/no-hallucination** (GR-01..05), anti-injection (INJ-01..03), autonomy/Approval Matrix (AUT-01..04); §5 cách kiểm NFR BRD §16. TÔN TRỌNG R-DEC-09: KHÔNG sinh TC-* chi tiết/T-*; `TC-*` là namespace traceability, chi tiết hóa ở đợt code. Thêm OQ-14-03 (golden set AI-eval).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

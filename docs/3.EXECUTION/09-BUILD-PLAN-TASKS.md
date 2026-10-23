@@ -460,10 +460,10 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 - OQ-09-04: Thí điểm 1 DN 50–200 NV (M3) cần chọn DN thật ngoài công ty giả định ABC — quyết định CEO, không blocking docs P0 (theo 13 §3 B2 "khách hàng mục tiêu đầu").
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.1.0 (đề xuất — đợt code, R-DEC-15/19):** thêm §6 Task đợt code: quy trình S→C→F→B→N→R, bản đồ phase M1.0–M3.5, bảng T-601..T-910 theo phase (FE trên mock → BE → nối), rủi ro; Open questions chuyển thành §7, đóng OQ-09-01/02, cập nhật OQ-09-03, thêm OQ-09-05.
+- **Change 1.1.0 (human duyệt 2026-10-23 — đợt code, R-DEC-15/19):** thêm §6 Task đợt code: quy trình S→C→F→B→N→R, bản đồ phase M1.0–M3.5, bảng T-601..T-910 theo phase (FE trên mock → BE → nối), rủi ro; Open questions chuyển thành §7, đóng OQ-09-01/02, cập nhật OQ-09-03, thêm OQ-09-05.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 — chiều **roadmap**: §1.1 lời hứa MVP làm tiêu chí ưu tiên; §2 bảng M1/M2/M3 nêu mục tiêu+domain kích hoạt+năng lực bàn giao+UC; §2.1 bảng phụ thuộc giữa domain + thứ tự kích hoạt; §2.2 cổng nghiệm thu MVP (4 cổng định lượng G1–G4 + kịch bản CEO 7 bước map domain/UC/Autonomy); §3 5 phase sau nêu domain + autonomy theo phase; §4 ma trận ưu tiên đầy đủ 28 domain D01–D28 + Data Foundation + tổng kết đếm; §5 thứ tự sinh tài liệu dạng cây. Thêm OQ-09-03/04. Giữ nguyên quyết định P0/P1/P2 của BRD; giữ ghi chú "T-* sinh ở đợt code" (R-DEC-09).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

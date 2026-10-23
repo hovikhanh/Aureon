@@ -81,11 +81,11 @@ Các quyết định này thuộc về CEO/chủ sản phẩm; không chặn vi�
 - Không triển khai P1/P2 chỉ vì có trong BRD — phải theo backlog (09) + decision.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
-- **Change 1.2.0 (đề xuất — kế hoạch build v3, 2026-10-23):** Thêm §2ter R-DEC-15..27 (human chốt trong phiên lập kế hoạch): mở rộng ủy quyền docs sang 09/10/06/14 ở bước Spec lock, đóng băng product/risk, Calendar Google/MS thật per-user, nguồn mã lỗi = `core/errors.py`, quy ước T-6xx..9xx + nhánh mỗi phase, email + Mailpit, `tenant_id` trong envelope, STT cloud cho voice Internal, seed v3 thay seed v2.1 (DEC-230/231 superseded), Org ở `hr`, route IA v3 + PWA installable + mock BFF, định nghĩa đạt MVP.
+- **Change 1.2.0 (human duyệt 2026-10-23 — kế hoạch build v3, 2026-10-23):** Thêm §2ter R-DEC-15..27 (human chốt trong phiên lập kế hoạch): mở rộng ủy quyền docs sang 09/10/06/14 ở bước Spec lock, đóng băng product/risk, Calendar Google/MS thật per-user, nguồn mã lỗi = `core/errors.py`, quy ước T-6xx..9xx + nhánh mỗi phase, email + Mailpit, `tenant_id` trong envelope, STT cloud cho voice Internal, seed v3 thay seed v2.1 (DEC-230/231 superseded), Org ở `hr`, route IA v3 + PWA installable + mock BFF, định nghĩa đạt MVP.
 - **Change 1.1.0 (code round — human ủy quyền, 2026-10-23):** Thêm §2bis Quyết định đợt code: R-DEC-12 (role enum v3 7 giá trị + ánh xạ 10→7, Phase 1), R-DEC-13 (`tenant_id` field-level, Phase 1), R-DEC-14 (ủy quyền agent cập nhật 05 + 13 cho field-level đợt code). Bắt đầu đợt code refactor nền v2.1 → model v3 theo phase (09).
 - **Change 0.2.0:** Human chốt Q1–Q6 → R-DEC-05..10 `resolved` (P0 MVP first, Modular Monolith, single-tenant + `tenant_id`, 7 role + AI Agent, docs-first, ID theo BRD + ánh xạ `main`). Thêm R-DEC-11 (ủy quyền sửa file bảo vệ cho doc-loading AI-EOS). Chuyển B1–B7 (BRD §21.1) thành quyết định mở của CEO, không blocking docs P0.
 - **Change 0.1.0:** Tạo 13 cho nhánh `ai-eos` — gom Q1–Q6 + B1–B7 + R-DEC-01..04.

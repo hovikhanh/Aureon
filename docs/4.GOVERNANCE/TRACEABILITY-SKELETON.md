@@ -202,10 +202,10 @@ Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được 
 Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không blocking docs P0): SaaS đa tenant dài hạn · khách hàng mục tiêu đầu · chính sách AI cloud (dữ liệu tài chính/nhân sự) · vai trò với phần mềm kế toán · ngưỡng L3 mặc định · kênh chat chính · mô hình giá. Theo dõi ở 13-DECISION-LOG §3 (B1–B7).
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
-- **Change 1.1.0 (đề xuất — đợt code, R-DEC-19/25):** quy ước ID đợt code: SCR giữ số v2.1 + mới từ SCR-40; EP domain code; `T-6xx..9xx`; `TC-M<x><y>-NN`; nhãn phase `M1.0`–`M3.5`.
+- **Change 1.1.0 (human duyệt 2026-10-23 — đợt code, R-DEC-19/25):** quy ước ID đợt code: SCR giữ số v2.1 + mới từ SCR-40; EP domain code; `T-6xx..9xx`; `TC-M<x><y>-NN`; nhãn phase `M1.0`–`M3.5`.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Vòng mở rộng spec-level P0 — ghi nhận nhãn nội bộ một file (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`) dùng trong 08/09/14; bổ sung `AGT-*` vào quy ước ID; phân biệt "ID liên-file" (cập nhật skeleton trước) vs "nhãn nội bộ một file". Không đổi tập P0 hay quyết định Q1–Q6.
 - **Change 0.2.0:** Khóa tập P0 (§12bis) sau khi human chốt Q1–Q6: 20 domain P0 / 6 P1 / 1 P2, kênh C1–C5 P0, Autonomy L0–L3 P0 (L4 phase 5), UC P0, agent P0; thêm quy ước gán số METRIC/ENT/EP/SCR/TOOL/AIC + ràng buộc "ID mới cập nhật skeleton trước"; cập nhật §13 (Q1–Q6 đã chốt).
