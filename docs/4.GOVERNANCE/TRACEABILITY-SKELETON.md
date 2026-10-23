@@ -188,7 +188,11 @@ Q1–Q6 đã chốt (13 §1). Tập **P0** cho đợt tài liệu này được 
 - **METRIC-*:** cấp ở **03** theo nhóm §10, định dạng `METRIC-<NHÓM>-NN` (NHÓM ∈ FIN/CUS/OPS/PPL/STR/DQ). Danh sách nguồn ở §10; 03 chốt số + công thức.
 - **ENT-*:** cấp ở **05**, định dạng `ENT-<Name>` theo 13 nhóm §11. 05 chốt field/kiểu/quan hệ; mọi entity nghiệp vụ có `tenant_id` (R-DEC-07).
 - **EP-*:** cấp ở **10** theo domain P0, định dạng `EP-<DOMAIN>-NN`. Phân loại tool READ/WRITE/APPROVAL/EXECUTION (§9).
-- **SCR-*:** cấp ở **06** theo SOURCE-UIUX, định dạng `SCR-NN`.
+- **SCR-*:** cấp ở **06** theo SOURCE-UIUX, định dạng `SCR-NN`. Đợt code (R-DEC-25): giữ số v2.1 cho màn hình dùng tiếp (SCR-03/13/14/16/18a/18b), màn hình mới từ `SCR-40` (06 §3.4).
+- **EP domain code** (đợt code, R-DEC-19, 10 §7.1): `SYS, ORG, ADM, DC, WF, NTF, INT, STR, KPI, OKR, PRF, TASK, MTG, CAL, KNW, FIN, HR, SAL, AI, CEO, RPT`.
+- **T-*** (task đợt code, R-DEC-19, cấp ở **09 §6**): `T-6xx` M1 · `T-7xx` M2 · `T-8xx` M3 · `T-9xx` nghiệm thu; hậu tố chữ (`T-601b`) cho task chèn thêm. Không dùng lại T-1xx..T-5xx (nền v2.1).
+- **TC-*** (nhóm test đợt code, cấp ở **14**): `TC-M<mốc><phase>-NN` (VD `TC-M11-03` = M1.1 case 3), cạnh các nhóm UC `TC-UC0x-*` và `TC-SYS-*` sẵn có.
+- **Phase đợt code:** `M1.0`–`M3.5` (09 §6) — nhãn lộ trình, khác "Phase 1–5" BRD §19.2.
 - **TOOL-*:** cấp ở **10** (Tool Registry §9, 13 metadata). **AIC-*** (13 thành phần AI Platform) cấp ở **07**. **AGT-*** (agent, §9/§12bis) tham chiếu ở **07**/**10**.
 - **Nhãn nội bộ một file** (CLAUDE.md §10.3 — chỉ dùng trong đúng file, không phải ID liên-file): `OQ-` (open question, mọi file); `DD-` (nguyên tắc dữ liệu demo — 08); `G1..G4` (cổng nghiệm thu MVP — 09); `GR-`/`INJ-`/`AUT-` (nhóm test grounding / anti-injection / autonomy — 14). Thêm nhãn nội bộ mới → ghi tại file dùng + liệt kê ở đây.
 - Mọi ID **liên-file** mới phải được thêm vào skeleton (file này) **trước** khi dùng trong 00–14.
@@ -201,6 +205,7 @@ Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không block
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (đề xuất — đợt code, R-DEC-19/25):** quy ước ID đợt code: SCR giữ số v2.1 + mới từ SCR-40; EP domain code; `T-6xx..9xx`; `TC-M<x><y>-NN`; nhãn phase `M1.0`–`M3.5`.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Vòng mở rộng spec-level P0 — ghi nhận nhãn nội bộ một file (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`) dùng trong 08/09/14; bổ sung `AGT-*` vào quy ước ID; phân biệt "ID liên-file" (cập nhật skeleton trước) vs "nhãn nội bộ một file". Không đổi tập P0 hay quyết định Q1–Q6.
 - **Change 0.2.0:** Khóa tập P0 (§12bis) sau khi human chốt Q1–Q6: 20 domain P0 / 6 P1 / 1 P2, kênh C1–C5 P0, Autonomy L0–L3 P0 (L4 phase 5), UC P0, agent P0; thêm quy ước gán số METRIC/ENT/EP/SCR/TOOL/AIC + ràng buộc "ID mới cập nhật skeleton trước"; cập nhật §13 (Q1–Q6 đã chốt).

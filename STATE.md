@@ -33,6 +33,8 @@
   Xử lý ở task riêng: viết lại contract test lấy mã lỗi từ `core/errors.py` (cần DEC về nguồn-sự-thật mã lỗi).
 
 ## Kế tiếp
+- **Kế hoạch build MVP v3: `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` §6** (M1.1→M3.5, vòng S→C→F→B→N→R; quyết định 13 §2ter R-DEC-15..27).
+- Đang ở **M1.1** (nhánh `v3/m1.1-foundation`): T-601/T-601b xong (Spec lock M1.1), contract test 11/11 xanh. ⏸ Chờ human duyệt diff docs (commit docs trên nhánh phase) rồi mới code T-603.
 - (Tuỳ chọn) P1.6 enforce `tenant_id` filtering trong repositories/services (mới có model + migration + JWT claim).
 - Chạy E2E login 7 role khi docker sẵn sàng; nếu fail → fix rồi mới đóng hẳn.
 - Phase 2 theo `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` (review + fix gate giữa các phase).
