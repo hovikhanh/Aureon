@@ -42,6 +42,7 @@ Hệ thống phục vụ một tập stakeholder rộng nhưng P0 chỉ hiện t
 - **Doanh nghiệp tạo thêm vai trò tùy biến** (BRD §3): vai trò mới kế thừa cơ chế RBAC+ABAC, không được vượt quyền mẫu ROLE-CEO.
 - **AI Agent** có đủ 9 thuộc tính identity (BRD §3.2): Identity, Role, Permission, Scope, Tools, Policies, Approval rules, Budget, Audit trail. Chi tiết entity `ENT-AIAgent` chốt ở 05 (R-DEC-09).
 - **ROLE-ADM không mặc định đọc bản ghi nghiệp vụ** (tài chính, nhân sự, sales) — chỉ cấu hình nền tảng; muốn xem phải dùng "Xem như người dùng" (FR-ADM-08) có audit, hoặc được cấp quyền tường minh.
+- **Cơ cấu tổ chức (R-DEC-30, M1.2):** ghi tổ chức/phòng ban/team/chức danh/phân công = permission `hr:admin`, cấp cho ROLE-CEO, ROLE-ADM và ROLE-DIR khối O. ROLE-ADM có `hr:read` với scope `s` = **chỉ cơ cấu** (organization, department, team, position, assignment, cây tổ chức); hồ sơ nhân sự, lương, hiring vẫn bị chặn (`403 FORBIDDEN_SCOPE`) — giữ nguyên tắc trên, đáp ứng FR-ADM-01 (Admin quản lý Departments). ROLE-ADM không được tạo/nâng người dùng lên ROLE-CEO (R-DEC-36).
 
 ### 2.1. Ánh xạ sang 10 role F.O.C.U.S của `main`
 
@@ -187,6 +188,7 @@ Ngưỡng và người duyệt theo loại hành động. "Không cho phép" = A
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.0.1 (đề xuất — M1.2, human duyệt R-DEC-30/36 2026-10-23):** §2 thêm ghi chú quyền cơ cấu `hr:admin` (CEO/ADM/DIR-O), ADM `hr:read` scope `s` chỉ cơ cấu, ADM không cấp ROLE-CEO.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng spec-level P0 bám canonical: §1 bảng stakeholder + ánh xạ role; §4 mô tả hành vi + ràng buộc từng FR-ADM-01..08; §5 4 mức phân loại → chính sách model/cloud + quy tắc fallback + field-level mask; §6 định nghĩa từng Autonomy L0–L4 kèm ví dụ hành vi + phân loại tool READ/WRITE/APPROVAL/EXECUTION + nhãn UI; §7 Approval Matrix đủ ngưỡng theo loại hành động; §9.1 liệt kê 12 nguyên tắc governance §17.1, §9.2 nội dung audit + ví dụ audit trail §14.2, §9.3 tuân thủ VN (NĐ 13, NĐ 123, ghi âm họp, chữ ký số, an ninh mạng); thêm OQ-02-04. Không field-level DB / T-* / TC-* (R-DEC-09).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

@@ -268,9 +268,9 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - OQ-05-03: effective-dated (FR-DATA-07) cho entity nào ở MVP — §6ter chốt tối thiểu cơ cấu tổ chức (FR-ORG-04) + KPITarget; mở rộng & mô hình lưu lịch sử (bitemporal / valid_from-to) chốt ở đợt code (R-DEC-09).
 - OQ-05-04: DQ Score (FR-DATA-02) — công thức tổng hợp 4 chiều (đầy đủ/chính xác/kịp thời/nhất quán) per-domain + ngưỡng tươi dữ liệu per-domain (FR-DATA-03) chốt ở 03 (`METRIC-DQ-*`); chưa gán số ở vòng này.
 - OQ-05-05: Data classification mặc định per nhóm (§2.1) là đề xuất mức khái niệm; override per-field + chính sách LLM theo mức chốt ở 07/đợt code (R-DEC-09). M1.2: override per-field cho Tổ chức/Identity ở §2.4 (R-DEC-34).
-- OQ-05-06 (M1.2): BusinessUnit (FR-ORG-01) — hoãn; khối biểu diễn bằng `departments.parent_id`. Cần entity riêng khi có báo cáo theo khối khác cây phòng ban → DEC.
-- OQ-05-07 (M1.2): Không chồng khoảng phân công bằng `EXCLUDE USING gist` cần extension PostgreSQL `btree_gist` (contrib, không phải package mới) — M1.2 dùng partial unique + kiểm ở service dưới khóa dòng; bật extension = hạ tầng mới → chờ human.
-- OQ-05-08 (M1.2): Tái cấu trúc cấp phòng ban (đổi `parent_id`) chưa effective-dated — cây `as_of` quá khứ dùng `parent_id` hiện tại. Cần bảng `department_versions` nếu UC-07/báo cáo đòi đúng cây cha tại quá khứ.
+- OQ-05-06 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): BusinessUnit (FR-ORG-01) — hoãn; khối biểu diễn bằng `departments.parent_id`. Cần entity riêng khi có báo cáo theo khối khác cây phòng ban → DEC.
+- OQ-05-07 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): Không chồng khoảng phân công bằng `EXCLUDE USING gist` cần extension PostgreSQL `btree_gist` (contrib, không phải package mới) — M1.2 dùng partial unique + kiểm ở service dưới khóa dòng; bật extension = hạ tầng mới → chờ human.
+- OQ-05-08 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): Tái cấu trúc cấp phòng ban (đổi `parent_id`) chưa effective-dated — cây `as_of` quá khứ dùng `parent_id` hiện tại. Cần bảng `department_versions` nếu UC-07/báo cáo đòi đúng cây cha tại quá khứ.
 
 ## Version
 - **Version:** 1.2.0 (current)
