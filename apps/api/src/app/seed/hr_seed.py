@@ -19,6 +19,7 @@ from app.core.base_repository import BaseRepository
 from app.modules.hr.models import (
     Department,
     Employee,
+    EmployeeAssignment,
     HiringPlan,
     Organization,
     SalaryHistory,
@@ -114,6 +115,16 @@ async def seed_employees(db: AsyncSession) -> int:
         for n, p in enumerate(PEOPLE, start=1)
     ]  # fmt: skip
     db.add_all(rows)
+    await db.flush()
+    # T-612: one assignment per person from hire (closed at termination) — 05 §2.4 backfill rule.
+    db.add_all([
+        EmployeeAssignment(
+            employee_id=e.id, department_id=e.department_id, team_id=e.team_id,
+            manager_id=e.manager_id, valid_from=e.hire_date, valid_to=e.termination_date,
+            reason="Dữ liệu seed", **SEED,
+        )
+        for e in rows
+    ])  # fmt: skip
     await db.flush()
     salaries = [
         SalaryHistory(employee_id=emp_id(p.code), base_salary=p.salary_mil * 1_000_000,

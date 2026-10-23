@@ -48,6 +48,7 @@ from app.modules.hr.schemas import (
     SalaryCreate,
     SalaryOut,
 )
+from app.modules.hr.services.org_service import OrgService
 from app.modules.hr.services.scope import (
     SELF_ROLES,
     check_department,
@@ -116,6 +117,7 @@ class HrService:
         self.positions = PositionRepository(db)
         self.employees = EmployeeRepository(db)
         self.salaries = SalaryRepository(db)
+        self.org = OrgService(db)
 
     # ---------- shared ----------
     async def _audit(
@@ -357,6 +359,7 @@ class HrService:
         )  # fmt: skip
         self.db.add(obj)
         await self._flush_unique("employee")
+        await self.org.record_placement(obj, today(), actor=user.user_id)  # T-612
         await self.db.refresh(obj)
         out = await self._out(user, obj)
         await self._audit("hr.employee_create", "employees", obj, after=employee_out(
@@ -376,6 +379,13 @@ class HrService:
             title = data.pop("title")
             dept = data.get("department_id", obj.department_id)
             data["position_id"] = await self._position_for(user, dept, title) if title else None
+        elif data.get("department_id") not in (None, obj.department_id) and obj.position_id:
+            # T-612: a position belongs to one department — carry the same title over.
+            old_title = (await self._out(user, obj)).title
+            data["position_id"] = (
+                await self._position_for(user, data["department_id"], old_title)
+                if old_title else None
+            )  # fmt: skip
         if "contract_type" in data:
             c = data.pop("contract_type")
             data["contract_type"] = CONTRACT_TO_DB[c] if c else None
@@ -384,6 +394,9 @@ class HrService:
         data["updated_by"] = user.user_id
         await self.employees.update(obj, expected_version=expected, **data)
         await self._flush_unique("employee")
+        await self.org.record_placement(obj, today(), actor=user.user_id)  # T-612
+        if obj.status == "terminated" and obj.termination_date is not None:
+            await self.org.close_current(obj.id, obj.termination_date, actor=user.user_id)
         await self.db.refresh(obj)
         out = await self._out(user, obj)
         await self._audit("hr.employee_update", "employees", obj, before,
@@ -395,6 +408,7 @@ class HrService:
         obj = await self.get_employee_row(user, id_)
         before = employee_out(obj, None, level4=True)
         obj.updated_by = user.user_id
+        await self.org.close_current(obj.id, today(), actor=user.user_id)  # T-612
         await self.employees.soft_delete(obj)
         await self._audit("hr.employee_delete", "employees", obj, before=before)
 

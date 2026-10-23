@@ -1,4 +1,4 @@
-"""Schema `hr` — 9 tables (05 §4.4 + §2.4 M1.2 `organizations`). Column groups follow 05 §2.1.
+"""Schema `hr` — 10 tables (05 §4.4 + M1.2 §2.4: organizations, employee_assignments).
 
 FK cycles (departments.head_employee_id ↔ employees.department_id, teams.lead_employee_id ↔
 employees.team_id) are broken with `use_alter=True` so create/drop order is deterministic.
@@ -196,6 +196,40 @@ class Position(BusinessModel):
     level: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     headcount_budget: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     reports_to_position_id: Mapped[uuid.UUID | None] = fk(f"{S}.positions.id", nullable=True)
+
+
+class EmployeeAssignment(BusinessModel):
+    """ENT-EmployeeAssignment (M1.2 T-612, FR-ORG-04, 05 §2.4/§6ter) — effective-dated placement.
+
+    Half-open `[valid_from, valid_to)`; `valid_to IS NULL` = current. At most one current row per
+    employee (partial unique); no overlap is enforced by `OrgService` under a row lock on the
+    employee (no `btree_gist`, OQ-05-07). `employees.department_id/team_id/position_id/
+    manager_id` stay the cached *current* values, synced in the same transaction.
+    """
+
+    __tablename__ = "employee_assignments"
+    __table_args__ = (
+        _valid_range(),
+        CheckConstraint("manager_id IS NULL OR manager_id <> employee_id", name="manager_not_self"),
+        Index(
+            "uq_employee_assignments_employee_id_current",
+            "employee_id",
+            unique=True,
+            postgresql_where=text("valid_to IS NULL AND deleted_at IS NULL"),
+        ),
+        Index("ix_employee_assignments_employee_id_valid_from", "employee_id", "valid_from"),
+        Index("ix_employee_assignments_department_id_valid_from", "department_id", "valid_from"),
+        {"schema": S},
+    )
+
+    employee_id: Mapped[uuid.UUID] = fk(f"{S}.employees.id")
+    department_id: Mapped[uuid.UUID] = fk(f"{S}.departments.id")
+    team_id: Mapped[uuid.UUID | None] = fk(f"{S}.teams.id", nullable=True)
+    position_id: Mapped[uuid.UUID | None] = fk(f"{S}.positions.id", nullable=True)
+    manager_id: Mapped[uuid.UUID | None] = fk(f"{S}.employees.id", nullable=True)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str | None] = txt(nullable=True)
 
 
 class EmployeeSkill(BusinessModel):
