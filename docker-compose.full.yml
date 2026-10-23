@@ -25,6 +25,8 @@ x-backend: &backend
     OLLAMA_BASE_URL: http://ollama:11434
     CLAMAV_HOST: clamav
     CLAMAV_PORT: "3310"
+    SMTP_HOST: ${SMTP_DOCKER_HOST:-mailpit}
+    SMTP_PORT: ${SMTP_DOCKER_PORT:-1025}
     # OmniRoute (build/runtime LLM gateway) runs on the host, outside this stack.
     OMNIROUTE_BASE_URL: ${OMNIROUTE_DOCKER_URL:-http://host.docker.internal:20128/v1}
     JWT_PRIVATE_KEY_PATH: /app/keys/jwt_private.pem
@@ -158,6 +160,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Dev SMTP sink (R-DEC-20) — notification e-mails land here. UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [aureon-net]
 
   web:
     build:

@@ -115,6 +115,15 @@ services:
       retries: 10
       start_period: 300s
 
+  # Dev SMTP sink for notification e-mails (R-DEC-20). UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
   celery-worker:
     <<: *app
     command: ["celery", "-A", "app.worker", "worker", "--loglevel=info", "-Q", "default,idp,events"]

@@ -201,6 +201,13 @@ class AuthService:
             raise UnauthenticatedError("user not found or inactive")
         return self.user_out(user, await self._role_of(user))
 
+    async def email_contact(self, user_id: uuid.UUID) -> tuple[str, str] | None:
+        """`(email, locale)` of an active user for e-mail notifications (T-616b); else `None`."""
+        user = await self.users.get(user_id)
+        if user is None or not user.is_active or user.is_service_account:
+            return None
+        return user.email, user.locale
+
     async def find_user_by_role(
         self, role_code: str, *, department_id: uuid.UUID | None = None
     ) -> uuid.UUID | None:

@@ -135,6 +135,17 @@ class ConfigService(BaseSettings):
     briefing_time: str = "06:00"
     approval_finance_threshold_vnd: int = 500_000_000
 
+    # --- E-mail notifications (T-616b, R-DEC-20/33) — Mailpit in dev ---
+    smtp_host: str = ""  # empty = e-mail not configured → PENDING rows wait, send task fails
+    smtp_port: int = Field(default=1025, gt=0, le=65535)
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "Aureon <no-reply@aureon.local>"
+    smtp_starttls: bool = False
+    smtp_timeout_seconds: float = Field(default=10, gt=0, le=60)
+    web_base_url: str = "http://localhost:3000"  # absolute links in e-mails
+    notification_email_interval_seconds: float = Field(default=60, gt=0)
+
     # --- Demo ---
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"

@@ -257,6 +257,28 @@ class NotificationRepository:
         )  # fmt: skip
         return int(getattr(res, "rowcount", 0) or 0)
 
+    # ---------- e-mail channel (T-616b) ----------
+    async def claim_email(self, notification_id: uuid.UUID) -> Notification | None:
+        """Lock one row of the current tenant; a row held by another worker → `None`."""
+        stmt = (
+            select(Notification)
+            .where(Notification.id == notification_id, Notification.tenant_id == require_tenant())
+            .with_for_update(skip_locked=True)
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def pending_email(self, stale_before: datetime, *, limit: int) -> list[uuid.UUID]:
+        """New PENDING rows, plus retried ones stuck since `stale_before` (worker died)."""
+        stmt = (
+            select(Notification.id)
+            .where(Notification.tenant_id == require_tenant(),
+                   Notification.email_status == "PENDING",
+                   (Notification.email_attempts == 0) | (Notification.created_at <= stale_before))
+            .order_by(Notification.created_at)
+            .limit(limit)
+        )  # fmt: skip
+        return list((await self.db.execute(stmt)).scalars().all())
+
 
 class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
     model = NotificationPreference
