@@ -162,6 +162,250 @@ Mỗi FR-DATA dưới đây mô tả hành vi + tiêu chí chấp nhận mức s
 | `auth.users.email` | 3 Mật | ADM (`platform:read` — cần để quản trị tài khoản), chính chủ (`/auth/me`); không vào event payload/email body |
 | `hr.organizations.*`, `departments.*`, `teams.*`, `positions.*`, `employee_assignments.*`, `employees.full_name/employee_code` | 2 Nội bộ | Theo permission + data scope; không mask |
 
+### 2.5. Field-level đợt code — M1.3 (D11 Task/Project/Workload, D04 Approval cơ bản — đề xuất, chờ human duyệt bước S)
+
+> Migration `0014_work_tasks_m13` (schema `execution`) và `0015_workflow_approvals_m13` (schema `platform`), reversible, có backfill; `downgrade -1 && upgrade head` sạch qua từng bản. Nhóm cột `BusinessModel` như §2.4. Classification: task/project/milestone/dependency = **Nội bộ** (§2.1 "Sản phẩm & thực thi"); approval = **Nội bộ**.
+
+**ENT-Task — `execution.tasks`** (sửa)
+
+| Cột | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `parent_id` → `parent_task_id` | **đổi tên** (R-DEC-42) | UUID NULL FK `execution.tasks.id` (RESTRICT), index | Một cấp sub-task (cha không được có cha); service chặn chính nó/vòng. API v2.1 field `parent_id` đổi tên cùng path mới (đã breaking theo R-DEC-40). Seed v3 hiện không dùng cột → backfill không cần |
+| `source_ref` | + mới | JSONB NULL; CHECK `source_ref IS NULL OR (source_ref ? 'kind' AND source_ref ? 'id')` | `{kind ∈ meeting/decision/ai_action/document/mitigation, id: uuid, page?: int}` — **con trỏ nguồn gốc** cho P06 lineage (task từ họp/AI/IDP). `kind` phải nhất quán `task_source` (meeting/decision→`meeting`, ai_action→`ai`, document→`document`, mitigation→`mitigation`) — service, sai → `422`. Backfill: `meeting_id`/`decision_id`/`source_document_id` có giá trị → `source_ref` tương ứng (ưu tiên decision > meeting > document). Giữ các cột FK cũ (không xóa; FK thật cho meeting/decision) |
+| `assignee_id` | **đổi ngữ nghĩa** (R-DEC-41) | UUID NULL (soft ref) | = `hr.employees.id` (trước: lẫn `auth.users.id`). Backfill: giá trị trùng `auth.users.id` có `employee_id` → thay bằng `employee_id` (UPDATE qua join trong migration, downgrade đảo lại theo bảng tạm `_m13_assignee_backfill`). `owner_id` giữ = `auth.users.id` (người tạo/chịu trách nhiệm) |
+| index | + mới | `(tenant_id, assignee_id, due_date)` WHERE `deleted_at IS NULL` | "Task của tôi" + workload; index cũ `ix_tasks_assignee_id_status_due_date` giữ |
+
+**ENT-TaskDependency — `execution.task_dependencies`** (mới, `BusinessModel`; FR-TASK-02)
+
+| Cột | Kiểu | Ràng buộc | Mức |
+|---|---|---|---|
+| `task_id` | UUID | NOT NULL FK `execution.tasks.id` (CASCADE), index — task **bị chặn** | Nội bộ |
+| `depends_on_task_id` | UUID | NOT NULL FK `execution.tasks.id` (CASCADE), index — task **phải xong trước** | Nội bộ |
+| `dependency_type` | enum `task_dependency_type` | NOT NULL DEFAULT `finish_to_start` (P0 chỉ một giá trị; enum để mở rộng `start_to_start` P1) | Nội bộ |
+| — | CHECK | `task_id <> depends_on_task_id` | — |
+| — | UNIQUE | `(tenant_id, task_id, depends_on_task_id)` WHERE `deleted_at IS NULL` | — |
+
+- Không vòng: service BFS từ `depends_on_task_id` theo cạnh `depends_on` trong tx sau `SELECT … FOR UPDATE` trên hai dòng task (thứ tự id tăng để tránh deadlock); giới hạn độ sâu 50 (vượt → `422`). Dependency giữa **project** (FR-TASK-02 vế 2) và cảnh báo đường găng → **hoãn M3.x** (backlog FR-TASK-02b).
+- Task cùng tenant bắt buộc; khác phòng ban được phép (dự án chéo phòng 08 §2.1).
+
+**ENT-Milestone — `execution.milestones`** (không đổi schema): đã có `project_id` + CK `one_parent`; M1.3 chỉ mở API theo project. `late` là trường tính (không lưu).
+
+**ENT-Project — `execution.projects`** (sửa, `0014`): **+ `initiative_id`** UUID NULL FK `execution.initiatives.id` (SET NULL), index `(tenant_id, initiative_id)` — liên kết Initiative → Project (FR-STR-01 "Strategic project"); M1.3 sở hữu cột + field API (EP-TASK-09..12, `ProjectOut`), M1.4 chỉ đọc (EP-STR-22, `/goals/tree`). Backfill NULL. Trường tính: `progress_pct`, `planned_pct`, `late` tính lúc đọc từ task (cùng hàm với METRIC-OPS-02 — tách `execution/services/project_rules.py` thuần để dùng chung, không lệch công thức).
+
+**ENT-Workload** — **không tạo bảng** (R-DEC-44): tính lúc đọc từ `tasks` qua `services/workload.py` (Σ `estimate_hours`, thiếu → 4h; 40h/tuần; > 110% hai tuần liên tiếp). Thêm hàm `weekly_grid(db, dept, week_end, weeks)` dùng chung cho EP-TASK-18 và heatmap EP-49 (bỏ trùng `_heatmap`).
+
+**ENT-ApprovalRequest — `platform.approval_requests`** (sửa, `0015`)
+
+| Cột | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `department_id` | + mới | UUID NULL (soft ref), index `(tenant_id, status, department_id)` | Data scope MGR `d` cho inbox. Backfill NULL (AI action v2.1 = cấp công ty) |
+| `target_kind` | + mới | text NOT NULL | Backfill từ `approval_rules.target_kind` (`ai_action`); thôi trả hằng số trong `_to_out` |
+
+**ENT-ApprovalRule — `platform.approval_rules`** (không đổi cột): thêm bản ghi `RULE-task_reassign` `{target_kind: task_reassign, condition: {}, approver_role_codes: [MGR], second_approver_role_codes: null, escalate_to_role_code: DIR, sla_hours: 8 (= DEFAULT_SLA_HOURS hiện có), priority: 100}` — tạo lười trong service như `_finance_rule` (không seed migration). `SINGLE_STEP_ROLES`/`FINANCE_STEP_ROLES` cứng → đọc từ rule (`approver_role_codes` bước 1, `second_approver_role_codes` bước 2); giá trị cho `ai_action` giữ nguyên (CEO,DIR / CEO→DIR).
+
+**ENT-Notification** (không đổi schema/enum): kind dùng `task_assigned`, `approval_requested`, `approval_decided` (có sẵn) và **`reminder` cho task quá hạn** (R-DEC-46; không thêm giá trị enum). Email theo `notification_preferences` (mặc định: `task_assigned`, `approval_requested` bật; `reminder`, `approval_decided` tắt — giữ `EMAIL_DEFAULT_ON` M1.2). `ref_schema='execution'`, `ref_table='tasks'` / `'platform','approval_requests'`; `link` = `/work?task=<id>` / `/work/approvals?id=<id>`; `title`/`body` không chứa mức 3–4.
+
+### 2.6. Field-level đợt code — M1.4 (D07 Strategy, D08 KPI, D09 OKR, D10 check-in — đề xuất, chờ human duyệt bước S)
+
+Nhóm bảng theo 05 §2.1: **nghiệp vụ** (C3/C4/C19 + `tenant_id` + `deleted_at`, `BusinessModel`) hoặc **append-only** (`LogModel` + **`tenant_id`** — R-DEC-51 bổ sung tenant cho log mới). Schema `execution`. Tham chiếu chéo module là soft ref (C7, không FK chéo schema). Index mọi FK.
+
+**ENT-Strategy → `execution.strategies` (mới, nghiệp vụ):** `code` text UQ (live), `name` text, `vision` text?, `mission` text?, `period_start` date, `period_end` date (CHECK `period_end > period_start`), `owner_id` uuid soft-ref `auth.users`, `status` enum `execution.strategy_status` (`draft, active, closed`). Ràng buộc "≤ 1 Strategy `active` chồng kỳ/tenant" kiểm ở service (khóa `SELECT … FOR UPDATE`).
+
+**ENT-StrategicObjective → `execution.strategic_objectives` (mới, nghiệp vụ, R-DEC-50):** `strategy_id` FK `strategies.id`, `code` text UQ (live), `title`, `description`?, `pillar` `PILLAR`? (F/O/C/U/S — StrategicPillar P0 = enum pillar, không bảng riêng), `owner_id`, `department_id`? soft-ref `hr.departments`, `weight_pct` numeric(7,4) 0–100, `sort_order` int default 0, `status` `OKR_STATUS`, `progress_pct` numeric(7,4) hệ thống tính = trung bình trọng số `progress_pct` của Initiative live (trọng số `weight_pct`, tổng 0 → trung bình đều; không có initiative → trung bình progress Objective gắn trực tiếp; không có → 0). Index `(strategy_id, sort_order)`.
+
+**Cột mới trên bảng có sẵn:**
+
+| Bảng | Cột | Kiểu | Ghi chú |
+|---|---|---|---|
+| `objectives` | `strategic_objective_id` | uuid FK `strategic_objectives.id` NULL | Chỉ Objective gốc (`parent_id IS NULL`) — CHECK `parent_id IS NULL OR strategic_objective_id IS NULL` |
+| `kpis` | `strategic_objective_id` | uuid FK NULL | Chỉ KPI gốc — CHECK tương tự với `parent_kpi_id` |
+| `kpis` | `pillar` | `PILLAR` NULL | Phục vụ scope DIR theo khối (R-DEC-57) |
+| `initiatives` | `strategic_objective_id` | uuid FK NULL | Backfill rồi giữ NULL được ở DB; **bắt buộc** ở API mới (EP-STR-13) |
+| `initiatives` | `objective_id` | đổi NOT NULL → **NULL** | Initiative thuộc SO; Objective OKR là tùy chọn |
+| `key_results` | `at_risk` | bool NOT NULL default false | Cờ tính sẵn (R-DEC-55) |
+| `key_results` | `at_risk_since` | timestamptz NULL | Thời điểm chuyển `true` |
+| `key_results` | `at_risk_reasons` | text[] NOT NULL default `{}` | ⊆ `declining, low_confidence, behind_plan` |
+| `key_results` | `last_checked_in_at` | timestamptz NULL | Cập nhật ở EP-PRF-02 (nguồn G2 + `due`) |
+| `kpi_targets` | `valid_from` | date NOT NULL | Backfill = ngày đầu kỳ `period_key` |
+| `kpi_targets` | `valid_to` | date NULL | Nửa mở `[valid_from, valid_to)`, NULL = hiện hành (cùng mô hình 05 §2.4) |
+| `kpi_targets` | `reason` | text NULL | Lý do đổi target giữa kỳ (audit) |
+| `kpi_measurements` | `tenant_id`, `measured_by` (uuid NULL), `data_source` (`KPI_DATA_SOURCE` default `manual`), `note` text NULL, `check_in_id` uuid FK `check_ins.id` NULL | | Bỏ UQ `(kpi_id, period_key)` → index thường `(kpi_id, period_key, measured_at DESC)` (R-DEC-51) |
+| `check_ins` | `tenant_id` | uuid NOT NULL | Backfill tenant hệ thống |
+
+**KPITarget effective-dated (R-DEC-52):** thay partial UQ `(kpi_id, period_key) WHERE deleted_at IS NULL` bằng partial UQ `(kpi_id, period_key) WHERE deleted_at IS NULL AND valid_to IS NULL` (≤ 1 bản hiện hành/kỳ) + exclusion logic ở service (không chồng khoảng). Target "hiệu lực tại thời điểm đo" = bản có `valid_from ≤ ngày đo < valid_to` (ngày theo `Asia/Ho_Chi_Minh`); không có → tự tạo từ `kpis.target_value` (giữ hành vi v2.1). `locked_at` áp cho mọi bản của kỳ.
+
+**ENT-KPIEvaluation → `execution.kpi_evaluations` (mới, nghiệp vụ, R-DEC-53):** `kpi_id` FK, `period_key`, `kpi_target_id` FK (target hiệu lực dùng để chấm), `measurement_id` FK `kpi_measurements.id` (lần đo mới nhất của kỳ), `actual_value` measure, `target` measure, `achievement_pct` numeric(7,4), `band` `KPI_BAND`, `previous_band` `KPI_BAND`?, `gap_value` measure (= target − actual theo `direction`, ≥ 0 khi chưa đạt), `measured_on_time` bool, `evaluated_at` ts, `locked_at` ts?. UQ partial `(kpi_id, period_key) WHERE deleted_at IS NULL`. Upsert khi đo/đổi target; là **nguồn đọc** cho chi tiết KPI, cây, G2, UC-03 (không tính lúc request).
+
+**ENT-KRMeasurement → `execution.kr_measurements` (mới, append-only, R-DEC-53):** `tenant_id`, `key_result_id` FK, `check_in_id` FK `check_ins.id` UQ NULL (NULL = backfill/seed), `period_key` (kỳ Objective), `value` measure, `progress_pct` numeric(7,4), `previous_progress_pct` numeric(7,4)?, `confidence` `CONFIDENCE_BAND`, `measured_at` ts, `measured_by` uuid?. Index `(key_result_id, measured_at DESC)`. Chuẩn hóa từ `check_ins` (KR): mỗi check-in KR sinh đúng một dòng cùng transaction; backfill trong migration 0016 từ check-in KR có sẵn (sort `checked_in_at`, tính `progress_pct` theo baseline/target hiện tại).
+
+**Quy tắc tính (service, có unit test):**
+- **On-time KPI:** kỳ `P` của KPI `active` là *đúng kỳ* nếu có measurement với `measured_at < end(P) + GOALS_KPI_GRACE_DAYS` (mặc định 5 ngày; cấu hình qua `ConfigService`).
+- **On-time KR:** KR `active` (Objective `active`, kỳ chứa ngày tính) là *đúng kỳ* nếu `last_checked_in_at ≥ ngày tính − GOALS_KR_CHECKIN_MAX_AGE_DAYS` (mặc định 7 — check-in tuần, FR-OKR-04).
+- **`METRIC-STR-01` G2 — "KPI/OKR cập nhật đúng kỳ" (R-DEC-54):** `pct(#KPI-kỳ đúng hạn + #KR đúng hạn, #KPI-kỳ đến hạn + #KR active)`; KPI-kỳ đến hạn = kỳ đã kết thúc gần nhất (cộng grace) của mỗi KPI `active`. Hướng `LO`, warning **80** (cổng G2), critical 60; refresh trên `execution.kpi_measured`, `execution.okr_checked_in` + recompute hằng ngày; lineage → danh sách KPI/KR trễ (`records`).
+- **SEI — Strategy Execution Index:** giữ công thức DEC-226 (`progress ≥ 0,9 × kế hoạch tuyến tính`, trọng số `weight_pct`), mã **giữ `METRIC-RSK-06`** ở M1.4 (đổi sang mã nhóm STR ở T-701/M2.1 cùng bảng ánh xạ 32 METRIC — mã cấp khi đó); thêm `refresh_events` `execution.kpi_measured`; `records` = initiative trễ (drill-down 03 §4). Cùng hàm dùng cho `on_track` ở EP-STR-01.
+- **At-risk KR (R-DEC-55):** sau mỗi check-in KR và job beat hằng ngày 07:00: `reasons` = `declining` (progress < progress lần đo trước) ∪ `low_confidence` (`confidence = LOW`) ∪ `behind_plan` (progress < 0,7 × % thời gian đã trôi của kỳ — tham số `GOALS_KR_BEHIND_RATIO`); `at_risk = reasons ≠ ∅ ∧ days_to_period_end ≥ 21`. Chuyển false→true → `execution.okr_at_risk`.
+
+**Migration dự kiến (dải M1.4):**
+- **`0016_goals_strategy_m14`** (T-626, T-627a): enum `execution.strategy_status`; bảng `strategies`, `strategic_objectives`; cột `strategic_objective_id` (objectives/kpis/initiatives), `kpis.pillar`, `initiatives.objective_id` DROP NOT NULL; backfill: mỗi tenant có Initiative/Objective `level=company` → 1 Strategy `STR-<năm>` (`active`, kỳ = năm của Objective) + 1 StrategicObjective/Objective company năm (`SO-<code>`), gán `initiatives.strategic_objective_id`. Downgrade: chỉ đặt lại NOT NULL nếu không có dòng NULL (nếu có → raise rõ ràng).
+- **`0017_goals_measure_m14`** (T-627): `kpi_targets.valid_from/valid_to/reason` (backfill `valid_from = đầu kỳ`), đổi UQ; `kpi_measurements` cột mới + bỏ UQ; `check_ins.tenant_id`; bảng `kpi_evaluations` (backfill từ measurement hiện có) và `kr_measurements` (backfill từ check-in KR); cột at-risk + `last_checked_in_at` trên `key_results` (backfill `max(checked_in_at)`). Downgrade: xóa bảng/cột mới; khôi phục UQ `kpi_measurements` bằng cách giữ dòng mới nhất mỗi `(kpi_id, period_key)` (mất lịch sử đo nhiều lần — ghi rõ trong docstring).
+- Enum `platform.notification_kind`: **không đổi** (R-DEC-59).
+
+### 2.7. Field-level đợt code — M1.5 (D03 Data Capture C1/C3/C5, Action Registry v2, lineage — đề xuất, chờ human duyệt bước S)
+
+> Migration `0018_capture_registry` (idp + platform.data_lineage) và `0019_capture_seed_doctypes` (data: doc type #2/#3/#4 + schema v1 published + rule). Cả hai reversible; `downgrade` của 0019 xóa schema/rule seed **chỉ khi** chưa có `extraction_jobs` tham chiếu (ngược lại raise). Thứ tự phụ thuộc: sau `0014..0017` của M1.3/M1.4.
+
+**ENT-SourceDocument — `idp.source_documents`** (sửa)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `committed_by` | uuid | NULL | Nội bộ | **mới**; người thực thi ACT (khác `reviewed_by` khi qua EP-DC-23) |
+| `rolled_back_at` | timestamptz | NULL | Nội bộ | **mới** |
+| `rolled_back_by` | uuid | NULL | Nội bộ | **mới** |
+| `rollback_reason_code` | text | NULL; CHECK IN (`mistake`,`critical_field_wrong`,`duplicate`,`other`) | Nội bộ | **mới** |
+| `row_count` | integer | NULL; CHECK `row_count >= 0` | Nội bộ | **mới**; số dòng đưa vào tài liệu (C5/bảng) |
+| index | | `ix_source_documents_submitted_by_status (submitted_by, status)`; `ix_source_documents_department_id_status (department_id, status)` | | **mới** cho Hộp thư |
+
+**ENT-ImportBatch — `idp.import_batches`** (sửa; `LogModel` → thêm `tenant_id`)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `tenant_id` | uuid | NOT NULL, server_default tenant hệ thống (backfill), index | Nội bộ | **mới** (R-DEC-21) |
+| `source_document_id` | uuid | NULL, FK `idp.source_documents.id` ON DELETE RESTRICT, index | Nội bộ | **mới**; C5: 1 batch ↔ 1 tài liệu |
+| `document_type_id` | uuid | NULL, FK `idp.document_types.id`, index | Nội bộ | **mới** |
+| `sheet_name` / `header_row` | text / smallint | NULL; CHECK `header_row BETWEEN 1 AND 50` | Nội bộ | **mới** |
+| `rows_total` / `rows_valid` / `rows_invalid` | integer | NOT NULL default 0; CHECK ≥ 0 | Nội bộ | **mới** |
+| `column_mapping` | jsonb | giữ; shape `{columns: [{index, header, field, confidence, origin: AI\|HEURISTIC\|USER}]}` | Nội bộ | **sửa** shape |
+| `version` | integer | NOT NULL default 1 | — | **mới**; khóa lạc quan EP-DC-19/22 |
+
+**ENT-ImportRow — `idp.import_rows`** (mới, `LogModel` + `tenant_id`; chỉ phục vụ preview/error file — R-DEC-62)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `tenant_id` | uuid | NOT NULL, index | Nội bộ | |
+| `import_batch_id` | uuid | NOT NULL, FK `idp.import_batches.id` ON DELETE CASCADE | Nội bộ | |
+| `row_number` | integer | NOT NULL; unique `(import_batch_id, row_number)` | Nội bộ | số dòng Excel gốc |
+| `raw` | jsonb | NOT NULL | theo cột | giá trị gốc theo header; cột mức 4 lưu **mã hóa** như `extracted_fields.value` |
+| `values` | jsonb | NULL | theo cột | sau chuẩn hóa VN (FR-DC-13) |
+| `errors` | jsonb | NOT NULL default `[]` | Nội bộ | `[{field, rule_code, message_key, params}]` |
+| `status` | text | NOT NULL; CHECK IN (`valid`,`invalid`) | Nội bộ | index `(import_batch_id, status)` |
+
+- Retention: `import_rows` xóa cứng bởi job `idp.purge_import_rows` khi batch `completed` + `undo_deadline` qua (giữ `extracted_fields` làm nguồn lineage). Hoãn nếu job retention chung chưa có → ghi OQ.
+
+**ENT-DocumentAction — `idp.document_actions`** (mới, `LogModel` + `tenant_id`; R-DEC-63)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `tenant_id` | uuid | NOT NULL, index | Nội bộ | |
+| `source_document_id` | uuid | NOT NULL, FK `idp.source_documents.id` ON DELETE RESTRICT, index | Nội bộ | |
+| `seq` | integer | NOT NULL; unique `(source_document_id, seq)` | Nội bộ | thứ tự chạy; undo theo `seq DESC` |
+| `action_name` | text | NOT NULL | Nội bộ | `ACT-*` trong Registry |
+| `row_index` | integer | NULL | Nội bộ | dòng nguồn |
+| `params` | jsonb | NOT NULL | ≤ 3 | tham số đã validate; field mức 4 **không** lưu (thay `{masked:true}`) |
+| `result_refs` | jsonb | NOT NULL | Nội bộ | `[{schema, table, id, reused: bool}]` |
+| `snapshot` | jsonb | NULL | ≤ 3 | trạng thái trước (upsert) để undo; không chứa mức 4 |
+| `target_version` | integer | NULL | Nội bộ | `version` bản ghi đích sau ghi — so khi undo (sửa sau commit → conflict) |
+| `status` | text | NOT NULL; CHECK IN (`applied`,`reverted`) | Nội bộ | |
+| `executed_by` / `executed_at` | uuid / timestamptz | NOT NULL | Nội bộ | |
+| `reverted_at` / `reverted_by` | timestamptz / uuid | NULL | Nội bộ | |
+
+**ENT-DataLineage — `platform.data_lineage`** (sửa)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `tenant_id` | uuid | NOT NULL, server_default tenant hệ thống (backfill), index | Nội bộ | **mới** (R-DEC-21) |
+| `document_action_id` | uuid | NULL (không FK chéo schema — DEC-125; tham chiếu logic) | Nội bộ | **mới**; revoke theo action |
+| `row_index` | integer | NULL | Nội bộ | **mới** |
+| index | | `ix_data_lineage_source_document_id (source_document_id)`; partial `ix_data_lineage_target_live (target_schema, target_table, target_id) WHERE revoked_at IS NULL` | | **mới** |
+
+- Ghi: mỗi cột đích được set từ field → 1 dòng `link_kind=RECORD_FROM_FIELD` `{target_schema, target_table, target_id, target_column, extracted_field_id, document_page_id, source_document_id, action_name, row_index}`. `document_page_id` lấy từ `extracted_fields.document_page_id` (**sửa** pipeline: gán theo `source_location.page`/`sheet`, không cố định trang 1). C1: `extracted_field_id` của field manual, `document_page_id` NULL. Undo → `revoked_at = now()` (không xóa — P06).
+- Ghi lineage qua **service public** `platform.services.lineage_service.LineageService.record_many(db, links)` (mới) — idp không import model platform.
+
+**ENT-CaptureIncident — `idp.capture_incidents`** (mới, `BusinessModel`; G4 — R-DEC-69)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `source_document_id` | uuid | NOT NULL, FK, index | Nội bộ | |
+| `extracted_field_id` | uuid | NULL, FK `idp.extracted_fields.id` | Nội bộ | |
+| `field_name` | text | NOT NULL | Nội bộ | |
+| `is_critical` | boolean | NOT NULL | Nội bộ | sao từ field/schema |
+| `detected_by` | text | NOT NULL; CHECK IN (`review`,`post_commit`,`undo`) | Nội bộ | `review` = bắt được trước commit (không tính G4) |
+| `undetected` | boolean | NOT NULL | Nội bộ | = `detected_by <> 'review'` AND field đã qua người hoặc STP |
+| `target_table` / `target_id` | text / uuid | NULL | Nội bộ | |
+| `description` | text | NOT NULL, ≤ 2000 | ≤ 3 | |
+| `reported_by` / `reported_at` | uuid / timestamptz | NOT NULL | Nội bộ | |
+| index | | `(undetected, reported_at)` | | |
+
+- Tự tạo incident (không qua EP-DC-36) khi undo `reason_code=critical_field_wrong` (một dòng/field trọng yếu của tài liệu, `detected_by=undo`).
+
+**ENT-ExtractionSchema — `idp.extraction_schemas`** (sửa shape JSONB, không đổi cột)
+- `fields[]`: `{name, label_key, value_type, required, is_critical, sensitivity_level, group?: "row", target: {action, param}, enum?, master_ref?: "hr.department_code"|"hr.employee_code"|"execution.kpi_code", header_aliases[]}`.
+- `thresholds`: `{classification_confidence_min ≥ 0.95, required_field_min ≥ 0.90}` (DEC-133, chỉ được **tăng**).
+- `action_names`: thứ tự ACT; **thêm** cột `classifier_keywords text[] NOT NULL default '{}'` ở `idp.document_types` (R-DEC-65).
+
+**ENT-DQDomainScore — `platform.dq_domain_scores`** (mới, `LogModel` + `tenant_id`; R-DEC-68)
+
+| Cột | Kiểu | Ràng buộc | Mức | Ghi chú |
+|---|---|---|---|---|
+| `tenant_id` | uuid | NOT NULL | Nội bộ | |
+| `domain` | text | NOT NULL | Nội bộ | `finance, sales, hr, product, risk, execution, idp` |
+| `period_key` | text | NOT NULL; unique `(tenant_id, domain, period_key)` | Nội bộ | tháng |
+| `completeness` / `accuracy` / `freshness` / `score` | numeric(5,2) | NOT NULL; CHECK 0..100 | Nội bộ | |
+| `rows` | integer | NOT NULL | Nội bộ | |
+| `computed_at` | timestamptz | NOT NULL | Nội bộ | |
+
+### 2.8. Field-level đợt code — M1.6 (D26 AI Platform nền, UC-07 Onboarding — đề xuất, chờ human duyệt bước S)
+
+> Migration `0020_ai_platform_m16` (reversible; `downgrade` xóa cột/bảng mới, khôi phục `message_id NOT NULL` sau khi xóa dòng log có `message_id IS NULL` — chỉ dev). `0021_*` để trống (dự phòng). Không bảng mới cho onboarding (R-DEC-75). Endpoint ở 10 §7.2.5.
+
+**ENT-ToolCallLog — `ai.tool_call_logs`** (sửa; `LogModel` append-only — R-DEC-74)
+
+| Cột | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `tenant_id` | + mới | UUID NOT NULL, backfill tenant mặc định, index `(tenant_id, created_at DESC)` | Log không kế thừa `TenantMixin` → cột riêng (tiền lệ `outbox_events`, R-DEC-21) |
+| `request_id` | + mới | UUID NULL, index | = `X-Request-Id` (`current_request_id()`); NULL chỉ với job beat/consumer → khi đó lấy `correlation_id` của event |
+| `user_id` | + mới | UUID NULL (soft ref `auth.users`), index | Người được phục vụ (`on_behalf_of`); NULL = agent chạy theo lịch |
+| `message_id` | sửa | NOT NULL → **NULL** | Tool call ngoài chat (event/onboarding/demo replay) |
+| `ai_action_id` | + mới | UUID NULL FK `ai.ai_actions.id` (RESTRICT), index | Tool WRITE tạo thẻ |
+| `tool_kind` | + mới | `ai.tool_kind` enum `READ/WRITE/APPROVAL/EXECUTION` NOT NULL, backfill từ registry (không tìm thấy → `READ`) | Lọc EP-AI-22 |
+| `error_code` | + mới | text NULL | `FORBIDDEN_ROLE`, `AI_DISABLED`, `AI_WRITE_VIA_ACTION`… (nội bộ) |
+| `result_refs` | + mới | JSONB NOT NULL default `'[]'` | `SourceRef[]` rút gọn `{type,id,label}` — không giá trị thô |
+| `arguments` | giữ | JSONB | **Phải qua `scrub_for_model`/field_policy trước khi ghi** (mức 4 bỏ, mức 3 mã hóa) |
+| `autonomy_level` | sửa ngữ nghĩa | — | = level **hiệu lực** sau `resolve_level` (không còn `autonomy_default`) |
+
+**ENT-ModelCallLog — `ai.model_call_logs`** (sửa): + `tenant_id` UUID NOT NULL (backfill, index `(tenant_id, created_at DESC)`); + `request_id` UUID NULL index; + `agent_profile_code` text NULL (index — `group_by=agent`). `CallRecord` (`core/model_gateway/gateway.py`) thêm `request_id`, `agent_profile_code`; `core` đọc `current_request_id()` (không import modules).
+
+**ENT-AIAgent — `ai.agent_profiles`** (sửa; giữ tên bảng, ENT-AIAgent ≡ ENT-AIAgentProfile — R-DEC-71): + `agent_ref` text NOT NULL unique (`AGT-CEO`, `AGT-DATA_CAPTURE`, `AGT-PERFORMANCE`, `AGT-TASK`, `AGT-MEETING`, `AGT-REPORTING`); + `description_vi`, `description_en` text NOT NULL; + `tenant_id` UUID NOT NULL (backfill), unique đổi `code` → `(tenant_id, code)`; CHECK `max_autonomy_level <> 'L4'` (enum đã không có L4 — giữ). `allowed_tools text[]` phải ⊆ registry (kiểm ở service, không FK).
+
+| `code` | `max_autonomy_level` (seed) | `model_task` | `allowed_tools` (seed, ⊆ registry; tool `p1_frozen`/APPROVAL loại) |
+|---|---|---|---|
+| `ceo` | L2 | `chat` | mọi READ P0 (finance/sales/hr dashboard, `get_kpi_status`, `get_okr_status`, `get_project_status`, `get_metric`, `list_alerts`, `get_lineage`, `get_org_tree`, `search_documents`, `get_source_document`) + `generate_report`, `record_decision`, `create_task`, `request_approval` |
+| `data_capture` | L2 | `extract` | `search_documents`, `get_source_document`, `get_lineage`, `submit_document`, `create_department`, `create_team` |
+| `performance` | L2 | `chat` | `get_kpi_status`, `get_okr_status`, `list_objectives`, `get_metric`, `record_kpi_measurement`, `record_kr_checkin`, `upsert_kpi`, `upsert_objective` |
+| `task` | L2 | `chat` | `list_tasks`, `get_overdue_tasks`, `get_project_status`, `get_workload`, `get_org_tree`, `create_task`, `assign_task`, `update_task`, `send_notification` |
+| `meeting` | L2 | `chat` | `record_decision`, `create_meeting`, `create_task`, `send_notification`, `get_org_tree` |
+| `reporting` | L2 | `report` | `get_execution_dashboard`, `get_metric`, `list_alerts`, `get_kpi_status`, `get_okr_status`, `generate_report` |
+
+- Agent `assistant` v2.1 (hard-code) → ánh xạ `ceo` (R-DEC-71): chat dùng `ceo` cho CEO/DIR, và **agent theo role** ở M1.6 = `ceo` cho mọi người (Orchestrator chọn agent = M2.4); quyền hiệu lực = `allowed_tools(agent)` ∩ `available_for(permissions người)`. Bản ghi cũ `agent_profile_code='assistant'` giữ nguyên (log append-only), FE hiển thị nhãn "Trợ lý (v2.1)".
+- `monthly_budget_usd` NULL = dùng ngân sách chung `AI_MONTHLY_BUDGET_USD`; vượt 100% budget agent → `429 AI_QUOTA_EXCEEDED` cho agent đó (cảnh báo 80% hiển thị ở SCR-64) — FR-AIQ-05.
+
+**ENT-AutonomyPolicy — `ai.autonomy_policies`** (sửa): + `tool_name` text NOT NULL (backfill: tool có `action_name` khớp; không khớp → `TOOL-` + phần sau `ACT-`), index; + `agent_profile_code` text NULL (NULL = mọi agent); + `reason` text NOT NULL default `''` (bắt buộc ở API); + `tenant_id` UUID NOT NULL (backfill). Unique partial đổi thành `(tenant_id, action_name, agent_profile_code, role_code, max_amount) NULLS NOT DISTINCT WHERE deleted_at IS NULL`. CHECK `level <= max_level` (theo thứ tự enum). `AutonomyPolicyOut {id, tool_name, action_name, agent_profile_code, role_code, max_amount, currency, level, max_level, is_active, reason, version, updated_by, updated_at}`.
+
+**ENT-AIAction — `ai.ai_actions`**: không đổi cột (đã có `agent_profile_code`, `request_id`, `idempotency_key`); `agent_profile_code` giờ lấy từ agent thật.
+
+**Trạng thái onboarding — `platform.system_settings` key `onboarding.state`** (không bảng mới — R-DEC-75; `ConfigModel`, `is_secret=false`). `value` JSONB:
+
+| Khóa | Kiểu | Ghi chú |
+|---|---|---|
+| `status` | `not_started/in_progress/completed` | |
+| `started_at`, `completed_at` | ISO 8601 UTC \| null | Đồng hồ "trong 1 ngày" = `completed_at - started_at` (hoặc `now - started_at`) ≤ 24 h → `within_one_day` (FE đếm ngược 24:00:00; mục tiêu BRD "trong 1 ngày làm việc" hiển thị ≤ 8 h là "xanh") |
+| `started_by` | UUID | user ADM/CEO |
+| `steps` | object `{company, org_import, review, users, goals_import, finish}` → `{status ∈ pending/in_progress/done/skipped, updated_at, refs{}}` | `goals_import` được `skipped` (tùy chọn); `review` tự `done` khi import `org_import` đã commit |
+| `refs` | `{organization_id?, org_import_id?, goals_import_id?, document_ids[]?}` | Chỉ mã; không tên/email |
+| `version` | int | Dùng `system_settings.version` (đã có `VersionMixin`) cho optimistic lock |
+
+- `SystemSettingService` thêm `set(..., expected_version)` → lệch → `ConflictStateError` (409). Key mới khai trong whitelist key setting (`ai.kill_switch`, `onboarding.state`).
+- Phân loại: `onboarding.state` mức 2 Nội bộ; `tool_call_logs.arguments` mức 2 sau scrub (mức 3/4 không bao giờ lưu); `model_call_logs.prompt_sha256` mức 1.
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -260,7 +504,7 @@ Event backbone biến mọi thay đổi nghiệp vụ thành dòng sự kiện �
 
 **Event → tác động (mẫu P0):** `kpi.below_threshold`/`okr.at_risk` → insight + ApprovalRequest (UC-03/UC-04); `task.overdue` → Notification + feed CEO; `document.committed` → cập nhật Business Record + metric liên quan; `invoice.created` → cập nhật công nợ/dòng tiền (chuẩn bị cho UC-08 P1).
 
-Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở **10 §8** (đợt code).
+Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở **10 §8** (đợt code). *(Spec lock M1.3–M1.6, đề xuất)* Tên event ở đây là nhãn khái niệm BRD; mã phát thật theo registry code `<module>.<entity>_<verb>` (vd `kpi.measured` → `execution.kpi_measured`) — bảng ánh xạ ở 10 §9.2.
 
 ## 8. Open questions
 - OQ-05-01: Quy ước `source` (BRD) vs hậu tố `*_source` (DEC-154 `main`) — giữ `source` theo BRD ở docs; chốt quy ước cột khi tái dùng code ở đợt code (R-DEC-09).
@@ -271,11 +515,16 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - OQ-05-06 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): BusinessUnit (FR-ORG-01) — hoãn; khối biểu diễn bằng `departments.parent_id`. Cần entity riêng khi có báo cáo theo khối khác cây phòng ban → DEC.
 - OQ-05-07 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): Không chồng khoảng phân công bằng `EXCLUDE USING gist` cần extension PostgreSQL `btree_gist` (contrib, không phải package mới) — M1.2 dùng partial unique + kiểm ở service dưới khóa dòng; bật extension = hạ tầng mới → chờ human.
 - OQ-05-08 (M1.2) — ĐÃ CHỐT (human 2026-10-23, theo đề xuất): Tái cấu trúc cấp phòng ban (đổi `parent_id`) chưa effective-dated — cây `as_of` quá khứ dùng `parent_id` hiện tại. Cần bảng `department_versions` nếu UC-07/báo cáo đòi đúng cây cha tại quá khứ.
+- OQ-05-09 (M1.3): `tasks.assignee_id` lưu `hr.employees.id` (R-DEC-41) trong khi `owner_id` KPI/OKR giữ `auth.users.id` — **phương án đề xuất — chọn nếu human duyệt:** giữ hai ngữ nghĩa như hiện tại ở M1 (scope so cả `employee_id` và `user_id`); hợp nhất định danh người xét ở M2.x.
+- OQ-05-10 (M1.4): StrategicObjective bảng riêng (R-DEC-50) hay `level=strategic` trên Objective — **phương án đề xuất — chọn nếu human duyệt:** bảng riêng `execution.strategic_objectives`.
+- OQ-05-11 (M1.5): Retention `idp.import_rows` — **phương án đề xuất — chọn nếu human duyệt:** job `idp.purge_import_rows` hằng ngày, idempotent, xóa sau hết cửa sổ undo 7 ngày.
+- OQ-05-12 (M1.5): Lưu lương từ import #4 — **phương án đề xuất — chọn nếu human duyệt:** ghi `salary_history` qua `add_salary` chỉ khi người commit có quyền đọc/ghi mức 4 (CEO, DIR-O); ngược lại bỏ cột + cảnh báo; cột mức 4 không bao giờ gửi LLM.
 
 ## Version
 - **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §2.5 field-level M1.3 (task `parent_task_id`/`source_ref`, `task_dependencies`, `projects.initiative_id`, `approval_rules` — migration `0014`/`0015`); §2.6 M1.4 (`strategies`, `strategic_objectives`, KPITarget effective-dated, KPIMeasurement lịch sử, `kpi_evaluations`, KR measurement/at-risk — `0016`/`0017`); §2.7 M1.5 (`import_batches`/`import_rows`, `document_actions`, schema/rule, incident, `data_lineage` mở rộng — `0018`/`0019`); §2.8 M1.6 (`tool_call_logs`/`model_call_logs` + `request_id`/`tenant_id`, agent, autonomy policy, onboarding state — `0020`, `0021` để trống). §7 ghi chú ánh xạ tên event BRD ↔ mã code. Open questions: thêm OQ-05-09..12.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-24/32/33/34, chờ human duyệt bước S):** §2.4 field-level M1.2: `hr.organizations` (ENT-Organization, effective-dated), `hr.departments` + `organization_id`/`valid_from`/`valid_to` + unique `code` theo tenant, `hr.teams` + `valid_from`/`valid_to`, `hr.employee_assignments` (ENT-EmployeeAssignment, nửa mở, tối đa một hiện hành/NV, không chồng khoảng; cột cache trên `employees`), `platform.notifications` + `tenant_id`/`email_status`/`email_sent_at`/`email_attempts`, `platform.notification_preferences` (mới), bảng classification per-field mức 3/4 cho mask serializer (T-615); §6ter ghi mô hình `valid_from/valid_to`; thêm OQ-05-06..08.
 - **Change 1.2.0 (human duyệt 2026-10-23 — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
 - **Change 1.1.0 (code round — human ủy quyền R-DEC-14, 2026-10-23):** Thêm §2.2 field-level đợt code Phase 1: `tenant_id UUID NOT NULL` + `TenantMixin` (R-DEC-13); `auth.role_code` enum 7 giá trị v3 (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + bảng gộp 10→7 (R-DEC-12). Chi tiết schema/migration ở code; mọi thay đổi reversible.

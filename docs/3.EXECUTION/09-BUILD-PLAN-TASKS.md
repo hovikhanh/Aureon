@@ -165,6 +165,21 @@ Phase 4 — Task Breakdown  : 09 (file này) — sinh CUỐI, sau khi 00–08,10
 - **Không thêm dependency** ngoài DEC: mock FE = route handler BFF (không MSW); sinh type = script stdlib; OAuth = `httpx`; RAG = pgvector + embedding qua ModelGateway; email = `smtplib`; PWA = manifest + service worker tự viết.
 - Cột "Trạng thái" của mọi bảng task: `☐` chưa làm · `◐` đang làm · `☑` xong (tick ở bước R).
 
+### 6.0bis. Chạy tự động chuỗi M1.3 → M1.4 → M1.5 → M1.6 (R-DEC-38, R-DEC-39)
+
+> Ngoại lệ có chủ đích với §6.0 cho **riêng** chuỗi này (human chốt 2026-10-24). M2.x trở đi quay lại vòng §6.0 chuẩn trừ khi có DEC mới.
+
+| Mục | Quy tắc chuỗi auto |
+|---|---|
+| Bước S | Spec lock của **cả 4 phase** viết trước (nhánh `v3/m1.3-m1.6-speclock`: §6.4–§6.7, 05 §2.5–§2.8, 06 §3.4, 10 §7.2.2–§7.2.5, 13 R-DEC-38..79, 14 §1.7–§1.10) và **human duyệt một lần** trước khi chạy. Session auto **không** dừng ở S. Task trong Spec lock đã duyệt coi như đã được human duyệt plan (kể cả size L — CLAUDE §7) |
+| Điều kiện bắt đầu | M1.2 đóng xong (T-618 ☑, commit cuối trên `v3/m1.2-org-admin`) **và** nhánh speclock đã merge/rebase vào tip M1.2 (docs không lệch) |
+| Nhánh | **Xếp chồng**: `v3/m1.3-work` ← tip `v3/m1.2-org-admin`; `v3/m1.4-goals` ← tip `v3/m1.3-work`; `v3/m1.5-capture` ← tip m1.4; `v3/m1.6-ai-onboarding` ← tip m1.5. Phase sau bắt đầu khi phase trước xong bước R, **không chờ merge** |
+| Bước R | Mỗi phase: kiểm tra nhanh xanh, `/code-review` + sửa finding, tick 09, 14 `Planned → Implemented`, STATE.md; PR (base = nhánh phase trước) chỉ mở khi human cho push; **không tự merge**. Human review/merge cả chuỗi ở cuối |
+| Test | Mỗi task: kiểm tra nhanh — FE `pnpm lint && pnpm typecheck && pnpm test`; BE `uv run ruff check . && uv run ruff format --check . && uv run mypy` + `uv run pytest <file test liên quan>`; commit gắn `[full-test pending]`. **Full test một lần ở cuối chuỗi** (sau T-652): gate DoD CLAUDE §3.3 đầy đủ + `pytest --cov` (ngưỡng 14 §1.3) + `alembic downgrade -1 && upgrade head` qua từng migration mới + Playwright `mock` + `real` (stack seed, `demo_reset.sh -y`). Đỏ → sửa thật (không skip) tới khi xanh, rồi 14 `Implemented → Passed` |
+| Song song (subagent) | Phase chạy **tuần tự**. Trong một phase, sau bước **C** (schema + stub `501` + `packages/shared-types` sinh lại): **F** (FE trên mock) và **B** (BE) chạy song song ở 2 worktree riêng; B giữ thứ tự migration/task trong bảng phase. Bước **N** (nối + E2E) sau khi cả F và B xong. Không cho 2 agent cùng sửa một file dùng chung (`messages/{vi,en}.json`, `permission_matrix.py`, `core/events/registry.py`, migration) — người điều phối gộp |
+| Dừng → `BLOCKED` (CLAUDE §6.8) | Gate A/B/C fail; cần dependency/endpoint/field/event/tool **ngoài** Spec lock đã duyệt; spec mâu thuẫn; cùng một lỗi build/test sửa 3 lần không xong; phát hiện credential lộ; lệnh phá hủy. BLOCKED → ghi STATE.md + dừng chuỗi (không nhảy phase) |
+| Tiến độ | Sau mỗi task: commit + dòng tiến độ STATE.md (task, commit, kiểm tra nhanh); sau mỗi phase: tóm tắt phase trong STATE.md |
+
 ### 6.1. Bản đồ phase ↔ mốc MVP
 
 | Mốc (09 §2) | Phase | Domain | UC chứng minh | Nhánh |
@@ -225,73 +240,107 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 ### 6.4. M1.3 — D11 Project/Task/Workload + D04 Approval cơ bản (nhánh `v3/m1.3-work`)
 
-**FE:** `/work` — "Task của tôi" (lọc hạn/trạng thái), kanban team, danh sách + chi tiết dự án (milestone, cờ trễ), heatmap **workload người × tuần** (03 §1.1) với ngưỡng quá tải; `/work/approvals` hộp chờ duyệt.
+**FE (mock trước):** `/work` Task của tôi (lọc hạn/trạng thái) + tab Nhóm (kanban), `/work/projects` (+ cờ trễ), `/work/projects/[id]` (milestone), `/work/workload` (heatmap người × tuần, ngưỡng 110%/2 tuần), `/work/approvals` (inbox + duyệt). **BE:** path `/work/*`, `/workflow/*` (R-DEC-39/40), dependency, sub-task, `source_ref`, event, notification, rule approval cơ bản.
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-619 | Task: `parent_task_id`, `execution.task_dependencies`, `source_ref` (task từ meeting/AI/IDP) | ☐ |
-| T-620 | `GET /work/workload?week=` người × tuần (tái dùng `execution/services/workload.py`) + metric quá tải | ☐ |
-| T-621 | Event `task.created`, `task.overdue` (xác minh beat 08:30), `task.completed` qua outbox | ☐ |
-| T-622 | Approval inbox `GET /workflow/approval-requests?assigned_to=me` + decide (gán ID cho EP-125 v2.1); rule cơ bản theo Approval Matrix 02 | ☐ |
-| T-623 | Notification khi giao task / task quá hạn / có yêu cầu duyệt (in-app + email theo tùy chọn) | ☐ |
-| T-624 | Seed bổ sung dependency/`source_ref`; xác minh task trễ + người quá tải đúng 08 §3 | ☐ |
-| T-625 | Nối + E2E `work.spec.ts` (MGR giao task → EMP thấy + có thông báo; heatmap hiện người quá tải); đóng phase | ☐ |
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-619S | **Spec lock M1.3** (bước S, gộp chuỗi M1.3–M1.6): 10 §7.2.2 (EP-TASK-01..19, EP-WF-01..03) + §9.2 (`execution.task_created`, `execution.task_completed`, `execution.task_overdue` cập nhật, `platform.approval_*`) + claim `employee_id` (§7.2.2); 05 §2.5; 06 §3.4 (SCR-42/43 đầy đủ, SCR-55..57); 14 §1.7; 13 R-DEC-40..49 | docs | R-DEC-15, R-DEC-38 | — | ☐ |
+| T-619C | **Bước C:** schema Pydantic mới/đổi (`TaskCreate/Update/Out` + `parent_task_id`, `source_ref`; `TaskDependency*`, `ProjectDetailOut`, `WorkloadOut`, `ApprovalRequestOut` + `target_kind/title_key/params/...`), route `/work/*`, `/workflow/*` stub `501` (EP-TASK-06..08, 14..19, EP-WF-01/02), chuyển path EP-TASK-01..05, 09..13, EP-WF-03 (hành vi giữ), `shared-types` sinh lại, sửa test path | `modules/execution/{schemas,routes/work.py}`, `modules/platform/{schemas,routes/workflow.py}`, `packages/shared-types`, `tests/integration/execution/**`, `tests/integration/ai/**` | 10 §7.2.2, R-DEC-40 | TC-M13-14 | ☐ |
+| T-619 | Task: claim `employee_id` + scope "chính mình" (R-DEC-41); migration `0014` (`parent_task_id`, `source_ref` + backfill, `task_dependencies`, backfill assignee, `projects.initiative_id`); `TaskService.create` nhận `source_ref` + `parent_task_id` (dùng bởi `ACT-create_task` M1.5); service sub-task 1 cấp, dependency chặn vòng + chặn `done` | `core/{security,deps}.py`, `modules/auth/services/auth_service.py`, `modules/execution/{models,repositories,services/task_service.py,services/scope.py,services/task_rules.py}`, `alembic/versions/0014_work_tasks_m13.py` | 05 §2.5, R-DEC-41/42/43 | TC-M13-01, 02, 03 | ☐ |
+| T-620 | `GET /work/workload?week=` (`weekly_grid` dùng chung heatmap EP-49) + project `progress/planned/late` + milestone theo project (`project_rules.py` dùng chung OPS-02) | `modules/execution/services/{workload.py,project_rules.py,metrics.py,dashboard_service.py,meeting_service.py}`, `routes/work.py` | EP-TASK-09..18, R-DEC-44/49 | TC-M13-05 | ☐ |
+| T-621 | Event `execution.task_created` / `task_completed` (extension registry) + `task_overdue.days_late`; xác minh beat 08:30 (test cấu hình); `AFFECTS` thêm 2 event | `core/events/registry.py`, `modules/execution/services/task_service.py`, `modules/platform/events/consumers.py`, `tests/events/**` | 10 §9.2, R-DEC-47 | TC-M13-04 | ☐ |
+| T-622 | Approval: migration `0015` (`target_kind`, `department_id`); rule đọc DB; inbox `assigned_to=me` + scope; detail; decide EP-WF-03; `RULE-task_reassign` + EP-TASK-19 + hook `task_reassign`; outbox `platform.approval_*`; sửa chuỗi EP trong AI tool registry | `modules/platform/{models,repositories,services/approval_service.py,routes/workflow.py}`, `core/approval_hooks.py`, `modules/execution/services/task_service.py`, `modules/ai/tools/registry.py`, `alembic/versions/0015_workflow_approvals_m13.py` | EP-WF-01..03, EP-TASK-19, R-DEC-45 | TC-M13-06, 07, 08 | ☐ |
+| T-623 | Notification in-tx: `task_assigned` (tạo/đổi người), `reminder` (job overdue), task hoàn thành → báo người giao (`owner_id`, kind `system`, R-DEC-46), `approval_requested`/`approval_decided`; map employee→user qua `auth` public service | `modules/execution/services/task_service.py`, `modules/platform/services/{approval_service,notification_service}.py`, `modules/auth/services/**` (hàm public `user_id_for_employee`), `workers/jobs.py` | R-DEC-46 | TC-M13-09, 10 | ☐ |
+| T-624 | Seed bổ sung: dependency, sub-task, `source_ref` (họp/tài liệu), milestone 3 dự án (1 trễ), 1 approval `task_reassign` PENDING ở SVC cho inbox MGR; xác minh OPS-01/OPS-02/HR-03 giữ 08 §5; sinh lại `seed_snapshot.json` | `apps/api/src/app/seed/{exec_data,execution_seed,snapshot}.py`, `tests/integration/test_seed_v3.py`, `apps/web/src/mocks/seed_snapshot.json` | 08 §3/§5, R-DEC-23 | TC-M13-11 | ☐ |
+| T-625F | FE trên mock: SCR-42 (Task của tôi + kanban), SCR-55, SCR-56, SCR-57, SCR-43; mock router `/work/*`, `/workflow/*` (cùng luật scope/409/422); `permissions.ts` (route con + tab); i18n vi/en; cập nhật `roles.spec.ts` | `apps/web/src/{app/(app)/work/**,features/work/**,mocks/{work,workflow,router}.ts,lib/{permissions,query-keys}.ts}`, `messages/{vi,en}.json`, `e2e/roles.spec.ts` | 06 §3.4, R-DEC-48 | TC-M13-12 | ☐ |
+| T-625 | Nối + E2E `work.spec.ts` (MGR giao task → EMP thấy + có thông báo + email Mailpit; heatmap hiện 3 người quá tải; EMP đề nghị chuyển → MGR duyệt; EMP bị `/403`); dọn dữ liệu E2E; đóng phase (09 tick, 14 `Implemented`, STATE.md) | `apps/web/e2e/work.spec.ts`, `apps/web/e2e/support/work_e2e.py` | 09 §6.4 | TC-M13-13, 14 | ☐ |
 
-**Exit:** chỉ số hoàn thành đúng hạn, dự án trễ, quá tải tính được từ dữ liệu.
+**Thứ tự:** T-619S ⏸ (duyệt chung chuỗi) → T-619C → {**B:** T-619 → T-620 → T-621 → T-622 → T-623 → T-624} ‖ {**F:** T-625F} (song song sau C, 2 worktree; `permission_matrix.py` không đổi, `core/events/registry.py` + `messages/*.json` + migration do người điều phối gộp) → T-625 (N). Mỗi task kiểm tra nhanh + `[full-test pending]`; full test dồn cuối chuỗi (sau T-652).
+
+**Exit:** METRIC-OPS-01 (hoàn thành đúng hạn), METRIC-OPS-02 (dự án trễ), METRIC-HR-03 (quá tải) tính được từ dữ liệu và **khớp** số hiển thị ở SCR-55/SCR-57 (85% / 1 dự án = 10% / 3 người = 12% trên seed); MGR giao task → EMP thấy + có thông báo; inbox duyệt chạy; service ≥ 80%, bảo mật ≥ 90%.
 
 ### 6.5. M1.4 — D07 Strategy · D08 KPI · D09 OKR · D10 check-in (nhánh `v3/m1.4-goals`)
 
 **FE:** `/goals` cây alignment Strategy → StrategicObjective → {KPI | Objective → KR} kèm Initiative → Project; chi tiết KPI (target theo kỳ, đồ thị measurement, trạng thái ngưỡng); chi tiết OKR (KR, confidence, lịch sử check-in); thẻ **check-in F4** cho EMP (giá trị, độ tự tin, ghi chú; phần "AI điền sẵn" nối ở M2.4).
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-626 | ENT-Strategy, StrategicObjective (bảng riêng hay `level` trên Objective — chốt ở bước S), liên kết Initiative | ☐ |
-| T-627 | KPIEvaluation theo kỳ; KRMeasurement (chuẩn hóa từ `execution.check_ins`); KPITarget effective-dated (05 §6ter) | ☐ |
-| T-628 | API STR/KPI/OKR/PRF: CRUD + `POST /kpis/{id}/measurements`, `POST /key-results/{id}/check-ins`, `GET /goals/tree` | ☐ |
-| T-629 | Event `kpi.measured`, `kpi.below_threshold`, `okr.checked_in`, `okr.at_risk` (KR giảm hoặc confidence thấp, còn ≥ 3 tuần) | ☐ |
-| T-630 | Metric **tỷ lệ KPI/OKR cập nhật đúng kỳ** (cổng G2) + **Strategy Execution Index** | ☐ |
-| T-631 | Seed bổ sung Strategy/StrategicObjective/KPIEvaluation; xác minh dữ liệu UC-03 (KPI gap) + UC-04 (KR at-risk) theo 08 §4.3/§4.4 | ☐ |
-| T-632 | Phân quyền: EMP chỉ check-in của mình; MGR xem team; DIR xem khối | ☐ |
-| T-633 | Nối + E2E `goals.spec.ts` (EMP check-in → MGR thấy; `okr.at_risk` → alert); đóng phase | ☐ |
+**Danh sách file FE/test/khác phải sửa do đổi path (R-DEC-39/58) — đã grep toàn repo:**
+- BE route: `apps/api/src/app/modules/execution/routes/router.py` (tách `routes/goals.py`, `routes/kpis.py`, `routes/okr.py`; gỡ handler `/execution/{objectives,kpis,check-ins,initiatives}*`).
+- Docstring/label EP: `execution/services/{kpi_service,okr_service,initiative_service,meeting_service}.py`, `execution/schemas/{okr,initiatives,meetings}.py` (nhãn EP-45/46/47/48 → EP-STR/KPI/OKR/PRF).
+- AI: `apps/api/src/app/modules/ai/tools/registry.py` (nhãn `endpoint` của `TOOL-list_objectives`, `TOOL-get_kpi_status`, `TOOL-record_kpi_measurement`) + `tests/unit/test_ai_tool_registry.py` nếu assert nhãn.
+- Test BE: `apps/api/tests/integration/execution/test_okr_kpi.py` (37 chỗ), `test_initiatives.py` (15), `test_metrics_provider.py` (2); `tests/integration/execution/helpers.py` (thêm factory `make_objective/make_kpi/make_strategic_objective`); test mới `tests/integration/goals/test_*_t62x.py`; `tests/unit/test_execution_kpi.py`, `test_execution_rules.py` (đo nhiều dòng, at-risk, G2).
+- Sinh type: `packages/shared-types/src/generated.ts` (29 path `/execution/{kpis,objectives,check-ins,initiatives}`) — sinh lại bằng `scripts/gen_shared_types.py`, contract drift test.
+- Event/metric: `core/events/registry.py`, `platform/services/catalog.py`, `platform/events/consumers.py` (AFFECTS).
+- FE + mock: **hiện không có** caller `/execution/{kpis,…}` trong `apps/web/src` hay `apps/web/e2e` (đã grep) → không có file FE "sửa path"; chỉ **thêm** `src/mocks/goals.ts`, sửa `src/mocks/router.ts` (gộp `GOALS_ROUTES`), `src/mocks/router.test.ts`, `src/mocks/fixtures.ts`/`seed_snapshot.json` (sinh lại từ `app/seed/snapshot.py` — thêm strategies/SO/initiatives/check-ins/evaluations), `src/lib/permissions.ts` (+test) cho route con, `app/(app)/goals/page.tsx` (thay `ComingSoon`), `messages/{vi,en}.json`, `e2e/goals.spec.ts` (mới), `e2e/support/seed.ts` nếu cần reset check-in.
+- Seed: `app/seed/exec_data.py`, `execution_seed.py`, `snapshot.py`; `tests/integration/test_seed_v3.py`, `tests/unit/test_seed_v3_data.py`.
 
-**Exit:** G2 đo được; dữ liệu UC-03/UC-04 sẵn sàng.
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-626S | Spec lock M1.4: 10 §7.2.3/§9.2, 05 §2.6/§6ter, 06 §3.4 (SCR-41, 58..60), 13 R-DEC-50..59, 14 §1.8, 09 §6.5 | docs | R-DEC-38 | — | ☐ |
+| T-626 | ENT-Strategy + StrategicObjective (R-DEC-50): model, repo, migration `0016` + backfill (`projects.initiative_id` đã có từ M1.3/0014), `initiatives.strategic_objective_id`/`objective_id` nullable; `goal_scope.py` khung | `execution/models`, `alembic/versions/0016_goals_strategy_m14.py`, `execution/services/{strategy_service,goal_scope}.py` | 05 §2.6 | TC-M14-01, 06 | ☐ |
+| T-626C | Bước C: schema Pydantic + router mới (`/goals/*`, `/kpis/*`, `/objectives/*`, `/key-results/*`) stub `501`, gỡ path `/execution/*` tương ứng, sửa test path, sinh lại `shared-types` | `execution/routes/{goals,kpis,okr}.py`, `execution/schemas/{strategy,okr,kpi}.py`, `packages/shared-types` | 10 §7.2.3 | TC-M14-05 | ☐ |
+| T-626F | FE cây `/goals` (SCR-41) trên mock: `features/goals/GoalTree.tsx`, `goal-tree.ts`, `use-goals.ts`, `src/mocks/goals.ts` + snapshot | `apps/web/src/features/goals/*`, `src/mocks/*` | SCR-41 | TC-M14-17 | ☐ |
+| T-627 | KPITarget effective-dated, KPIMeasurement lịch sử, KPIEvaluation, KRMeasurement, `tenant_id` log, cột at-risk KR; migration `0017` + backfill; **service public cho Action Registry v2 (M1.5 undo):** `KpiTargetService.upsert`, `KpiService.delete_measurement`, `KpiService.delete_check_in` (soft delete + chấm lại KPIEvaluation/progress cùng transaction caller) | `execution/models`, `alembic/versions/0017_goals_measure_m14.py`, `kpi_service.py`, `kpi_target_service.py` (mới), `kpi_rules.py`, `okr_service.py` | R-DEC-51..53 | TC-M14-02, 07, 08, 09 | ☐ |
+| T-627F | FE chi tiết KPI (SCR-58: đồ thị Recharts, target theo kỳ, ghi số đo) + chi tiết Objective (SCR-59: KR, confidence, lịch sử check-in) trên mock | `features/goals/{KpiDetailView,ObjectiveDetailView}.tsx`, `app/(app)/goals/{kpis,objectives}/[id]/page.tsx` | SCR-58, SCR-59 | TC-M14-17 | ☐ |
+| T-628 | API EP-STR-01..22, EP-KPI-01..10, EP-OKR-01..11, EP-PRF-01..06 thay stub; `/goals/tree` một lượt query; nhãn EP trong AI tool registry | `execution/routes/*`, `execution/services/{goal_tree_service,strategy_service,initiative_service}.py`, `ai/tools/registry.py` | 10 §7.2.3 | TC-M14-03..06, 08, 09 | ☐ |
+| T-628F | FE thẻ check-in F4 + feed team (SCR-60), placeholder "AI điền sẵn"; form tạo Strategy/SO/KPI/Objective/Initiative theo role | `features/goals/{CheckInCard,CheckInFeed,GoalForms}.tsx`, `app/(app)/goals/check-ins/page.tsx` | SCR-60, F4 | TC-M14-17 | ☐ |
+| T-629 | Event `execution.kpi_measured`, `execution.kpi_below_threshold`, `execution.okr_checked_in`, `execution.okr_at_risk` (R-DEC-55/56) + consumer `execution.on_goal_alert` → Notification `alert`; beat at-risk hằng ngày + nhắc check-in thứ Sáu (`reminder`) | `core/events/registry.py`, `execution/events/consumers.py`, `execution/services/at_risk.py`, `worker.py` (beat) | 10 §9.2, R-DEC-59 | TC-M14-10, 11, 12 | ☐ |
+| T-630 | Metric `METRIC-STR-01` (G2) + SEI refresh/drill-down; config `GOALS_*` | `execution/services/metrics.py`, `platform/services/catalog.py`, `platform/events/consumers.py`, `core/config.py`, `.env.example` | R-DEC-54, 03 §4 | TC-M14-13 | ☐ |
+| T-631 | Seed: 1 Strategy "Tăng trưởng bền vững 2026–2027", 4 SO (C/F/U/O) gắn KPI gốc/Objective/INI-01..04; Project gắn Initiative; KPIEvaluation 3 kỳ; ~10 check-in + KRMeasurement 2 lần cho KR UC-04 (2,58 → 2,52, LOW); check-in KR của employee@; nâng confidence 2 KR "Runway ≥ 6 tháng" (OKR-CO) và "Ra mắt ABC Insight beta" (OKR-PRD) LOW → MEDIUM để chỉ KR UC-04 at-risk (08 §4.4 cần ≥ 1); xác minh UC-03/UC-04 + G2; sinh lại snapshot | `app/seed/{exec_data,execution_seed,snapshot}.py`, `tests/integration/test_seed_v3.py` | 08 §3/§4.3/§4.4 | TC-M14-16 | ☐ |
+| T-632 | Quyền: `goal_scope.py` (DIR khối, MGR phòng ban + con, EMP của mình + tổ tiên restricted), check-in EMP chỉ của mình, chặn ghi Strategy/SO; mock FE cùng quy tắc. **Sửa file M1.2:** `StructureService.subtree_ids(root_ids)` public trong `hr` (bọc `DeptRepository.subtree_ids`), đăng ký vào registry mới `core/org_scope.py` (`register_subtree_provider`/`department_subtree`, mẫu `core/data_quality.py`) — `execution` chỉ đọc qua `core`, **không** import `hr` (tránh vòng `hr → execution` đã có) | `execution/services/goal_scope.py`, `core/org_scope.py` (mới), `hr/services/structure_service.py`, `hr/__init__` (đăng ký), `src/mocks/goals.ts`, `tests/architecture/test_import_boundaries.py` | R-DEC-57, 02 §5.3 | TC-M14-14, 15 | ☐ |
+| T-633 | Nối FE ↔ BE thật + E2E `goals.spec.ts` (EMP check-in → MGR thấy; at-risk → chuông `alert`); `/code-review`; 14 §1.8 → Implemented; tick 09; STATE.md; đóng phase | `apps/web/e2e/goals.spec.ts`, `features/goals/*` | F4, UC-03, UC-04 | TC-M14-18 | ☐ |
+
+**Thứ tự:** T-626S → T-626 → T-627 (2 migration nối tiếp `0015` của M1.3) → **T-626C** (schema + stub + shared-types) → song song **F** (T-626F → T-627F → T-628F, trên mock) ‖ **B** (T-628 → T-629 → T-630 → T-632 → T-631) → **N** T-633. File dùng chung (`registry.py`, `catalog.py`, `messages/*.json`, migration, `permission_matrix.py` — không đổi ở M1.4) do người điều phối gộp (09 §6.0bis).
+
+**Exit:** G2 đo được (`METRIC-STR-01` có giá trị + lineage trên seed, ngưỡng 80%); dữ liệu UC-03 (`KPI-SAL-01` CRITICAL kỳ 2026-09, giảm 3 kỳ, có task/workload liên quan) và UC-04 (KR pipeline OKR-SAL at-risk, ≥ 21 ngày tới 31/12/2026) sẵn sàng; `/goals` + SCR-58..60 chạy với 4 role; path `/execution/{kpis,objectives,key-results,check-ins,initiatives}` đã gỡ, test chuyển path xanh; TC-M14-01..18 Implemented.
 
 ### 6.6. M1.5 — D03 Data Capture C1/C3/C5 + Action Registry v2 + lineage (nhánh `v3/m1.5-capture`)
 
 **FE:** `/data` Hộp thư dữ liệu (mọi submission theo trạng thái); upload kéo thả (C3); **form C1** sinh động từ ExtractionSchema; **import Excel C5** (preview, map cột → trường, lỗi từng dòng, xác nhận); review song song (SCR-18a/b có sẵn); toast Undo 7 ngày; "Xem tài liệu gốc".
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-634 | Doc type P0 cho M1: #2 Kế hoạch/OKR/KPI, #3 Báo cáo kết quả định kỳ, #4 Danh sách NS/sơ đồ tổ chức; ExtractionSchema + ValidationRule cấu hình được (Admin CRUD, 04 §5); classifier vượt INVOICE/OTHER | ☐ |
-| T-635 | C1 `POST /data-capture/manual`; C5 `POST /data-capture/imports` (+ preview/commit); stream chunk 1 MB; giới hạn 04 §15 | ☐ |
-| T-636 | **Action Registry v2**: ACT-create_department/team/employee/position, upsert_kpi/kpi_target, record_kpi_measurement, upsert_objective/key_result, record_kr_checkin, create_task, create_invoice (có sẵn); validate + ghi qua service đích bằng cùng `AsyncSession` + audit + outbox | ☐ |
-| T-637 | **DataLineage** field → record → page cho mọi commit (FR-DATA-04); `GET /lineage/{entity}/{id}` (ngoài scope → `{restricted:true}`) | ☐ |
-| T-638 | **Undo 7 ngày**: đảo từng ACT theo thứ tự ngược; phát `idp.document_rolled_back` | ☐ |
-| T-639 | Metric **% dữ liệu mới vào qua tài liệu/NL** (cổng G3) + DQ Score theo domain | ☐ |
-| T-640 | Trường trọng yếu luôn qua người; ghi sự cố "trường trọng yếu sai không bị phát hiện" (cổng G4) | ☐ |
-| T-641 | File mẫu ABC trong `data/` (DS nhân sự .xlsx, KPI/OKR .docx/.xlsx, báo cáo kỳ .pdf) qua `scripts/gen_demo_docs.py` (DEC-120) | ☐ |
-| T-642 | AI-eval anti-injection tài liệu (14 §4.2 `INJ-*`), fixture mode | ☐ |
-| T-643 | Nối + E2E `capture.spec.ts` (import Excel NS → review → cây tổ chức cập nhật → undo → về như cũ); đóng phase | ☐ |
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-634S | Spec lock M1.5 (bước S, gộp chuỗi M1.3–M1.6): 10 §7.2.4 (EP-DC-01..37, 12 ACT) + §9.2, 05 §2.7, 06 §3.4 (SCR-45, 18a, 18b, 61..63), 13 R-DEC-60..69, 14 §1.9, 09 §6.6 | docs | R-DEC-38 | — | ☐ |
+| T-634 | Doc type P0 #2 `PLAN_KPI_OKR`, #3 `PERIOD_REPORT`, #4 `HR_ROSTER` (seed 0019; giữ `INVOICE`, `OTHER`); schema registry đọc DB thay hard-code (**sửa** `schema_registry.py`: hard-code chỉ còn làm seed); Admin CRUD schema/rule; classifier 4 tầng | `idp/services/schema_registry.py`, `classifier.py` (mới), `admin_service.py` (mới), `routes/data_capture.py`, `alembic/versions/0019_capture_seed_doctypes.py`, FE `app/(app)/admin/data-capture/**`, `features/capture/admin/**` | EP-DC-27..35, R-DEC-65, 05 §2.7 | TC-M15-01..03 | ☐ |
+| T-635 | C1 form + submit; C5 upload/preview/mapping/rows/error-file/submit; Hộp thư + xem nguồn; giới hạn import cấu hình | `idp/services/manual_service.py`, `import_service.py`, `inbox_service.py` (mới), `upload_service.py` (sửa `document_type`), `core/config.py` (3 biến), FE `app/(app)/data/page.tsx`, `data/new/[documentType]`, `data/imports/[batchId]`, `features/capture/{DropZone,SchemaForm,ColumnMapper,ImportRowsTable,InboxView}.tsx` | EP-DC-01, 13..22, R-DEC-62 | TC-M15-04..06, 18 | ☐ |
+| T-636 | Action Registry v2 (12 ACT) + `document_actions`; **sửa file M1.2:** service `hr` (`HrService.create_department/create_employee`, `StructureService.create_team/create_position`, `OrgService.assign`) nhận tham số `source` + `source_document_id` (mặc định giữ `MANUAL`); `commit_service` dispatch qua Registry (bỏ `_commit_invoice`); EP-DC-23; tách `idp/services/gateway.py` khỏi `ai` | `idp/services/actions/{registry,org,goals,work,finance}.py`, `commit_service.py`, `ai/services/action_registry.py` (re-export), `ai/services/action_service.py` (`_undo_from_refs` → Registry), `alembic/versions/0018_capture_registry.py` | bảng ACT 10 §7.2.4, R-DEC-60/61/63 | TC-M15-07, 08, 11 | ☐ |
+| T-637 | Lineage ghi mọi commit + `GET /lineage/{entity}/{id}`; pipeline gán `document_page_id` theo trang/sheet; `LineageChip` FE | `platform/services/lineage_service.py` (mới), `platform/models` (sửa DataLineage), `idp/routes/lineage.py`, `idp/services/pipeline.py`, FE `components/ai/LineageChip.tsx` | EP-DC-26, R-DEC-64 | TC-M15-09 | ☐ |
+| T-638 | Undo 7 ngày + EP-DC-25; event `idp.document_rolled_back`; `UndoToast` + dialog | `idp/services/undo_service.py` (mới), FE `features/capture/UndoDialog.tsx` | EP-DC-24/25, R-DEC-63/66/67 | TC-M15-10, 11 | ☐ |
+| T-639 | `METRIC-DQ-02` (G3) + DQ per-domain + consumer | `platform/services/catalog.py`, `platform/services/capture_metrics.py` (mới), `core/capture_share.py` (mới, kiểu `register_dq`), `*/services/metrics.py` (đăng ký nguồn), `platform/services/metrics.py` (ghi `dq_domain_scores`) | R-DEC-68 | TC-M15-12 | ☐ |
+| T-640 | Cứng hóa trường trọng yếu + incident G4 | `idp/services/critical.py` (mới), `incident_service.py` (mới), `review_service.py`, `commit_service.py` | EP-DC-36/37, R-DEC-69, FR-DC-16 | TC-M15-13 | ☐ |
+| T-641 | File mẫu: sửa DOC-06 (thêm dòng lỗi cố ý + cột "Quản lý trực tiếp", "Mã phòng"), DOC-07 thêm `.docx`, mới DOC-08 `bao-cao-ket-qua-q3-2026.pdf`; xuất vào `data/` | `scripts/gen_demo_docs.py`, `data/DOC-0{6,7,8}*` | 08 §4.6, DEC-120 | TC-M15-15 | ☐ |
+| T-642 | AI-eval anti-injection IDP (classify + map cột + extract) | `apps/api/tests/ai_eval/test_idp_injection.py` (mới), fixture `tests/fixtures/model_gateway/idp_*` | 14 §4.2 | TC-M15-14 | ☐ |
+| T-643 | Nối FE↔BE, mock BFF, i18n, Vitest, E2E `capture.spec.ts`; cập nhật 14; đóng phase | `apps/web/src/mocks/capture.ts`, `mocks/router.ts`, `messages/{vi,en}.json`, `e2e/capture.spec.ts` | 09 §6.6 Exit | TC-M15-16, 17 | ☐ |
 
-**Exit:** C1/C3/C5 end-to-end; Action Registry/undo/lineage coverage ≥ 90%.
+**Thứ tự** (theo 09 §6.0/§6.0bis): S (Spec lock chuỗi, T-634S) → C: T-636 (Registry + 0018) trước vì T-635/637/638 phụ thuộc → T-634 (0019 seed, cần schema JSONB mới) → song song **B**: T-635, T-637, T-640, T-639; **F**: SCR-45/61/62/63 trên mock (T-643 phần mock) song song B sau khi chốt schema Pydantic → T-638 (cần T-636 + T-637) → T-641, T-642 → N: nối real + E2E T-643 → R: full test + coverage. File dùng chung giữa agent song song (`routes/data_capture.py`, `mocks/router.ts`, `messages/*.json`, `core/config.py`) do coordinator gộp.
+
+**Exit:** C1/C3/C5 end-to-end trên project `real` (TC-M15-17); Action Registry/undo/lineage/scope coverage ≥ 90% (TC-M15-07/09/10/13); pytest + Vitest + contract + Playwright mock/real xanh; `alembic downgrade -1 && upgrade head` sạch; không thêm mã lỗi/dependency/event mới; 14 §1.9 cập nhật Passed.
 
 ### 6.7. M1.6 — D26 AI Platform nền + UC-07 Onboarding + cổng M1 (nhánh `v3/m1.6-ai-onboarding`)
 
-**FE:** `/admin/ai` **AI Control Center** — autonomy policy theo agent/tool (L0–L2 ở M1), kill switch + `KillSwitchBanner` toàn app, audit tool/model call, chi phí; **Wizard Onboarding UC-07** — thông tin DN → tải sơ đồ tổ chức/DS nhân sự → review → tạo user + role → import KPI/OKR → xong (đồng hồ "trong 1 ngày").
+**FE:** `/admin/ai` SCR-64 (kill switch, agent, autonomy L0–L2, Tool Registry 13 metadata) + SCR-65 (`/admin/ai/logs` tool/model call + chi phí); `KillSwitchBanner` toàn app; `ActionCard`/`UndoToast` trong `/ask`; Wizard Onboarding UC-07 SCR-66 (thông tin DN → tải sơ đồ/DS nhân sự → review → tạo user + role → import KPI/OKR → xong, đồng hồ "trong 1 ngày").
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-644 | Tool Registry đủ **13 metadata** (10 §2.1); bảng ánh xạ tên tool BRD ↔ 41 `TOOL-*` (OQ-10-06); phân loại READ/WRITE/APPROVAL/EXECUTION | ☐ |
-| T-645 | Tool mới org/KPI/OKR/task (READ + WRITE qua ACT) | ☐ |
-| T-646 | Hồ sơ `AIAgent` cho agent P0 (CEO, Data Capture, Performance, Task, Meeting, Reporting) | ☐ |
-| T-647 | Xác minh audit mọi tool call (`ToolCallLog`, `correlation_id`) | ☐ |
-| T-648 | Onboarding orchestration (dùng EP sẵn có; EP mới chỉ khi đã chốt ở 10 §7.2) | ☐ |
-| T-649 | Rà seed sau M1 (dữ liệu + file mẫu UC-07); `demo_reset.sh` | ☐ |
-| T-650 | E2E **UC-07** trên project `real` | ☐ |
-| T-651 | Review toàn M1 (`/code-review`), coverage, dọn nợ | ☐ |
-| T-652 | Đóng mốc M1: STATE + 14 + PR; push `ai-eos` khi human đồng ý | ☐ |
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-644S | Spec lock M1.6 (file này) gộp vào 10 §2.1/§2.2/§7/§7.2.5/§9.2, 05 §2.8, 06 §3.4, 13 R-DEC-70..79, 14 §1.10, 00 §4.8 + skeleton (53 TOOL, AGT-*, event) | docs | R-DEC-38 | — | ☐ |
+| T-644 | Tool Registry đủ **13 metadata** (`spec.py` + `registry.py`), 4 loại (`COMPUTE`→READ+`compute`), kiểm lúc nạp, bảng ánh xạ BRD↔TOOL (`brd_name`); `ToolOut` mở rộng + EP-AI-14 lọc; migration `0020` phần `tool_kind` | `modules/ai/tools/*`, `schemas`, `routes/router.py`, `tests/unit/ai/test_tool_registry_m16.py` | 10 §2, R-DEC-70 | TC-M16-01, 02, 12 | ☐ |
+| T-644F | SCR-64 khung tab + tab Tool Registry; route guard `/admin/ai*`; thẻ ở SCR-50; mock `/ai/tools`, `/ai/kill-switch`, `/ai/agents`, `/ai/autonomy-policies` | `app/(app)/admin/ai/**`, `features/admin/ai/**`, `mocks/ai_admin.ts`, `lib/permissions.ts`, `messages/*` | SCR-64 | TC-M16-16, 20 | ☐ |
+| T-645 | 10 tool mới: 4 READ trong `ToolExecutor` (gọi service public `hr`/`work`/`goals` M1.2–M1.4), 6 WRITE map ACT M1.5 + **`ACT-update_task`, `ACT-assign_task` mới ở M1.6** (không thuộc 12 ACT M1.5; snapshot undo; `TOOL-assign_task` chuyển sang `ACT-assign_task`) | `tools/registry.py`, `services/tool_executor.py`, `idp/services/actions/work.py` (Registry v2 M1.5 — thêm `ACT-update_task`, `ACT-assign_task`), test | R-DEC-70 | TC-M16-03, 04 | ☐ |
+| T-645b | Chat → `propose()` cho tool ghi (L1/L2), `suggested_actions` ở EP-AI-01/02, warning kill switch; fixture AI-eval "tạo task" | `services/chat_service.py`, `routes/router.py`, `core/model_gateway/fixtures/*`, `tests/ai_eval/` | R-DEC-78 | TC-M16-18 | ☐ |
+| T-645F | `ActionCard` + `UndoToast` trong `/ask`; hàng chờ thẻ ở SCR-64 | `components/ai/{ActionCard,UndoToast}.tsx`, `features/ai/*` | 06 §5.1 | TC-M16-19 | ☐ |
+| T-646 | `AIAgent`: migration `0020` (agent_profiles + autonomy_policies + tenant), seed 6 agent P0, EP-AI-16/17; `resolve_level` trần L2 + agent + policy theo tool/agent; EP-AI-18..21; kill switch validate agents + event `ai.policy_changed`; `AI_AUTONOMY_CEILING` trong `ConfigService` + `.env.example` | `models`, `alembic/versions/0020_ai_platform_m16.py`, `services/{autonomy,agent_service,policy_service,kill_switch_service}.py`, `seed/ai_seed.py`, `core/events/registry.py` | R-DEC-71..73, 77 | TC-M16-05..09, 17 | ☐ |
+| T-646F | SCR-64 tab Tổng quan (kill switch, chi phí, hàng chờ), Agent, Autonomy; `KillSwitchBanner` trong `AppShell` | `features/admin/ai/**`, `components/shell/KillSwitchBanner.tsx` | SCR-64 | TC-M16-16, 20 | ☐ |
+| T-647 | Audit mọi tool call: cột mới `tool_call_logs`/`model_call_logs`, ghi `request_id`/`tenant_id`/`user_id`/`ai_action_id`/scrub `arguments` ở mọi call site (chat, SSE, replay, propose); `CallRecord` + `request_id`/agent; EP-AI-22/23; EP-AI-15 `group_by=agent`, `period` | `services/chat_service.py`, `core/model_gateway/gateway.py`, `repositories`, `services/log_query_service.py`, test kiến trúc call site | R-DEC-74 | TC-M16-10..12 | ☐ |
+| T-647F | SCR-65 logs (tool/model/chi phí), lọc `request_id`, drawer | `app/(app)/admin/ai/logs/**`, `features/admin/ai/logs/**` | SCR-65 | TC-M16-21 | ☐ |
+| T-648 | Onboarding BE: `onboarding.state` qua `SystemSettingService` (optimistic `version`), EP-ADM-13/14, `progress` qua service public `hr`/`auth`/`goals`; ADM `idp:write` scope `s` (doc type #4, bỏ cột mức 4); event `platform.onboarding_completed` | `modules/platform/{routes,services/onboarding_service.py}`, `permission_matrix.py`, import C5 M1.5 (guard scope) | R-DEC-75/76/77 | TC-M16-13, 14, 17 | ☐ |
+| T-648F | Wizard SCR-66 (6 bước, đồng hồ), orchestration FE gọi EP-ORG/EP-ADM/`/data-capture/imports`; mock | `app/(app)/admin/onboarding/**`, `features/admin/onboarding/**`, `mocks/onboarding.ts` | SCR-66 | TC-M16-15 | ☐ |
+| T-649 | Rà seed sau M1 (agent, policy rỗng, `onboarding.state=completed` ABC, số liệu M1.2–M1.5 nhất quán 08); file mẫu UC-07 (`gen_demo_docs.py`); `seed_snapshot.json` cho mock; `demo_reset.sh -y` | `seed/**`, `scripts/gen_demo_docs.py`, `scripts/demo_reset.sh` | 08 §4.6, R-DEC-79 | TC-M16-22 | ☐ |
+| T-650 | E2E **UC-07** project `real` + kill switch banner chéo phiên; `e2e/support/onboarding_e2e.py --cleanup` | `apps/web/e2e/real/onboarding.spec.ts`, `e2e/support/*` | UC-07 | TC-M16-23 | ☐ |
+| T-651 | Review toàn M1 (`/code-review` diff M1.1→M1.6), coverage 14 §1.3, dọn nợ (TODO, path v2.1 còn sót, `assistant` hard-code) | toàn repo | 09 §6.0bis | TC-M16-24 | ☐ |
+| T-652 | Đóng mốc M1: full test chuỗi (§6.0bis), 14 `Implemented → Passed`, STATE.md, PR chuỗi M1.3→M1.6; push `ai-eos` khi human đồng ý | STATE.md, 14 | — | TC-M16-24 | ☐ |
 
-**Exit M1:** UC-07 pass; Tool Registry + audit + L0–L2 + kill switch dùng được trên UI; gate A/B/C.
+**Thứ tự:** T-644S → **C** (schema Pydantic `ToolOut`/`AIAgentOut`/`AutonomyPolicyOut`/`ToolCallLogOut`/`ModelCallLogOut`/`OnboardingStateOut` + stub `501` EP-AI-16..23, EP-ADM-13/14; sinh shared-types) → song song **F** (T-644F → T-646F → T-647F → T-645F → T-648F) ‖ **B** (T-644 → T-646 (migration `0020`) → T-647 → T-645 → T-645b → T-648) → T-649 → **N** T-650 → **R** T-651 → T-652.
+
+**Exit M1:** UC-07 pass E2E `real` (TC-M16-23); Tool Registry 13 metadata + audit tool/model call theo `request_id` + Autonomy L0–L2 + kill switch dùng được trên SCR-64/65 + banner; gate A/B/C; full test chuỗi xanh (TC-M16-24).
 
 ### 6.8. M2.1 — D28 Health metrics v3 + Metric Store + 3 cấp dashboard (nhánh `v3/m2.1-home`)
 
@@ -464,11 +513,14 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 - OQ-09-03: Ánh xạ mốc M1/M2/M3 → `TC-*` nghiệm thu G1–G4 — một phần: G1–G4 là instrumentation (R-DEC-26, T-630/T-639/T-640/T-820/T-902); `TC-*` chi tiết cấp ở 14 theo bước Spec lock từng phase.
 - OQ-09-05: **ĐÃ CHỐT (R-DEC-27)**: trưởng Nhân sự = DIR `{O}`, trưởng Vận hành & Dịch vụ = MGR. Bối cảnh: 08 §2.1 đặt trưởng Nhân sự là ROLE-MGR và trưởng Vận hành & Dịch vụ là ROLE-DIR, nhưng M1.0 gắn khối `O` (hr) cho "HR-DIR" và quyền mức 4 (lương) cho CEO + DIR khối `O`. Nếu Vận hành-DIR mang `{O}` thì sẽ thấy lương. Cần chọn: (a) trưởng Nhân sự = DIR `{O}`, Vận hành-DIR không mang `O` (sửa 08), hay (b) giữ 08 và tách quyền mức 4 khỏi `scope_pillars` (thêm điều kiện phòng ban Nhân sự).
 - OQ-09-04: Thí điểm 1 DN 50–200 NV (M3) cần chọn DN thật ngoài công ty giả định ABC — quyết định CEO, không blocking docs P0 (theo 13 §3 B2 "khách hàng mục tiêu đầu").
+- OQ-09-06 (M1.3–M1.6): Sửa file thuộc M1.2 trong chuỗi (hr `StructureService.subtree_ids` public + `core/org_scope.py` ở T-632; tham số `source`/`source_document_id` cho service `hr` ở T-636) — **phương án đề xuất — chọn nếu human duyệt:** cho phép, mỗi chỗ ghi nhãn "sửa file M1.2" trong commit + test M1.2 chạy lại.
+- OQ-09-07 (M1.6): `ACT-update_task`, `ACT-assign_task` thêm ở T-645 (không thuộc 12 ACT M1.5) — **phương án đề xuất — chọn nếu human duyệt:** có, đăng ký vào Registry v2 `idp/services/actions/work.py`.
 
 ## Version
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §6.0bis quy trình chuỗi auto (R-DEC-38); §6.4–§6.7 thay bảng task bằng bảng mở rộng `T | Việc | File chính | Spec | TC | Trạng thái` (T-619S..T-625 M1.3, T-626S..T-633 M1.4, T-634S..T-643 M1.5, T-644S..T-652 M1.6) + dòng **Thứ tự** và **Exit** chi tiết; phụ thuộc liên phase chốt khi gộp (`projects.initiative_id` ở T-619, service public M1.4 cho undo ở T-627, subtree qua `core/org_scope.py` ở T-632, `ACT-update_task`/`ACT-assign_task` ở T-645). Open questions: thêm OQ-09-06/07.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, chờ human duyệt bước S):** §6.3 mở rộng bảng task theo cột §6.2 (File chính | Spec | TC); thêm T-611S (bước S, ◐) và T-617F (FE trên mock); ghi rõ BusinessUnit hoãn, giữ `/hr/departments`, ghi cơ cấu `hr:admin`, reactivate, preferences email, thứ tự task; FE ghi SCR-51..54.
 - **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §6.2 thêm dòng T-610c (dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` bật bằng `DEMO_MODE` + `DEMO_LOGIN_AUTOFILL`, nút con mắt); trạng thái ◐ chờ human test tay + full suite.
 - **Change 1.1.0 (human duyệt 2026-10-23 — đợt code, R-DEC-15/19):** thêm §6 Task đợt code: quy trình S→C→F→B→N→R, bản đồ phase M1.0–M3.5, bảng T-601..T-910 theo phase (FE trên mock → BE → nối), rủi ro; Open questions chuyển thành §7, đóng OQ-09-01/02, cập nhật OQ-09-03, thêm OQ-09-05.
