@@ -175,3 +175,57 @@ async def test_seed_snapshot_matches_seed(seeded: AsyncSession) -> None:
     assert committed == fresh
     assert not any(k in SNAPSHOT_PATH.read_text(encoding="utf-8")
                    for k in ("password", "salary", "national_id"))  # fmt: skip
+
+
+async def test_tc_m12_17_org_and_assignments(seeded: AsyncSession) -> None:
+    """T-617: one organization ABC, every department in it, every live employee has exactly
+    one current assignment, ≥ 1 person with a transfer history; the seed ran twice."""
+    from app.modules.hr.models import EmployeeAssignment, Organization
+    from app.modules.hr.services.structure_service import StructureService
+    from app.seed.hr_seed import ORG_ID, TRANSFERS, emp_id
+
+    orgs = (await seeded.execute(select(Organization))).scalars().all()
+    assert [o.id for o in orgs] == [ORG_ID] and orgs[0].code == "ABC"
+    depts = (await seeded.execute(select(Department.organization_id))).scalars().all()
+    assert depts and set(depts) == {ORG_ID}
+    live_q = select(Employee).where(
+        Employee.deleted_at.is_(None), Employee.termination_date.is_(None)
+    )
+    live = (await seeded.execute(live_q)).scalars().all()
+    current = Counter((await seeded.execute(select(EmployeeAssignment.employee_id).where(
+        EmployeeAssignment.valid_to.is_(None),
+        EmployeeAssignment.deleted_at.is_(None)))).scalars().all())  # fmt: skip
+    assert all(current[e.id] == 1 for e in live) and set(current.values()) == {1}
+    by_emp = {e.id: e for e in live}
+    for code, dept, _team, _mgr, moved in TRANSFERS:
+        rows = (await seeded.execute(select(EmployeeAssignment).where(
+            EmployeeAssignment.employee_id == emp_id(code)
+        ).order_by(EmployeeAssignment.valid_from))).scalars().all()  # fmt: skip
+        assert len(rows) == 2, code  # not duplicated by the second seed run
+        old, now = rows
+        assert old.valid_to == now.valid_from == moved and now.valid_to is None
+        assert old.department_id == seed_uuid_dept(dept)
+        assert (old.department_id, old.team_id) != (now.department_id, now.team_id)
+        assert now.department_id == by_emp[emp_id(code)].department_id  # cache = current
+    # as_of before the move: the person sits in the previous department of the tree
+    code, dept, _t, _m, moved = TRANSFERS[0]
+    from app.core.deps import Principal
+
+    ceo = Principal(user_id=uuid.uuid4(), role="CEO", permissions=frozenset({"hr:read"}))
+    before = await StructureService(seeded).tree(ceo, date(moved.year - 1, 6, 1), ORG_ID)
+    after = await StructureService(seeded).tree(ceo, AS_OF, ORG_ID)
+    assert _member_dept(before, emp_id(code)) == seed_uuid_dept(dept)
+    assert _member_dept(after, emp_id(code)) == by_emp[emp_id(code)].department_id
+
+
+def seed_uuid_dept(code: str) -> uuid.UUID:
+    from app.seed.ids import seed_uuid
+
+    return seed_uuid("department", code)
+
+
+def _member_dept(tree: Any, employee_id: uuid.UUID) -> uuid.UUID | None:
+    for node in tree.departments:  # flat list; members of teams are listed on the department
+        if any(m.employee_id == employee_id for m in node.members):
+            return node.id
+    return None

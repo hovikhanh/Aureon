@@ -1,4 +1,1254 @@
 {
+ "assignments": [
+  {
+   "department": "BOD",
+   "employee": "NV-0001",
+   "manager": null,
+   "team": null,
+   "valid_from": "2012-03-01",
+   "valid_to": null
+  },
+  {
+   "department": "BOD",
+   "employee": "NV-0002",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2015-02-11",
+   "valid_to": null
+  },
+  {
+   "department": "BOD",
+   "employee": "NV-0003",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2015-03-20",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0004",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2015-04-26",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0005",
+   "manager": "NV-0004",
+   "team": "SAL-HCM",
+   "valid_from": "2015-06-02",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0006",
+   "manager": "NV-0004",
+   "team": "SAL-HN",
+   "valid_from": "2015-07-09",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0007",
+   "manager": "NV-0004",
+   "team": "SAL-KA",
+   "valid_from": "2015-08-15",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0008",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2015-09-21",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0009",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2015-10-28",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0010",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2015-12-04",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0011",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2016-01-10",
+   "valid_to": "2022-07-01"
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0011",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2022-07-01",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0012",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2016-02-16",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0013",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2016-03-24",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0014",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2016-04-30",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0015",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2016-06-06",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0016",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2016-07-13",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0017",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2016-08-19",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0018",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2016-09-25",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0019",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2016-11-01",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0020",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2016-12-08",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0021",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2017-01-14",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0022",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2017-02-20",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0023",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2017-03-29",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0024",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2017-05-05",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0025",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2017-06-11",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0026",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2017-07-18",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0027",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2017-08-24",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0028",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2017-09-30",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0029",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2017-11-06",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0030",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2017-12-13",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0031",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2018-01-19",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0032",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2018-02-25",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0033",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2018-04-03",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0034",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2018-05-10",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0035",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2018-06-16",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0036",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2018-07-23",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0037",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2026-09-15",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0038",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2026-10-05",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0039",
+   "manager": "NV-0006",
+   "team": "SAL-HN",
+   "valid_from": "2018-11-11",
+   "valid_to": "2026-09-04"
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0040",
+   "manager": "NV-0007",
+   "team": "SAL-KA",
+   "valid_from": "2018-12-18",
+   "valid_to": "2026-08-13"
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0041",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2019-01-24",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0042",
+   "manager": "NV-0041",
+   "team": "SVC-LOG",
+   "valid_from": "2019-03-02",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0043",
+   "manager": "NV-0041",
+   "team": "SVC-CARE",
+   "valid_from": "2019-04-08",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0044",
+   "manager": "NV-0041",
+   "team": "SVC-CS",
+   "valid_from": "2019-05-15",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0045",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2019-06-21",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0046",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2019-07-28",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0047",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2019-09-03",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0048",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2019-10-10",
+   "valid_to": null
+  },
+  {
+   "department": "SAL",
+   "employee": "NV-0049",
+   "manager": "NV-0005",
+   "team": "SAL-HCM",
+   "valid_from": "2019-11-16",
+   "valid_to": "2024-01-01"
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0049",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2024-01-01",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0050",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2019-12-23",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0051",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2020-01-29",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0052",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2020-03-06",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0053",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2020-04-12",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0054",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2020-05-19",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0055",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2020-06-25",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0056",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2020-08-01",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0057",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2020-09-07",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0058",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2020-10-14",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0059",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2020-11-20",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0060",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2020-12-27",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0061",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2021-02-02",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0062",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2021-03-11",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0063",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2021-04-17",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0064",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2021-05-24",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0065",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2021-06-30",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0066",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2021-08-06",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0067",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2021-09-12",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0068",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2021-10-19",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0069",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2021-11-25",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0070",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2022-01-01",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0071",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2022-02-07",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0072",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2022-03-16",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0073",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2022-04-22",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0074",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2022-05-29",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0075",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2022-07-05",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0076",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2022-08-11",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0077",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2022-09-17",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0078",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2022-10-24",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0079",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2022-11-30",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0080",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2023-01-06",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0081",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2023-02-12",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0082",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2023-03-21",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0083",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2023-04-27",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0084",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2026-09-15",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0085",
+   "manager": "NV-0043",
+   "team": "SVC-CARE",
+   "valid_from": "2026-10-05",
+   "valid_to": null
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0086",
+   "manager": "NV-0044",
+   "team": "SVC-CS",
+   "valid_from": "2023-08-16",
+   "valid_to": "2026-09-05"
+  },
+  {
+   "department": "SVC",
+   "employee": "NV-0087",
+   "manager": "NV-0042",
+   "team": "SVC-LOG",
+   "valid_from": "2023-09-22",
+   "valid_to": "2026-08-14"
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0088",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2023-10-29",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0089",
+   "manager": "NV-0088",
+   "team": "FIN-ACC",
+   "valid_from": "2023-12-05",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0090",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-01-11",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0091",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-02-17",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0092",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-03-25",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0093",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-05-01",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0094",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-06-07",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0095",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-07-14",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0096",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-08-20",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0097",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-09-26",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0098",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-11-02",
+   "valid_to": null
+  },
+  {
+   "department": "FIN",
+   "employee": "NV-0099",
+   "manager": "NV-0089",
+   "team": "FIN-ACC",
+   "valid_from": "2024-12-09",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0100",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2025-01-15",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0101",
+   "manager": "NV-0100",
+   "team": "HR-OPS",
+   "valid_from": "2025-02-21",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0102",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-03-30",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0103",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-05-06",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0104",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-06-12",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0105",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-07-19",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0106",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-08-25",
+   "valid_to": null
+  },
+  {
+   "department": "HR",
+   "employee": "NV-0107",
+   "manager": "NV-0101",
+   "team": "HR-OPS",
+   "valid_from": "2025-10-01",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0108",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2025-11-07",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0109",
+   "manager": "NV-0108",
+   "team": "PRD-BE",
+   "valid_from": "2025-12-14",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0110",
+   "manager": "NV-0108",
+   "team": "PRD-APP",
+   "valid_from": "2015-02-07",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0111",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2015-03-16",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0112",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2015-04-22",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0113",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2015-05-29",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0114",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2015-07-05",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0115",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2015-08-11",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0116",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2015-09-17",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0117",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2015-10-24",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0118",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2015-11-30",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0119",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2016-01-06",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0120",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2016-02-12",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0121",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2016-03-20",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0122",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2016-04-26",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0123",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2016-06-02",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0124",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2016-07-09",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0125",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2016-08-15",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0126",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2016-09-21",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0127",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2016-10-28",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0128",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2016-12-04",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0129",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2017-01-10",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0130",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2017-02-16",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0131",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2017-03-25",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0132",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2017-05-01",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0133",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2017-06-07",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0134",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2017-07-14",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0135",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2017-08-20",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0136",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2017-09-26",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0137",
+   "manager": "NV-0109",
+   "team": "PRD-BE",
+   "valid_from": "2026-10-05",
+   "valid_to": null
+  },
+  {
+   "department": "PRD",
+   "employee": "NV-0138",
+   "manager": "NV-0110",
+   "team": "PRD-APP",
+   "valid_from": "2017-12-09",
+   "valid_to": "2026-09-01"
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0139",
+   "manager": "NV-0001",
+   "team": null,
+   "valid_from": "2018-01-15",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0140",
+   "manager": "NV-0139",
+   "team": "ADM-OFF",
+   "valid_from": "2018-02-21",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0141",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-03-30",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0142",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-05-06",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0143",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-06-12",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0144",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-07-19",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0145",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-08-25",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0146",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-10-01",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0147",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-11-07",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0148",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2018-12-14",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0149",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2019-01-20",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0150",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2019-02-26",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0151",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2019-04-04",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0152",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2019-05-11",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0153",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2026-10-05",
+   "valid_to": null
+  },
+  {
+   "department": "ADM",
+   "employee": "NV-0154",
+   "manager": "NV-0140",
+   "team": "ADM-OFF",
+   "valid_from": "2019-07-24",
+   "valid_to": "2026-09-09"
+  }
+ ],
  "company": "Công ty TNHH TM&DV ABC",
  "departments": [
   {
@@ -2077,6 +3327,11 @@
    "title": "ABC Order thành kênh chính"
   }
  ],
+ "organization": {
+  "code": "ABC",
+  "name": "Công ty TNHH TM&DV ABC",
+  "valid_from": "2012-01-01"
+ },
  "projects": [
   {
    "code": "PRJ-ERP",

@@ -55,6 +55,16 @@ PLANS = (
 )  # fmt: skip
 
 
+# T-617 (TC-M12-17): people who moved (employee, previous dept, team, manager, moved on) —
+# NV-0049 changed department (Sales → Service), NV-0011 changed team inside Sales.
+# The current placement stays the `org_data` one, so today's tree/metrics are unchanged; an
+# `as_of` before the move shows them in the previous unit (demo of FR-ORG-04).
+TRANSFERS = (
+    ("NV-0049", "SAL", "SAL-HCM", "NV-0005", date(2024, 1, 1)),
+    ("NV-0011", "SAL", "SAL-HN", "NV-0006", date(2022, 7, 1)),
+)  # fmt: skip
+
+
 def emp_id(code: str) -> uuid.UUID:
     return seed_uuid("employee", code)
 
@@ -139,6 +149,30 @@ async def seed_employees(db: AsyncSession) -> int:
     return len(rows) + len(salaries)
 
 
+async def seed_transfers(db: AsyncSession) -> int:
+    """Split the hire-to-now assignment at the move date. Idempotent: skipped once split."""
+    done = 0
+    for code, dept, team, manager, moved in TRANSFERS:
+        stmt = select(EmployeeAssignment).where(
+            EmployeeAssignment.employee_id == emp_id(code), EmployeeAssignment.deleted_at.is_(None)
+        )
+        rows = list((await db.execute(stmt)).scalars().all())
+        if len(rows) != 1 or rows[0].valid_to is not None or rows[0].valid_from >= moved:
+            continue  # already split, terminated, or edited by a user → leave it alone
+        current = rows[0]
+        db.add(EmployeeAssignment(
+            employee_id=current.employee_id, department_id=seed_uuid("department", dept),
+            team_id=seed_uuid("team", team), manager_id=emp_id(manager),
+            valid_from=current.valid_from, valid_to=moved,
+            reason="Dữ liệu seed — vị trí trước khi chuyển phòng", **SEED,
+        ))  # fmt: skip
+        current.valid_from = moved
+        current.reason = "Dữ liệu seed — chuyển phòng"
+        done += 1
+    await db.flush()
+    return done
+
+
 async def _set_heads(db: AsyncSession) -> None:
     """Department heads / team leads = the `lead` people of `org_data` (reporting line)."""
     depts, teams = DepartmentRepository(db), BaseRepository(db, Team)
@@ -174,6 +208,7 @@ async def seed_hr(db: AsyncSession, manager: uuid.UUID, approver: uuid.UUID) -> 
     out = {"org": await seed_org(db)}
     await db.flush()
     out["employees_salaries"] = await seed_employees(db)
+    out["transfers"] = await seed_transfers(db)
     out["hiring_plans"] = await seed_hiring_plans(db, manager, approver)
     await db.flush()
     return out

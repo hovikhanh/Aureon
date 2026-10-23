@@ -23,13 +23,49 @@ from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 from app.modules.platform.services.metric_query import MetricQueryService
 from app.seed import exec_data as X
 from app.seed.auth_seed import AI_AGENT, DEMO_USERS
+from app.seed.hr_seed import ORG_CODE, ORG_NAME, ORG_VALID_FROM, TRANSFERS
 from app.seed.org_data import BY_NAME, DEPARTMENTS, PEOPLE, REFERENCE
 
 SNAPSHOT_PATH = REPO_ROOT / "apps" / "web" / "src" / "mocks" / "seed_snapshot.json"
 
 
+def _assignments() -> list[dict[str, Any]]:
+    """T-617: effective-dated placements (05 §2.4) — hire → now, split at the seeded moves."""
+    moved = {code: (dept, team, mgr, at) for code, dept, team, mgr, at in TRANSFERS}
+    out: list[dict[str, Any]] = []
+    for p in PEOPLE:
+        start, end = p.hired.isoformat(), p.left.isoformat() if p.left else None
+        if p.code in moved and p.left is None:  # a terminated person is never moved
+            dept, team, mgr, at = moved[p.code]
+            out.append(
+                {
+                    "employee": p.code,
+                    "department": dept,
+                    "team": team,
+                    "manager": mgr,
+                    "valid_from": start,
+                    "valid_to": at.isoformat(),
+                }
+            )
+            start = at.isoformat()
+        out.append(
+            {
+                "employee": p.code,
+                "department": p.dept,
+                "team": p.team,
+                "manager": p.manager,
+                "valid_from": start,
+                "valid_to": end,
+            }
+        )
+    return out  # fmt: skip
+
+
 def _org() -> dict[str, Any]:
     return {
+        "organization": {"code": ORG_CODE, "name": ORG_NAME,
+                         "valid_from": ORG_VALID_FROM.isoformat()},
+        "assignments": _assignments(),
         "departments": [
             {"code": d.code, "name": d.name, "head": BY_NAME[d.head].code,
              "teams": [{"code": c, "name": n} for c, n in d.teams]}
