@@ -18,6 +18,7 @@ export interface MockLogin {
   name: string;
   role: string;
   permissions: string[];
+  scopePillars: string[];
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
@@ -59,6 +60,7 @@ export function mockAuthorize(
     name: claims.name,
     role: claims.role,
     permissions: claims.permissions,
+    scopePillars: claims.scope_pillars,
     accessToken: encodeMockToken(claims),
     refreshToken: `${PREFIX}refresh`,
     expiresAt: Date.now() + TTL_S * 1000,

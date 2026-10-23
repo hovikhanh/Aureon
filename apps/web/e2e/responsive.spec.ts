@@ -22,9 +22,9 @@ for (const vp of VIEWPORTS) {
       await expect(sidebar).not.toBeInViewport();
       await page.getByTestId("menu-button").click();
       await expect(sidebar).toBeInViewport();
-      await page.getByTestId("nav-ai").click();
-      await expect(page).toHaveURL(/\/ai$/);
-      await page.goto("/dashboard");
+      await page.getByTestId("nav-ask").click();
+      await expect(page).toHaveURL(/\/ask$/);
+      await page.goto("/home");
     }
     const tops = await page.locator("[data-testid=pillar-grid] > *").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
     expect(tops.filter((t) => t === tops[0]).length).toBe(vp.cols);

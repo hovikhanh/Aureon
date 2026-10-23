@@ -27,8 +27,8 @@ test("streams answer token-by-token with tool call and citation", { tag: "@mock"
     await route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body });
   });
   await loginAs(page, "ceo@abc.demo");
-  await page.getByTestId("nav-ai").click();
-  await expect(page).toHaveURL(/\/ai$/);
+  await page.getByTestId("nav-ask").click();
+  await expect(page).toHaveURL(/\/ask$/);
   await page.getByTestId("chat-input").fill("Doanh thu Q3?");
   await page.getByTestId("chat-send").click();
 
@@ -48,7 +48,7 @@ test("shows API error from the stream", { tag: "@mock" }, async ({ page }) => {
     route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: frame(1, "start", {}) + frame(2, "error", { code: "AI_DISABLED", message: "x" }) }),
   );
   await loginAs(page, "ceo@abc.demo");
-  await page.goto("/ai");
+  await page.goto("/ask");
   await page.getByTestId("chat-input").fill("Lương của A?");
   await page.getByTestId("chat-input").press("Enter");
   await expect(page.getByTestId("chat-error")).toContainText("không xử lý");
@@ -60,14 +60,14 @@ test("shows API error from the stream", { tag: "@mock" }, async ({ page }) => {
  */
 test("demo mode: recorded question answers fast with citation [1]", async ({ page }) => {
   await loginAs(page, "ceo@abc.demo");
-  await page.goto("/ai");
+  await page.goto("/ask");
   await page.getByTestId("chat-input").fill("Doanh thu Q3?");
   const started = Date.now();
   await page.getByTestId("chat-send").click();
   await expect(page.getByTestId("assistant-message")).toHaveAttribute("data-streaming", "false", { timeout: 10_000 });
   expect(Date.now() - started).toBeLessThan(5_000);
   const answer = page.getByTestId("answer");
-  await expect(answer).toContainText("98,1%");
+  await expect(answer).toContainText("86,4%"); // METRIC-FIN-01 T9/2026, v3 seed
   await answer.getByTestId("citation").first().click();
   await expect(page.getByTestId("source-popover")).toContainText("METRIC-FIN-01");
 });
@@ -76,7 +76,7 @@ test("long wait shows progressive hints", { tag: "@mock" }, async ({ page }) => 
   await page.clock.install();
   await page.route("**/api/backend/ai/chat/stream", () => new Promise(() => {})); // never answers
   await loginAs(page, "ceo@abc.demo");
-  await page.goto("/ai");
+  await page.goto("/ask");
   await page.getByTestId("chat-input").fill("Câu hỏi khó");
   await page.getByTestId("chat-send").click();
   await expect(page.getByTestId("thinking")).toBeVisible();

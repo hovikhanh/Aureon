@@ -25,7 +25,7 @@ test.describe("mock harness (no backend)", { tag: "@mock-only" }, () => {
 
   test("chat streams through the mock SSE end to end", async ({ page }) => {
     await login(page, "ceo@abc.demo");
-    await page.goto("/ai");
+    await page.goto("/ask");
     await page.getByTestId("chat-input").fill("Tình hình công ty?");
     await page.getByTestId("chat-send").click();
     await expect(page.getByTestId("assistant-message")).toHaveAttribute("data-streaming", "false");

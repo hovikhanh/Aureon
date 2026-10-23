@@ -9,10 +9,10 @@ import { usePeriod } from "./period";
 import { visiblePillars } from "./pillars";
 import type { MetricValue } from "./types";
 
-export function DashboardView({ role, permissions }: { role: string; permissions: string[] }) {
+export function DashboardView({ role, permissions, scopePillars = [] }: { role: string; permissions: string[]; scopePillars?: string[] }) {
   const t = useTranslations("dashboard");
   const { period } = usePeriod();
-  const pillars = visiblePillars(role, permissions);
+  const pillars = visiblePillars(role, permissions, scopePillars);
   // EP-11 only for the metric unit map used to format alert values.
   const metrics = useQuery({
     queryKey: ["metrics", "all"],

@@ -17,6 +17,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return (
     <div className="flex min-h-dvh">
       <Sidebar
+        role={user.role}
         permissions={user.permissions}
         mobileOpen={mobileOpen}
         collapsed={collapsed}

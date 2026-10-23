@@ -74,7 +74,7 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
       lock.markDecided();
       toast.push(t("idp.committed"));
       void client.invalidateQueries({ queryKey: ["idp"] });
-      router.push("/idp/review");
+      router.push("/data/review");
     } catch (e) {
       toast.push(errMsg(e), "danger");
     } finally {
@@ -87,7 +87,7 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
     lock.markDecided();
     toast.push(t("idp.rejected"));
     void client.invalidateQueries({ queryKey: ["idp"] });
-    router.push("/idp/review");
+    router.push("/data/review");
   };
 
   if (review.isPending) return <div className="h-96 animate-pulse rounded-lg bg-muted" />;
@@ -99,7 +99,7 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4" data-testid="review-detail">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/idp/review" className="flex items-center gap-1 text-sm text-primary"><ArrowLeft className="h-4 w-4" />{t("buttons.back")}</Link>
+        <Link href="/data/review" className="flex items-center gap-1 text-sm text-primary"><ArrowLeft className="h-4 w-4" />{t("buttons.back")}</Link>
         <h1 className="min-w-0 truncate text-xl font-semibold">{d.document.original_filename ?? t("idp.detailTitle")}</h1>
         <Badge>{t(`idp.status.${d.document.status}` as "idp.status.NEEDS_REVIEW")}</Badge>
         <ConfidenceBadge value={d.document_confidence} />

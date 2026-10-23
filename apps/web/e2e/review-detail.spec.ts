@@ -8,7 +8,7 @@ test.describe("SCR-18b review detail (T-508)", () => {
   test("8 fields, correct one, approve → invoice visible in Finance", async ({ page }) => {
     const doc = seedReviewDoc();
     await loginAs(page, "reviewer@abc.demo");
-    await page.goto(`/idp/review/${doc.document_id}`);
+    await page.goto(`/data/review/${doc.document_id}`);
     const rows = page.getByTestId("field-row");
     await expect(rows).toHaveCount(8);
     await expect(page.locator("[data-testid=field-row] >> text=Trọng yếu")).toHaveCount(3);
@@ -32,11 +32,11 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
     await page.getByTestId("approve").click();
 
-    await expect(page).toHaveURL(/\/idp\/review$/);
+    await expect(page).toHaveURL(/\/data\/review$/);
     await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
     await expect(page.locator(`[data-document-id="${doc.document_id}"]`)).toHaveCount(0);
 
-    await page.goto("/finance/invoices");
+    await page.goto("/business/finance/invoices");
     await page.getByTestId("dir-IN").click();
     await expect(page.locator(`[data-testid=invoice-row][data-number="${doc.invoice_number}"]`)).toBeVisible();
   });
@@ -44,13 +44,13 @@ test.describe("SCR-18b review detail (T-508)", () => {
   test("reject requires a reason", async ({ page }) => {
     const doc = seedReviewDoc();
     await loginAs(page, "reviewer@abc.demo");
-    await page.goto(`/idp/review/${doc.document_id}`);
+    await page.goto(`/data/review/${doc.document_id}`);
     await page.getByTestId("reject").click();
     await page.getByTestId("reject-confirm").click();
     await expect(page.getByTestId("reject-dialog")).toContainText("Vui lòng nhập lý do");
     await page.getByTestId("reject-reason").fill("Ảnh mờ, không đọc được");
     await page.getByTestId("reject-confirm").click();
-    await expect(page).toHaveURL(/\/idp\/review$/);
+    await expect(page).toHaveURL(/\/data\/review$/);
     await expect(page.getByRole("status")).toContainText("Đã từ chối tài liệu");
   });
 });

@@ -13,7 +13,7 @@ test("CEO: 5 pillar cards each drill down, 13 alerts", async ({ page }) => {
   for (const [code, slug] of Object.entries(SLUGS)) {
     await expect(page.getByTestId(`pillar-${code}`)).toHaveAttribute("data-status", /ok|warning|critical/);
     await page.getByTestId(`pillar-${code}`).click();
-    await expect(page).toHaveURL(new RegExp(`/dashboard/pillar/${slug}`));
+    await expect(page).toHaveURL(new RegExp(`/home/pillar/${slug}`));
     await expect(page.getByTestId("pillar-detail")).toHaveAttribute("data-pillar", code);
     await page.goBack();
     await expect(page.getByTestId("pillar-grid")).toBeVisible();
@@ -36,10 +36,10 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
   await loginAs(page, "cfo@abc.demo");
   await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
   await page.getByTestId("pillar-F").click();
-  await expect(page).toHaveURL(/\/dashboard\/pillar\/finance/);
+  await expect(page).toHaveURL(/\/home\/pillar\/finance/);
   await expect(page.getByTestId("fin-card")).toHaveCount(6);
-  await expect(page.getByTestId("fin-card-cash").getByTestId("fin-value")).toHaveText("20,4 tỷ");
-  await page.getByTestId("nav-ai").click();
+  await expect(page.getByTestId("fin-card-cash").getByTestId("fin-value")).toHaveText("12,6 tỷ");
+  await page.getByTestId("nav-ask").click();
   await page.getByTestId("chat-input").fill("Tình hình cash flow?");
   await page.getByTestId("chat-send").click();
   await expect(page.getByTestId("answer")).toContainText("20,4 tỷ");
@@ -48,7 +48,10 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
 test("REVIEWER: queue → open → correct → approve → invoice created", async ({ page }) => {
   const doc = seedReviewDoc();
   await loginAs(page, "reviewer@abc.demo");
-  await expect(page).toHaveURL(/\/idp\/review$/);
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByTestId("nav-data").click();
+  await page.getByTestId("sublink-review").click();
+  await expect(page).toHaveURL(/\/data\/review$/);
   await page.locator(`[data-document-id="${doc.document_id}"]`).getByTestId("review-link").click();
   await expect(page.getByTestId("field-row")).toHaveCount(8);
   const seller = page.locator("[data-field=seller_name]");
@@ -56,17 +59,20 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
   await page.getByTestId("approve").click();
   await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
-  await page.goto("/finance/invoices");
+  await page.goto("/business/finance/invoices");
   await page.getByTestId("dir-IN").click();
   await expect(page.locator(`[data-testid=invoice-row][data-number="${doc.invoice_number}"]`)).toBeVisible();
 });
 
-test("HR: dashboard shows O pillar only, employees list", async ({ page }) => {
+test("HR: dashboard shows O (+ public F headline), employees list", async ({ page }) => {
   await loginAs(page, "hr@abc.demo");
   await expect(page.getByTestId("pillar-O")).toBeVisible();
-  await expect(page.getByTestId("pillar-F")).toHaveCount(0);
-  await page.getByTestId("nav-employees").click();
-  await expect(page).toHaveURL(/\/hr\/employees$/);
+  // scope_pillars={O}; F stays as the public METRIC-FIN-01 headline (02 §6.1, dashboard.visible_pillars)
+  await expect(page.getByTestId("pillar-grid").locator("> [data-testid^=pillar-]")).toHaveCount(2);
+  await expect(page.getByTestId("pillar-C")).toHaveCount(0);
+  await page.getByTestId("nav-business").click();
+  await page.getByTestId("sublink-employees").click();
+  await expect(page).toHaveURL(/\/business\/hr\/employees$/);
   await expect(page.getByTestId("employee-row").first()).toBeVisible();
   await expect(page.getByTestId("employee-total")).toContainText(/\d+/);
   await page.getByTestId("employee-search").fill("Phan");
@@ -77,10 +83,13 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
   const password = process.env.DEMO_ADMIN_PASSWORD ?? rootEnv().DEMO_ADMIN_PASSWORD;
   expect(password, "DEMO_ADMIN_PASSWORD must be set in .env").toBeTruthy();
   await loginWithPassword(page, "admin@abc.demo", password ?? "");
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByTestId("nav-admin").click();
+  await page.getByTestId("sublink-audit").click();
   await expect(page).toHaveURL(/\/admin\/audit$/);
   await expect(page.getByTestId("audit-row").first()).toBeVisible();
   await page.getByTestId("audit-action").fill("auth.login");
   await expect(page.getByTestId("audit-row").first()).toHaveAttribute("data-action", "auth.login");
-  await page.goto("/dashboard");
+  await page.goto("/home/pillar/finance");
   await expect(page.getByTestId("forbidden")).toBeVisible();
 });

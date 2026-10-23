@@ -8,6 +8,7 @@ import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { mockAuthorize } from "@/mocks/auth";
 import { API_BASE, DEMO_MODE, demoPasswordFor, isMockMode } from "./server-env";
+import { scopePillarsOf } from "./token-claims";
 
 interface TokenOut {
   access_token: string;
@@ -43,6 +44,7 @@ export async function refreshTokens(token: JWT): Promise<JWT> {
       expiresAt: Date.now() + d.expires_in * 1000,
       permissions: d.user.permissions,
       role: d.user.role_code,
+      scopePillars: scopePillarsOf(d.access_token),
       error: undefined,
     };
   } catch {
@@ -78,6 +80,7 @@ export const authOptions: NextAuthOptions = {
           name: d.user.full_name,
           role: d.user.role_code,
           permissions: d.user.permissions,
+          scopePillars: scopePillarsOf(d.access_token),
           accessToken: d.access_token,
           refreshToken: d.refresh_token,
           expiresAt: Date.now() + d.expires_in * 1000,
@@ -95,6 +98,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           permissions: user.permissions,
+          scopePillars: user.scopePillars,
           accessToken: user.accessToken,
           refreshToken: user.refreshToken,
           expiresAt: user.expiresAt,
@@ -111,6 +115,7 @@ export const authOptions: NextAuthOptions = {
         name: token.name ?? "",
         role: token.role,
         permissions: token.permissions,
+        scopePillars: token.scopePillars ?? [],
       };
       if (token.error) session.error = token.error;
       return session;

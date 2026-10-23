@@ -4,18 +4,39 @@
     "tagline": "Digital Chief of Staff"
   },
   "nav": {
-    "dashboard": "F.O.C.U.S Home",
-    "idp": "Data inbox",
-    "ai": "Ask AI",
-    "approvals": "Approvals",
-    "invoices": "Invoices",
+    "home": "Home",
+    "ask": "Ask AI",
+    "goals": "Goals",
+    "work": "Work",
+    "meetings": "Meetings & calendar",
+    "data": "Data",
+    "business": "Business",
+    "knowledge": "Knowledge / reports",
+    "admin": "Administration",
+    "adminGroup": "Administration",
     "menu": "Open menu",
     "close": "Close menu",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
-    "approvalsPending": "The approval inbox arrives in S5b/S5c.",
+    "invoices": "Invoices",
     "employees": "People",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "review": "Review queue"
+  },
+  "navHint": {
+    "home": "Exceptions, decisions to make and a role-based briefing.",
+    "ask": "Ask, analyse, simulate and instruct in natural language.",
+    "goals": "Strategy, OKRs and KPIs on the alignment tree.",
+    "work": "Tasks, workload and projects.",
+    "meetings": "Meetings, minutes → tasks, calendar.",
+    "data": "Submit/review documents, data inbox, review.",
+    "business": "Finance Lite, Sales Lite, basic HR.",
+    "knowledge": "Documents, reports, decision log.",
+    "admin": "Organisation, permissions, AI policy, audit."
+  },
+  "comingSoon": {
+    "title": "Coming soon",
+    "body": "This screen is fully built in phase {phase}."
   },
   "buttons": {
     "login": "Sign in",

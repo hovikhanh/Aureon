@@ -4,18 +4,39 @@
     "tagline": "Digital Chief of Staff"
   },
   "nav": {
-    "dashboard": "Trang chủ F.O.C.U.S",
-    "idp": "Hộp thư dữ liệu",
-    "ai": "Hỏi AI",
-    "approvals": "Phê duyệt",
-    "invoices": "Hóa đơn",
+    "home": "Trang chủ",
+    "ask": "Hỏi AI",
+    "goals": "Mục tiêu",
+    "work": "Công việc",
+    "meetings": "Họp & lịch",
+    "data": "Dữ liệu",
+    "business": "Kinh doanh",
+    "knowledge": "Tri thức / báo cáo",
+    "admin": "Quản trị",
+    "adminGroup": "Quản trị",
     "menu": "Mở menu",
     "close": "Đóng menu",
     "collapse": "Thu gọn thanh bên",
     "expand": "Mở rộng thanh bên",
-    "approvalsPending": "Hộp phê duyệt sẽ có ở S5b/S5c.",
+    "invoices": "Hóa đơn",
     "employees": "Nhân sự",
-    "audit": "Nhật ký kiểm toán"
+    "audit": "Nhật ký kiểm toán",
+    "review": "Hàng chờ review"
+  },
+  "navHint": {
+    "home": "Ngoại lệ, việc cần quyết và briefing theo vai trò.",
+    "ask": "Hỏi tự nhiên, phân tích, mô phỏng, ra lệnh.",
+    "goals": "Chiến lược, OKR, KPI theo cây alignment.",
+    "work": "Task, workload và dự án.",
+    "meetings": "Cuộc họp, biên bản → việc, lịch.",
+    "data": "Gửi/duyệt tài liệu, Hộp thư dữ liệu, review.",
+    "business": "Finance Lite, Sales Lite, HR cơ bản.",
+    "knowledge": "Tài liệu, báo cáo, decision log.",
+    "admin": "Tổ chức, quyền, AI policy, audit."
+  },
+  "comingSoon": {
+    "title": "Sắp có",
+    "body": "Màn hình này được xây đầy đủ ở phase {phase}."
   },
   "buttons": {
     "login": "Đăng nhập",

@@ -12,7 +12,7 @@ export default async function PillarPage({ params }: { params: Promise<{ slug: s
   if (!def) notFound();
   const session = await getServerSession(authOptions);
   const perms = session?.user.permissions ?? [];
-  if (!visiblePillars(session?.user.role ?? "", perms).some((p) => p.code === def.code)) return <ForbiddenPage />;
+  if (!visiblePillars(session?.user.role ?? "", perms, session?.user.scopePillars ?? []).some((p) => p.code === def.code)) return <ForbiddenPage />;
   if (def.code === "F") return <FinanceDrillView />;
   return <PillarDetailView def={def} permissions={perms} />;
 }

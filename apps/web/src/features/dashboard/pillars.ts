@@ -41,8 +41,8 @@ export function pillarBySlug(slug: string): PillarDef | undefined {
 
 /**
  * Pillar scope per role v3 (CLAUDE §1.4, R-DEC-12). Out-of-scope pillars are hidden.
- * CEO + DIR span all five pillars at the role level; a DIR's khối is enforced server-side
- * (R-DEC-12a scope_pillars) per request — the FE menu intersects with `permissions`.
+ * CEO + DIR span all five pillars at the role level; a DIR is narrowed to its khối
+ * (`scope_pillars`, R-DEC-12a) exactly like the API's `dashboard.visible_pillars`.
  * MGR/EMP/REV/ADM have no executive pillar card.
  */
 export const ROLE_PILLARS: Record<string, readonly PillarCode[]> = {
@@ -50,10 +50,16 @@ export const ROLE_PILLARS: Record<string, readonly PillarCode[]> = {
   DIR: ["F", "O", "C", "U", "S"],
 };
 
-/** Visible pillars = role scope ∩ permission on at least one source endpoint. */
-export function visiblePillars(role: string, perms: readonly string[]): PillarDef[] {
+/**
+ * Visible pillars = role scope ∩ query permission ∩ khối (empty `scopePillars` = toàn khối).
+ * Exception mirrored from the API: F stays visible with `finance:query` (public headline
+ * METRIC-FIN-01, 02 §6.1) — the API narrows the F metrics themselves.
+ */
+export function visiblePillars(role: string, perms: readonly string[], scopePillars: readonly string[] = []): PillarDef[] {
   const scope = ROLE_PILLARS[role] ?? [];
-  return PILLARS.filter((p) => scope.includes(p.code) && p.sources.some((s) => perms.includes(s.permission)));
+  const inKhoi = (c: PillarCode) => scopePillars.length === 0 || scopePillars.includes(c);
+  const queryable = (p: PillarDef) => p.sources.some((s) => perms.includes(s.permission));
+  return PILLARS.filter((p) => scope.includes(p.code) && queryable(p) && (inKhoi(p.code) || p.code === "F"));
 }
 
 const RANK: Record<PillarStatus, number> = { no_data: -1, ok: 0, warning: 1, critical: 2 };

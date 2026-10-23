@@ -95,7 +95,7 @@ export function LineageDialog({ card, month, onClose }: { card: CardDef | null; 
           <li className="rounded-lg border p-3" data-testid="lineage-document">
             <div className="mb-1 flex items-center gap-2 font-medium"><FileText className="h-4 w-4 text-primary" aria-hidden />3 · {t("financeDrill.lineage.document")}</div>
             {doc.data ? (
-              <a href={`/finance/invoices`} className="flex items-center gap-1 text-primary hover:underline" data-testid="lineage-doc-link">
+              <a href="/business/finance/invoices" className="flex items-center gap-1 text-primary hover:underline" data-testid="lineage-doc-link">
                 {doc.data.original_filename}<ChevronRight className="h-4 w-4" aria-hidden />
               </a>
             ) : (

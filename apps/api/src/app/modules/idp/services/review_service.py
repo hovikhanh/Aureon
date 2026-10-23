@@ -59,6 +59,7 @@ from app.modules.idp.schemas import (
     ReviewOpenOut,
     ReviewQueueItemOut,
 )
+from app.modules.idp.services.scope import document_visible, sees_all_departments
 from app.modules.idp.services.validator import Validator
 
 SOFT_LOCK_MINUTES = 15
@@ -101,7 +102,7 @@ class ReviewService:
         if filters.document_type:
             dt_id = await self._doc_type_id(filters.document_type)
             where.append(SourceDocument.document_type_id == dt_id)
-        if not (user.has("idp:admin") or user.department_id is None):
+        if not sees_all_departments(user):
             where.append(
                 (SourceDocument.department_id == user.department_id)
                 | (SourceDocument.submitted_by == user.user_id)
@@ -559,11 +560,7 @@ class ReviewService:
 
     @staticmethod
     def _visible(user: Principal, doc: SourceDocument) -> bool:
-        if user.has("idp:admin") or user.department_id is None:
-            return True
-        if doc.submitted_by == user.user_id:
-            return True
-        return doc.department_id is not None and doc.department_id == user.department_id
+        return document_visible(user, doc)
 
     @staticmethod
     def _check_lock(doc: SourceDocument, user: Principal) -> None:

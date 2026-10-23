@@ -14,6 +14,7 @@ from app.core.deps import Principal
 from app.modules.idp.models import ExtractionJob, SourceDocument
 from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import ExtractionResultOut, FieldResultOut
+from app.modules.idp.services.scope import document_visible
 
 
 class IdpQueryService:
@@ -60,8 +61,4 @@ class IdpQueryService:
 
     @staticmethod
     def _visible(user: Principal, doc: SourceDocument) -> bool:
-        if user.has("idp:admin") or user.department_id is None:
-            return True
-        if doc.submitted_by == user.user_id:
-            return True
-        return doc.department_id is not None and doc.department_id == user.department_id
+        return document_visible(user, doc)

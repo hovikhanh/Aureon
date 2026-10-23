@@ -15,4 +15,13 @@ describe("pillars", () => {
     // Roles without an executive pillar see nothing.
     expect(visiblePillars("EMP", ["execution:query"])).toHaveLength(0);
   });
+  it("narrows a DIR to its khối like the API visible_pillars (R-DEC-12a)", () => {
+    const all = ["finance:query", "hr:query", "execution:query", "sales:query", "product:query", "risk:query"];
+    const codes = (scope: string[]) => visiblePillars("DIR", all, scope).map((p) => p.code);
+    expect(codes(["F"])).toEqual(["F"]);
+    expect(codes(["C"])).toEqual(["F", "C"]); // F headline stays (public METRIC-FIN-01, 02 §6.1)
+    expect(codes(["O"])).toEqual(["F", "O"]);
+    expect(codes([])).toEqual(["F", "O", "C", "U", "S"]);
+    expect(visiblePillars("DIR", ["sales:query"], ["C"]).map((p) => p.code)).toEqual(["C"]);
+  });
 });
