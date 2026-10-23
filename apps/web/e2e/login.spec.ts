@@ -2,12 +2,12 @@ import { expect, test } from "@playwright/test";
 import { loginAs } from "./helpers";
 
 test.describe("SCR-13 login (T-502/T-503)", () => {
-  test("protected route redirects to /login", async ({ page }) => {
+  test("protected route redirects to /login", { tag: "@mock" }, async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fdashboard/);
   });
 
-  test("wrong password is rejected with API error", async ({ page }) => {
+  test("wrong password is rejected with API error", { tag: "@mock" }, async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Email").fill("ceo@abc.demo");
     await page.getByLabel("Mật khẩu").fill("wrong-password");
@@ -35,7 +35,7 @@ test.describe("SCR-13 login (T-502/T-503)", () => {
     await expect(page.getByTestId("forbidden")).toBeVisible();
   });
 
-  test("logout returns to login", async ({ page }) => {
+  test("logout returns to login", { tag: "@mock" }, async ({ page }) => {
     await loginAs(page, "ceo@abc.demo");
     await page.getByTestId("avatar").click();
     await page.getByTestId("logout").click();

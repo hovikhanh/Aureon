@@ -10,7 +10,7 @@ const frame = (id: number, event: string, data: unknown) => `id: ${id}\nevent: $
 const SOURCE = { type: "metric_value", id: "revenue_q3", label: "Doanh thu Q3/2026", period_key: "2026-Q3", value: 45200000000, lineage_url: "/dashboard/metrics/METRIC-FIN-01" };
 const ANSWER = "Doanh thu Q3/2026 đạt 45,2 tỷ đồng [1], đạt 98,1% kế hoạch.";
 
-test("streams answer token-by-token with tool call and citation", async ({ page }) => {
+test("streams answer token-by-token with tool call and citation", { tag: "@mock" }, async ({ page }) => {
   await page.route("**/api/backend/ai/chat/stream", async (route) => {
     const req = route.request();
     expect(req.headers()["idempotency-key"]).toBeTruthy();
@@ -43,7 +43,7 @@ test("streams answer token-by-token with tool call and citation", async ({ page 
   await expect(page.getByTestId("source-popover")).toContainText("Doanh thu Q3/2026");
 });
 
-test("shows API error from the stream", async ({ page }) => {
+test("shows API error from the stream", { tag: "@mock" }, async ({ page }) => {
   await page.route("**/api/backend/ai/chat/stream", (route) =>
     route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: frame(1, "start", {}) + frame(2, "error", { code: "AI_DISABLED", message: "x" }) }),
   );
@@ -72,7 +72,7 @@ test("demo mode: recorded question answers fast with citation [1]", async ({ pag
   await expect(page.getByTestId("source-popover")).toContainText("METRIC-FIN-01");
 });
 
-test("long wait shows progressive hints", async ({ page }) => {
+test("long wait shows progressive hints", { tag: "@mock" }, async ({ page }) => {
   await page.clock.install();
   await page.route("**/api/backend/ai/chat/stream", () => new Promise(() => {})); // never answers
   await loginAs(page, "ceo@abc.demo");
