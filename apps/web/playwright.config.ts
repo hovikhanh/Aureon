@@ -34,6 +34,7 @@ const servers = [
     env: {
       API_MODE: "mock",
       DEMO_MODE: "true",
+      DEMO_LOGIN_AUTOFILL: "true",
       MOCK_LOGIN_PASSWORD,
       NEXTAUTH_URL: MOCK_URL,
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ?? "e2e-mock-only-nextauth-secret",

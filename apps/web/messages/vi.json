@@ -85,7 +85,12 @@
     "emailInvalid": "Email không hợp lệ",
     "passwordRequired": "Vui lòng nhập mật khẩu",
     "demoAccounts": "Tài khoản demo",
-    "demoHint": "Bấm một nút để đăng nhập ngay bằng tài khoản demo; mật khẩu do server điền, không gửi ra trình duyệt.",
+    "demoHint": "Chọn một tài khoản: email và mật khẩu demo được điền vào hai ô để bạn xem trước, rồi bấm \"Đăng nhập\".",
+    "demoPick": "— Chọn tài khoản demo —",
+    "demoLoading": "Đang lấy mật khẩu demo…",
+    "demoPasswordMissing": "Chưa cấu hình mật khẩu demo cho tài khoản này — vui lòng tự nhập mật khẩu.",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu",
     "signingIn": "Đang đăng nhập…"
   },
   "role": {

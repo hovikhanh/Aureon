@@ -97,6 +97,7 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 | SCR-14 | `/admin/audit` | Quản trị — audit log | ADM | có sẵn (lite) | (giữ) |
 | — | `/403` | Không có quyền | — | có sẵn | (giữ) |
 
+- **SCR-13 `/login` (T-610c, R-DEC-28):** form email + mật khẩu; khi `DEMO_MODE=true` có **một dropdown** (native `select`) liệt kê 10 tài khoản demo (`DEMO_ACCOUNTS`: đủ 7 role, DIR 4 khối F/O/C/U), nhãn `<tên role i18n> — <email>` (+ khối cho DIR). Chọn một dòng → FE gọi Route Handler `POST /api/demo-credentials` (body `{email}`) → điền **cả** ô email và ô mật khẩu (giá trị thật, thấy được, sửa được); **không tự submit** — người dùng tự bấm "Đăng nhập" (submit `demo: "false"`). Route tắt/không có mật khẩu → chỉ điền email, ô mật khẩu trống + gợi ý `auth.demoPasswordMissing`. Ô mật khẩu có **nút con mắt** (Eye/EyeOff, `type="button"`) đổi `password`↔`text`, `aria-label` `auth.showPassword`/`auth.hidePassword`, `aria-pressed`, dùng được bằng bàn phím, vùng chạm ≥ 44 px (§8.2), áp cả khi tự gõ. HTML `/login` không chứa mật khẩu; không dùng `NEXT_PUBLIC_*` cho mật khẩu.
 - Mục chưa xây (phase sau) hiện trạng thái **"Sắp có"** trong khung trang, không ẩn khỏi IA của role được thấy.
 - Sidebar lọc theo cột "Role thấy" + permission (default-deny §3.3); product/risk **không** có mục riêng (R-DEC-16).
 - Màn hình mới của phase sau (VD `/admin/org`, `/goals/kpis/[id]`) được cấp `SCR-5x+` ở bước Spec lock của phase đó và thêm vào bảng này.
@@ -326,6 +327,7 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §3.4 thêm mô tả SCR-13: dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` (không tự submit), gợi ý `auth.demoPasswordMissing` khi thiếu mật khẩu, nút con mắt hiện/ẩn mật khẩu (WCAG AA §8.2).
 - **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/16/22/25):** thêm §3.4 bảng route v3 ↔ `SCR-*` ↔ redirect từ route v2.1 (giữ SCR v2.1 cho màn hình dùng tiếp, màn hình mới từ SCR-40); §5.3 ghi rõ P0 không offline/sinh trắc học, giọng nói chỉ nhập liệu ngắn, không ghi âm họp; đóng OQ-06-03.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 bám `_reference/SOURCE-UIUX.md` + BRD §12: bảng 5 persona (role/thiết bị/nỗi đau→nhu cầu/US) + 5 phát hiện thiết kế; IA 8 mục ↔ domain P0 + ma trận hiển thị theo vai trò + quy tắc điều hướng (default-deny, breadcrumb, bố cục trang chi tiết); mô tả bước-bước F1–F5 kèm ngoại lệ; wireframe CEO/Review/Mobile dạng text đầy đủ; bảng hành vi bộ component AI + quy tắc Autonomy L0–L3 (L4 khóa) + kill switch + xử lý AI sai/không biết; design system (token/màu/5 nhóm thành phần/trực quan hóa) + WCAG 2.1 AA chi tiết + định dạng VI/EN + chỉ số UX mục tiêu. Bổ sung OQ-06-04/05/06. Giữ nguyên ngữ nghĩa Q1–Q6/R-DEC.

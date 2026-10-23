@@ -1,5 +1,5 @@
-import { test, type Page } from "@playwright/test";
-import { DEMO_ACCOUNTS, demoTestId } from "../src/lib/demo-accounts";
+import { expect, test, type Page } from "@playwright/test";
+import { DEMO_ACCOUNTS } from "../src/lib/demo-accounts";
 import { MOCK_LOGIN_PASSWORD } from "./support/mock";
 import { rootEnv } from "./support/seed";
 
@@ -28,8 +28,8 @@ export function devPassword(email: string): string {
  * Login helpers (T-606). `login()` is the single entry point: it picks the strategy from the
  * running Playwright project —
  *  - `mock`: typed credentials with the mock-only password (all 10 demo accounts, no backend);
- *  - `real`: demo quick-login (DEMO_MODE, password resolved server-side) for accounts in the
- *    demo dropdown, otherwise typed credentials with `password`.
+ *  - `real`: pick the account in the SCR-13 demo dropdown (DEMO_MODE + DEMO_LOGIN_AUTOFILL fill
+ *    e-mail AND password, R-DEC-28), otherwise typed credentials with `password`.
  */
 export function isMockProject(): boolean {
   return test.info().project.name === "mock";
@@ -40,24 +40,30 @@ async function submit(page: Page): Promise<void> {
   await page.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
 
-/** Demo quick-login (DEMO_MODE): one click per account; the password is resolved server-side. */
+/** SCR-13 demo dropdown (T-610c): pick → both fields are filled with real values → submit. */
+export async function pickDemoAccount(page: Page, email: string): Promise<void> {
+  await page.getByLabel(/Tài khoản demo|Demo accounts/).selectOption(email);
+  await expect(page.getByLabel("Email")).toHaveValue(email);
+  await expect(page.getByLabel(/^(Mật khẩu|Password)$/)).not.toHaveValue("");
+}
+
 export async function loginAs(page: Page, email: string): Promise<void> {
   if (isMockProject()) return loginWithPassword(page, email, MOCK_LOGIN_PASSWORD);
   await page.goto("/login");
-  await page.getByTestId(demoTestId(email)).click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await pickDemoAccount(page, email);
+  await submit(page);
 }
 
 /** Typed credential login (accounts outside the demo dropdown, e.g. ADMIN). */
 export async function loginWithPassword(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel(/Mật khẩu|Password/).fill(isMockProject() ? MOCK_LOGIN_PASSWORD : password);
+  await page.getByLabel(/^(Mật khẩu|Password)$/).fill(isMockProject() ? MOCK_LOGIN_PASSWORD : password);
   await submit(page);
 }
 
 /**
- * Project-aware login for any of the 10 demo accounts: demo quick-login when the account is in
+ * Project-aware login for any of the 10 demo accounts: demo dropdown when the account is in
  * the dropdown, otherwise typed credentials (explicit `password`, else the dev password).
  */
 export async function login(page: Page, email: string, password?: string): Promise<void> {

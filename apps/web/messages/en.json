@@ -85,7 +85,12 @@
     "emailInvalid": "Invalid email",
     "passwordRequired": "Please enter your password",
     "demoAccounts": "Demo accounts",
-    "demoHint": "Click a button to sign in with that demo account; the password is filled server-side and never sent to the browser.",
+    "demoHint": "Pick an account: the demo e-mail and password are filled into the fields so you can review them, then click \"Sign in\".",
+    "demoPick": "— Choose a demo account —",
+    "demoLoading": "Fetching demo password…",
+    "demoPasswordMissing": "No demo password is configured for this account — please type the password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signingIn": "Signing in…"
   },
   "role": {

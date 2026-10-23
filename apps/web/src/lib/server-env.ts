@@ -2,9 +2,17 @@
 /** Server-side config (never exposed via NEXT_PUBLIC_*). API base without `/api/v1`. */
 export const API_URL = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 export const API_BASE = `${API_URL}/api/v1`;
-export const DEMO_MODE = process.env.DEMO_MODE === "true" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+type Env = Record<string, string | undefined>;
 
-/** Demo quick-login (SCR-13, DEMO_MODE only): password resolved server-side, never sent to the browser. */
+export function isDemoMode(env: Env = process.env): boolean {
+  return env.DEMO_MODE === "true" || env.NEXT_PUBLIC_DEMO_MODE === "true";
+}
+export const DEMO_MODE = isDemoMode();
+
+/**
+ * Demo passwords (SCR-13, DEMO_MODE only), read from server env `DEMO_*_PASSWORD` (root `.env`,
+ * gitignored). Returned to the browser only by `api/demo-credentials` under R-DEC-28.
+ */
 const DEMO_PASSWORD_ENV: Record<string, readonly string[]> = {
   "ceo@abc.demo": ["DEMO_CEO_PASSWORD"],
   "cfo@abc.demo": ["DEMO_CFO_PASSWORD"],
@@ -18,13 +26,13 @@ const DEMO_PASSWORD_ENV: Record<string, readonly string[]> = {
   "admin@abc.demo": ["DEMO_ADMIN_PASSWORD"],
 };
 
-export function demoPasswordFor(email: string): string | undefined {
-  if (!DEMO_MODE) return undefined;
+export function demoPasswordFor(email: string, env: Env = process.env): string | undefined {
+  if (!isDemoMode(env)) return undefined;
   for (const name of DEMO_PASSWORD_ENV[email.toLowerCase()] ?? []) {
-    const v = process.env[name];
+    const v = env[name];
     if (v) return v;
   }
-  return process.env.DEMO_PASSWORD || undefined;
+  return env.DEMO_PASSWORD || undefined;
 }
 
 /**

@@ -22,7 +22,8 @@
 | T-607 | `12f8170` | IA v3: Sidebar 8 mục + Quản trị, route v3, 308 từ route v2.1, "Sắp có"; fix IDP CEO-scope |
 | T-608 | `b112bc9` | Đóng băng product/risk: `p1_frozen`, Executive mặc định F/O/C, 5 trụ chỉ ở SCR-03 |
 | T-609 | `65072d3` | E2E login + điều hướng 7 role trên `real` |
-| T-610b | (chưa commit) | Rebuild image `api`/`web`; **đăng nhập nhanh 10 role** bằng nút (mật khẩu giải ở server, không ra browser); gỡ `NEXT_PUBLIC_DEMO_PASSWORD_*` khỏi `.env.example` |
+| T-610b | `3673bac` | Rebuild image `api`/`web`; **đăng nhập nhanh 10 role** bằng nút (mật khẩu giải ở server, không ra browser); gỡ `NEXT_PUBLIC_DEMO_PASSWORD_*` khỏi `.env.example` |
+| T-610c | (commit này) | SCR-13 quay lại **dropdown 10 tài khoản**; chọn → Route Handler `POST /api/demo-credentials` (chỉ khi `DEMO_MODE=true` **và** `DEMO_LOGIN_AUTOFILL=true`, whitelist `DEMO_ACCOUNTS`, `no-store`) điền **cả email và mật khẩu**; không tự submit; nút con mắt Eye/EyeOff (aria-pressed, 44px). R-DEC-28 |
 
 **Verify đóng phase (2026-10-23):** gate DoD xanh · pytest 808 (`--cov` 97%, bảo mật ≥ 91%) · Vitest 80 ·
 contract 14 · alembic `downgrade -1 && upgrade head` sạch · Playwright `mock` 28/28 (không backend) · `real` 58/58
@@ -32,6 +33,15 @@ contract 14 · alembic `downgrade -1 && upgrade head` sạch · Playwright `mock
 **Verify T-610b (2026-10-23):** lint/typecheck sạch · Vitest **84** (thêm `demo-accounts.test.ts`) ·
 Playwright `real` **58/58** trên stack docker `:3000`/`:4000` (image mới) · HTML `/login` không chứa mật khẩu ·
 9 service compose healthy.
+
+**Verify T-610c (2026-10-23):** lint/typecheck sạch · Vitest **94** (+`demo-credentials.test.ts` 7, +`password-toggle.test.ts` 3) ·
+image `web` rebuild, curl :3000 (200 cho email demo, 404 `NOT_FOUND` ngoài whitelist, `no-store`, HTML `/login` không chứa mật khẩu) ·
+**human thử tay 8 bước: OK**. pytest/contract/Playwright **chưa chạy** (xem chính sách test bên dưới); TC-M11-16/17 = Implemented.
+
+**Chính sách test (human chốt 2026-10-23):** mỗi task chỉ chạy kiểm tra nhanh (lint/typecheck/Vitest; BE thêm ruff/mypy)
++ rebuild image + hướng dẫn thử tay → human test và phản hồi → commit (`[full-test pending]`). **Full test** (pytest,
+contract, Playwright `mock` + `real`) dồn đến cuối phase khi human xác nhận ổn hết; lúc đó mới đổi TC sang Passed.
+Lưu ý môi trường: `.env` cần `DEMO_LOGIN_AUTOFILL=true` để autofill chạy trên stack demo (production: `false`, `DEMO_MODE=false`).
 
 **Rủi ro / nợ còn lại:** FIN-06 ≈ 8% (08 ghi ~12%,
 human chốt giữ); DQ-01 phụ thuộc giờ hệ thống; `scripts/gen_demo_docs.py` còn assert 45 NV; mock router chỉ phủ
