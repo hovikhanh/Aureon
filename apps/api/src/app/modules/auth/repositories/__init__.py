@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import RefreshToken, Role, User
@@ -20,9 +20,37 @@ class UserRepository:
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    async def get(self, user_id: uuid.UUID) -> User | None:
+    async def get(self, user_id: uuid.UUID, *, lock: bool = False) -> User | None:
         stmt = select(User).where(User.id == user_id, User.deleted_at.is_(None))
+        if lock:
+            stmt = stmt.with_for_update()
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def by_employee(self, employee_id: uuid.UUID) -> User | None:
+        stmt = select(User).where(User.employee_id == employee_id, User.deleted_at.is_(None))
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def page(
+        self, *, role_id: uuid.UUID | None, is_active: bool | None,
+        department_id: uuid.UUID | None, q: str | None, sort_by: str, order: str,
+        limit: int, offset: int,
+    ) -> tuple[Sequence[User], int]:  # fmt: skip
+        """EP-ADM-05 list (identity table — global, single-tenant MVP, R-DEC-07)."""
+        stmt = select(User).where(User.deleted_at.is_(None))
+        if role_id is not None:
+            stmt = stmt.where(User.role_id == role_id)
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
+        if department_id is not None:
+            stmt = stmt.where(User.department_id == department_id)
+        if q:
+            like = f"%{q.strip().lower()}%"
+            stmt = stmt.where(or_(func.lower(User.email).like(like),
+                                  func.lower(User.full_name).like(like)))  # fmt: skip
+        total = int(await self.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
+        col = getattr(User, sort_by)
+        stmt = stmt.order_by(col.asc() if order == "asc" else col.desc(), User.id)
+        return (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all(), total
 
 
 class RoleRepository:

@@ -1071,6 +1071,11 @@ export type Envelope_UploadResultOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_UserAdminOut_ = {
+  data: UserAdminOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_UserOut_ = {
   data: UserOut;
   meta?: Meta | null;
@@ -1296,6 +1301,11 @@ export type Envelope_list_RoadmapOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_RoleOut__ = {
+  data: RoleOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_SalaryOut__ = {
   data: SalaryOut[];
   meta?: Meta | null;
@@ -1323,6 +1333,11 @@ export type Envelope_list_TeamOut__ = {
 
 export type Envelope_list_ToolOut__ = {
   data: ToolOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_UserAdminOut__ = {
+  data: UserAdminOut[];
   meta?: Meta | null;
 };
 
@@ -2471,6 +2486,10 @@ export type ProjectUpdate = {
   budget_amount?: number | null;
 };
 
+export type ReasonIn = {
+  reason: string;
+};
+
 export type ReassignIn = {
   to_user_id?: string | null;
   to_role_code?: string | null;
@@ -2751,6 +2770,17 @@ export type RoadmapUpdate = {
   target_date?: string | null;
   status?: ("planned" | "in_progress" | "done" | "delayed" | "dropped") | null;
   completed_at?: string | null;
+};
+
+export type RoleOut = {
+  id: string;
+  code: string;
+  role_ref: string;
+  name_vi: string;
+  name_en: string;
+  permissions: string[];
+  scope_rules: Record<string, unknown>;
+  pillars: string[];
 };
 
 export type RunwayTrendPoint = {
@@ -3106,6 +3136,36 @@ export type UploadResultOut = {
   duplicates?: string[];
 };
 
+export type UserAdminOut = {
+  id: string;
+  email: string;
+  full_name: string;
+  role_id: string;
+  role_code: string;
+  scope_pillars: string[];
+  department_id: string | null;
+  employee_id: string | null;
+  locale: string;
+  is_active: boolean;
+  is_service_account: boolean;
+  last_login_at: string | null;
+  locked_until: string | null;
+  created_at: string;
+  updated_at: string;
+  version: number;
+};
+
+export type UserCreate = {
+  email: string;
+  full_name: string;
+  role_code: "CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM" | "AI";
+  scope_pillars?: ("F" | "O" | "C" | "U" | "S")[];
+  department_id?: string | null;
+  employee_id?: string | null;
+  locale?: "vi" | "en";
+  initial_password: string;
+};
+
 export type UserOut = {
   id: string;
   email: string;
@@ -3117,6 +3177,16 @@ export type UserOut = {
   locale: string;
   is_active: boolean;
   last_login_at: string | null;
+};
+
+export type UserUpdate = {
+  full_name?: string | null;
+  role_code?: ("CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM" | "AI") | null;
+  scope_pillars?: (("F" | "O" | "C" | "U" | "S")[]) | null;
+  department_id?: string | null;
+  employee_id?: string | null;
+  locale?: ("vi" | "en") | null;
+  version?: number | null;
 };
 
 export type ValidationError = {
@@ -3827,6 +3897,34 @@ export interface ApiOperations {
   "POST /api/v1/platform/dead-letters/{id}/replay": {
     request: void;
     response: Envelope_ReplayOut_;
+  };
+  "GET /api/v1/platform/roles": {
+    request: void;
+    response: Envelope_list_RoleOut__;
+  };
+  "GET /api/v1/platform/users": {
+    request: void;
+    response: Envelope_list_UserAdminOut__;
+  };
+  "POST /api/v1/platform/users": {
+    request: UserCreate;
+    response: Envelope_UserAdminOut_;
+  };
+  "GET /api/v1/platform/users/{user_id}": {
+    request: void;
+    response: Envelope_UserAdminOut_;
+  };
+  "PATCH /api/v1/platform/users/{user_id}": {
+    request: UserUpdate;
+    response: Envelope_UserAdminOut_;
+  };
+  "POST /api/v1/platform/users/{user_id}/deactivate": {
+    request: ReasonIn;
+    response: Envelope_UserAdminOut_;
+  };
+  "POST /api/v1/platform/users/{user_id}/reactivate": {
+    request: ReasonIn;
+    response: Envelope_UserAdminOut_;
   };
   "GET /api/v1/product/dashboard": {
     request: void;

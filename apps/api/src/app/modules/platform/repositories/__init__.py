@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, func, select, update
@@ -112,8 +113,17 @@ class AuditRepository:
         target_table: str | None = None,
         target_id: uuid.UUID | None = None,
         actor_user_id: uuid.UUID | None = None,
+        actor_type: str | None = None,
+        occurred_from: datetime | None = None,
+        occurred_to: datetime | None = None,
     ) -> tuple[Sequence[AuditLog], int]:
         stmt = select(AuditLog)
+        if actor_type:
+            stmt = stmt.where(AuditLog.actor_type == actor_type)
+        if occurred_from is not None:
+            stmt = stmt.where(AuditLog.occurred_at >= occurred_from)
+        if occurred_to is not None:
+            stmt = stmt.where(AuditLog.occurred_at <= occurred_to)
         if action:
             stmt = stmt.where(AuditLog.action == action)
         if target_table:
