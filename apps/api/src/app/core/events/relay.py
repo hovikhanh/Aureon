@@ -41,6 +41,7 @@ def _envelope(row: object) -> EventEnvelope:
         event_type=row.event_type,  # type: ignore[attr-defined]
         occurred_at=row.occurred_at,  # type: ignore[attr-defined]
         version=row.version,  # type: ignore[attr-defined]
+        tenant_id=row.tenant_id,  # type: ignore[attr-defined]  # R-DEC-21, 10 §9.1
         producer=row.aggregate_schema,  # type: ignore[attr-defined]
         payload=row.payload,  # type: ignore[attr-defined]
     )

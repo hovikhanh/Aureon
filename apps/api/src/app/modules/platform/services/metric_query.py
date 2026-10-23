@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.errors import ConflictStateError, NotFoundError
-from app.modules.platform.models import Alert, DataLineage, Metric, MetricValue
+from app.modules.platform.models import Alert, Metric, MetricValue
+from app.modules.platform.repositories import AlertRepository, MetricValueRepository
 
 STATUS_FROM_THRESHOLD = {"GREEN": "ok", "YELLOW": "warning", "RED": "critical"}
 UNIT_OUT = {"PERCENT": "PCT", "VND_PER_PERSON": "VND", "INDEX": "SCORE"}
@@ -103,6 +104,8 @@ def def_dto(m: Metric) -> MetricDefDTO:
 class MetricQueryService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+        self.values = MetricValueRepository(db)
+        self.alerts = AlertRepository(db)
 
     async def definitions(self) -> list[MetricDefDTO]:
         rows = (await self.db.execute(select(Metric).order_by(Metric.code))).scalars()
@@ -113,8 +116,7 @@ class MetricQueryService:
     ) -> list[MetricValueDTO]:
         """Latest current company value per metric (most recent period)."""
         stmt = (
-            select(Metric, MetricValue)
-            .join(MetricValue, MetricValue.metric_id == Metric.id)
+            self.values.joined(Metric, MetricValue)
             .where(
                 MetricValue.is_current.is_(True), MetricValue.kind == "ACTUAL",
                 MetricValue.scope_type == "company", MetricValue.deleted_at.is_(None),
@@ -127,14 +129,13 @@ class MetricQueryService:
             stmt = stmt.where(Metric.pillar.in_(pillars))
         now = datetime.now(UTC)
         seen: dict[str, MetricValueDTO] = {}
-        for m, v in (await self.db.execute(stmt)).all():
+        for m, v in await self.values.rows(stmt):
             seen.setdefault(m.code, value_dto(m, v, now))
         return list(seen.values())
 
     async def trend(self, code: str, limit: int = 12) -> list[tuple[str, float | None]]:
         stmt = (
-            select(MetricValue.period_key, MetricValue.value)
-            .join(Metric, MetricValue.metric_id == Metric.id)
+            self.values.joined(MetricValue.period_key, MetricValue.value)
             .where(
                 Metric.code == code, MetricValue.is_current.is_(True),
                 MetricValue.scope_type == "company", MetricValue.kind == "ACTUAL",
@@ -142,40 +143,27 @@ class MetricQueryService:
             .order_by(MetricValue.period_key.desc())
             .limit(limit)
         )  # fmt: skip
-        rows = (await self.db.execute(stmt)).all()
+        rows = await self.values.rows(stmt)
         return [(k, _f(v)) for k, v in reversed(rows)]
 
     async def breakdown(self, code: str, period_key: str) -> list[tuple[str, str, float | None]]:
-        stmt = (
-            select(MetricValue.scope_type, MetricValue.scope_id, MetricValue.value)
-            .join(Metric, MetricValue.metric_id == Metric.id)
-            .where(
-                Metric.code == code, MetricValue.is_current.is_(True),
-                MetricValue.period_key == period_key, MetricValue.scope_type != "company",
-            )
+        stmt = self.values.joined(
+            MetricValue.scope_type, MetricValue.scope_id, MetricValue.value
+        ).where(
+            Metric.code == code, MetricValue.is_current.is_(True),
+            MetricValue.period_key == period_key, MetricValue.scope_type != "company",
         )  # fmt: skip
-        return [(t, str(i), _f(v)) for t, i, v in (await self.db.execute(stmt)).all()]
+        return [(t, str(i), _f(v)) for t, i, v in await self.values.rows(stmt)]
 
     async def record_count(self, code: str) -> int:
-        stmt = (
-            select(func.count(DataLineage.id))
-            .join(MetricValue, DataLineage.metric_value_id == MetricValue.id)
-            .join(Metric, MetricValue.metric_id == Metric.id)
-            .where(
-                Metric.code == code, MetricValue.is_current.is_(True),
-                MetricValue.scope_type == "company",
-            )
+        return await self.values.lineage_count(
+            Metric.code == code, MetricValue.is_current.is_(True),
+            MetricValue.scope_type == "company",
         )  # fmt: skip
-        return int((await self.db.execute(stmt)).scalar_one())
 
     # ---------- alerts ----------
     def _alerts(self) -> Any:
-        return (
-            select(Alert, Metric, MetricValue)
-            .join(Metric, Alert.metric_id == Metric.id)
-            .join(MetricValue, Alert.metric_value_id == MetricValue.id)
-            .where(Alert.deleted_at.is_(None))
-        )
+        return self.alerts.with_metric()
 
     @staticmethod
     def alert_dto(a: Alert, m: Metric, v: MetricValue) -> AlertDTO:
@@ -200,28 +188,17 @@ class MetricQueryService:
             stmt = stmt.where(Alert.status == status.upper())
         if severity:
             stmt = stmt.where(Alert.severity == severity.upper())
-        total = int(
-            (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+        rows, total = await self.alerts.page(
+            stmt, (Alert.raised_at.desc(), Alert.id), limit=limit, offset=offset
         )
-        rows = await self.db.execute(
-            stmt.order_by(Alert.raised_at.desc(), Alert.id).limit(limit).offset(offset)
-        )
-        return [self.alert_dto(a, m, v) for a, m, v in rows.all()], total
+        return [self.alert_dto(a, m, v) for a, m, v in rows], total
 
     async def open_alert_count(self, pillars: set[str]) -> dict[str, int]:
-        stmt = (
-            select(Metric.pillar, func.count(Alert.id))
-            .join(Metric, Alert.metric_id == Metric.id)
-            .where(
-                Alert.deleted_at.is_(None), Alert.status.in_(("OPEN", "ACKNOWLEDGED")),
-                Metric.pillar.in_(pillars),
-            )
-            .group_by(Metric.pillar)
-        )  # fmt: skip
-        return {p: int(n) for p, n in (await self.db.execute(stmt)).all() if p is not None}
+        rows = await self.alerts.open_count_by_pillar(pillars)
+        return {p: int(n) for p, n in rows if p is not None}
 
     async def _get_alert(self, id_: uuid.UUID) -> tuple[Alert, Metric, MetricValue]:
-        row = (await self.db.execute(self._alerts().where(Alert.id == id_))).first()
+        row = await self.alerts.first(self._alerts().where(Alert.id == id_))
         if row is None:
             raise NotFoundError("alert not found")
         return row[0], row[1], row[2]

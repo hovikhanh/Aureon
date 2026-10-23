@@ -1,6 +1,7 @@
 """Finance repositories — only `finance` services use them (DEC-125)."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import date
 
 from sqlalchemy import func, or_, select, update
@@ -24,6 +25,12 @@ from app.modules.finance.models import (
 
 class RevenueRepository(BaseRepository[Revenue]):
     model = Revenue
+
+    async def unattributed_seed_rows(self) -> Sequence[Revenue]:
+        """Seeded revenue rows not yet linked to a client (seed attribution, T-237)."""
+        stmt = self._live().where(Revenue.source == "SEED", Revenue.client_id.is_(None))
+        stmt = stmt.order_by(Revenue.period_key, Revenue.amount.desc(), Revenue.id)
+        return (await self.db.execute(stmt)).scalars().all()
 
 
 class ExpenseRepository(BaseRepository[Expense]):

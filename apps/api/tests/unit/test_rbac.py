@@ -7,6 +7,7 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.deps import Principal, require_permission, require_role
 from app.core.handlers import install_error_handlers
 from app.core.permissions import ACTIONS, DOMAINS, VALID_PERMISSIONS, permission_name
@@ -24,6 +25,7 @@ def _token(role: str, perms: tuple[str, ...] | None = None) -> str:
         role_id=str(uuid.uuid4()),
         permissions=ROLE_PERMISSIONS[role] if perms is None else perms,
         department_id=None,
+        tenant_id=DEFAULT_TENANT_ID,
     )
     return token
 

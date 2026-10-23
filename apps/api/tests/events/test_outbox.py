@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events.envelope import OUTBOX, PROCESSED, EventEnvelope
 from app.core.events.outbox import EventContractError, publish_in_tx
 from app.core.events.registry import EVENT_TYPES
@@ -74,8 +75,10 @@ async def test_envelope_shape(factory: async_sessionmaker[AsyncSession]) -> None
         await s.rollback()
     msg = env.to_message()
     assert set(msg) == {
-        "event_id", "event_type", "occurred_at", "version", "correlation_id", "producer", "payload",
+        "event_id", "event_type", "occurred_at", "version", "correlation_id", "tenant_id",
+        "producer", "payload",
     }  # fmt: skip
+    assert msg["tenant_id"] == str(DEFAULT_TENANT_ID)  # R-DEC-21, 10 §9.1
     assert msg["version"] == 1
     assert msg["occurred_at"].endswith("Z") or msg["occurred_at"].endswith("+00:00")
     assert EventEnvelope.model_validate(msg) == env

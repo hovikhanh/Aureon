@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
@@ -46,6 +46,7 @@ from app.modules.idp.models import (
     SourceDocument,
     ValidationRule,
 )
+from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import (
     DocumentOut,
     DocumentPageOut,
@@ -88,20 +89,20 @@ class ReviewService:
         """EP-28 — review queue. Default status set = documents awaiting a human
         (`NEEDS_REVIEW`, `IN_REVIEW`). Department-scoped per 04 §8.2 unless the caller has
         `idp:admin` or no department (CEO/ADMIN-style)."""
-        base = select(SourceDocument).where(SourceDocument.deleted_at.is_(None))
+        where: list[ColumnElement[bool]] = []
         if filters.status:
-            base = base.where(SourceDocument.status == filters.status)
+            where.append(SourceDocument.status == filters.status)
         else:
-            base = base.where(SourceDocument.status.in_(("NEEDS_REVIEW", "IN_REVIEW")))
+            where.append(SourceDocument.status.in_(("NEEDS_REVIEW", "IN_REVIEW")))
         if filters.date_from:
-            base = base.where(SourceDocument.submitted_at >= filters.date_from)
+            where.append(SourceDocument.submitted_at >= filters.date_from)
         if filters.date_to:
-            base = base.where(SourceDocument.submitted_at <= filters.date_to)
+            where.append(SourceDocument.submitted_at <= filters.date_to)
         if filters.document_type:
             dt_id = await self._doc_type_id(filters.document_type)
-            base = base.where(SourceDocument.document_type_id == dt_id)
+            where.append(SourceDocument.document_type_id == dt_id)
         if not (user.has("idp:admin") or user.department_id is None):
-            base = base.where(
+            where.append(
                 (SourceDocument.department_id == user.department_id)
                 | (SourceDocument.submitted_by == user.user_id)
             )
@@ -110,21 +111,15 @@ class ReviewService:
                 ReviewAssignment.is_current.is_(True),
                 ReviewAssignment.to_user_id == filters.assigned_to,
             )
-            base = base.where(SourceDocument.id.in_(sub))
-
-        total = (
-            await self.db.execute(select(func.count()).select_from(base.subquery()))
-        ).scalar_one()
+            where.append(SourceDocument.id.in_(sub))
 
         sort_col = {
             "created_at": SourceDocument.submitted_at,
             "submitted_at": SourceDocument.submitted_at,
         }.get(page.sort_by, SourceDocument.submitted_at)
         order = sort_col.asc() if page.order == "asc" else sort_col.desc()
-        docs = (
-            (await self.db.execute(base.order_by(order).limit(page.limit).offset(page.offset)))
-            .scalars()
-            .all()
+        docs, total = await SourceDocumentRepository(self.db).page(
+            where, order, limit=page.limit, offset=page.offset
         )
         items = [await self._queue_item(d) for d in docs]
         return items, int(total)
@@ -133,15 +128,7 @@ class ReviewService:
         job = await self._latest_job(doc.id)
         fields: list[ExtractedField] = []
         if job is not None:
-            fields = list(
-                (
-                    await self.db.execute(
-                        select(ExtractedField).where(ExtractedField.extraction_job_id == job.id)
-                    )
-                )
-                .scalars()
-                .all()
-            )
+            fields = await ExtractedFieldRepository(self.db).for_job(job.id)
         confs = [float(f.confidence) for f in fields]
         avg = round(sum(confs) / len(confs), 4) if confs else None
         critical = sum(1 for f in fields if f.is_critical)
@@ -521,17 +508,7 @@ class ReviewService:
         return {f["name"] for f in (schema.fields or []) if f.get("required")}
 
     async def _fields(self, job_id: uuid.UUID) -> list[ExtractedField]:
-        return list(
-            (
-                await self.db.execute(
-                    select(ExtractedField)
-                    .where(ExtractedField.extraction_job_id == job_id)
-                    .order_by(ExtractedField.field_name.asc())
-                )
-            )
-            .scalars()
-            .all()
-        )
+        return await ExtractedFieldRepository(self.db).for_job(job_id, ordered=True)
 
     async def _latest_job(self, document_id: uuid.UUID) -> ExtractionJob | None:
         return (
@@ -575,14 +552,7 @@ class ReviewService:
         ).scalar_one_or_none()
 
     async def _visible_doc(self, user: Principal, document_id: uuid.UUID) -> SourceDocument:
-        doc = (
-            await self.db.execute(
-                select(SourceDocument).where(
-                    SourceDocument.id == document_id,
-                    SourceDocument.deleted_at.is_(None),
-                )
-            )
-        ).scalar_one_or_none()
+        doc = await SourceDocumentRepository(self.db).by_id(document_id)
         if doc is None or not self._visible(user, doc):
             raise NotFoundError("document not found")
         return doc

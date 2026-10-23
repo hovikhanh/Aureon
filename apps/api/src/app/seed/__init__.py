@@ -12,8 +12,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.clock import business_today
 from app.core.db import get_engine, get_sessionmaker
+from app.core.tenant import tenant_scope
 from app.modules.auth.models import User
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
@@ -74,6 +76,7 @@ async def run() -> SeedReport:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    report = asyncio.run(run())
+    with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: seed writes as the MVP system tenant
+        report = asyncio.run(run())
     for outcome in ("created", "updated", "unchanged", "skipped"):
         logging.info("seed %s: %d", outcome, report.count(outcome))

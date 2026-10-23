@@ -20,13 +20,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
 from app.core.model_gateway.types import ChatRequest, ChatResponse
 from app.core.model_gateway.types import Message as GwMessage
 from app.modules.ai.models import Insight
+from app.modules.ai.repositories import InsightRepository
 from app.modules.ai.schemas import (
     ConfidenceOut,
     InsightOut,
@@ -158,18 +158,10 @@ class InsightService:
         severity: str | None = None,
     ) -> list[InsightOut]:  # fmt: skip
         pillars = visible_pillars(user)
-        stmt = select(Insight).where(
-            Insight.status == "active",
-            Insight.audience_roles.op("@>")([user.role]),
-        )
-        if pillar is not None:
-            stmt = stmt.where(Insight.pillar == pillar)
-        if kind is not None:
-            stmt = stmt.where(Insight.kind == kind)
-        if severity is not None:
-            stmt = stmt.where(Insight.severity == severity.upper())
-        stmt = stmt.order_by(Insight.created_at.desc())
-        rows = (await self.db.execute(stmt)).scalars()
+        rows = await InsightRepository(self.db).active_for_role(
+            user.role, pillar=pillar, kind=kind,
+            severity=severity.upper() if severity is not None else None,
+        )  # fmt: skip
         out: list[InsightOut] = []
         for ins in rows:
             # hide an insight whose pillar the viewer cannot see (scope, 02 §6)
@@ -181,13 +173,7 @@ class InsightService:
     async def dismiss(self, user: Principal, insight_id: uuid.UUID) -> InsightOut:
         from app.core.errors import NotFoundError
 
-        ins = (
-            await self.db.execute(
-                select(Insight).where(
-                    Insight.id == insight_id, Insight.audience_roles.op("@>")([user.role])
-                )
-            )
-        ).scalar_one_or_none()
+        ins = await InsightRepository(self.db).for_role(insight_id, user.role)
         if ins is None:
             raise NotFoundError("insight not found")
         ins.status = "dismissed"

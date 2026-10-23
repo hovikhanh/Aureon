@@ -19,7 +19,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_hooks import register_approval_hook
@@ -32,6 +31,7 @@ from app.core.errors import (
     PermissionDeniedError,
 )
 from app.modules.ai.models import AIAction
+from app.modules.ai.repositories import AIActionRepository
 from app.modules.ai.schemas import AIActionOut
 from app.modules.ai.services.action_registry import UndoThunk, get_action, is_finance_action
 from app.modules.ai.services.autonomy import resolve_level
@@ -157,13 +157,9 @@ class ActionService:
     async def list_for(
         self, user: Principal, *, status: str | None = None, autonomy_level: str | None = None
     ) -> list[AIActionOut]:
-        stmt = select(AIAction).where(AIAction.on_behalf_of == user.user_id)
-        if status is not None:
-            stmt = stmt.where(AIAction.status == status)
-        if autonomy_level is not None:
-            stmt = stmt.where(AIAction.autonomy_level == autonomy_level)
-        stmt = stmt.order_by(AIAction.created_at.desc())
-        rows = (await self.db.execute(stmt)).scalars().all()
+        rows = await AIActionRepository(self.db).list_for_user(
+            user.user_id, status=status, autonomy_level=autonomy_level
+        )
         return [self._to_out(a) for a in rows]
 
     async def get(self, user: Principal, action_id: uuid.UUID) -> AIActionOut:
@@ -227,19 +223,13 @@ class ActionService:
                     continue
 
     async def _get(self, action_id: uuid.UUID) -> AIAction:
-        action = (
-            await self.db.execute(select(AIAction).where(AIAction.id == action_id))
-        ).scalar_one_or_none()
+        action = await AIActionRepository(self.db).by_id(action_id)
         if action is None:
             raise NotFoundError("action not found")
         return action
 
     async def _locked(self, action_id: uuid.UUID) -> AIAction:
-        action = (
-            await self.db.execute(
-                select(AIAction).where(AIAction.id == action_id).with_for_update()
-            )
-        ).scalar_one_or_none()
+        action = await AIActionRepository(self.db).by_id(action_id, lock=True)
         if action is None:
             raise NotFoundError("action not found")
         return action

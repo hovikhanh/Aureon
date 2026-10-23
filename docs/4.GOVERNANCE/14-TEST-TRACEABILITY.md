@@ -66,10 +66,10 @@ Quy ước `TC-M<mốc><phase>-NN` (R-DEC-19). Trạng thái: `Planned → Imple
 |---|---|---|---|---|---|
 | TC-SYS-003 | OpenAPI + code khớp 10 (mã lỗi §1.4 hai chiều, public EP, envelope) | contract | T-602 | 10 §1.4, §7.2 | **Passed** (11/11, sau khi khôi phục §1.4) |
 | TC-M11-01 | Mọi lớp `AppError` + `AI_ERROR_CODES` + `_HTTP_CODES` có trong 10 §1.4 đúng HTTP status | contract | T-602 | R-DEC-18 | Passed |
-| TC-M11-02 | Repository nghiệp vụ lọc `tenant_id` theo tenant context; tenant B không đọc/sửa/xóa bản ghi tenant A (trả 404) | integration (bảo mật) | T-603 | R-DEC-13/21, 05 §2.3 | Planned |
-| TC-M11-03 | Thiếu tenant context → repository raise (fail closed), không trả dữ liệu | unit (bảo mật) | T-603 | 05 §2.3 | Planned |
-| TC-M11-04 | Outbox ghi `tenant_id`; consumer set tenant từ envelope; event thiếu `tenant_id` → DLQ | event | T-603 | 10 §9.1 | Planned |
-| TC-M11-05 | Test kiến trúc: không `select(<BusinessModel>)` ngoài repository; migration `0010` downgrade/upgrade sạch | architecture | T-603 | CLAUDE.md §4.3, 05 §2.3 | Planned |
+| TC-M11-02 | Repository nghiệp vụ lọc `tenant_id` theo tenant context; tenant B không đọc/sửa/xóa bản ghi tenant A (trả 404) | integration (bảo mật) | T-603 | R-DEC-13/21, 05 §2.3 | Implemented |
+| TC-M11-03 | Thiếu tenant context → repository raise (fail closed), không trả dữ liệu | unit (bảo mật) | T-603 | 05 §2.3 | Implemented |
+| TC-M11-04 | Outbox ghi `tenant_id`; consumer set tenant từ envelope; event thiếu `tenant_id` → DLQ | event | T-603 | 10 §9.1 | Implemented |
+| TC-M11-05 | Test kiến trúc: không `select(<BusinessModel>)` ngoài repository; migration `0010` downgrade/upgrade sạch | architecture | T-603 | CLAUDE.md §4.3, 05 §2.3 | Implemented |
 | TC-M11-06 | Seed v3: 7 phòng ban + quy mô đúng 08 §2.1 (±), user demo đủ role + `scope_pillars` đúng, chạy 2 lần không tạo trùng | integration | T-603b | 08 §2.1, R-DEC-23 | Planned |
 | TC-M11-07 | Seed v3 có dữ liệu tối thiểu UC-01/02/03/04/06/07 (08 §4) trên entity đã có | integration | T-603b | 08 §4 | Planned |
 | TC-M11-08 | `generated.ts` sinh lại trùng file đã commit (drift check) | contract | T-605 | R-DEC-19 | Planned |

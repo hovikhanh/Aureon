@@ -15,11 +15,11 @@ Caller commits.
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.modules.ai.models import AIAction
+from app.modules.ai.repositories import AIActionRepository
 from app.modules.platform.services.metric_query import MetricQueryService
 
 CHECKPOINTS = (("24h", timedelta(hours=24)), ("7d", timedelta(days=7)))
@@ -63,11 +63,7 @@ def evaluate(
 
 async def verify_action_outcomes(db: AsyncSession, now: datetime | None = None) -> int:
     now = now or datetime.now(UTC)
-    stmt = select(AIAction).where(
-        AIAction.status == "executed", AIAction.autonomy_level.in_(LEVELS),
-        AIAction.executed_at.is_not(None), AIAction.executed_at <= now - CHECKPOINTS[0][1],
-    )  # fmt: skip
-    actions = list((await db.execute(stmt)).scalars())
+    actions = list(await AIActionRepository(db).executed_before(now - CHECKPOINTS[0][1], LEVELS))
     status_by_code = await _current_statuses(db, actions)
     written = 0
     for a in actions:

@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.finance.models import Revenue
+from app.modules.finance.repositories import RevenueRepository
 from app.modules.sales.models import Client, Deal, SalesTarget
 from app.modules.sales.services.sales_service import normalize_name
 from app.seed.ids import seed_uuid
@@ -136,10 +137,7 @@ async def attribute_revenue(db: AsyncSession) -> int:
     last period's clients recurs this period → NRR ≥ 100 → green). The 16 % and 9 % rows go to two
     further rotating clients. Spreading the dominant revenue over many accounts keeps rolling-12m
     top-5 concentration ≤ 50 % (CUS-04 green). Re-run safe: only rows still unlinked are touched."""
-    rows = (await db.execute(
-        select(Revenue).where(Revenue.source == "SEED", Revenue.client_id.is_(None))
-        .order_by(Revenue.period_key, Revenue.amount.desc(), Revenue.id)
-    )).scalars().all()  # fmt: skip
+    rows = await RevenueRepository(db).unattributed_seed_rows()
     by_period: dict[str, list[Revenue]] = {}
     for r in rows:
         by_period.setdefault(r.period_key, []).append(r)

@@ -51,6 +51,17 @@ def _fresh_keys() -> Iterator[None]:
     reset_key_cache()
 
 
+@pytest.fixture(autouse=True)
+def default_tenant() -> Iterator[Any]:
+    """R-DEC-21: repositories fail closed without a tenant context — tests run as the MVP
+    system tenant unless they open another `tenant_scope` (see test_tenant_isolation)."""
+    from app.core.base_model import DEFAULT_TENANT_ID
+    from app.core.tenant import tenant_scope
+
+    with tenant_scope(DEFAULT_TENANT_ID) as tenant:
+        yield tenant
+
+
 @pytest.fixture
 async def db_session() -> AsyncIterator[AsyncSession]:
     from app.core.config import get_config
@@ -105,7 +116,7 @@ class ApiClient:
     @staticmethod
     def headers(
         role: str, *, department_id: Any = None, user_id: Any = None, idem: bool = False,
-        scope_pillars: tuple[str, ...] | None = None,
+        scope_pillars: tuple[str, ...] | None = None, tenant_id: Any = None,
     ) -> dict[str, str]:  # fmt: skip
         import uuid
 
@@ -118,7 +129,8 @@ class ApiClient:
         token, _ = sign_access_token(
             user_id=user_id or uuid.uuid4(), email=f"{role.lower()}@abc.test", role=v3_role,
             role_id=v3_role, permissions=list(ROLE_PERMISSIONS[v3_role]),
-            department_id=department_id, tenant_id=DEFAULT_TENANT_ID, scope_pillars=pillars,
+            department_id=department_id, tenant_id=tenant_id or DEFAULT_TENANT_ID,
+            scope_pillars=pillars,
         )  # fmt: skip
         h = {"Authorization": f"Bearer {token}"}
         if idem:
@@ -128,9 +140,11 @@ class ApiClient:
     async def call(
         self, method: str, url: str, role: str = "CFO", *, json: Any = None,
         headers: dict[str, str] | None = None, department_id: Any = None,
-        params: Any = None,
+        params: Any = None, tenant_id: Any = None,
     ) -> Any:  # fmt: skip
-        h = self.headers(role, department_id=department_id, idem=method == "POST")
+        h = self.headers(
+            role, department_id=department_id, idem=method == "POST", tenant_id=tenant_id
+        )
         h.update(headers or {})
         return await self.http.request(method, f"/api/v1{url}", json=json, headers=h, params=params)
 

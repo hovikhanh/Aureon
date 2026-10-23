@@ -4,17 +4,32 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import Actor, record_audit
-from app.modules.platform.models import AuditLog, OutboxEvent, ProcessedEvent
+from app.core.base_repository import BaseRepository
+from app.core.tenant import require_tenant
+from app.modules.platform.models import (
+    Alert,
+    ApprovalRequest,
+    AuditLog,
+    DataLineage,
+    Metric,
+    MetricValue,
+    OutboxEvent,
+    ProcessedEvent,
+)
 
 DeadLetterRow = tuple[ProcessedEvent, OutboxEvent]
 
 
 class DeadLetterRepository:
-    """DLQ = `processed_events.status = 'DLQ'` (10 §8.2 E4), joined to the outbox row."""
+    """DLQ = `processed_events.status = 'DLQ'` (10 §8.2 E4), joined to the outbox row.
+
+    Tenant-scoped through `outbox_events.tenant_id` (05 §2.3, R-DEC-21): an admin only sees /
+    replays dead letters of the current tenant.
+    """
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -23,7 +38,7 @@ class DeadLetterRepository:
         return (
             select(ProcessedEvent, OutboxEvent)
             .join(OutboxEvent, OutboxEvent.id == ProcessedEvent.event_id)
-            .where(ProcessedEvent.status == "DLQ")
+            .where(ProcessedEvent.status == "DLQ", OutboxEvent.tenant_id == require_tenant())
         )
 
     async def list(
@@ -51,7 +66,7 @@ class DeadLetterRepository:
         return None if row is None else (row[0], row[1])
 
     async def dlq_count(self) -> int:
-        stmt = select(func.count()).where(ProcessedEvent.status == "DLQ")
+        stmt = select(func.count()).select_from(self._base().subquery())
         return int((await self.db.execute(stmt)).scalar_one())
 
 
@@ -112,3 +127,79 @@ class AuditRepository:
         )
         stmt = stmt.order_by(AuditLog.occurred_at.desc(), AuditLog.id).limit(limit).offset(offset)
         return (await self.db.execute(stmt)).scalars().all(), total
+
+
+class ApprovalRequestRepository(BaseRepository[ApprovalRequest]):
+    model = ApprovalRequest
+
+    async def locked(self, request_id: uuid.UUID) -> ApprovalRequest | None:
+        stmt = self._scoped(select(ApprovalRequest)).where(ApprovalRequest.id == request_id)
+        return (await self.db.execute(stmt.with_for_update())).scalar_one_or_none()
+
+
+class MetricValueRepository(BaseRepository[MetricValue]):
+    """ENT-MetricValue (tenant-scoped) joined with the global `Metric` catalog."""
+
+    model = MetricValue
+
+    def joined(self, *cols: Any) -> Select[Any]:
+        """`SELECT cols FROM metric_values JOIN metrics` scoped to the current tenant."""
+        stmt = (
+            select(*cols).select_from(MetricValue).join(Metric, MetricValue.metric_id == Metric.id)
+        )
+        return self._scoped(stmt)
+
+    async def rows(self, stmt: Select[Any]) -> Sequence[Any]:
+        return list((await self.db.execute(stmt)).all())
+
+    async def lineage_count(self, *where: ColumnElement[bool]) -> int:
+        stmt = self.joined(func.count(DataLineage.id)).join(
+            DataLineage, DataLineage.metric_value_id == MetricValue.id
+        )
+        return int((await self.db.execute(stmt.where(*where))).scalar_one())
+
+    async def retire_current(self, *where: ColumnElement[bool]) -> None:
+        stmt = update(MetricValue).where(
+            MetricValue.tenant_id == require_tenant(), MetricValue.is_current.is_(True), *where
+        )
+        await self.db.execute(stmt.values(is_current=False))
+
+
+class AlertRepository(BaseRepository[Alert]):
+    model = Alert
+
+    def with_metric(self) -> Select[Alert, Metric, MetricValue]:
+        stmt = self._scoped(
+            select(Alert, Metric, MetricValue)
+            .join(Metric, Alert.metric_id == Metric.id)
+            .join(MetricValue, Alert.metric_value_id == MetricValue.id)
+            .where(Alert.deleted_at.is_(None))
+        )
+        return stmt
+
+    async def page(self, stmt: Select[Any], order: Sequence[Any], *, limit: int, offset: int
+                   ) -> tuple[Sequence[Any], int]:  # fmt: skip
+        count = select(func.count()).select_from(stmt.subquery())
+        total = int((await self.db.execute(count)).scalar_one())
+        rows = await self.db.execute(stmt.order_by(*order).limit(limit).offset(offset))
+        return rows.all(), total
+
+    async def first(self, stmt: Select[Any]) -> Any:
+        return (await self.db.execute(stmt)).first()
+
+    async def open_count_by_pillar(self, pillars: set[str]) -> Sequence[Any]:
+        stmt = self._scoped(
+            select(Metric.pillar, func.count(Alert.id))
+            .join(Metric, Alert.metric_id == Metric.id)
+            .where(Alert.deleted_at.is_(None), Alert.status.in_(("OPEN", "ACKNOWLEDGED")),
+                   Metric.pillar.in_(pillars))
+            .group_by(Metric.pillar)
+        )  # fmt: skip
+        return (await self.db.execute(stmt)).all()
+
+    async def open_for(self, metric_id: uuid.UUID, period_key: str) -> Alert | None:
+        stmt = self._live().where(
+            Alert.metric_id == metric_id, Alert.period_key == period_key,
+            Alert.status.in_(("OPEN", "ACKNOWLEDGED")),
+        )  # fmt: skip
+        return (await self.db.execute(stmt)).scalar_one_or_none()

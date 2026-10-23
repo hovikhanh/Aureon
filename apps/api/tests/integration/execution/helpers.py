@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import AUDIT_LOGS
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events.envelope import OUTBOX
 from app.core.security import sign_access_token
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
@@ -31,7 +32,7 @@ def headers(role: str, user_id: Any, department_id: Any = None) -> dict[str, str
     token, _ = sign_access_token(
         user_id=user_id, email=f"{v3.lower()}@abc.test", role=v3, role_id=v3,
         permissions=list(ROLE_PERMISSIONS[v3]), department_id=department_id,
-        scope_pillars=pillars,
+        scope_pillars=pillars, tenant_id=DEFAULT_TENANT_ID,
     )  # fmt: skip
     return {"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())}
 

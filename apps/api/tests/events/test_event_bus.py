@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events import relay as relay_mod
 from app.core.events.bus import ConsumerRegistry, consumer
 from app.core.events.consumer import BaseConsumer, Outcome, consume
@@ -179,8 +180,9 @@ async def test_handler_writes_commit_with_processed_marker(
     Writer.register(registry)
     (eid,) = await _publish(factory)
     msg = EventEnvelope(
-        event_id=eid, event_type=EVT, occurred_at="2026-10-20T00:00:00Z", producer="hr", payload={}
-    ).to_message()
+        event_id=eid, event_type=EVT, occurred_at="2026-10-20T00:00:00Z", producer="hr",
+        payload={}, tenant_id=DEFAULT_TENANT_ID,
+    ).to_message()  # fmt: skip
     assert (await consume(factory, Writer.name, msg, registry=registry)).outcome == Outcome.DONE
     async with factory() as s:
         side = (await s.execute(select(OUTBOX).where(OUTBOX.c.event_type == "risk.risk_proposed",

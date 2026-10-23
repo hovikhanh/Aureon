@@ -15,6 +15,7 @@ from app.core.events.envelope import OUTBOX, EventEnvelope, utcnow
 from app.core.events.registry import is_registered
 from app.core.pii import PIIHit, scan_payload
 from app.core.request_context import current_request_id
+from app.core.tenant import require_tenant
 
 # 10 §8.1: payload carries ids + aggregates only — never level 3–4 data (02 §6.3).
 # Key names below + content patterns in `core.pii` (DEC-176).
@@ -61,12 +62,14 @@ async def publish_in_tx(
     if not is_registered(event_type):
         raise EventContractError(f"event type {event_type!r} not in 00 §4.5 registry")
     _check_payload(payload)
+    tenant_id = require_tenant()  # R-DEC-21: an event always belongs to the caller's tenant
     envelope = EventEnvelope(
         event_id=uuid.uuid4(),
         event_type=event_type,
         occurred_at=utcnow(),
         version=version,
         correlation_id=current_request_id(),
+        tenant_id=tenant_id,
         producer=producer,
         payload=payload,
     )
@@ -80,6 +83,7 @@ async def publish_in_tx(
             aggregate_id=aggregate_id,
             occurred_at=envelope.occurred_at,
             payload=payload,
+            tenant_id=tenant_id,
         )
     )
     return envelope

@@ -22,7 +22,9 @@ from typing import Any
 from sqlalchemy import update
 
 from app.core.config import get_config
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.db import get_sessionmaker
+from app.core.tenant import tenant_scope
 from app.core.deps import Principal
 from app.core.model_gateway import ChatResponse
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
@@ -86,4 +88,5 @@ async def cleanup() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(cleanup() if "--cleanup" in sys.argv else main())
+    with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: repositories fail closed without tenant
+        asyncio.run(cleanup() if "--cleanup" in sys.argv else main())

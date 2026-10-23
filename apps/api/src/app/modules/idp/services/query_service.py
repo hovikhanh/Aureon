@@ -11,7 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
-from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
+from app.modules.idp.models import ExtractionJob, SourceDocument
+from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import ExtractionResultOut, FieldResultOut
 
 
@@ -20,14 +21,7 @@ class IdpQueryService:
         self.db = db
 
     async def get_document(self, user: Principal, document_id: uuid.UUID) -> SourceDocument | None:
-        doc = (
-            await self.db.execute(
-                select(SourceDocument).where(
-                    SourceDocument.id == document_id,
-                    SourceDocument.deleted_at.is_(None),
-                )
-            )
-        ).scalar_one_or_none()
+        doc = await SourceDocumentRepository(self.db).by_id(document_id)
         if doc is None or not self._visible(user, doc):
             return None
         return doc
@@ -51,17 +45,7 @@ class IdpQueryService:
         )
         if job is None:
             return None
-        fields = (
-            (
-                await self.db.execute(
-                    select(ExtractedField)
-                    .where(ExtractedField.extraction_job_id == job.id)
-                    .order_by(ExtractedField.field_name.asc())
-                )
-            )
-            .scalars()
-            .all()
-        )
+        fields = await ExtractedFieldRepository(self.db).for_job(job.id, ordered=True)
         xd = job.xd_results or {}
         return ExtractionResultOut(
             job_id=job.id,

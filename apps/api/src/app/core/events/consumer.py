@@ -4,7 +4,9 @@
 1. Same transaction: `processed_events (event_id, consumer)` exists → skip (duplicate).
 2. Run the handler, then insert `processed_events(DONE)` — both commit together, so a crash
    between "handled" and "recorded" is impossible.
-3. Handler error → rollback, return `RETRY` with the next backoff (5 s / 30 s / 120 s); after the
+3. No `tenant_id` in the envelope → straight to DLQ, no retry (fail closed, R-DEC-21);
+   otherwise the handler runs inside `tenant_scope(envelope.tenant_id)`.
+4. Handler error → rollback, return `RETRY` with the next backoff (5 s / 30 s / 120 s); after the
    3rd retry fails, record `processed_events(DLQ, attempts, last_error)` → EP-56 replays it.
 
 `BaseConsumer` is the class form of the same contract for modules that prefer it.
@@ -13,7 +15,8 @@
 import enum
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events.bus import REGISTRY, ConsumerRegistry
 from app.core.events.envelope import PROCESSED, EventEnvelope
+from app.core.tenant import tenant_scope
 
 log = logging.getLogger("app.events.consumer")
 
@@ -53,6 +57,31 @@ async def _already(session: AsyncSession, event_id: uuid.UUID, name: str) -> boo
     return row.first() is not None
 
 
+@asynccontextmanager
+async def _scope(tenant_id: uuid.UUID) -> AsyncIterator[None]:
+    """Whole consumer transaction (handler + flush + commit) runs as the event's tenant."""
+    with tenant_scope(tenant_id):
+        yield
+
+
+async def _to_dlq(
+    session_factory: SessionFactory, event_id: uuid.UUID, name: str, attempt: int, error: str
+) -> None:
+    async with session_factory() as session:
+        if not await _already(session, event_id, name):
+            await session.execute(
+                insert(PROCESSED).values(
+                    id=uuid.uuid4(),
+                    event_id=event_id,
+                    consumer=name,
+                    status="DLQ",
+                    attempts=attempt,
+                    last_error=error,
+                )
+            )
+            await session.commit()
+
+
 async def consume(
     session_factory: SessionFactory,
     name: str,
@@ -63,7 +92,11 @@ async def consume(
 ) -> ConsumeResult:
     env = EventEnvelope.model_validate(message)
     handler = registry.get(name)
-    async with session_factory() as session:
+    if env.tenant_id is None:
+        log.error("event %s has no tenant_id → DLQ for %s", env.event_id, name)
+        await _to_dlq(session_factory, env.event_id, name, attempt, "TenantMissing: no tenant_id")
+        return ConsumeResult(Outcome.DLQ)
+    async with session_factory() as session, _scope(env.tenant_id):
         try:
             if await _already(session, env.event_id, name):
                 await session.rollback()
@@ -87,19 +120,7 @@ async def consume(
 
     if attempt < MAX_ATTEMPTS:
         return ConsumeResult(Outcome.RETRY, retry_in=RETRY_BACKOFF_SECONDS[attempt - 1])
-    async with session_factory() as session:
-        if not await _already(session, env.event_id, name):
-            await session.execute(
-                insert(PROCESSED).values(
-                    id=uuid.uuid4(),
-                    event_id=env.event_id,
-                    consumer=name,
-                    status="DLQ",
-                    attempts=attempt,
-                    last_error=error,
-                )
-            )
-            await session.commit()
+    await _to_dlq(session_factory, env.event_id, name, attempt, error)
     log.error("event %s → DLQ for %s", env.event_id, name)  # alert ADMIN via EP-57 dlq_count
     return ConsumeResult(Outcome.DLQ)
 
