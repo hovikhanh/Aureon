@@ -36,9 +36,11 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
     await expect(page.locator(`[data-document-id="${doc.document_id}"]`)).toHaveCount(0);
 
-    await page.goto("/business/finance/invoices");
-    await page.getByTestId("dir-IN").click();
-    await expect(page.locator(`[data-testid=invoice-row][data-number="${doc.invoice_number}"]`)).toBeVisible();
+    // Invoice may be on page 2+ of the list (20/page, many E2E invoices) — verify via API.
+    const r = await page.request.get(`/api/backend/finance/invoices?direction=IN&sort_by=created_at&order=desc&limit=5`);
+    expect(r.ok()).toBeTruthy();
+    const numbers = ((await r.json()).data as { number: string }[]).map((i) => i.number);
+    expect(numbers).toContain(doc.invoice_number);
   });
 
   test("reject requires a reason", async ({ page }) => {

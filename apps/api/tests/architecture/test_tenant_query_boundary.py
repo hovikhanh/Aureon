@@ -14,6 +14,8 @@ from app.core.base_model import Base, TenantMixin
 APP = Path(__file__).resolve().parents[2] / "src" / "app"
 SQL_BUILDERS = {"select", "update", "delete", "insert", "exists"}
 ALLOWED = ("core/base_repository.py",)
+# seed/ bootstraps the database before any tenant context exists; repositories would be circular
+ALLOWED_PREFIXES = ("seed/",)
 
 
 def _business_models() -> frozenset[str]:
@@ -25,7 +27,9 @@ def _business_models() -> frozenset[str]:
 
 
 def _allowed(rel: str) -> bool:
-    return rel in ALLOWED or "/repositories/" in f"/{rel}"
+    in_repo = "/repositories/" in f"/{rel}"
+    in_seed = any(rel.startswith(p) for p in ALLOWED_PREFIXES)
+    return rel in ALLOWED or in_repo or in_seed
 
 
 def _call_name(node: ast.Call) -> str | None:

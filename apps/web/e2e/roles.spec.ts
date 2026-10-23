@@ -57,6 +57,7 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
 });
 
 test("REVIEWER: queue → open → correct → approve → invoice created", async ({ page }) => {
+  // Seed fresh so it is not cleaned up by the review-detail.spec.ts afterAll running concurrently.
   const doc = seedReviewDoc();
   await loginAs(page, "reviewer@abc.demo");
   await expect(page).toHaveURL(/\/home$/);
@@ -70,9 +71,11 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
   await page.getByTestId("approve").click();
   await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
-  await page.goto("/business/finance/invoices");
-  await page.getByTestId("dir-IN").click();
-  await expect(page.locator(`[data-testid=invoice-row][data-number="${doc.invoice_number}"]`)).toBeVisible();
+  // Invoice may land on page 2 of the list (20/page, many E2E invoices) — verify via API instead.
+  const r = await page.request.get(`/api/backend/finance/invoices?direction=IN&sort_by=created_at&order=desc&limit=5`);
+  expect(r.ok()).toBeTruthy();
+  const numbers = ((await r.json()).data as { number: string }[]).map((i) => i.number);
+  expect(numbers).toContain(doc.invoice_number);
 });
 
 test("HR: dashboard shows O (+ public F headline), employees list", async ({ page }) => {
@@ -96,7 +99,9 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
   await loginWithPassword(page, "admin@abc.demo", password ?? "");
   await expect(page).toHaveURL(/\/home$/);
   await page.getByTestId("nav-admin").click();
-  await page.getByTestId("sublink-audit").click();
+  await expect(page).toHaveURL(/\/admin$/);
+  // SCR-50 admin overview cards → navigate via admin-card-audit (no ComingSoon sublink)
+  await page.getByTestId("admin-card-audit").click();
   await expect(page).toHaveURL(/\/admin\/audit$/);
   await expect(page.getByTestId("audit-row").first()).toBeVisible();
   await page.getByTestId("audit-action").fill("auth.login");

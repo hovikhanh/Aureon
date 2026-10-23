@@ -4,7 +4,7 @@ TC-M12-04 tree `as_of`, TC-M12-05 CRUD/archive, TC-M12-06 audit + outbox, TC-M12
 assignment link, TC-M12-11 RBAC (hr:admin, ADM scope `s`, EMP/REV/MGR, DIR khác khối).
 """
 
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -23,7 +23,8 @@ from tests.integration.hr.helpers import (
 
 pytestmark = pytest.mark.integration
 SAL = str(seed_uuid("department", "SAL"))
-TODAY = date.today()
+# API uses UTC date for valid_from; date.today() breaks after midnight ICT (UTC = ICT-7)
+TODAY = datetime.now(UTC).date()
 
 
 def data(r: Any, status: int = 200) -> Any:
