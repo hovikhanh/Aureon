@@ -15,7 +15,6 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
@@ -24,6 +23,7 @@ from app.core.deps import Principal
 from app.core.errors import AppError
 from app.core.storage import DEFAULT_BUCKET, ObjectStore, get_object_store
 from app.modules.idp.models import ExtractionJob, ImportBatch, SourceDocument
+from app.modules.idp.repositories import SourceDocumentRepository
 from app.modules.idp.services.mime import resolve_mime
 from app.modules.idp.services.schema_registry import default_schema_id
 
@@ -182,14 +182,4 @@ class UploadService:
         return doc, job
 
     async def _find_duplicate(self, digest: str) -> SourceDocument | None:
-        stmt = (
-            select(SourceDocument)
-            .where(
-                SourceDocument.sha256 == digest,
-                SourceDocument.duplicate_of_id.is_(None),
-                SourceDocument.deleted_at.is_(None),
-            )
-            .order_by(SourceDocument.submitted_at.asc())
-            .limit(1)
-        )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        return await SourceDocumentRepository(self.db).first_original_by_sha(digest)

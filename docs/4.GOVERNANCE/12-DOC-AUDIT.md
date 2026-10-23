@@ -18,22 +18,22 @@ Cột **last_reviewed** = ngày rà soát/mở rộng gần nhất. Cột **Gate
 | # | File | Version | Status | Phase | last_reviewed | Gate A | Nguồn BRD |
 |---|---|---|---|---|---|---|---|
 | — | REBUILD-PLAN | 0.2.0 | ✅ current | — | 2026-10-22 | — | §4,§19 |
-| — | TRACEABILITY-SKELETON | 0.3.0 | ✅ current | — | 2026-10-23 | — | §2,§3,§4,§11,§14,§15 |
+| — | TRACEABILITY-SKELETON | 1.1.0 | ✅ current | — | 2026-10-23 | — | §2,§3,§4,§11,§14,§15 |
 | 00 | INDEX | 0.2.0 | ✅ current | R0 | 2026-10-22 | ✅ | — |
 | 01 | PROJECT-OVERVIEW | 0.3.0 | ✅ current | R0 | 2026-10-23 | ✅ | §1,§2,§19,§20 |
 | 02 | PERSONAS-PERMISSIONS | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §3,§5.2,§11.6,§17 |
 | 03 | DASHBOARD-SPEC | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §11.8,§12 |
 | 04 | IDP-FEATURE-SPEC | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §6 |
-| 05 | DATA-MODEL | 0.3.0 | ✅ current | R2 | 2026-10-23 | ✅ | §13 |
-| 06 | UI-UX-SPEC | 0.3.0 | ✅ current | R2 | 2026-10-23 | ✅ | UIUX full |
+| 05 | DATA-MODEL | 1.2.0 | ✅ current | R2 | 2026-10-23 | ✅ | §13 |
+| 06 | UI-UX-SPEC | 1.1.0 | ✅ current | R2 | 2026-10-23 | ✅ | UIUX full |
 | 07 | TECH-ARCHITECTURE | 0.3.0 | ✅ current | R2 | 2026-10-23 | ✅ | §11,§16,§17,§18 |
-| 08 | DEMO-DATA-SPEC | 0.3.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19.1,§20.2 |
-| 09 | BUILD-PLAN-TASKS | 0.3.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19 |
-| 10 | API-SPECIFICATION | 0.3.0 | ✅ current | R2 | 2026-10-23 | ✅ | §11.2-4,§6.10 |
+| 08 | DEMO-DATA-SPEC | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19.1,§20.2 |
+| 09 | BUILD-PLAN-TASKS | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19 |
+| 10 | API-SPECIFICATION | 1.1.0 | ✅ current | R2 | 2026-10-23 | ✅ | §11.2-4,§6.10 |
 | 11 | AGENT-WORKFLOW | 0.3.0 | ✅ current | R3 | 2026-10-23 | ✅ | §11 |
-| 12 | DOC-AUDIT (file này) | 1.0.0 | ✅ current | R3 | 2026-10-23 | ✅ | — |
-| 13 | DECISION-LOG | 0.2.0 | ✅ current | R3 | 2026-10-22 | ✅ | §21.1 |
-| 14 | TEST-TRACEABILITY | 0.3.0 | ✅ current | R3 | 2026-10-23 | ✅ | §14,§15 |
+| 12 | DOC-AUDIT (file này) | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | — |
+| 13 | DECISION-LOG | 1.2.0 | ✅ current | R3 | 2026-10-23 | ✅ | §21.1 |
+| 14 | TEST-TRACEABILITY | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §14,§15 |
 
 **Tiến độ:** 00–14 đã có bản AI-EOS (15/15) + 2 file khung. Q1–Q6 **đã chốt** (13 §1, R-DEC-05..10) — không đảo quyết định. Vòng spec-level P0 **mở rộng spec-level** cho các file domain/sản phẩm (01–12, 14): bổ sung chiều SẢN PHẨM (FR/UC/flow/rule/trạng thái/màn hình), giữ nguyên các ghi chú "chi tiết hóa ở đợt code (R-DEC-09)". Toàn bộ đã được human promote **✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC**.
 
@@ -50,9 +50,10 @@ Chuẩn Gate A mỗi file spec: **đúng 1 H1** (`# …`), heading `##` phân m�
 - OQ-12-04: Phần field-level DB, task `T-*` và `TC-*` chi tiết cố ý HOÃN sang đợt code (R-DEC-09); Gate B/C chi tiết sẽ bổ sung khi numbering + migration được chốt — hiện 14 chỉ giữ ma trận spec-level khung.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (human duyệt 2026-10-23):** Duyệt bộ docs Spec lock M1.1 (commit `5f466b5`): bump 05→1.2.0, 06/08/09/10/14/skeleton→1.1.0, 13→1.2.0; Gate A: mỗi file đúng 1 H1, fence cân bằng, có Open questions/Version; Gate B: 0 DEC open+blocking (R-DEC-15..27 resolved); Gate C: 14 §1.5 TC-M11-01..15. Sẵn sàng code M1.1 theo 09 §6.2.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Phản ánh vòng mở rộng **spec-level P0** — bảng trạng thái bump 0.3.0 cho các file mở rộng (01–12, 14), thêm cột `last_reviewed` + `Gate A`; ghi nhận mọi file 01–12/14 đạt Gate A (1 H1, fence cân bằng, Open questions + Version); giữ Q1–Q6 đã chốt; đóng/cập nhật OQ, thêm OQ-12-04 (R-DEC-09 defer field-level/T-*/TC-*).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

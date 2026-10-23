@@ -11,7 +11,7 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
@@ -254,6 +254,6 @@ def kr_scope_predicate(user: Principal) -> ColumnElement[bool] | None:
                            own=[Objective.owner_id == user.user_id])  # fmt: skip
     if pred is None:
         return None
-    return KeyResult.objective_id.in_(select(Objective.id).where(pred)) | (
+    return KeyResult.objective_id.in_(ObjectiveRepository.ids_where(pred)) | (
         KeyResult.owner_id == user.user_id
     )

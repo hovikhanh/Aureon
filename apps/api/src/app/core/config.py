@@ -164,6 +164,11 @@ class ConfigService(BaseSettings):
         validation_alias=AliasChoices("DEMO_RISK_MANAGER_PASSWORD", "SEED_PASSWORD_RISK_MANAGER"),
     )
     demo_manager_password: SecretStr | None = None
+    # T-603b: MGR Hành chính — falls back to the MGR password so existing dev .env keep working.
+    demo_office_manager_password: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DEMO_OFFICE_MANAGER_PASSWORD", "DEMO_MANAGER_PASSWORD"),
+    )
     demo_employee_password: SecretStr | None = None
     demo_admin_password: SecretStr | None = None
 

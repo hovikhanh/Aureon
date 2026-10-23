@@ -44,7 +44,7 @@ export function FinanceDrillView() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4" data-testid="pillar-detail" data-pillar="F">
-      <Link href={withPeriod("/dashboard")} className="flex items-center gap-1 text-sm text-primary"><ArrowLeft className="h-4 w-4" aria-hidden />{t("buttons.back")}</Link>
+      <Link href={withPeriod("/home")} className="flex items-center gap-1 text-sm text-primary"><ArrowLeft className="h-4 w-4" aria-hidden />{t("buttons.back")}</Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">{t("financeDrill.title")}</h1>

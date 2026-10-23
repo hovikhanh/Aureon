@@ -67,6 +67,18 @@ Mỗi FR-DATA dưới đây mô tả hành vi + tiêu chí chấp nhận mức s
 - `scope_pillars` vào claim JWT + `Principal`; effective-dated không áp (thuộc identity).
 - Giữ **bảng ánh xạ** 10→7 (R-DEC-08) ở `TRACEABILITY-SKELETON.md` §12 để truy nguyên test/seed nền v2.1.
 
+### 2.3. Field-level đợt code — M1.1 (R-DEC-21)
+
+**Thực thi lọc tenant (bổ sung R-DEC-13):** tenant hiện hành lấy từ **tenant context** (contextvar `current_tenant`), không truyền tay qua từng hàm. Request: set từ claim JWT `tenant_id`. Consumer Celery: set từ envelope `tenant_id`. Job beat: lặp theo từng tenant hoạt động (MVP: một tenant). Repository nghiệp vụ tự thêm `WHERE tenant_id = current_tenant` cho đọc và tự gán khi ghi; **thiếu tenant context → lỗi (fail closed)**, không mặc định ngầm.
+
+| Bảng | Thay đổi | Kiểu | Ghi chú |
+|---|---|---|---|
+| `platform.outbox_events` | + `tenant_id` | `UUID NOT NULL`, default = tenant hệ thống MVP (backfill), index `(tenant_id)` | Relay đưa vào envelope (10 §9.1); `LogModel` không kế thừa `TenantMixin` nên thêm cột riêng |
+| `platform.processed_events` | không đổi | — | Khóa dedupe `(event_id, consumer)` đã duy nhất toàn cục; DLQ (`processed_events` × `outbox_events`) lấy tenant qua join `outbox_events.tenant_id` |
+
+- Migration reversible (`0010_tenant_outbox`), backfill tenant mặc định. Không đổi bảng nghiệp vụ (đã có `tenant_id` từ `0009`).
+- Seed v3 (R-DEC-23) **không** đổi schema; DEC-230/231 hết hiệu lực, số liệu demo theo `08`.
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -122,7 +134,7 @@ AIToolCall 1─1 (result = SourceRef) ──► {Metric | KPIMeasurement}   # gr
 
 ## 5. Phân vùng lưu trữ theo domain (ánh xạ sang schema)
 
-AI-EOS 28 domain / 5 lớp, hiện thực hóa theo **R-DEC-06 (Modular Monolith)** + **R-DEC-10** (ID theo BRD + ánh xạ `main`): nhóm entity ánh xạ sang schema PostgreSQL theo domain. Bảng ánh xạ 13 nhóm → schema (đề xuất): org/admin → `platform`+`auth`; data capture → `idp`; AI → `ai`; workflow → `platform`; finance → `finance`; sales/customer/partner → `sales`; hr → `hr`; product/engineering → `product`; risk/governance → `risk`; strategy/kpi/okr/performance/meeting/task → `execution`; knowledge/report → `platform`/`dashboard`. Chi tiết schema chốt ở đợt code (R-DEC-09).
+AI-EOS 28 domain / 5 lớp, hiện thực hóa theo **R-DEC-06 (Modular Monolith)** + **R-DEC-10** (ID theo BRD + ánh xạ `main`): nhóm entity ánh xạ sang schema PostgreSQL theo domain. Bảng ánh xạ 13 nhóm → schema: **tổ chức (Organization/BusinessUnit/Department/Team/Employee/Position) → `hr`** (R-DEC-24 — giữ nơi các bảng đang ở, không di chuyển); admin/security (user, role, refresh token) → `auth`, audit/setting → `platform`; data capture → `idp`; AI → `ai`; workflow → `platform`; finance → `finance`; sales/customer/partner → `sales`; hr → `hr`; product/engineering → `product`; risk/governance → `risk`; strategy/kpi/okr/performance/meeting/task → `execution`; knowledge/report → `platform`/`dashboard`. Chi tiết schema chốt ở đợt code (R-DEC-09).
 
 ## 6. AI entity & grounding
 
@@ -154,7 +166,7 @@ Entity còn lại (ngoài P0) dùng `version` + audit để truy vết thay đ�
 
 Event backbone biến mọi thay đổi nghiệp vụ thành dòng sự kiện để AI **quan sát real-time** (bước OBSERVE của AI Operating Loop) và để metric tính sẵn. Event mẫu: `invoice.created`, `kpi.measured`, `task.overdue`, `document.committed`, `kpi.below_threshold`, `okr.at_risk`, `risk.detected`.
 
-**Envelope (mức khái niệm):** `event_id, event_type, occurred_at, version, correlation_id, payload` — payload **không chứa PII** (đồng bộ chính sách classification §2.1). `correlation_id` nối event về request/lineage để truy nguồn.
+**Envelope (mức khái niệm):** `event_id, event_type, occurred_at, version, correlation_id, tenant_id, payload` — `tenant_id` để consumer chạy đúng tenant context (R-DEC-21; field-level ở §2.3); payload **không chứa PII** (đồng bộ chính sách classification §2.1). `correlation_id` nối event về request/lineage để truy nguồn.
 
 **Nguyên tắc nghiệp vụ (hiện thực chốt ở 07/10, R-DEC-09):**
 - Event phát **cùng transaction** với ghi dữ liệu (nguyên tắc outbox) → không mất/không phát nhầm event khi rollback.
@@ -173,9 +185,10 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - OQ-05-05: Data classification mặc định per nhóm (§2.1) là đề xuất mức khái niệm; override per-field + chính sách LLM theo mức chốt ở 07/đợt code (R-DEC-09).
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (human duyệt 2026-10-23 — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
 - **Change 1.1.0 (code round — human ủy quyền R-DEC-14, 2026-10-23):** Thêm §2.2 field-level đợt code Phase 1: `tenant_id UUID NOT NULL` + `TenantMixin` (R-DEC-13); `auth.role_code` enum 7 giá trị v3 (`CEO/DIR/MGR/EMP/REV/ADM/AI`) + bảng gộp 10→7 (R-DEC-12). Chi tiết schema/migration ở code; mọi thay đổi reversible.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 (docs-first R-DEC-09 — không field-level DB): mỗi FR-DATA-01..08 thêm mô tả hành vi + tiêu chí chấp nhận; §2.1 data classification per nhóm entity; §3 bổ sung vai trò nghiệp vụ + entity P0 chính + liên kết lineage/event cho 13 nhóm; §4 sơ đồ quan hệ cốt lõi với cardinality mức khái niệm + giải thích chuỗi lineage; §6 mở rộng AI entity/grounding; §6bis Metric Store/Semantic layer; §6ter effective-dated scope P0; §7 event backbone (envelope, nguyên tắc outbox/idempotent, event→tác động); thêm OQ-05-04/05.

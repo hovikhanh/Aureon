@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events.envelope import EventEnvelope
 from app.core.metrics import METRIC_PROVIDERS
 from app.modules.finance.models import Budget, CashPosition, Expense, Revenue
@@ -96,7 +97,7 @@ async def test_event_consumer_raises_alert(db_session: AsyncSession, fin_data: N
     env = EventEnvelope(
         event_id=uuid.uuid4(), event_type="finance.budget_exceeded",
         occurred_at=datetime.now(UTC), version=1, producer="finance",
-        payload={"budget_id": str(uuid.uuid4())},
+        payload={"budget_id": str(uuid.uuid4())}, tenant_id=DEFAULT_TENANT_ID,
     )  # fmt: skip
     await platform_consumers.recompute_for(db_session, env)
     stmt = (

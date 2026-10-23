@@ -1,23 +1,34 @@
 import { expect, test } from "@playwright/test";
-import { loginAs, loginWithPassword } from "./helpers";
+import { login, loginAs, loginWithPassword } from "./helpers";
 import { cleanupReviewDocs, rootEnv, seedReviewDoc } from "./support/seed";
 
-/** T-516 — full regression across the 5 demo roles (CEO, CFO, REVIEWER, HR, ADMIN). */
+/**
+ * T-516 regression across the demo roles, extended in T-609 (TC-M11-15) to the 7 v3 roles:
+ * CEO, DIR (CFO, HR), MGR, EMP, REV, ADM here; ROLE-AI refusal in login.spec.
+ */
 test.afterAll(() => cleanupReviewDocs());
 
 const SLUGS = { F: "finance", O: "operations", C: "customer", U: "product", S: "strategy" } as const;
 
-test("CEO: 5 pillar cards each drill down, 13 alerts", async ({ page }) => {
+test("CEO: F/O/C cards drill down, 5-pillar layout on SCR-03, 13 alerts", async ({ page }) => {
   await loginAs(page, "ceo@abc.demo");
   await expect(page.getByTestId("alert-row")).toHaveCount(13);
-  for (const [code, slug] of Object.entries(SLUGS)) {
+  for (const code of ["O", "C"] as const) {
     await expect(page.getByTestId(`pillar-${code}`)).toHaveAttribute("data-status", /ok|warning|critical/);
     await page.getByTestId(`pillar-${code}`).click();
-    await expect(page).toHaveURL(new RegExp(`/dashboard/pillar/${slug}`));
+    await expect(page).toHaveURL(new RegExp(`/home/pillar/${SLUGS[code]}`));
     await expect(page.getByTestId("pillar-detail")).toHaveAttribute("data-pillar", code);
     await page.goBack();
     await expect(page.getByTestId("pillar-grid")).toBeVisible();
   }
+  // R-DEC-16: U/S only through the optional five-pillar layout (SCR-03 tabs)
+  await page.getByTestId("five-pillar-link").click();
+  for (const [code, slug] of Object.entries(SLUGS)) {
+    await page.getByTestId(`pillar-tab-${code}`).click();
+    await expect(page).toHaveURL(new RegExp(`/home/pillar/${slug}`));
+    await expect(page.getByTestId(`pillar-tab-${code}`)).toHaveAttribute("aria-current", "page");
+  }
+  await page.goto("/home");
   await expect(page.getByTestId("alert-row").first()).toHaveAttribute("data-severity", "critical");
 });
 
@@ -36,10 +47,10 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
   await loginAs(page, "cfo@abc.demo");
   await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
   await page.getByTestId("pillar-F").click();
-  await expect(page).toHaveURL(/\/dashboard\/pillar\/finance/);
+  await expect(page).toHaveURL(/\/home\/pillar\/finance/);
   await expect(page.getByTestId("fin-card")).toHaveCount(6);
-  await expect(page.getByTestId("fin-card-cash").getByTestId("fin-value")).toHaveText("20,4 tỷ");
-  await page.getByTestId("nav-ai").click();
+  await expect(page.getByTestId("fin-card-cash").getByTestId("fin-value")).toHaveText("12,6 tỷ");
+  await page.getByTestId("nav-ask").click();
   await page.getByTestId("chat-input").fill("Tình hình cash flow?");
   await page.getByTestId("chat-send").click();
   await expect(page.getByTestId("answer")).toContainText("20,4 tỷ");
@@ -48,7 +59,10 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
 test("REVIEWER: queue → open → correct → approve → invoice created", async ({ page }) => {
   const doc = seedReviewDoc();
   await loginAs(page, "reviewer@abc.demo");
-  await expect(page).toHaveURL(/\/idp\/review$/);
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByTestId("nav-data").click();
+  await page.getByTestId("sublink-review").click();
+  await expect(page).toHaveURL(/\/data\/review$/);
   await page.locator(`[data-document-id="${doc.document_id}"]`).getByTestId("review-link").click();
   await expect(page.getByTestId("field-row")).toHaveCount(8);
   const seller = page.locator("[data-field=seller_name]");
@@ -56,17 +70,20 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
   await page.getByTestId("approve").click();
   await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
-  await page.goto("/finance/invoices");
+  await page.goto("/business/finance/invoices");
   await page.getByTestId("dir-IN").click();
   await expect(page.locator(`[data-testid=invoice-row][data-number="${doc.invoice_number}"]`)).toBeVisible();
 });
 
-test("HR: dashboard shows O pillar only, employees list", async ({ page }) => {
+test("HR: dashboard shows O (+ public F headline), employees list", async ({ page }) => {
   await loginAs(page, "hr@abc.demo");
   await expect(page.getByTestId("pillar-O")).toBeVisible();
-  await expect(page.getByTestId("pillar-F")).toHaveCount(0);
-  await page.getByTestId("nav-employees").click();
-  await expect(page).toHaveURL(/\/hr\/employees$/);
+  // scope_pillars={O}; F stays as the public METRIC-FIN-01 headline (02 §6.1, dashboard.visible_pillars)
+  await expect(page.getByTestId("pillar-grid").locator("> [data-testid^=pillar-]")).toHaveCount(2);
+  await expect(page.getByTestId("pillar-C")).toHaveCount(0);
+  await page.getByTestId("nav-business").click();
+  await page.getByTestId("sublink-employees").click();
+  await expect(page).toHaveURL(/\/business\/hr\/employees$/);
   await expect(page.getByTestId("employee-row").first()).toBeVisible();
   await expect(page.getByTestId("employee-total")).toContainText(/\d+/);
   await page.getByTestId("employee-search").fill("Phan");
@@ -77,10 +94,38 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
   const password = process.env.DEMO_ADMIN_PASSWORD ?? rootEnv().DEMO_ADMIN_PASSWORD;
   expect(password, "DEMO_ADMIN_PASSWORD must be set in .env").toBeTruthy();
   await loginWithPassword(page, "admin@abc.demo", password ?? "");
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByTestId("nav-admin").click();
+  await page.getByTestId("sublink-audit").click();
   await expect(page).toHaveURL(/\/admin\/audit$/);
   await expect(page.getByTestId("audit-row").first()).toBeVisible();
   await page.getByTestId("audit-action").fill("auth.login");
   await expect(page.getByTestId("audit-row").first()).toHaveAttribute("data-action", "auth.login");
-  await page.goto("/dashboard");
+  await page.goto("/home/pillar/finance");
   await expect(page.getByTestId("forbidden")).toBeVisible();
 });
+
+test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open", async ({ page }) => {
+  await login(page, "manager@abc.demo");
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-40");
+  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  await page.getByTestId("nav-work").click();
+  await expect(page).toHaveURL(/\/work$/);
+  await page.goto("/work/approvals");
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-43");
+  await page.getByTestId("nav-ask").click();
+  await expect(page.getByTestId("chat-input")).toBeVisible();
+});
+
+test("EMP: personal scope — goals/work frames, no approvals, no admin", async ({ page }) => {
+  await login(page, "employee@abc.demo");
+  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  await page.getByTestId("nav-goals").click();
+  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-41");
+  await expect(page.getByTestId("nav-admin")).toHaveCount(0);
+  for (const denied of ["/work/approvals", "/admin", "/business/finance/invoices"]) {
+    await page.goto(denied);
+    await expect(page.getByTestId("forbidden")).toBeVisible();
+  }
+});
+

@@ -124,13 +124,17 @@ DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 class TenantMixin:
-    """`tenant_id` — có ở mọi business entity (R-DEC-13); index để lọc theo tenant."""
+    """`tenant_id` — có ở mọi business entity (R-DEC-13); index để lọc theo tenant.
+
+    Không có default phía Python (fail closed, R-DEC-21): giá trị lấy từ tenant context —
+    `BaseRepository.create` gán tường minh, hook flush của `core.tenant` gán/kiểm cho mọi
+    object mới. `server_default` chỉ còn phục vụ backfill migration.
+    """
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,
         index=True,
-        default=DEFAULT_TENANT_ID,
         server_default=text(f"'{DEFAULT_TENANT_ID}'"),
     )
 

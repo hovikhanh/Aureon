@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import get_config
 from app.core.events.envelope import OUTBOX, EventEnvelope
 from app.modules.finance.events import consumers
@@ -141,7 +142,7 @@ async def test_consumers_recompute(api: ApiClient, db_session: AsyncSession) -> 
     def env(event_type: str) -> EventEnvelope:
         return EventEnvelope(
             event_id=uuid.uuid4(), event_type=event_type, occurred_at=datetime.now(UTC),
-            producer="test", payload={},
+            producer="test", payload={}, tenant_id=DEFAULT_TENANT_ID,
         )  # fmt: skip
 
     await consumers.on_invoice_created(db_session, env("finance.invoice_created"))

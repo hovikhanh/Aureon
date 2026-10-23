@@ -17,6 +17,46 @@ Bốn ràng buộc nền tảng áp cho toàn bộ contract P0:
 - **P05 Everything Actionable + grounding:** mọi con số AI trả về phải truy nguyên một `tool_result`/`MetricValue` qua `SourceRef` (§8); không có nguồn → chặn hoặc gắn nhãn "ước tính" (FR-AIQ-01).
 - **P08 Security by Design:** default deny; permission `<domain>:<action>`; dữ liệu nhạy cảm (lương, số tài khoản, CCCD, MST) lọc trước khi vào model (06.9 BRD, 02).
 
+> §1.1–§1.3 (envelope, phân trang, header/idempotency) giữ ở dạng quy ước gộp tại **§10**; §1.4 tách riêng vì là bảng được contract test (TC-SYS-003) đọc trực tiếp.
+
+### 1.4. Bảng mã lỗi
+
+**Nguồn sự thật = code** (R-DEC-18): lớp lỗi trong `apps/api/src/app/core/errors.py`, `AI_ERROR_CODES`, và `core/handlers._HTTP_CODES`. Bảng dưới **phản chiếu** code; contract test `tests/contract/test_api_contract.py` đối chiếu hai chiều (mọi mã trong code phải có ở đây với đúng HTTP status, và `AI_*` khớp 1-1). Thêm mã mới = sửa code + bảng này trong cùng commit, qua bước Spec lock (R-DEC-15).
+
+| HTTP | `error.code` | Ý nghĩa | Ví dụ |
+|---|---|---|---|
+| 400 | `BAD_REQUEST` | Tham số sai cú pháp; thiếu `Idempotency-Key` ở POST bắt buộc; method không hỗ trợ | `period=2026-13`; `limit > 100` |
+| 401 | `UNAUTHENTICATED` | Thiếu/sai/hết hạn access token | Thiếu header `Authorization` |
+| 401 | `INVALID_CREDENTIALS` | Sai email/mật khẩu (không tiết lộ email tồn tại) | `POST /auth/login` |
+| 401 | `REFRESH_TOKEN_INVALID` | Refresh token sai, hết hạn, đã thu hồi hoặc bị tái sử dụng (thu hồi cả chuỗi) | `POST /auth/refresh` |
+| 403 | `FORBIDDEN_ROLE` | Thiếu permission `<domain>:<action>` của endpoint | ROLE-EMP gọi endpoint `finance:write` |
+| 403 | `FORBIDDEN_SCOPE` | Tài nguyên ngoài phạm vi dữ liệu (khối `scope_pillars`, đơn vị, chủ sở hữu, tenant) | Finance-DIR ghi bản ghi sales; ROLE-MGR xem team khác |
+| 403 | `FORBIDDEN_SALARY` | Field/tài liệu mức 4 (lương, CCCD, số tài khoản…) với role không được phép (02) | ROLE-MGR mở lịch sử lương |
+| 404 | `NOT_FOUND` | Không tồn tại, đã soft delete, khác tenant, hoặc endpoint demo khi `DEMO_MODE=false` | role switch demo khi tắt demo |
+| 409 | `CONFLICT_STATE` | Chuyển trạng thái không hợp lệ theo state machine | Approve tài liệu đã `COMMITTED` |
+| 409 | `DUPLICATE_RESOURCE` | Vi phạm ràng buộc duy nhất nghiệp vụ | Trùng số hóa đơn, trùng mã phòng ban |
+| 409 | `IDEMPOTENCY_CONFLICT` | Cùng `Idempotency-Key` nhưng body khác | §10 |
+| 409 | `REVIEW_LOCKED` | Tài liệu đang được người khác review (khóa mềm 15 phút) | `details.locked_by`, `details.locked_until` |
+| 410 | `UNDO_EXPIRED` | Quá hạn hoàn tác (7 ngày IDP / 24 giờ AI L3 — DEC-134) | Undo commit tài liệu sau 7 ngày |
+| 413 | `FILE_TOO_LARGE` | Vượt `IDP_MAX_FILE_SIZE_MB` / số trang / số file mỗi lần tải | Upload 60 MB |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | Định dạng không hỗ trợ (whitelist MIME + magic bytes) | `.zip` (DEC-051) |
+| 422 | `VALIDATION_ERROR` | Body sai schema / định dạng | `details.fields[]` |
+| 422 | `BUSINESS_RULE_VIOLATION` | Vi phạm quy tắc nghiệp vụ / FR | `deal_value ≤ 0`; audio `context=meeting` ở C2 (R-DEC-22) |
+| 422 | `ACTION_REJECTED` | Action Registry / Autonomy Policy từ chối | `details.action_name`, `details.reason` |
+| 422 | `AI_CONTEXT_TOO_LARGE` | Vượt context model sau khi đã chunk | Chat với tài liệu quá dài |
+| 423 | `AI_DISABLED` | Kill switch chế độ `L0` hoặc AI tắt — thao tác cần AI bị chặn | Trích xuất khi kill switch L0 |
+| 429 | `RATE_LIMIT_EXCEEDED` | Vượt giới hạn tần suất (header `Retry-After`) | > 20 request AI/phút/người |
+| 429 | `AI_QUOTA_EXCEEDED` | Provider hết hạn mức **hoặc** vượt `AI_MONTHLY_BUDGET_USD` | Chat khi ngân sách tháng đã hết |
+| 500 | `INTERNAL_ERROR` | Lỗi không mong đợi (không lộ stack trace) | — |
+| 502 | `AI_PROVIDER_ERROR` | Mọi provider trong chuỗi fallback trả lỗi | Chat |
+| 502 | `AI_FUNCTION_CALL_FAILED` | Tool nội bộ lỗi và không thể trả lời từng phần | Chat |
+| 503 | `DEPENDENCY_UNAVAILABLE` | DB/Redis/MinIO/ClamAV/ModelGateway/Calendar provider không sẵn sàng | Health `degraded` |
+| 504 | `AI_PROVIDER_TIMEOUT` | Hết 30 giây/lượt | Chat |
+
+- `AI_NO_DATA_AVAILABLE` **không** phải lỗi HTTP: AI trả 200 kèm `warnings: ["AI_NO_DATA_AVAILABLE"]` — nói rõ thiếu dữ liệu, không bịa số (P05, §8).
+- Mã nội bộ không phải `error.code` HTTP: `IDP-E01..E11` (04, ở `extraction_jobs.error_code` / `details.idp_error_code`); `CLASSIFICATION_SECRET` (ModelGateway từ chối gửi dữ liệu Secret tới LLM — ghi ở `ModelCallLog.error_code`).
+- `RATE_LIMITED` (v1) đã thay bằng `RATE_LIMIT_EXCEEDED` (DEC-130); `FORBIDDEN` trần không dùng.
+
 ## 2. Tool Registry (BRD §11.2)
 
 Tool Registry là danh mục trung tâm: mọi năng lực nghiệp vụ (đọc, ghi, phê duyệt, tác động ngoài) đều được expose dưới dạng **tool** có schema, quyền và risk level. AI chỉ "nhìn thấy" và gọi được tool trong registry; không có tool ngoài registry nào được thực thi (AI-R02). Danh mục mẫu từ BRD §11.2:
@@ -154,6 +194,41 @@ API path `/api/v1/<domain>/<resource>`. EP theo domain P0 (D01–D28, phần P0 
 
 > **Khác `main`:** `main` có EP-01..119 cố định cho 11 module. Theo **R-DEC-10**, AI-EOS đánh EP theo BRD (domain P0) format `EP-<DOMAIN>-NN` + giữ **bảng ánh xạ** EP `main` ↔ AI-EOS để truy nguyên; **EP-*/endpoint path cụ thể gán ở đợt code (R-DEC-09)**. Giữ envelope/phân trang/mã lỗi/Idempotency-Key của `main` làm quy ước triển khai (nhất quán, không mâu thuẫn BRD).
 
+### 7.1. Quy ước gán EP đợt code (R-DEC-15, R-DEC-19)
+
+| Domain code | Domain | Module code | Prefix path đề xuất |
+|---|---|---|---|
+| `ORG` | D01 Organization | `hr` | `/org/*` |
+| `ADM` | D02 Admin & Security | `auth`, `platform` | `/auth/*`, `/platform/*` |
+| `DC` | D03 Data Capture & IDP | `idp` | `/idp/*`, `/data-capture/*` |
+| `WF` | D04 Workflow & Approval (cơ bản) | `platform` | `/workflow/*` |
+| `NTF` | D05 Notification | `platform` | `/notifications/*` |
+| `INT` | D06 Integration Hub | `platform` | `/integrations/*` |
+| `STR` · `KPI` · `OKR` · `PRF` | D07 · D08 · D09 · D10 | `execution` | `/goals/*`, `/kpis/*`, `/objectives/*`, `/key-results/*` |
+| `TASK` | D11 Project/Task/Workload | `execution` | `/execution/*`, `/work/*` |
+| `MTG` · `CAL` | D12 Meeting · D13 Calendar | `execution` | `/meetings/*`, `/calendar/*` |
+| `KNW` | D14 Knowledge | `idp` | `/knowledge/*` |
+| `FIN` · `HR` · `SAL` | D15 · D16 · D17 | `finance` · `hr` · `sales` | `/finance/*` · `/hr/*` · `/sales/*` |
+| `AI` · `CEO` | D26 AI Platform · D27 CEO Assistant | `ai` | `/ai/*` |
+| `RPT` | D28 Reporting | `dashboard`, `platform` | `/reporting/*`, `/dashboard/*` |
+| `SYS` | Hệ thống (health, ops) | `core` | `/health` |
+
+- **Mỗi phase**, bước Spec lock thêm một bảng `EP-<DOMAIN>-NN | Method | Path | Permission | Request/Response | Idempotency | EP v2.1` vào §7.2 cho endpoint phase đó chạm tới (mới hoặc giữ từ v2.1). Endpoint chưa có trong §7.2 → không được code.
+- **Endpoint v2.1 giữ nguyên path** nếu hành vi khớp; chỉ gán ID mới và ghi cột `EP v2.1`. Đổi path = breaking change → phải ghi lý do ở bảng và sửa FE cùng phase.
+- Public chỉ: `GET /health`, `POST /auth/login`, `POST /auth/refresh` (giữ DEC-137, không có `/auth/register`).
+
+### 7.2. Danh mục EP đã chốt (cập nhật theo phase)
+
+> M1.1 (nền build) **không thêm endpoint mới**: mock FE chạy ở BFF Next.js (`API_MODE=mock`), không phải API backend. Endpoint của M1.2 trở đi được thêm vào đây ở bước Spec lock của phase tương ứng (09 §6).
+
+| EP | Method | Path | Permission | EP v2.1 | Ghi chú |
+|---|---|---|---|---|---|
+| EP-SYS-01 | GET | `/health` | public | EP-01 | |
+| EP-ADM-01 | POST | `/auth/login` | public | EP-02 | Credentials → access RS256 + refresh opaque |
+| EP-ADM-02 | POST | `/auth/refresh` | public | EP-06 | Xoay vòng; tái sử dụng → thu hồi chuỗi |
+| EP-ADM-03 | POST | `/auth/logout` | (token) | EP-07 | |
+| EP-ADM-04 | GET | `/auth/me` | (token) | EP-03 | `UserOut` |
+
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
 Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:
@@ -177,9 +252,12 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
   occurred_at     # ISO 8601 UTC
   version         # breaking change → event_type _v2
   correlation_id  # = X-Request-Id của request gốc (P06)
+  tenant_id       # tenant phát event (R-DEC-21) — consumer set tenant context từ trường này
   payload         # dữ liệu nghiệp vụ, KHÔNG chứa PII / dữ liệu nhạy cảm
 }
 ```
+
+- **Tenant context (R-DEC-21):** publisher ghi `tenant_id` từ tenant context của request; consumer Celery set `current_tenant` từ envelope trước khi xử lý; event thiếu `tenant_id` → chuyển DLQ (fail closed). Event phát trước R-DEC-21 (không có trường) được coi là tenant mặc định khi relay.
 
 - Consumer dedupe theo `event_id`; không giả định thứ tự; payload không chứa PII (số tài khoản, lương, CCCD) — chỉ mã tham chiếu.
 - Metric tính sẵn từ consumer (không tính lúc request); mọi `MetricValue` có `SourceRef`/lineage (§8).
@@ -202,7 +280,7 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 
 ## 10. Convention (giữ nhất quán nền `main`, không mâu thuẫn BRD)
 
-Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order` (`meta.pagination = {total, limit, offset, has_next}`); `Idempotency-Key` **bắt buộc** cho POST tạo/hành động + mọi endpoint AI ghi; tiền **BIGINT + currency** (mặc định VND); tỷ lệ hậu tố `_pct` thang 0–100; thời gian ISO 8601 UTC có `Z`; mọi response `X-Request-Id` → log/audit/event `correlation_id` (P06). Mã lỗi (vd. `FORBIDDEN_ROLE`, `CONFLICT_STATE`, `BUSINESS_RULE_VIOLATION`, `AI_*`) theo quy ước `main`, chốt danh sách đầy đủ ở đợt code (R-DEC-09).
+Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order` (`meta.pagination = {total, limit, offset, has_next}`); `Idempotency-Key` **bắt buộc** cho POST tạo/hành động + mọi endpoint AI ghi; tiền **BIGINT + currency** (mặc định VND); tỷ lệ hậu tố `_pct` thang 0–100; thời gian ISO 8601 UTC có `Z`; mọi response `X-Request-Id` → log/audit/event `correlation_id` (P06). Mã lỗi: bảng **§1.4** (nguồn sự thật = `core/errors.py`, R-DEC-18).
 
 ## Open questions
 
@@ -215,9 +293,10 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 
 ## Version
 
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/18/19/21):** thêm §1.4 bảng mã lỗi phản chiếu `core/errors.py` (R-DEC-18; sửa 4 contract test hỏng); thêm `tenant_id` vào envelope event §9.1 + quy tắc tenant context (R-DEC-21); thêm §7.1 quy ước domain code/prefix path `EP-<DOMAIN>-NN` và §7.2 danh mục EP đã chốt (bắt đầu với EP-SYS-01, EP-ADM-01..04 ↔ EP-01/02/06/07/03 v2.1); §10 trỏ mã lỗi về §1.4.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên **spec-level P0** — giải thích đầy đủ 13 metadata tool (bảng ý nghĩa mức contract); 4 phân loại tool kèm **quy tắc quyền/Autonomy/approval mỗi loại** (§3); thêm Agent & Orchestrator (thành phần AI Platform liên quan contract, agent P0 + tool chính, luồng §11.5, quyền agent ∩ người §4.4); **Autonomy & kill switch** (§5); danh mục **tool IDP** đầy đủ (tên + mục đích + loại + quyền, §6); **grounding contract SourceRef** (§8); **envelope event + danh mục event P0** kèm domain nguồn và mục đích Observe (§9); bổ sung OQ-10-04..06. Giữ R-DEC-09 (không EP-*/field DB/T-*/TC-* chi tiết).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

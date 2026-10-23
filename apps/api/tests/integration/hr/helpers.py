@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import AUDIT_LOGS
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events.envelope import OUTBOX
 from tests.conftest import ApiClient
 
@@ -27,7 +28,7 @@ def token_headers(role: str, *, email: str, department_id: Any = None) -> dict[s
     token, _ = sign_access_token(
         user_id=uuid.uuid4(), email=email, role=v3, role_id=v3,
         permissions=list(ROLE_PERMISSIONS[v3]), department_id=department_id,
-        scope_pillars=pillars,
+        scope_pillars=pillars, tenant_id=DEFAULT_TENANT_ID,
     )  # fmt: skip
     return {"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())}
 

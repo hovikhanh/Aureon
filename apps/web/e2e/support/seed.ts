@@ -36,3 +36,9 @@ export function seedReviewDoc(): { document_id: string; invoice_number: string }
   const last = out.trim().split(/\r?\n/).at(-1) ?? "{}";
   return JSON.parse(last) as { document_id: string; invoice_number: string };
 }
+
+/** Seed + approve one INVOICE (ACT-create_invoice) so an IN invoice links to an IDP document. */
+export function seedCommittedInvoice(): { document_id: string; invoice_number: string } {
+  const last = runPy(["--commit"]).trim().split(/\r?\n/).at(-1) ?? "{}";
+  return JSON.parse(last) as { document_id: string; invoice_number: string };
+}

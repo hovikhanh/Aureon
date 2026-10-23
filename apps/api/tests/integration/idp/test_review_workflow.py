@@ -117,6 +117,13 @@ async def test_queue_department_scoping(db_session, idp_store) -> None:
     )  # fmt: skip
     _, total_admin = await ReviewService(db_session).queue(admin, PageParams(), QueueFilters())
     assert total_admin == 1
+    # CEO seeded into another department still sees the whole company (02 §2)
+    ceo = Principal(
+        user_id=uuid.uuid4(), role="CEO",
+        permissions=frozenset(ROLE_PERMISSIONS["CEO"]), department_id=dept_b,
+    )  # fmt: skip
+    _, total_ceo = await ReviewService(db_session).queue(ceo, PageParams(), QueueFilters())
+    assert total_ceo == 1
 
 
 # -------------------------------------------------------------- T-407 detail

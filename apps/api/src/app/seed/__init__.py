@@ -1,8 +1,9 @@
 """`uv run python -m app.seed` — the ONLY seed command (DEC-062), idempotent.
 
-S0 (T-008): 10 roles + demo users. S1 (T-101..106): finance data of company ABC (08).
-S2 (T-236): HR + sales data, metric catalog (32) + initial recompute (alerts), late-hiring job.
-v1 data is not migrated — reset seed (DEC-178).
+Seed v3 (T-603b, 08 §2–§5, R-DEC-23): 7 roles + 10 demo users + the AI actor, company ABC
+(7 departments, ~150 employees), finance / sales / execution data for UC-01/02/03/04/06/07,
+product & risk kept (frozen, R-DEC-16) and owned by the CEO, metric catalog (32) + recompute.
+`python -m app.seed.snapshot` exports `seed_snapshot.json` for the mock FE (T-604).
 """
 
 import asyncio
@@ -12,8 +13,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.clock import business_today
 from app.core.db import get_engine, get_sessionmaker
+from app.core.tenant import tenant_scope
 from app.modules.auth.models import User
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
@@ -50,11 +53,10 @@ async def run() -> SeedReport:
             for group, n in (await seed_sales(session, sales)).items():
                 logging.info("seed sales.%s: %d", group, n)
         ceo = await _user(session, "ceo@abc.demo")
-        cpo = await _user(session, "cpo@abc.demo") or ceo  # S0 dev DBs only have 5 users
-        risk = await _user(session, "risk@abc.demo") or ceo
+        cpo = await _user(session, "cpo@abc.demo") or ceo
         groups = (
             ("product", seed_product(session, cpo)),
-            ("risk", seed_risk(session, risk)),
+            ("risk", seed_risk(session, ceo)),
             ("execution", seed_execution(session, ceo)),
         )
         for name, job in groups:
@@ -74,6 +76,7 @@ async def run() -> SeedReport:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    report = asyncio.run(run())
+    with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: seed writes as the MVP system tenant
+        report = asyncio.run(run())
     for outcome in ("created", "updated", "unchanged", "skipped"):
         logging.info("seed %s: %d", outcome, report.count(outcome))

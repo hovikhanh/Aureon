@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.deps import get_db
 from app.core.events.bus import ConsumerRegistry
 from app.core.events.consumer import MAX_ATTEMPTS, RETRY_BACKOFF_SECONDS, Outcome, consume
@@ -149,6 +150,7 @@ def _auth(role: str) -> dict[str, str]:
         role_id=str(uuid.uuid4()),
         permissions=ROLE_PERMISSIONS[v3],
         department_id=None,
+        tenant_id=DEFAULT_TENANT_ID,
     )
     return {"Authorization": f"Bearer {token}"}
 

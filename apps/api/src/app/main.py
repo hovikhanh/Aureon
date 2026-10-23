@@ -6,6 +6,7 @@ from app import __version__
 from app.core.handlers import install_error_handlers
 from app.core.ops_routes import install_ops_routes
 from app.core.request_context import RequestIdMiddleware
+from app.core.tenant import TenantContextMiddleware
 from app.modules.ai.routes.router import router as ai_router
 from app.modules.auth.routes.router import router as auth_router
 from app.modules.dashboard.routes.router import router as dashboard_router
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     application = FastAPI(title="Aureon API", version=__version__)
     install_error_handlers(application)
     install_ops_routes(application)  # /health, /health/ready, /health/live, /metrics (T-515)
+    application.add_middleware(TenantContextMiddleware)
     application.add_middleware(RequestIdMiddleware)
     application.include_router(health_router, prefix=API_PREFIX)  # EP-01 (platform module)
     for router in MODULE_ROUTERS:

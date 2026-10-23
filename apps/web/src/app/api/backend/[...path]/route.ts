@@ -3,8 +3,11 @@
  * Bearer token. Tokens never reach client JS. SSE responses are streamed through unbuffered.
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { API_BASE } from "@/lib/server-env";
+import { getToken } from "next-auth/jwt";
+import { API_BASE, isMockMode } from "@/lib/server-env";
 import { persistToken, readToken } from "@/lib/session-token";
+import { decodeMockToken } from "@/mocks/auth";
+import { handleMock } from "@/mocks/router";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,11 +15,31 @@ export const runtime = "nodejs";
 const FORWARD_REQ = ["content-type", "accept", "accept-language", "idempotency-key", "if-match"];
 const FORWARD_RES = ["content-type", "cache-control", "etag", "x-request-id", "vary"];
 
+const UNAUTH = { error: { code: "UNAUTHENTICATED", message: "no session", details: {} } };
+
+/** T-604: API_MODE=mock → in-process mock router (no backend); claims from the mock token. */
+async function mock(req: NextRequest, path: string[]): Promise<Response> {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "auth not configured", details: {} } }, { status: 500 });
+  const token = await getToken({ req, secret });
+  const claims = decodeMockToken(token?.accessToken);
+  if (!claims) return NextResponse.json(UNAUTH, { status: 401 });
+  const raw = ["GET", "HEAD"].includes(req.method) ? "" : await req.text();
+  let body: unknown = undefined;
+  try {
+    body = raw ? JSON.parse(raw) : undefined;
+  } catch {
+    return NextResponse.json({ error: { code: "BAD_REQUEST", message: "invalid JSON body", details: {} } }, { status: 400 });
+  }
+  return handleMock({ method: req.method, path: `/${path.join("/")}`, query: req.nextUrl.searchParams, headers: req.headers, body, claims });
+}
+
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
   const { path } = await ctx.params;
+  if (isMockMode()) return mock(req, path);
   const { token, refreshed } = await readToken(req);
   if (!token) {
-    return NextResponse.json({ error: { code: "UNAUTHENTICATED", message: "no session", details: {} } }, { status: 401 });
+    return NextResponse.json(UNAUTH, { status: 401 });
   }
   const headers = new Headers({ authorization: `Bearer ${token.accessToken}` });
   for (const h of FORWARD_REQ) {

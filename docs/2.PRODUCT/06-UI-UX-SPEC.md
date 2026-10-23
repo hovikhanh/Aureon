@@ -72,6 +72,36 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 - **Breadcrumb nghiệp vụ** luôn theo chuỗi: Chiến lược › Objective › KR › Dự án › Task — để người dùng thấy việc mình làm đóng góp vào đâu (P06 Traceability).
 - **Bố cục trang chi tiết thống nhất** cho mọi entity: tiêu đề + trạng thái, chỉ số chính, tab (Tổng quan / Liên kết / Lịch sử / Tài liệu gốc / Hoạt động AI), panel AI bên phải. Tab "Tài liệu gốc" và "Hoạt động AI" hiện thực hóa P06 (lineage) và P07 (explainable AI).
 
+### 3.4. Route, `SCR-*` và chuyển tiếp từ v2.1 (R-DEC-25, chốt ở Spec lock M1.1)
+
+**Quy ước số:** màn hình còn dùng tiếp từ v2.1 **giữ `SCR-*` cũ** (để comment/test trong code không đổi nghĩa); màn hình mới của v3 đánh từ **`SCR-40`** trở đi. Locale theo cookie `NEXT_LOCALE` (không có segment `[locale]` trong URL). Route v2.1 → **redirect 308** sang route v3 trong `middleware.ts`.
+
+| SCR | Route v3 | Mục IA (§3.1) | Role thấy | Phase xây đầy đủ | Route v2.1 (redirect 308) |
+|---|---|---|---|---|---|
+| SCR-13 | `/login` | — | public | có sẵn | (giữ) |
+| SCR-40 | `/home` | Trang chủ — Executive / Department / Employee / Reviewer / Admin theo role | mọi role | M2.1 (M1.1: khung + dashboard v2.1 tạm cho CEO/DIR) | `/dashboard` |
+| SCR-03 | `/home/pillar/[slug]` | Trang chủ — bố cục 5 trụ **tùy chọn** (R-DEC-16) | CEO, DIR | có sẵn (lite) | `/dashboard/pillar/[slug]` |
+| SCR-16 | `/ask` | Hỏi AI | mọi role trừ AI actor | M2.4 | `/ai` |
+| SCR-41 | `/goals` | Mục tiêu | CEO, DIR, MGR, EMP | M1.4 | — |
+| SCR-42 | `/work` | Công việc | CEO, DIR, MGR, EMP | M1.3 | — |
+| SCR-43 | `/work/approvals` | Công việc — hộp chờ duyệt | CEO, DIR, MGR | M1.3 | `/approvals` |
+| SCR-44 | `/meetings` | Họp & lịch | CEO, DIR, MGR, EMP | M2.3 / M3.1 | — |
+| SCR-45 | `/data` | Dữ liệu — Hộp thư dữ liệu | mọi role trừ AI actor (Admin: schema) | M1.5 | — |
+| SCR-18a | `/data/review` | Dữ liệu — hàng chờ review | REV, DIR, MGR, CEO | có sẵn | `/idp/review` |
+| SCR-18b | `/data/review/[documentId]` | Dữ liệu — review chi tiết | REV, DIR, MGR, CEO | có sẵn | `/idp/review/[documentId]` |
+| SCR-46 | `/business` | Kinh doanh (Finance/Sales/HR Lite) | theo quyền domain | M2.2 | — |
+| SCR-47 | `/business/finance/invoices` | Kinh doanh — hóa đơn | quyền `finance:read` | có sẵn (lite) | `/finance/invoices` |
+| SCR-48 | `/business/hr/employees` | Kinh doanh — nhân sự | quyền `hr:read` | có sẵn (lite) | `/hr/employees` |
+| SCR-49 | `/knowledge` | Tri thức / báo cáo | mọi role (Admin: audit) | M3.3 / M3.4 | — |
+| SCR-50 | `/admin` | Quản trị — tổng quan | ADM (CEO xem) | M1.2 | — |
+| SCR-14 | `/admin/audit` | Quản trị — audit log | ADM | có sẵn (lite) | (giữ) |
+| — | `/403` | Không có quyền | — | có sẵn | (giữ) |
+
+- **SCR-13 `/login` (T-610c, R-DEC-28):** form email + mật khẩu; khi `DEMO_MODE=true` có **một dropdown** (native `select`) liệt kê 10 tài khoản demo (`DEMO_ACCOUNTS`: đủ 7 role, DIR 4 khối F/O/C/U), nhãn `<tên role i18n> — <email>` (+ khối cho DIR). Chọn một dòng → FE gọi Route Handler `POST /api/demo-credentials` (body `{email}`) → điền **cả** ô email và ô mật khẩu (giá trị thật, thấy được, sửa được); **không tự submit** — người dùng tự bấm "Đăng nhập" (submit `demo: "false"`). Route tắt/không có mật khẩu → chỉ điền email, ô mật khẩu trống + gợi ý `auth.demoPasswordMissing`. Ô mật khẩu có **nút con mắt** (Eye/EyeOff, `type="button"`) đổi `password`↔`text`, `aria-label` `auth.showPassword`/`auth.hidePassword`, `aria-pressed`, dùng được bằng bàn phím, vùng chạm ≥ 44 px (§8.2), áp cả khi tự gõ. HTML `/login` không chứa mật khẩu; không dùng `NEXT_PUBLIC_*` cho mật khẩu.
+- Mục chưa xây (phase sau) hiện trạng thái **"Sắp có"** trong khung trang, không ẩn khỏi IA của role được thấy.
+- Sidebar lọc theo cột "Role thấy" + permission (default-deny §3.3); product/risk **không** có mục riêng (R-DEC-16).
+- Màn hình mới của phase sau (VD `/admin/org`, `/goals/kpis/[id]`) được cấp `SCR-5x+` ở bước Spec lock của phase đó và thêm vào bảng này.
+
 ## 4. Luồng người dùng chính (UIUX §5)
 
 Năm luồng F1–F5 bao phủ use case MVP (UC-01/02/03/04/06/07). Mỗi luồng có **mục tiêu số thao tác + thời gian** làm tiêu chí usability (§10). Mô tả bước-bước dưới đây là mức spec sản phẩm; mã màn hình `SCR-*` cụ thể gán ở đợt code (R-DEC-09).
@@ -151,7 +181,8 @@ Mô tả mức mid-fi (bố cục + thứ tự ưu tiên thông tin + hành đ�
 - **Briefing là trang cuộn ngắn**, đọc hết ≤ 30s; hỏi AI bằng giọng nói ngay Trang chủ (C2).
 - **Chụp chứng từ chạy nền:** camera tự nhận cạnh, chụp nhiều trang; người dùng đóng app được; AI báo bằng thông báo khi xong hoặc cần xem lại.
 - **Thẻ duyệt đủ để quyết tại chỗ:** AI soạn gì, nguồn từ đâu, 2 nút lớn (vùng chạm ≥ 44px). Vuốt duyệt hàng loạt mục rủi ro thấp; mục tài chính trên ngưỡng phải xác thực sinh trắc học.
-- **Chế độ ngoại tuyến:** ảnh chụp + cập nhật task xếp hàng, gửi khi có mạng, nhãn "chưa đồng bộ" (P10).
+- **Chế độ ngoại tuyến:** ảnh chụp + cập nhật task xếp hàng, gửi khi có mạng, nhãn "chưa đồng bộ" (P10). **P0 (R-DEC-25): chưa làm** — PWA P0 cài được (manifest + service worker chỉ cache app shell), mất mạng thì báo "cần kết nối"; hàng đợi ngoại tuyến là backlog. Xác thực sinh trắc học cũng là backlog (OQ-06-04).
+- **Giọng nói P0 (R-DEC-22):** chỉ nhập liệu/hỏi AI ngắn, xử lý bằng STT cloud (có thông báo cho người dùng); **không ghi âm cuộc họp** — biên bản họp nhập bằng văn bản hoặc ảnh.
 
 ## 6. Mẫu tương tác AI theo Autonomy (UIUX §7.1) — cố định ở mọi module
 
@@ -287,15 +318,17 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 ## 9. Open questions
 - OQ-06-01: Màu thương hiệu `primary` cụ thể (UIUX §10.3 câu 1) — chờ human/design.
 - OQ-06-02: ⌘K + Panel + Chat SSE của `main` làm hiện thực cho "Thanh AI toàn cục" — ĐÃ CHỐT: giữ làm chuẩn hiện thực; chi tiết UI gán khi chi tiết hóa ở đợt code (R-DEC-09).
-- OQ-06-03: SCR numbering — ĐÃ CHỐT: R-DEC-10 — đánh số theo BRD + bảng ánh xạ sang SCR-01..28 của `main`; SCR-* cụ thể gán ở đợt code (R-DEC-09).
+- OQ-06-03: SCR numbering — ĐÃ CHỐT: R-DEC-10 + R-DEC-25 — giữ `SCR-*` v2.1 cho màn hình dùng tiếp, màn hình mới từ `SCR-40`; bảng ở §3.4, bổ sung theo phase.
 - OQ-06-04: Nền tảng MVP — web + PWA như đề xuất, hay cần app native ngay (sinh trắc học/ngoại tuyến sâu)? (UIUX §10.3 câu 2) — chờ human.
 - OQ-06-05: Cách AI xưng hô với nhân viên ("anh/chị" hay "bạn") — quyết định văn hóa doanh nghiệp, Admin cấu hình được (UIUX §10.3 câu 5) — chờ human.
 - OQ-06-06: Kênh đẩy briefing/duyệt (Zalo/Slack/Teams = C7, P1 backlog) ảnh hưởng thiết kế thông báo (UIUX §10.3 câu 4) — ngoài phạm vi P0; theo dõi ở 13-DECISION-LOG §3.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §3.4 thêm mô tả SCR-13: dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` (không tự submit), gợi ý `auth.demoPasswordMissing` khi thiếu mật khẩu, nút con mắt hiện/ẩn mật khẩu (WCAG AA §8.2).
+- **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/16/22/25):** thêm §3.4 bảng route v3 ↔ `SCR-*` ↔ redirect từ route v2.1 (giữ SCR v2.1 cho màn hình dùng tiếp, màn hình mới từ SCR-40); §5.3 ghi rõ P0 không offline/sinh trắc học, giọng nói chỉ nhập liệu ngắn, không ghi âm họp; đóng OQ-06-03.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 bám `_reference/SOURCE-UIUX.md` + BRD §12: bảng 5 persona (role/thiết bị/nỗi đau→nhu cầu/US) + 5 phát hiện thiết kế; IA 8 mục ↔ domain P0 + ma trận hiển thị theo vai trò + quy tắc điều hướng (default-deny, breadcrumb, bố cục trang chi tiết); mô tả bước-bước F1–F5 kèm ngoại lệ; wireframe CEO/Review/Mobile dạng text đầy đủ; bảng hành vi bộ component AI + quy tắc Autonomy L0–L3 (L4 khóa) + kill switch + xử lý AI sai/không biết; design system (token/màu/5 nhóm thành phần/trực quan hóa) + WCAG 2.1 AA chi tiết + định dạng VI/EN + chỉ số UX mục tiêu. Bổ sung OQ-06-04/05/06. Giữ nguyên ngữ nghĩa Q1–Q6/R-DEC.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

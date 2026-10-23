@@ -4,18 +4,39 @@
     "tagline": "Digital Chief of Staff"
   },
   "nav": {
-    "dashboard": "F.O.C.U.S Home",
-    "idp": "Data inbox",
-    "ai": "Ask AI",
-    "approvals": "Approvals",
-    "invoices": "Invoices",
+    "home": "Home",
+    "ask": "Ask AI",
+    "goals": "Goals",
+    "work": "Work",
+    "meetings": "Meetings & calendar",
+    "data": "Data",
+    "business": "Business",
+    "knowledge": "Knowledge / reports",
+    "admin": "Administration",
+    "adminGroup": "Administration",
     "menu": "Open menu",
     "close": "Close menu",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
-    "approvalsPending": "The approval inbox arrives in S5b/S5c.",
+    "invoices": "Invoices",
     "employees": "People",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "review": "Review queue"
+  },
+  "navHint": {
+    "home": "Exceptions, decisions to make and a role-based briefing.",
+    "ask": "Ask, analyse, simulate and instruct in natural language.",
+    "goals": "Strategy, OKRs and KPIs on the alignment tree.",
+    "work": "Tasks, workload and projects.",
+    "meetings": "Meetings, minutes → tasks, calendar.",
+    "data": "Submit/review documents, data inbox, review.",
+    "business": "Finance Lite, Sales Lite, basic HR.",
+    "knowledge": "Documents, reports, decision log.",
+    "admin": "Organisation, permissions, AI policy, audit."
+  },
+  "comingSoon": {
+    "title": "Coming soon",
+    "body": "This screen is fully built in phase {phase}."
   },
   "buttons": {
     "login": "Sign in",
@@ -64,7 +85,12 @@
     "emailInvalid": "Invalid email",
     "passwordRequired": "Please enter your password",
     "demoAccounts": "Demo accounts",
-    "demoHint": "Pick an account to fill the email; demo passwords are provided by the admin.",
+    "demoHint": "Pick an account: the demo e-mail and password are filled into the fields so you can review them, then click \"Sign in\".",
+    "demoPick": "— Choose a demo account —",
+    "demoLoading": "Fetching demo password…",
+    "demoPasswordMissing": "No demo password is configured for this account — please type the password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signingIn": "Signing in…"
   },
   "role": {
@@ -79,9 +105,14 @@
   "demoAccount": {
     "ceo": "CEO",
     "cfo": "CFO",
-    "vp_sales": "VP Sales",
-    "hr_manager": "HR Manager",
-    "reviewer": "Reviewer"
+    "vp_sales": "Sales Director",
+    "hr_manager": "HR Director",
+    "cpo": "Product Director",
+    "manager": "Operations Manager",
+    "office_manager": "Office Manager",
+    "employee": "Employee",
+    "reviewer": "Reviewer",
+    "admin": "System Admin"
   },
   "header": {
     "language": "Language",
@@ -104,7 +135,8 @@
     },
     "S": {
       "name": "Strategy & Risk"
-    }
+    },
+    "tabs": "Five-pillar F.O.C.U.S layout (optional)"
   },
   "status": {
     "ok": "On track",
@@ -144,7 +176,8 @@
         "q3": "Q3 ({period})",
         "q4": "Q4 ({period})"
       }
-    }
+    },
+    "fivePillarLink": "Five-pillar view"
   },
   "metric": {
     "METRIC-FIN-01": "Revenue vs target",

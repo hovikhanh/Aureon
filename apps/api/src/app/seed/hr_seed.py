@@ -1,11 +1,11 @@
-"""HR seed (T-236, DEC-208) — 5 departments, 3 teams, 10 employees, 5 hiring plans,
-3 months of encrypted salary history. Idempotent per group (`source='SEED'`).
+"""HR seed v3 (T-603b, 08 §2.1, R-DEC-23) — company ABC: 7 departments, their teams, ~150
+employees with a reporting line (`manager_id`), 3 months of encrypted salary history and 5
+hiring plans. Org data comes from `org_data` (pure, script-computed). Idempotent per group
+(`source='SEED'`).
 
-Departments reuse `seed_uuid("department", code)` so finance budgets (FIN-06) join the same
-rows. Employees: 5 active · 3 probation · 2 leavers (`terminated` in the last 12 months →
-METRIC-HR-02 > 0). Plans: HP-2026-06 (20 days late) and HP-2026-07 (35 days → event) from
-08 DOC-06, plus 2 more > 30 days late and 1 on time. PII is fake (DEC-136); level-4 columns
-are pgcrypto-encrypted by the column type (DEC-207).
+Departments reuse `seed_uuid("department", code)` so finance budgets (FIN-06), execution and
+the demo users join the same rows. PII is fake (DEC-136); level-4 columns are
+pgcrypto-encrypted by the column type (DEC-207).
 """
 
 import uuid
@@ -15,30 +15,14 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_repository import BaseRepository
 from app.modules.hr.models import Department, Employee, HiringPlan, SalaryHistory, Team
+from app.modules.hr.repositories import DepartmentRepository
 from app.modules.hr.services.hr_service import normalize_name
 from app.seed.ids import seed_uuid
+from app.seed.org_data import DEPARTMENTS, PEOPLE
 
 SEED: dict[str, Any] = {"source": "SEED"}
-DEPARTMENTS = (("BOD", "Ban Giám đốc"), ("FIN", "Tài chính – Kế toán"), ("SAL", "Kinh doanh"),
-               ("SVC", "Kỹ thuật & Dịch vụ"), ("PRD", "Sản phẩm & Công nghệ"))  # fmt: skip
-TEAMS = (("SAL", "SAL-HCM", "Sales TP.HCM"), ("SAL", "SAL-HN", "Sales Hà Nội"),
-         ("PRD", "PRD-BE", "Backend ABC Order"))  # fmt: skip
-# code, name, dept, team, status, hire, termination, monthly salary (triệu)
-EMPLOYEES: tuple[tuple[str, str, str, str | None, str, date, date | None, int], ...] = (
-    ("NV-0001", "Nguyễn Văn An", "BOD", None, "active", date(2015, 3, 1), None, 85),
-    ("NV-0002", "Trần Thị Minh", "FIN", None, "active", date(2016, 5, 3), None, 60),
-    ("NV-0003", "Lê Hoàng Giang", "SAL", "SAL-HCM", "active", date(2017, 1, 9), None, 62),
-    ("NV-0004", "Đỗ Quang Huy", "PRD", "PRD-BE", "active", date(2019, 8, 1), None, 58),
-    ("NV-0005", "Đặng Văn Khải", "SVC", None, "active", date(2018, 2, 12), None, 40),
-    ("NV-0101", "Phan Thị Thu", "SAL", "SAL-HN", "probation", date(2026, 8, 18), None, 16),
-    ("NV-0102", "Võ Minh Khang", "PRD", "PRD-BE", "probation", date(2026, 9, 7), None, 30),
-    ("NV-0103", "Lý Thị Hồng", "SVC", None, "probation", date(2026, 9, 21), None, 15),
-    ("NV-0201", "Trương Văn Bình", "SAL", "SAL-HCM", "terminated", date(2022, 4, 4),
-     date(2026, 8, 29), 21),
-    ("NV-0202", "Mai Thị Ngọc", "SVC", None, "terminated", date(2021, 6, 14),
-     date(2026, 10, 10), 17),
-)  # fmt: skip
 SALARY_MONTHS = (date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1))
 # code, dept, title/position, headcount, filled, status, start, target fill date
 # T-237 rebalance: exactly ONE plan is late and by ≤ 45 days (HP-2026-07, 40 days at 20/10) →
@@ -77,42 +61,62 @@ async def seed_org(db: AsyncSession) -> int:
     if await _has(db, Department):
         return 0
     db.add_all([
-        Department(id=seed_uuid("department", code), code=code, name=name, aliases=[], **SEED)
-        for code, name in DEPARTMENTS
+        Department(id=seed_uuid("department", d.code), code=d.code, name=d.name, aliases=[],
+                   **SEED)
+        for d in DEPARTMENTS
     ])  # fmt: skip
     await db.flush()
+    teams = [(d.code, code, name) for d in DEPARTMENTS for code, name in d.teams]
     db.add_all([
         Team(id=seed_uuid("team", code), department_id=seed_uuid("department", dept), code=code,
              name=name, **SEED)
-        for dept, code, name in TEAMS
+        for dept, code, name in teams
     ])  # fmt: skip
-    return len(DEPARTMENTS) + len(TEAMS)
+    return len(DEPARTMENTS) + len(teams)
 
 
 async def seed_employees(db: AsyncSession) -> int:
     if await _has(db, Employee):
         return 0
-    rows = []
-    for n, (code, name, dept, team, status, hired, left, _) in enumerate(EMPLOYEES, start=1):
-        rows.append(Employee(
-            id=emp_id(code), employee_code=code, full_name=name,
-            normalized_name=normalize_name(name), department_id=seed_uuid("department", dept),
-            team_id=seed_uuid("team", team) if team else None, status=status, hire_date=hired,
-            termination_date=left,
-            contract_type="probation" if status == "probation" else "permanent",
+    rows = [
+        Employee(
+            id=emp_id(p.code), employee_code=p.code, full_name=p.name,
+            normalized_name=normalize_name(p.name), department_id=seed_uuid("department", p.dept),
+            team_id=seed_uuid("team", p.team) if p.team else None,
+            manager_id=emp_id(p.manager) if p.manager else None, status=p.status,
+            hire_date=p.hired, termination_date=p.left,
+            contract_type="probation" if p.status == "probation" else "permanent",
             **_fake_pii(n), **SEED,
-        ))  # fmt: skip
+        )
+        for n, p in enumerate(PEOPLE, start=1)
+    ]  # fmt: skip
     db.add_all(rows)
     await db.flush()
     salaries = [
-        SalaryHistory(employee_id=emp_id(code), base_salary=mil * 1_000_000, currency="VND",
-                      effective_date=month, reason="Dữ liệu seed lịch sử")
-        for code, *_, hired, left, mil in EMPLOYEES
+        SalaryHistory(employee_id=emp_id(p.code), base_salary=p.salary_mil * 1_000_000,
+                      currency="VND", effective_date=month, reason="Dữ liệu seed lịch sử")
+        for p in PEOPLE
         for month in SALARY_MONTHS
-        if (left is None or left >= month)
+        if (p.left is None or p.left >= month) and p.hired <= month
     ]  # fmt: skip
     db.add_all(salaries)
+    await db.flush()
+    await _set_heads(db)
     return len(rows) + len(salaries)
+
+
+async def _set_heads(db: AsyncSession) -> None:
+    """Department heads / team leads = the `lead` people of `org_data` (reporting line)."""
+    depts, teams = DepartmentRepository(db), BaseRepository(db, Team)
+    for p in PEOPLE:
+        if not p.lead:
+            continue
+        row = await (teams.get(seed_uuid("team", p.team)) if p.team else
+                     depts.get(seed_uuid("department", p.dept)))  # fmt: skip
+        if isinstance(row, Team):
+            row.lead_employee_id = emp_id(p.code)
+        elif isinstance(row, Department):
+            row.head_employee_id = emp_id(p.code)
 
 
 async def seed_hiring_plans(db: AsyncSession, manager: uuid.UUID, approver: uuid.UUID) -> int:

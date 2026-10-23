@@ -18,6 +18,7 @@ from app.core.db import get_sessionmaker
 from app.core.errors import PermissionDeniedError, UnauthenticatedError
 from app.core.permissions import DOMAIN_PILLAR, permission_name, pillar_allows
 from app.core.security import verify_access_token
+from app.core.tenant import set_tenant
 
 
 @dataclass(frozen=True)
@@ -31,7 +32,7 @@ class Principal:
     email: str = ""
     role_id: str = ""
     jti: str = ""
-    tenant_id: UUID | None = None
+    tenant_id: UUID | None = None  # always set for a request principal (R-DEC-21)
     scope_pillars: frozenset[str] = field(default_factory=frozenset)
 
     def has(self, permission: str) -> bool:
@@ -64,6 +65,9 @@ async def get_current_user(
     if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
         raise UnauthenticatedError("missing bearer token")
     claims = verify_access_token(creds.credentials)
+    if claims.tenant_id is None:  # R-DEC-21: no tenant → no business data (fail closed)
+        raise UnauthenticatedError("token has no tenant_id claim")
+    set_tenant(claims.tenant_id)  # reset per request by TenantContextMiddleware
     set_actor(Actor(type="USER", user_id=claims.sub, role=claims.role))  # audit_logs.actor_*
     return Principal(
         user_id=claims.sub,

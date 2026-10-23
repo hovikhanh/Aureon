@@ -77,11 +77,17 @@ class ToolExecutor:
         self.user = user
         self._dash = DashboardService(db)
 
-    async def run(self, tool_name: str, arguments: dict[str, Any]) -> ToolResult:
+    async def run(
+        self, tool_name: str, arguments: dict[str, Any], *, allow_frozen: bool = False
+    ) -> ToolResult:
+        """Run one tool as the asker. `p1_frozen` tools (R-DEC-16) are refused unless the caller
+        is a curated server-side script (`allow_frozen`, demo replay) — never for model calls."""
         started = time.monotonic()
         tool = get_tool(tool_name)
         if tool is None:
             return self._fail(tool_name, "error", "AI_UNKNOWN_TOOL", started)
+        if tool.p1_frozen and not allow_frozen:
+            return self._fail(tool_name, "error", "AI_TOOL_NOT_AVAILABLE", started)
         if not set(tool.required_permissions) <= self.user.permissions:
             return self._fail(tool_name, "forbidden", "FORBIDDEN_ROLE", started)
         if tool.is_write or tool.kind == "APPROVAL":

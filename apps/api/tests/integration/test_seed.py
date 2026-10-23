@@ -4,6 +4,8 @@ Runs on the rolled-back `db_session`; the shared dev DB may already be seeded, s
 run's outcome is "created" or "unchanged" — the second run must be all "unchanged".
 """
 
+from collections import Counter
+
 import pytest
 from pydantic import SecretStr
 from sqlalchemy import select
@@ -13,7 +15,7 @@ from app.core.config import ConfigService
 from app.core.security import verify_password
 from app.modules.auth.models import Role, User
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS, ROLE_REFS
-from app.seed.auth_seed import DEMO_USERS, ROLES, seed_auth
+from app.seed.auth_seed import AI_AGENT, DEMO_USERS, ROLES, seed_auth
 
 pytestmark = pytest.mark.integration
 
@@ -22,7 +24,7 @@ V3_CODES = ["CEO", "DIR", "MGR", "EMP", "REV", "ADM", "AI"]
 # Env password keys keep the v2.1 C-level names (UserSpec.env_key) so dev .env is unchanged.
 ENV_KEYS = [
     "ceo", "cfo", "vp_sales", "hr_manager", "reviewer", "cpo", "risk_manager", "manager",
-    "employee", "admin",
+    "office_manager", "employee", "admin",
 ]  # fmt: skip
 
 
@@ -39,8 +41,11 @@ def _cfg(**pw: str) -> ConfigService:
 def test_specs_cover_7_roles_and_10_accounts() -> None:
     assert [r.code for r in ROLES] == V3_CODES
     assert set(ROLE_REFS) == set(V3_CODES)
-    # 10 demo accounts (08 §2), each mapped to a v3 role (5 C-level → DIR, R-DEC-12a).
+    # T-603b (08 §2.1): 10 human accounts — CEO, 4 DIR, 2 MGR, EMP, REV, ADM — + the AI actor.
     assert len(DEMO_USERS) == 10
+    assert Counter(u.role for u in DEMO_USERS) == {
+        "CEO": 1, "DIR": 4, "MGR": 2, "EMP": 1, "REV": 1, "ADM": 1}  # fmt: skip
+    assert AI_AGENT.role == "AI"
     assert {u.role for u in DEMO_USERS} <= set(V3_CODES)
     assert all(u.email.endswith("@abc.demo") for u in DEMO_USERS)
     # DIR demo accounts carry distinct scope_pillars (khối phụ trách).
@@ -50,8 +55,9 @@ def test_specs_cover_7_roles_and_10_accounts() -> None:
         "sales@abc.demo": ("C",),
         "hr@abc.demo": ("O",),
         "cpo@abc.demo": ("U",),
-        "risk@abc.demo": ("S",),
     }
+    mgr = {u.email: u.dept for u in DEMO_USERS if u.role == "MGR"}
+    assert mgr == {"manager@abc.demo": "SVC", "office@abc.demo": "ADM"}
 
 
 async def test_seed_twice_is_idempotent(db_session: AsyncSession) -> None:
@@ -59,7 +65,7 @@ async def test_seed_twice_is_idempotent(db_session: AsyncSession) -> None:
     first = await seed_auth(db_session, cfg)
     assert set(first.roles.values()) <= {"created", "unchanged", "updated"}
     assert set(first.users.values()) <= {"created", "unchanged", "updated"}
-    assert len(first.users) == 10
+    assert len(first.users) == 11  # 10 humans + the AI actor
     second = await seed_auth(db_session, cfg)
     assert set(second.roles.values()) == {"unchanged"}
     assert set(second.users.values()) == {"unchanged"}
@@ -102,6 +108,7 @@ async def test_per_role_password_and_skip_when_unset(db_session: AsyncSession) -
     assert report.users["ceo@abc.demo"] in {"created", "updated", "unchanged"}
     skipped = {e for e, o in report.users.items() if o == "skipped"}
     assert skipped == {u.email for u in DEMO_USERS} - {"ceo@abc.demo"}
+    assert report.users[AI_AGENT.email] != "skipped"  # service account needs no password
     ceo = (await db_session.execute(select(User).where(User.email == "ceo@abc.demo"))).scalar_one()
     assert verify_password(ceo.password_hash, "ceo-Only-1")
 
@@ -124,7 +131,7 @@ async def test_seeded_account_can_log_in(db_session: AsyncSession) -> None:
     from app.core.security import verify_access_token
     from app.main import create_app
 
-    await seed_auth(db_session, _cfg(demo_risk_manager_password="risk-Pass-1"))
+    await seed_auth(db_session, _cfg(demo_cpo_password="cpo-Pass-1"))
     app = create_app()
 
     async def _db() -> AsyncIterator[AsyncSession]:
@@ -134,12 +141,12 @@ async def test_seeded_account_can_log_in(db_session: AsyncSession) -> None:
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test/api/v1"
     ) as c:
-        r = await c.post("/auth/login", json={"email": "risk@abc.demo", "password": "risk-Pass-1"})
+        r = await c.post("/auth/login", json={"email": "cpo@abc.demo", "password": "cpo-Pass-1"})
     assert r.status_code == 200, r.text
     claims = verify_access_token(r.json()["data"]["access_token"])
-    # ex RISK_MANAGER → DIR phụ trách khối S (R-DEC-12a).
+    # DIR Sản phẩm/Công nghệ → khối U (R-DEC-12a, 08 §2.1).
     assert claims.role == "DIR"
-    assert claims.scope_pillars == ("S",)
+    assert claims.scope_pillars == ("U",)
     assert sorted(claims.permissions) == sorted(ROLE_PERMISSIONS["DIR"])
 
 
@@ -172,3 +179,14 @@ def test_cli_main_logs_counts(
     assert calls == ["AsyncSession"]
     assert "seed unchanged: 1" in caplog.text
     assert "seed skipped: 1" in caplog.text
+
+
+async def test_ai_actor_is_a_service_account_without_login(db_session: AsyncSession) -> None:
+    """R-DEC-27: ROLE-AI actor exists, is a service account and has no known password."""
+    await seed_auth(db_session, _cfg(demo_password="demo-Pass-123"))
+    stmt = select(User).where(User.email == AI_AGENT.email)
+    ai = (await db_session.execute(stmt)).scalar_one()
+    assert ai.is_service_account is True and ai.employee_id is None
+    assert not verify_password(ai.password_hash, "demo-Pass-123")
+    again = await seed_auth(db_session, _cfg(demo_password="demo-Pass-123"))
+    assert again.users[AI_AGENT.email] == "unchanged"

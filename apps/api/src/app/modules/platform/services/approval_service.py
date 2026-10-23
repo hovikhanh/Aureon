@@ -26,6 +26,7 @@ from app.core.config import get_config
 from app.core.deps import Principal
 from app.core.errors import AppError, PermissionDeniedError
 from app.modules.platform.models import ApprovalRequest, ApprovalRule
+from app.modules.platform.repositories import ApprovalRequestRepository
 from app.modules.platform.schemas import ApprovalRequestOut
 
 # step → approver roles for an AI-action finance approval (DEC-155; CFO→DIR theo R-DEC-12)
@@ -163,11 +164,7 @@ class ApprovalService:
         return rule.second_approver_role_codes is not None
 
     async def _locked(self, request_id: uuid.UUID) -> ApprovalRequest:
-        req = (
-            await self.db.execute(
-                select(ApprovalRequest).where(ApprovalRequest.id == request_id).with_for_update()
-            )
-        ).scalar_one_or_none()
+        req = await ApprovalRequestRepository(self.db).locked(request_id)
         if req is None:
             raise ApprovalConflictError("approval request not found")
         return req

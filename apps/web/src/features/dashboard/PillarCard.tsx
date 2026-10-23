@@ -38,7 +38,7 @@ export function PillarCard({ def, period, permissions }: { def: PillarDef; perio
     );
   }
   return (
-    <Link href={withPeriod(`/dashboard/pillar/${def.slug}`)} aria-label={t("dashboard.drillDown", { pillar: name })} className="group block h-full rounded-lg" data-testid={`pillar-${def.code}`} data-status={view.status}>
+    <Link href={withPeriod(`/home/pillar/${def.slug}`)} aria-label={t("dashboard.drillDown", { pillar: name })} className="group block h-full rounded-lg" data-testid={`pillar-${def.code}`} data-status={view.status}>
       <Card className={cn("flex h-full flex-col gap-3 border-t-4 p-4 transition-shadow group-hover:shadow-md", RING[view.status])}>
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-semibold leading-tight"><span className="text-muted-foreground">{def.code}</span> · {name}</h2>

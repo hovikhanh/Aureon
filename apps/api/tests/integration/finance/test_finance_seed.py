@@ -70,33 +70,33 @@ async def test_seed_matches_08_figures(seeded: AsyncSession) -> None:
     s = dash.summary
     assert s.total_revenue == 73_500_000_000  # DOC-01
     assert s.gross_margin_pct == 18.4
-    # T-237 rebalance → METRIC-FIN-03 green: flatter cash drops → burn 1,5 tỷ, runway 13,6 tháng.
-    assert s.runway_months == 13.6 and s.net_burn == 1_500_000_000
-    assert s.budget_utilization_pct == pytest.approx(97.29)  # every department within budget
+    # T-603b (08 §5): cash runway is the demo's main alert — burn 2,4 tỷ, runway 5,3 tháng 🔴.
+    assert s.runway_months == 5.3 and s.net_burn == 2_400_000_000
+    assert s.budget_utilization_pct == pytest.approx(100.58)  # Kinh doanh 108 %, others within
     t9 = await svc.dashboard("2026-09")
     assert t9.summary.total_revenue == 25_500_000_000
     variance = await svc.burn_variance(date(2026, 10, 20))
     assert variance is not None and variance < 10  # METRIC-FIN-07 green (≈ −7 %)
     statuses = {m.metric_code: m.status for m in dash.metrics}
-    assert statuses["METRIC-FIN-03"] == "ok" and statuses["METRIC-FIN-07"] == "ok"
+    assert statuses["METRIC-FIN-03"] == "critical" and statuses["METRIC-FIN-07"] == "ok"
 
 
 async def test_seed_alert_events_and_cash_flow(seeded: AsyncSession) -> None:
     rows = (await seeded.execute(select(OUTBOX.c.event_type, OUTBOX.c.payload))).all()
     types = [t for t, _ in rows]
-    # T-237 rebalance: every department within budget and burn under forecast → no FIN-06/07 event.
-    assert "finance.budget_exceeded" not in types
+    # T-603b: Kinh doanh over budget (FIN-06 🟠) → exactly one budget_exceeded; burn under forecast.
+    assert types.count("finance.budget_exceeded") == 1
     assert "finance.burn_over_forecast" not in types
     cf = [p for t, p in rows if t == "finance.cash_flow_forecast_updated"]
-    assert {"min_projected_cash": 3_100_000_000, "min_cash_week": 7}.items() <= cf[-1].items()
+    assert {"min_projected_cash": 3_700_000_000, "min_cash_week": 7}.items() <= cf[-1].items()
     lows = (await seeded.execute(
         select(CashFlowForecast.assumptions, CashFlowForecast.min_projected_cash,
                CashFlowForecast.min_cash_week).where(CashFlowForecast.source == "SEED",
                                                      CashFlowForecast.deleted_at.is_(None))
     )).all()  # fmt: skip
     by = {a["scenario"]: (m, w) for a, m, w in lows}
-    assert by == {"optimistic": (6_865_000_000, 7), "base": (3_100_000_000, 7),
-                  "pessimistic": (-1_984_000_000, 9)}  # fmt: skip
+    assert by == {"optimistic": (8_406_000_000, 7), "base": (3_700_000_000, 7),
+                  "pessimistic": (-1_006_000_000, 7)}  # fmt: skip
     overdue = await _count(seeded, Invoice, Invoice.status == "overdue")
     assert overdue == 5  # HV-001/008/030/032 (1–30 ngày) + HL-001 (96 ngày)
 

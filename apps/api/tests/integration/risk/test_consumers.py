@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.events.bus import REGISTRY
 from app.core.events.envelope import EventEnvelope
 from app.modules.risk.models import Risk, RiskAssessment
@@ -18,6 +19,7 @@ def env(event_type: str, **payload: Any) -> EventEnvelope:
     return EventEnvelope(
         event_id=uuid.uuid4(), event_type=event_type, occurred_at=datetime.now(UTC),
         producer=event_type.split(".")[0], payload=payload,
+        tenant_id=DEFAULT_TENANT_ID,
     )  # fmt: skip
 
 

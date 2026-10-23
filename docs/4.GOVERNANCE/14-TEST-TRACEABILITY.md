@@ -58,6 +58,35 @@ Phase 1 (`09`, FE→BE verifiable) refactor nền v2.1 sang model v3: thay 10 ro
 
 **Nợ kỹ thuật tiền-tồn (KHÔNG do Phase 1):** 4 case `tests/contract/test_api_contract.py` FAIL vì khi promote doc 10 sang v3 (commit `7a31c10`, trước Phase 1) bảng mã lỗi `### 1.4.` đã bị gỡ — doc 10 v3 §10 ghi "chốt danh sách đầy đủ ở đợt code (R-DEC-09)". Test parse bảng không còn tồn tại; không liên quan refactor role. Xử lý ở task riêng (viết lại contract test lấy mã lỗi từ `core/errors.py`, cần DEC về nguồn-sự-thật mã lỗi).
 
+### 1.5. M1.1 — Nền build v3 (09 §6.2) — test case đợt code
+
+Quy ước `TC-M<mốc><phase>-NN` (R-DEC-19). Trạng thái: `Planned → Implemented → Passed/Failed`.
+
+| TC | Kiểm gì | Loại | Task | Spec | Trạng thái |
+|---|---|---|---|---|---|
+| TC-SYS-003 | OpenAPI + code khớp 10 (mã lỗi §1.4 hai chiều, public EP, envelope) | contract | T-602 | 10 §1.4, §7.2 | **Passed** (11/11, sau khi khôi phục §1.4) |
+| TC-M11-01 | Mọi lớp `AppError` + `AI_ERROR_CODES` + `_HTTP_CODES` có trong 10 §1.4 đúng HTTP status | contract | T-602 | R-DEC-18 | Passed |
+| TC-M11-02 | Repository nghiệp vụ lọc `tenant_id` theo tenant context; tenant B không đọc/sửa/xóa bản ghi tenant A (trả 404) | integration (bảo mật) | T-603 | R-DEC-13/21, 05 §2.3 | Passed |
+| TC-M11-03 | Thiếu tenant context → repository raise (fail closed), không trả dữ liệu | unit (bảo mật) | T-603 | 05 §2.3 | Passed |
+| TC-M11-04 | Outbox ghi `tenant_id`; consumer set tenant từ envelope; event thiếu `tenant_id` → DLQ | event | T-603 | 10 §9.1 | Passed |
+| TC-M11-05 | Test kiến trúc: không `select(<BusinessModel>)` ngoài repository; migration `0010` downgrade/upgrade sạch | architecture | T-603 | CLAUDE.md §4.3, 05 §2.3 | Passed |
+| TC-M11-06 | Seed v3: 7 phòng ban + quy mô đúng 08 §2.1 (±), user demo đủ role + `scope_pillars` đúng, chạy 2 lần không tạo trùng | integration | T-603b | 08 §2.1, R-DEC-23 | Passed |
+| TC-M11-07 | Seed v3 có dữ liệu tối thiểu UC-01/02/03/04/06/07 (08 §4) trên entity đã có | integration | T-603b | 08 §4 | Passed |
+| TC-M11-08 | `generated.ts` sinh lại trùng file đã commit (drift check) | contract | T-605 | R-DEC-19 | Passed |
+| TC-M11-09 | Mock BFF trả envelope/lỗi/phân trang đúng quy ước 10 §10; SSE giả đúng thứ tự event | FE unit (Vitest) | T-604 | 10 §10 | Passed |
+| TC-M11-10 | `API_MODE=mock` bị từ chối khi `NODE_ENV=production`; mock login cấp đúng claim 7 role | FE unit (bảo mật) | T-604 | R-DEC-25 | Passed |
+| TC-M11-11 | Playwright project `mock` chạy xanh không có backend | E2E | T-606 | — | Passed |
+| TC-M11-12 | Sidebar 8 mục + Quản trị đúng ma trận role 06 §3.2/§3.4 (default-deny) | FE unit + E2E | T-607 | 06 §3.4 | Passed |
+| TC-M11-13 | Route v2.1 (`/dashboard`, `/ai`, `/idp/review[/id]`, `/finance/invoices`, `/hr/employees`, `/approvals`, `/dashboard/pillar/[slug]`) → 308 tới route v3 | E2E | T-607 | 06 §3.4 | Passed |
+| TC-M11-14 | Tool product/risk không được quảng bá cho model; Executive mặc định không có card U/S | unit + E2E | T-608 | R-DEC-16 | Passed |
+| TC-M11-15 | Login + điều hướng 7 role trên stack thật | E2E (`real`) | T-609 | 02 | Passed |
+| TC-M11-16 | `DEMO_ACCOUNTS` khớp tập user seed (email/role/khối), có nhãn vi+en, test id duy nhất; **dropdown 10 tài khoản** — chọn một dòng điền cả email + mật khẩu (autofill, không tự submit), bấm "Đăng nhập" vào đúng role; thiếu mật khẩu → ô trống + gợi ý `auth.demoPasswordMissing` (test: `apps/web/src/lib/demo-accounts.test.ts`, `apps/web/src/lib/demo-credentials.test.ts`, `e2e/helpers.ts` `loginAs` + `e2e/login.spec.ts`) | FE unit + E2E | T-610b, T-610c | 06 §3.4, R-DEC-28 | Implemented (bản 10 nút T-610b đã Passed; full suite chạy sau khi human duyệt) |
+| TC-M11-17 | Route Handler `POST /api/demo-credentials` trả `404 NOT_FOUND` khi `DEMO_MODE` tắt / `DEMO_LOGIN_AUTOFILL` tắt / email ngoài whitelist `DEMO_ACCOUNTS`; bật đủ cờ → `{ data: { email, password } }` + `Cache-Control: no-store`; nút con mắt đổi `type` password↔text + `aria-pressed`; **HTML trang `/login` không chứa mật khẩu** | FE unit (bảo mật) + E2E | T-610c | R-DEC-28, 06 §3.4/§8.2 | Implemented |
+
+**Kết quả đóng M1.1 (T-610, 2026-10-23):** TC-M11-01..15 Passed — pytest 808 passed (`--cov=app` 97%; bảo mật: `core/security` 100%, `core/permissions` 100%, `core/tenant` 98%, `core/pii` 100%, `auth_service` 91%, `action_registry` 95%, `autonomy` 92%, `kill_switch_service` 100%, mọi `services/scope.py` ≥ 95%), Vitest 80, contract 14, `alembic downgrade -1 && upgrade head` sạch, Playwright `mock` 28/28 (không backend) + `real` 58/58.
+
+Ngưỡng: TC-M11-02..05, 10 thuộc nhóm **bảo mật** (coverage ≥ 90%, gap = blocking). TC của M1.2 trở đi thêm ở bước Spec lock từng phase (09 §6.0).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).
@@ -161,9 +190,11 @@ Mỗi NFR nêu cách kiểm ở mức khung; ngưỡng số là baseline MVP (BR
 - OQ-14-03: Tập transcript/tài liệu chuẩn để đo recall ≥90% (UC-02/UC-06) và tập câu hỏi chuẩn cho grounding (UC-01/UC-03) — bộ dữ liệu đánh giá (AI-eval golden set) lập ở **đợt code**; cần thống nhất với seed demo (08). Ghi nhận, chưa blocking docs P0.
 
 ## Version
-- **Version:** 1.0.0 (current)
+- **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §1.5 sửa TC-M11-16 sang dropdown 10 tài khoản + autofill email/mật khẩu (Implemented); thêm TC-M11-17 (Route Handler `/api/demo-credentials` 404 khi tắt cờ / ngoài whitelist, nút con mắt, HTML `/login` không chứa mật khẩu — Implemented).
+- **Change 1.1.0 (human duyệt 2026-10-23 — Spec lock M1.1, R-DEC-15/19):** thêm §1.5 test case M1.1 `TC-M11-01..15` (+ TC-SYS-003 Passed sau khi khôi phục 10 §1.4); quy ước `TC-M<mốc><phase>-NN`.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0: thêm §1.1 nguyên tắc chiến lược (pyramid 6 trục gồm AI-eval) + §1.2 phạm vi P0 + §1.3 ngưỡng coverage/gate; §2 ma trận UC-01..08 với **tiêu chí nghiệm thu mức sản phẩm** + domain/FR xuyên suốt + loại test + map US→UC; §3 khung test theo **từng nhóm FR P0** với loại test cần (unit/integration/e2e/ai-eval) + trọng tâm kiểm; §4 **khung grounding/no-hallucination** (GR-01..05), anti-injection (INJ-01..03), autonomy/Approval Matrix (AUT-01..04); §5 cách kiểm NFR BRD §16. TÔN TRỌNG R-DEC-09: KHÔNG sinh TC-* chi tiết/T-*; `TC-*` là namespace traceability, chi tiết hóa ở đợt code. Thêm OQ-14-03 (golden set AI-eval).
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

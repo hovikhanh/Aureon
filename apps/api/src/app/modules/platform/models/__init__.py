@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, ORMExecuteState, Session, mapped_column
 
-from app.core.base_model import BusinessModel, ConfigModel, LogModel
+from app.core.base_model import DEFAULT_TENANT_ID, BusinessModel, ConfigModel, LogModel
 from app.core.columns import currency, fk, measure, money, schema_args, sr, txt
 from app.core.enums import (
     ACTOR_TYPE,
@@ -317,6 +317,14 @@ class OutboxEvent(LogModel):
     aggregate_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(TS, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    # R-DEC-21 / 05 §2.3: LogModel has no TenantMixin → own column; relay copies it into the
+    # envelope. Not filtered by the session guard (system table read by relay across tenants).
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+        server_default=text(f"'{DEFAULT_TENANT_ID}'"),
+    )
     status: Mapped[str] = mapped_column(
         OUTBOX_STATUS, nullable=False, server_default=text("'PENDING'")
     )

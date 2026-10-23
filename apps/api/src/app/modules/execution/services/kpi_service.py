@@ -15,16 +15,17 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, or_, select
+from sqlalchemy import ColumnElement, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
-from app.modules.execution.models import CheckIn, KeyResult, Kpi, KpiMeasurement, KpiTarget, Task
+from app.modules.execution.models import CheckIn, Kpi, KpiMeasurement, KpiTarget, Task
 from app.modules.execution.repositories import (
     CheckInRepository,
+    KeyResultRepository,
     KpiRepository,
     KpiTargetRepository,
     MeasurementRepository,
@@ -250,14 +251,12 @@ class KpiService(ExecBase):
     ) -> tuple[list[CheckInOut], int]:  # fmt: skip
         where: list[ColumnElement[bool]] = []
         if scope.level(user) != "all":
-            kpi_ids = select(Kpi.id)
             kp = self._pred(user)
-            if kp is not None:
-                kpi_ids = kpi_ids.where(kp)
+            kpi_ids = KpiRepository.ids_where(*([kp] if kp is not None else []))
             kr_pred = kr_scope_predicate(user)
             parts = [CheckIn.kpi_id.in_(kpi_ids), CheckIn.user_id == user.user_id]
             if kr_pred is not None:
-                parts.append(CheckIn.key_result_id.in_(select(KeyResult.id).where(kr_pred)))
+                parts.append(CheckIn.key_result_id.in_(KeyResultRepository.ids_where(kr_pred)))
             where.append(or_(*parts))
         if period_key is not None:
             try:
