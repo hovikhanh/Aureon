@@ -19,10 +19,10 @@ from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import REPO_ROOT
 from app.core.db import get_engine, get_sessionmaker
 from app.core.tenant import tenant_scope
-from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.auth.permission_matrix import ROLE_PERMISSIONS, ROLE_REFS, ROLE_SCOPES
 from app.modules.platform.services.metric_query import MetricQueryService
 from app.seed import exec_data as X
-from app.seed.auth_seed import AI_AGENT, DEMO_USERS
+from app.seed.auth_seed import AI_AGENT, DEMO_USERS, ROLES
 from app.seed.hr_seed import ORG_CODE, ORG_NAME, ORG_VALID_FROM, TRANSFERS
 from app.seed.org_data import BY_NAME, DEPARTMENTS, PEOPLE, REFERENCE
 
@@ -130,7 +130,16 @@ async def metrics(db: AsyncSession) -> list[dict[str, Any]]:
 def build(metric_rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"reference_date": REFERENCE.isoformat(), "company": "Công ty TNHH TM&DV ABC",
             "users": _users(), **_org(), **_execution(), "metrics": metric_rows,
-            "role_permissions": {r: sorted(p) for r, p in ROLE_PERMISSIONS.items()}}  # fmt: skip
+            "role_permissions": {r: sorted(p) for r, p in ROLE_PERMISSIONS.items()},
+            "roles": _roles()}  # fmt: skip
+
+
+def _roles() -> list[dict[str, Any]]:
+    """EP-ADM-11 catalog (T-617F mock SCR-54) — names, khối and scope notes per role."""
+    return [{"code": r.code, "role_ref": ROLE_REFS[r.code], "name_vi": r.name_vi,
+             "name_en": r.name_en, "pillars": list(r.pillars),
+             "scope_rules": dict(sorted(ROLE_SCOPES.get(r.code, {}).items()))}
+            for r in ROLES]  # fmt: skip
 
 
 def render(data: dict[str, Any]) -> str:

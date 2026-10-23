@@ -33,6 +33,9 @@ export const SNAPSHOT = snapshot as unknown as {
   employees: { code: string; full_name: string; department: string; team: string | null; manager: string | null; status: string; hire_date: string }[];
   metrics: SnapshotMetric[];
   role_permissions: Record<RoleCode, string[]>;
+  organization: { code: string; name: string; valid_from: string };
+  assignments: { employee: string; department: string; team: string | null; manager: string | null; valid_from: string; valid_to: string | null }[];
+  roles: { code: RoleCode; role_ref: string; name_vi: string; name_en: string; pillars: string[]; scope_rules: Record<string, string> }[];
 };
 
 /** Deterministic UUID-shaped id from a stable key (mock only — the API uses real UUIDs). */

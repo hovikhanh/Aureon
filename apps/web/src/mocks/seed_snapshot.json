@@ -3544,6 +3544,133 @@
    "sales:read"
   ]
  },
+ "roles": [
+  {
+   "code": "CEO",
+   "name_en": "Chief Executive Officer",
+   "name_vi": "Tổng giám đốc",
+   "pillars": [
+    "F",
+    "O",
+    "C",
+    "U",
+    "S"
+   ],
+   "role_ref": "ROLE-CEO",
+   "scope_rules": {
+    "ai:admin": "k",
+    "platform:admin": "u",
+    "sales:write": "t"
+   }
+  },
+  {
+   "code": "DIR",
+   "name_en": "Director / Executive",
+   "name_vi": "Giám đốc khối",
+   "pillars": [
+    "F",
+    "O",
+    "C",
+    "U",
+    "S"
+   ],
+   "role_ref": "ROLE-DIR",
+   "scope_rules": {
+    "dashboard:read": "p",
+    "dashboard:write": "p",
+    "execution:query": "d",
+    "execution:read": "d",
+    "execution:write": "d",
+    "finance:query": "agg",
+    "hr:query": "agg",
+    "idp:approve": "p",
+    "idp:read": "p",
+    "idp:write": "p",
+    "platform:approve": "p",
+    "product:query": "agg",
+    "risk:read": "l",
+    "sales:query": "agg"
+   }
+  },
+  {
+   "code": "MGR",
+   "name_en": "Department Manager",
+   "name_vi": "Trưởng bộ phận",
+   "pillars": [],
+   "role_ref": "ROLE-MGR",
+   "scope_rules": {
+    "execution:query": "d",
+    "execution:read": "d",
+    "execution:write": "d",
+    "finance:query": "d",
+    "finance:read": "d",
+    "finance:write": "d",
+    "hr:query": "d",
+    "hr:read": "d",
+    "idp:approve": "d",
+    "idp:read": "d",
+    "idp:write": "d",
+    "platform:approve": "d",
+    "product:query": "d",
+    "product:read": "d",
+    "product:write": "d",
+    "risk:read": "d",
+    "risk:write": "d",
+    "sales:query": "d",
+    "sales:read": "d",
+    "sales:write": "d"
+   }
+  },
+  {
+   "code": "EMP",
+   "name_en": "Employee",
+   "name_vi": "Nhân viên",
+   "pillars": [],
+   "role_ref": "ROLE-EMP",
+   "scope_rules": {
+    "execution:read": "o",
+    "execution:write": "o",
+    "hr:read": "o",
+    "idp:read": "o",
+    "idp:write": "o"
+   }
+  },
+  {
+   "code": "REV",
+   "name_en": "Data Reviewer",
+   "name_vi": "Người duyệt dữ liệu",
+   "pillars": [],
+   "role_ref": "ROLE-REV",
+   "scope_rules": {
+    "ai:write": "r",
+    "finance:read": "r",
+    "hr:read": "r",
+    "idp:read": "r",
+    "idp:write": "r",
+    "product:read": "r",
+    "risk:read": "r",
+    "sales:read": "r"
+   }
+  },
+  {
+   "code": "ADM",
+   "name_en": "System Administrator",
+   "name_vi": "Quản trị hệ thống",
+   "pillars": [],
+   "role_ref": "ROLE-ADM",
+   "scope_rules": {
+    "hr:read": "s"
+   }
+  },
+  {
+   "code": "AI",
+   "name_en": "AI Agent",
+   "name_vi": "Trợ lý AI",
+   "pillars": [],
+   "role_ref": "ROLE-AI",
+   "scope_rules": {}
+  }
+ ],
  "tasks": [
   {
    "assignee": "NV-0046",

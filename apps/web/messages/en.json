@@ -21,7 +21,11 @@
     "invoices": "Invoices",
     "employees": "People",
     "audit": "Audit log",
-    "review": "Review queue"
+    "review": "Review queue",
+    "org": "Organization",
+    "positions": "Positions",
+    "users": "Users",
+    "roles": "Roles & permissions"
   },
   "navHint": {
     "home": "Exceptions, decisions to make and a role-based briefing.",
@@ -54,7 +58,8 @@
     "previous": "Previous",
     "next": "Next",
     "clearFilters": "Clear filters",
-    "back": "Back"
+    "back": "Back",
+    "save": "Save"
   },
   "errors": {
     "generic": "Something went wrong. Please try again in a few minutes.",
@@ -431,6 +436,239 @@
       "actor": "Actor",
       "action": "Action",
       "target": "Target"
+    },
+    "actorType": "Actor type",
+    "allActors": "All actors",
+    "from": "From",
+    "to": "To",
+    "badRange": "\"From\" must be on or before \"To\".",
+    "actor": {
+      "USER": "User",
+      "AI": "AI",
+      "SYSTEM": "System"
+    }
+  },
+  "adminHome": {
+    "org": {
+      "title": "Organization structure",
+      "body": "Department → team → employee tree, by date; assign and transfer people."
+    },
+    "positions": {
+      "title": "Positions & headcount",
+      "body": "Positions per department: budget, filled, vacant."
+    },
+    "users": {
+      "title": "Users & access",
+      "body": "Create, edit, lock / unlock accounts."
+    },
+    "roles": {
+      "title": "Roles & permissions",
+      "body": "Matrix of 7 roles × permissions (read only)."
+    },
+    "audit": {
+      "title": "Audit log",
+      "body": "Every write, filtered by time and actor."
+    }
+  },
+  "adminCommon": {
+    "breadcrumb": "Breadcrumb",
+    "reasonRequired": "Please enter a reason.",
+    "reason": {
+      "label": "Reason",
+      "has_live_children": "Cannot archive: it still has sub-departments, teams or current assignments. Move them first.",
+      "parent_cycle": "This parent would create a cycle.",
+      "overlap": "The effective date must be after the current assignment start.",
+      "future": "The effective date cannot be in the future.",
+      "team_outside_department": "The team is not in the selected department.",
+      "position_outside_department": "The position is not in the selected department.",
+      "manager_self": "An employee cannot be their own manager.",
+      "self_change": "You cannot lock yourself or change your own role.",
+      "ai_not_grantable": "The AI role cannot be granted to a user.",
+      "pillars_only_dir": "Only a Director has khối (pillars).",
+      "not_found": "A related record was not found (it may be archived)."
+    }
+  },
+  "orgAdmin": {
+    "title": "Organization structure",
+    "hint": "Organization → department → team → employee. Pick a node for details.",
+    "asOf": "Structure as of",
+    "backToToday": "Back to today",
+    "pastBanner": "Structure as of {date} — read only.",
+    "treeLabel": "Organization tree",
+    "empty": "No departments yet.",
+    "pickNode": "Pick a department, team or employee on the left.",
+    "expand": "Expand {name}",
+    "collapse": "Collapse {name}",
+    "newDept": "Add department",
+    "assign": "Assign employee",
+    "transfer": "Transfer / change",
+    "edit": "Edit",
+    "addChild": "Add sub-department",
+    "addTeam": "Add team",
+    "archive": "Archive",
+    "members": "Employees ({n})",
+    "history": "Assignment history",
+    "present": "present",
+    "archiveDeptTitle": "Archive department {name}?",
+    "archiveTeamTitle": "Archive team {name}?",
+    "archiveBody": "The unit ends today; its history is kept.",
+    "field": {
+      "code": "Code",
+      "departments": "Departments",
+      "headcount": "Headcount",
+      "parent": "Parent",
+      "head": "Head",
+      "teams": "Teams",
+      "department": "Department",
+      "lead": "Team lead",
+      "team": "Team",
+      "position": "Position",
+      "manager": "Manager"
+    },
+    "form": {
+      "newDept": "New department",
+      "editDept": "Edit department",
+      "newTeam": "New team in {dept}",
+      "assign": "Assign an employee",
+      "transfer": "Transfer / change: {name}",
+      "code": "Code",
+      "name": "Name",
+      "parent": "Parent",
+      "noParent": "(Directly under the organization)",
+      "head": "Head",
+      "lead": "Team lead",
+      "validFrom": "Valid from",
+      "effectiveFrom": "Effective from",
+      "employee": "Employee",
+      "department": "Department",
+      "team": "Team",
+      "position": "Position",
+      "manager": "Manager",
+      "reason": "Reason (optional)",
+      "pick": "— Select —",
+      "required": "Required.",
+      "codeInvalid": "Letters, digits, '-' or '_' (max 50).",
+      "dateInvalid": "Invalid date.",
+      "notFuture": "The date cannot be in the future."
+    },
+    "toast": {
+      "deptCreated": "Department {name} created.",
+      "deptUpdated": "Department {name} updated.",
+      "teamCreated": "Team {name} created.",
+      "assigned": "Assignment saved.",
+      "archived": "{name} archived."
+    }
+  },
+  "positionsAdmin": {
+    "title": "Positions & headcount",
+    "hint": "Budget, filled and vacant per department.",
+    "new": "Add position",
+    "edit": "Edit position",
+    "filterDept": "Filter by department",
+    "allDepts": "All departments",
+    "search": "Search code or title",
+    "empty": "No positions yet.",
+    "reportsTo": "Reports to",
+    "levelInvalid": "Level must be an integer ≥ 0.",
+    "budgetInvalid": "Budget must be an integer ≥ 0.",
+    "created": "Position {title} created.",
+    "updated": "Position {title} updated.",
+    "col": {
+      "code": "Code",
+      "title": "Title",
+      "department": "Department",
+      "level": "Level",
+      "budget": "Budget",
+      "filled": "Filled",
+      "vacant": "Vacant"
+    }
+  },
+  "usersAdmin": {
+    "title": "Users & access",
+    "hint": "Create, edit, lock or unlock accounts. Every change is audited.",
+    "readOnly": "View only — only an Admin can change accounts.",
+    "total": "{total} users",
+    "new": "Add user",
+    "edit": "Edit user",
+    "search": "Search name or email",
+    "allRoles": "All roles",
+    "allStatus": "Any status",
+    "active": "Active",
+    "locked": "Locked",
+    "empty": "No matching users.",
+    "actions": "Actions",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "lockTitle": "Lock {name}?",
+    "unlockTitle": "Unlock {name}?",
+    "lockBody": "They are signed out everywhere at once and cannot sign in until unlocked.",
+    "lockedToast": "{name} locked — their sessions have been revoked.",
+    "unlockedToast": "{name} unlocked.",
+    "createdToast": "User {name} created.",
+    "updatedToast": "{name} updated.",
+    "selfLock": "You cannot lock your own account.",
+    "selfRole": "You cannot change your own role.",
+    "pillars": "Pillars (khối)",
+    "pillarsRequired": "Pick at least one pillar for a Director.",
+    "initialPassword": "Initial password (≥ 12 characters)",
+    "passwordMin": "At least 12 characters.",
+    "pillar": {
+      "F": "F — Finance",
+      "O": "O — Organization & people",
+      "C": "C — Customers",
+      "U": "U — Product",
+      "S": "S — Risk"
+    },
+    "col": {
+      "name": "Full name",
+      "role": "Role",
+      "department": "Department",
+      "status": "Status",
+      "lastLogin": "Last sign-in"
+    }
+  },
+  "rolesAdmin": {
+    "title": "Roles & permissions",
+    "hint": "7 roles × <domain>:<action>. The small mark next to ✓ is the data scope.",
+    "caption": "Role and permission matrix",
+    "permission": "Permission",
+    "granted": "Granted",
+    "notGranted": "Not granted",
+    "legendTitle": "Scope marks",
+    "otherMarks": "Other marks (k, l, t, u) are specific scopes from the permission matrix 02 §5.3.",
+    "readOnly": "Read only at P0 — custom roles are on the backlog.",
+    "scope": {
+      "d": "own department (+ sub-departments)",
+      "o": "own records only",
+      "p": "own pillars (khối)",
+      "r": "assigned review items",
+      "s": "org structure only",
+      "agg": "aggregates only"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "label": "Notifications",
+    "labelUnread": "Notifications, {n} unread",
+    "newArrived": "New notification — {n} unread",
+    "readAll": "Mark all as read",
+    "empty": "No unread notifications.",
+    "unread": "unread",
+    "emailSettings": "Email settings",
+    "prefsHint": "Choose which kinds you also receive by email.",
+    "prefsSaved": "Email settings saved.",
+    "kind": {
+      "alert": "Metric alert",
+      "review_assigned": "Review assigned",
+      "review_escalated": "Review escalated",
+      "task_assigned": "Task assigned",
+      "approval_requested": "Approval requested",
+      "approval_decided": "Approval decided",
+      "report_ready": "Report ready",
+      "ai_action": "AI action",
+      "document_ready": "Document ready",
+      "reminder": "Reminder",
+      "system": "System"
     }
   }
 }

@@ -11,6 +11,9 @@ import { MockHttpError, fail, ok, paginate, parsePage } from "./http";
 import { chatStream, conversationMessages, listConversations } from "./chat";
 import { SNAPSHOT } from "./fixtures";
 import { metricVisible, sessionFor } from "./store";
+import { ORG_ROUTES } from "./org";
+import { ADMIN_ROUTES } from "./admin";
+import { listAudit } from "./audit";
 
 export interface MockRequest {
   method: string;
@@ -24,7 +27,7 @@ export interface MockRequest {
 
 type Handler = (req: MockRequest) => Response | Promise<Response>;
 
-interface Route {
+export interface Route {
   method: string;
   pattern: string;
   permission: string;
@@ -94,6 +97,10 @@ export const ROUTES: readonly Route[] = [
       return chatStream(req);
     },
   },
+  // M1.2 admin screens (T-617F): org structure, users/roles, audit, notifications.
+  { method: "GET", pattern: "/platform/audit-logs", permission: "platform:read", handler: listAudit },
+  ...ORG_ROUTES,
+  ...ADMIN_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {
@@ -113,9 +120,10 @@ function match(pattern: string, path: string): Record<string, string> | null {
 export async function handleMock(req: Omit<MockRequest, "params">): Promise<Response> {
   const candidates = ROUTES.map((r) => ({ r, params: match(r.pattern, req.path) })).filter((x) => x.params !== null);
   if (candidates.length === 0) return fail(404, "NOT_FOUND", `mock route not implemented: ${req.path}`, { mode: "mock" });
-  const hit = candidates.find((x) => x.r.method === req.method);
+  // a literal segment beats a `:param` one (`/notifications/read-all` vs `/:id/read`)
+  const hit = candidates.filter((x) => x.r.method === req.method).sort((a, b) => Object.keys(a.params ?? {}).length - Object.keys(b.params ?? {}).length)[0];
   if (!hit) return fail(405, "BAD_REQUEST", "method not allowed", { allowed: candidates.map((x) => x.r.method).join(",") });
-  if (!req.claims.permissions.includes(hit.r.permission)) {
+  if (hit.r.permission && !req.claims.permissions.includes(hit.r.permission)) {
     return fail(403, "FORBIDDEN_ROLE", "permission denied", { required: hit.r.permission });
   }
   try {

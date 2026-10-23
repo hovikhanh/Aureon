@@ -25,7 +25,7 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set("callbackUrl", pathname + search);
     return NextResponse.redirect(url);
   }
-  if (!canAccess(pathname, token.role ?? "", token.permissions ?? [])) {
+  if (!canAccess(pathname, token.role ?? "", token.permissions ?? [], token.scopePillars ?? [])) {
     return NextResponse.rewrite(new URL("/403", req.url), { status: 403 });
   }
   return NextResponse.next();

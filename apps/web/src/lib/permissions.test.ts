@@ -29,6 +29,27 @@ describe("sidebar per role (06 §3.2/§3.4, default deny)", () => {
     expect(all.some((i) => /product|risk/.test(i.href))).toBe(false);
   });
 
+  it("Quản trị for DIR only with khối O (T-617F, TC-M12-18): org + positions, never users/roles/audit", () => {
+    const dir = perms("DIR");
+    expect(visibleNav("DIR", dir, ["O"]).map((i) => i.key)).toContain("admin");
+    expect(visibleNav("DIR", dir, ["F"]).map((i) => i.key)).not.toContain("admin");
+    for (const p of ["/admin", "/admin/org", "/admin/positions"]) {
+      expect(canAccess(p, "DIR", dir, ["O"])).toBe(true);
+      expect(canAccess(p, "DIR", dir, ["C"])).toBe(false);
+      expect(canAccess(p, "DIR", dir, [])).toBe(false);
+    }
+    for (const p of ["/admin/users", "/admin/roles", "/admin/audit"]) expect(canAccess(p, "DIR", dir, ["O"])).toBe(false);
+  });
+
+  it.each([
+    ["/admin/org", "ADM", true], ["/admin/org", "CEO", true], ["/admin/org", "MGR", false], ["/admin/org", "EMP", false],
+    ["/admin/positions", "ADM", true], ["/admin/positions", "REV", false],
+    ["/admin/users", "ADM", true], ["/admin/users", "CEO", true], ["/admin/users", "MGR", false],
+    ["/admin/roles", "ADM", true], ["/admin/roles", "CEO", true], ["/admin/roles", "EMP", false],
+  ] as const)("M1.2 admin page %s as %s → %s", (path, role, ok) => {
+    expect(canAccess(path, role, perms(role))).toBe(ok);
+  });
+
   it("an unknown role or missing permission sees nothing beyond the open items", () => {
     expect(visibleNav("GUEST", perms("CEO"))).toEqual([]);
     expect(visibleNav("EMP", []).map((i) => i.key)).toEqual(["home", "knowledge"]);

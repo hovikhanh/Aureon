@@ -13,6 +13,8 @@ export interface AccessRule {
   roles: readonly RoleCode[];
   /** Any of these permissions grants access; empty = authenticated is enough. */
   anyOf: readonly string[];
+  /** ROLE-DIR only: allowed when the DIR's khối includes one of these (default deny). */
+  dirPillars?: readonly string[];
 }
 
 export interface NavItem extends AccessRule {
@@ -33,7 +35,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "data", href: "/data", scr: "SCR-45", group: "main", roles: HUMANS, anyOf: ["idp:read", "idp:admin"] },
   { key: "business", href: "/business", scr: "SCR-46", group: "main", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read", "sales:read", "hr:read"] },
   { key: "knowledge", href: "/knowledge", scr: "SCR-49", group: "main", roles: HUMANS, anyOf: [] },
-  { key: "admin", href: "/admin", scr: "SCR-50", group: "admin", roles: ["ADM", "CEO"], anyOf: ["platform:read"] },
+  // M1.2 (06 §3.4): DIR khối O reaches Quản trị for SCR-51/52 (org structure) only.
+  { key: "admin", href: "/admin", scr: "SCR-50", group: "admin", roles: ["ADM", "CEO", "DIR"], anyOf: ["platform:read", "hr:admin"], dirPillars: ["O"] },
 ];
 
 /** Protected route prefixes (06 §3.4). Longest prefix wins; sub-routes narrow their parent. */
@@ -45,9 +48,13 @@ const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"] },
   { prefix: "/admin/audit", roles: ["ADM"], anyOf: ["platform:read"] },
+  { prefix: "/admin/org", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
+  { prefix: "/admin/positions", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
+  { prefix: "/admin/users", roles: ["ADM", "CEO"], anyOf: ["platform:read"] },
+  { prefix: "/admin/roles", roles: ["ADM", "CEO"], anyOf: ["platform:read"] },
 ];
 export const ROUTE_RULES: readonly RouteRule[] = [
-  ...NAV_ITEMS.map(({ href, roles, anyOf }): RouteRule => ({ prefix: href, roles, anyOf })),
+  ...NAV_ITEMS.map(({ href, roles, anyOf, dirPillars }): RouteRule => ({ prefix: href, roles, anyOf, dirPillars })),
   ...SUB_ROUTES,
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
@@ -57,8 +64,13 @@ export function hasAny(perms: readonly string[], anyOf: readonly string[]): bool
   return anyOf.length === 0 || anyOf.some((p) => perms.includes(p));
 }
 
-function allowed(rule: AccessRule, role: string, perms: readonly string[]): boolean {
-  return (rule.roles as readonly string[]).includes(role) && hasAny(perms, rule.anyOf);
+function pillarOk(rule: AccessRule, role: string, pillars: readonly string[]): boolean {
+  if (role !== "DIR" || !rule.dirPillars) return true;
+  return rule.dirPillars.some((p) => pillars.includes(p));
+}
+
+function allowed(rule: AccessRule, role: string, perms: readonly string[], pillars: readonly string[] = []): boolean {
+  return (rule.roles as readonly string[]).includes(role) && hasAny(perms, rule.anyOf) && pillarOk(rule, role, pillars);
 }
 
 export function ruleFor(pathname: string) {
@@ -69,9 +81,9 @@ export function ruleFor(pathname: string) {
 const PUBLIC_PAGES = new Set(["/", "/403"]);
 
 /** Default deny (06 §3.3): a path with no rule is closed — every (app) route must declare one. */
-export function canAccess(pathname: string, role: string, perms: readonly string[]): boolean {
+export function canAccess(pathname: string, role: string, perms: readonly string[], pillars: readonly string[] = []): boolean {
   const rule = ruleFor(pathname);
-  if (rule) return allowed(rule, role, perms);
+  if (rule) return allowed(rule, role, perms, pillars);
   return PUBLIC_PAGES.has(pathname);
 }
 
@@ -86,8 +98,8 @@ export function safeCallback(cb: string | null, origin: string): string {
   }
 }
 
-export function visibleNav(role: string, perms: readonly string[]): NavItem[] {
-  return NAV_ITEMS.filter((i) => allowed(i, role, perms));
+export function visibleNav(role: string, perms: readonly string[], pillars: readonly string[] = []): NavItem[] {
+  return NAV_ITEMS.filter((i) => allowed(i, role, perms, pillars));
 }
 
 /** Every human role lands on Trang chủ (SCR-40); the AI actor has no UI. */

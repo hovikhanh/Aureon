@@ -3,6 +3,9 @@
  * (acknowledge alert, chat turns) live only in this process; restart = fresh demo state.
  */
 import { SNAPSHOT, mockId, type MockClaims, type SnapshotMetric } from "./fixtures";
+import { resetOrgStore } from "./org";
+import { resetAdminStore } from "./admin";
+import { resetAudit } from "./audit";
 
 export interface MockAlert {
   id: string;
@@ -73,6 +76,9 @@ export function sessionFor(sub: string): MockSession {
 /** Test hook: drop every session (fresh demo state). */
 export function resetMockStore(): void {
   sessions.clear();
+  resetOrgStore();
+  resetAdminStore();
+  resetAudit();
 }
 
 // ---- scope (mirror of dashboard_service.visible_pillars / metric_visible, R-DEC-12a) ----

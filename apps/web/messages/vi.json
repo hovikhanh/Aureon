@@ -21,7 +21,11 @@
     "invoices": "Hóa đơn",
     "employees": "Nhân sự",
     "audit": "Nhật ký kiểm toán",
-    "review": "Hàng chờ review"
+    "review": "Hàng chờ review",
+    "org": "Cơ cấu tổ chức",
+    "positions": "Vị trí / định biên",
+    "users": "Người dùng",
+    "roles": "Vai trò & quyền"
   },
   "navHint": {
     "home": "Ngoại lệ, việc cần quyết và briefing theo vai trò.",
@@ -54,7 +58,8 @@
     "previous": "Trước",
     "next": "Sau",
     "clearFilters": "Xóa bộ lọc",
-    "back": "Quay lại"
+    "back": "Quay lại",
+    "save": "Lưu"
   },
   "errors": {
     "generic": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút.",
@@ -431,6 +436,239 @@
       "actor": "Người thực hiện",
       "action": "Hành động",
       "target": "Đối tượng"
+    },
+    "actorType": "Loại người thực hiện",
+    "allActors": "Mọi người thực hiện",
+    "from": "Từ ngày",
+    "to": "Đến ngày",
+    "badRange": "\"Từ ngày\" phải trước hoặc bằng \"Đến ngày\".",
+    "actor": {
+      "USER": "Người dùng",
+      "AI": "Trợ lý AI",
+      "SYSTEM": "Hệ thống"
+    }
+  },
+  "adminHome": {
+    "org": {
+      "title": "Cơ cấu tổ chức",
+      "body": "Cây phòng ban → team → nhân viên, xem theo ngày, gán/chuyển nhân sự."
+    },
+    "positions": {
+      "title": "Vị trí / định biên",
+      "body": "Chức danh theo phòng ban, định biên, đang có, còn trống."
+    },
+    "users": {
+      "title": "Người dùng & phân quyền",
+      "body": "Tạo, sửa, khóa / mở khóa tài khoản."
+    },
+    "roles": {
+      "title": "Vai trò & quyền",
+      "body": "Ma trận 7 vai trò × quyền (chỉ đọc)."
+    },
+    "audit": {
+      "title": "Nhật ký kiểm toán",
+      "body": "Mọi thao tác ghi, lọc theo thời gian và người thực hiện."
+    }
+  },
+  "adminCommon": {
+    "breadcrumb": "Đường dẫn",
+    "reasonRequired": "Vui lòng nhập lý do.",
+    "reason": {
+      "label": "Lý do",
+      "has_live_children": "Không thể lưu trữ: đơn vị còn phòng ban con, team hoặc nhân viên đang được phân công. Hãy chuyển họ đi trước.",
+      "parent_cycle": "Không thể chọn đơn vị cha này vì sẽ tạo vòng lặp.",
+      "overlap": "Ngày hiệu lực phải sau ngày bắt đầu của phân công hiện tại.",
+      "future": "Ngày hiệu lực không được ở tương lai.",
+      "team_outside_department": "Team không thuộc phòng ban đã chọn.",
+      "position_outside_department": "Vị trí không thuộc phòng ban đã chọn.",
+      "manager_self": "Nhân viên không thể là quản lý của chính mình.",
+      "self_change": "Không thể tự khóa hoặc tự đổi vai trò của chính mình.",
+      "ai_not_grantable": "Không thể cấp vai trò Trợ lý AI cho người dùng.",
+      "pillars_only_dir": "Chỉ Giám đốc khối mới có khối phụ trách.",
+      "not_found": "Không tìm thấy dữ liệu liên quan (có thể đã bị lưu trữ)."
+    }
+  },
+  "orgAdmin": {
+    "title": "Cơ cấu tổ chức",
+    "hint": "Tổ chức → phòng ban → team → nhân viên. Chọn một nút để xem chi tiết.",
+    "asOf": "Cơ cấu tại ngày",
+    "backToToday": "Về hôm nay",
+    "pastBanner": "Cơ cấu tại {date} — chỉ đọc.",
+    "treeLabel": "Cây tổ chức",
+    "empty": "Chưa có phòng ban.",
+    "pickNode": "Chọn phòng ban, team hoặc nhân viên ở cây bên trái.",
+    "expand": "Mở {name}",
+    "collapse": "Thu gọn {name}",
+    "newDept": "Thêm phòng ban",
+    "assign": "Gán nhân viên",
+    "transfer": "Chuyển / đổi vị trí",
+    "edit": "Sửa",
+    "addChild": "Thêm phòng ban con",
+    "addTeam": "Thêm team",
+    "archive": "Lưu trữ",
+    "members": "Nhân viên ({n})",
+    "history": "Lịch sử phân công",
+    "present": "nay",
+    "archiveDeptTitle": "Lưu trữ phòng ban {name}?",
+    "archiveTeamTitle": "Lưu trữ team {name}?",
+    "archiveBody": "Đơn vị sẽ kết thúc hiệu lực từ hôm nay; lịch sử vẫn được giữ.",
+    "field": {
+      "code": "Mã",
+      "departments": "Số phòng ban",
+      "headcount": "Nhân sự",
+      "parent": "Trực thuộc",
+      "head": "Trưởng đơn vị",
+      "teams": "Số team",
+      "department": "Phòng ban",
+      "lead": "Trưởng team",
+      "team": "Team",
+      "position": "Vị trí",
+      "manager": "Quản lý trực tiếp"
+    },
+    "form": {
+      "newDept": "Thêm phòng ban",
+      "editDept": "Sửa phòng ban",
+      "newTeam": "Thêm team cho {dept}",
+      "assign": "Gán nhân viên",
+      "transfer": "Chuyển / đổi vị trí: {name}",
+      "code": "Mã",
+      "name": "Tên",
+      "parent": "Trực thuộc",
+      "noParent": "(Trực thuộc tổ chức)",
+      "head": "Trưởng đơn vị",
+      "lead": "Trưởng team",
+      "validFrom": "Hiệu lực từ",
+      "effectiveFrom": "Hiệu lực từ",
+      "employee": "Nhân viên",
+      "department": "Phòng ban",
+      "team": "Team",
+      "position": "Vị trí",
+      "manager": "Quản lý trực tiếp",
+      "reason": "Lý do (tùy chọn)",
+      "pick": "— Chọn —",
+      "required": "Bắt buộc.",
+      "codeInvalid": "Mã gồm chữ, số, '-' hoặc '_' (tối đa 50 ký tự).",
+      "dateInvalid": "Ngày không hợp lệ.",
+      "notFuture": "Ngày hiệu lực không được ở tương lai."
+    },
+    "toast": {
+      "deptCreated": "Đã thêm phòng ban {name}.",
+      "deptUpdated": "Đã cập nhật phòng ban {name}.",
+      "teamCreated": "Đã thêm team {name}.",
+      "assigned": "Đã lưu phân công.",
+      "archived": "Đã lưu trữ {name}."
+    }
+  },
+  "positionsAdmin": {
+    "title": "Vị trí / định biên",
+    "hint": "Định biên, số đang có và số còn trống theo phòng ban.",
+    "new": "Thêm vị trí",
+    "edit": "Sửa vị trí",
+    "filterDept": "Lọc theo phòng ban",
+    "allDepts": "Mọi phòng ban",
+    "search": "Tìm theo mã hoặc chức danh",
+    "empty": "Chưa có vị trí nào.",
+    "reportsTo": "Báo cáo cho vị trí",
+    "levelInvalid": "Cấp là số nguyên ≥ 0.",
+    "budgetInvalid": "Định biên là số nguyên ≥ 0.",
+    "created": "Đã thêm vị trí {title}.",
+    "updated": "Đã cập nhật vị trí {title}.",
+    "col": {
+      "code": "Mã",
+      "title": "Chức danh",
+      "department": "Phòng ban",
+      "level": "Cấp",
+      "budget": "Định biên",
+      "filled": "Đang có",
+      "vacant": "Trống"
+    }
+  },
+  "usersAdmin": {
+    "title": "Người dùng & phân quyền",
+    "hint": "Tạo, sửa, khóa hoặc mở khóa tài khoản. Mọi thao tác được ghi nhật ký.",
+    "readOnly": "Chế độ xem — chỉ Quản trị được thay đổi.",
+    "total": "{total} người dùng",
+    "new": "Thêm người dùng",
+    "edit": "Sửa người dùng",
+    "search": "Tìm theo tên hoặc email",
+    "allRoles": "Mọi vai trò",
+    "allStatus": "Mọi trạng thái",
+    "active": "Đang hoạt động",
+    "locked": "Đã khóa",
+    "empty": "Không có người dùng phù hợp.",
+    "actions": "Thao tác",
+    "lock": "Khóa",
+    "unlock": "Mở khóa",
+    "lockTitle": "Khóa tài khoản {name}?",
+    "unlockTitle": "Mở khóa tài khoản {name}?",
+    "lockBody": "Người này sẽ bị đăng xuất ngay trên mọi thiết bị và không đăng nhập được cho đến khi mở khóa.",
+    "lockedToast": "Đã khóa {name} — phiên đăng nhập của người này đã bị thu hồi.",
+    "unlockedToast": "Đã mở khóa {name}.",
+    "createdToast": "Đã tạo người dùng {name}.",
+    "updatedToast": "Đã cập nhật {name}.",
+    "selfLock": "Không thể tự khóa tài khoản của chính mình.",
+    "selfRole": "Không thể tự đổi vai trò của chính mình.",
+    "pillars": "Khối phụ trách",
+    "pillarsRequired": "Chọn ít nhất một khối cho Giám đốc khối.",
+    "initialPassword": "Mật khẩu ban đầu (≥ 12 ký tự)",
+    "passwordMin": "Mật khẩu tối thiểu 12 ký tự.",
+    "pillar": {
+      "F": "F — Tài chính",
+      "O": "O — Tổ chức & nhân sự",
+      "C": "C — Khách hàng",
+      "U": "U — Sản phẩm",
+      "S": "S — Rủi ro"
+    },
+    "col": {
+      "name": "Họ tên",
+      "role": "Vai trò",
+      "department": "Phòng ban",
+      "status": "Trạng thái",
+      "lastLogin": "Đăng nhập gần nhất"
+    }
+  },
+  "rolesAdmin": {
+    "title": "Vai trò & quyền",
+    "hint": "Ma trận 7 vai trò × quyền <domain>:<action>. Chữ nhỏ cạnh ✓ là phạm vi dữ liệu.",
+    "caption": "Ma trận vai trò và quyền",
+    "permission": "Quyền",
+    "granted": "Có quyền",
+    "notGranted": "Không có quyền",
+    "legendTitle": "Ký hiệu phạm vi",
+    "otherMarks": "Các ký hiệu khác (k, l, t, u) là phạm vi đặc thù theo ma trận quyền 02 §5.3.",
+    "readOnly": "Chỉ đọc ở P0 — vai trò tùy biến thuộc backlog.",
+    "scope": {
+      "d": "phòng ban của mình (+ phòng con)",
+      "o": "của chính mình",
+      "p": "khối phụ trách",
+      "r": "tài liệu được phân review",
+      "s": "chỉ cơ cấu tổ chức",
+      "agg": "chỉ số tổng hợp"
+    }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "label": "Thông báo",
+    "labelUnread": "Thông báo, {n} chưa đọc",
+    "newArrived": "Có thông báo mới — {n} chưa đọc",
+    "readAll": "Đánh dấu đã đọc tất cả",
+    "empty": "Không có thông báo chưa đọc.",
+    "unread": "chưa đọc",
+    "emailSettings": "Cài đặt email",
+    "prefsHint": "Chọn loại thông báo muốn nhận thêm qua email.",
+    "prefsSaved": "Đã lưu cài đặt email.",
+    "kind": {
+      "alert": "Cảnh báo chỉ số",
+      "review_assigned": "Được giao review",
+      "review_escalated": "Review bị chuyển cấp",
+      "task_assigned": "Được giao việc",
+      "approval_requested": "Yêu cầu phê duyệt",
+      "approval_decided": "Kết quả phê duyệt",
+      "report_ready": "Báo cáo sẵn sàng",
+      "ai_action": "Hành động AI",
+      "document_ready": "Tài liệu xử lý xong",
+      "reminder": "Nhắc việc",
+      "system": "Hệ thống"
     }
   }
 }

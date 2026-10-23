@@ -21,17 +21,18 @@ const ICONS: Record<NavKey, typeof Home> = {
 interface Props {
   role: string;
   permissions: string[];
+  pillars: string[];
   mobileOpen: boolean;
   collapsed: boolean;
   onCloseMobile: () => void;
   onToggleCollapsed: () => void;
 }
 
-export function Sidebar({ role, permissions, mobileOpen, collapsed, onCloseMobile, onToggleCollapsed }: Props) {
+export function Sidebar({ role, permissions, pillars, mobileOpen, collapsed, onCloseMobile, onToggleCollapsed }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   // IA v3 (06 §3.1/§3.2): 8 main items + the separate "Quản trị" group, filtered by role.
-  const items = visibleNav(role, permissions);
+  const items = visibleNav(role, permissions, pillars);
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={onCloseMobile} aria-hidden />}

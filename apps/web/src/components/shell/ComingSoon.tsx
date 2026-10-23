@@ -16,7 +16,7 @@ export async function ComingSoon({ item, scr, phase, links = [] }: { item: NavKe
   const session = await getServerSession(authOptions);
   const role = session?.user.role ?? "";
   const perms = session?.user.permissions ?? [];
-  const open = links.filter((l) => canAccess(l.href, role, perms));
+  const open = links.filter((l) => canAccess(l.href, role, perms, session?.user.scopePillars ?? []));
   return (
     <div className="mx-auto max-w-3xl" data-testid="coming-soon" data-scr={scr}>
       <h1 className="text-2xl font-semibold">{t(`nav.${item}`)}</h1>
