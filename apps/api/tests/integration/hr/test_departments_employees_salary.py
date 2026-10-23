@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.conftest import ApiClient
 from tests.integration.hr.helpers import (
+    ORG_ID,
     audit_rows,
     employee_body,
     events,
@@ -27,8 +28,8 @@ async def test_department_crud_and_cycle(api: ApiClient, db_session: AsyncSessio
     root = await make_department(api)
     child = await make_department(api, parent_id=root["id"])
     assert child["parent_id"] == root["id"] and child["version"] == 1
-    dup = await api.call("POST", "/hr/departments", "HR_MANAGER",
-                         json={"name": "x", "code": root["code"]})  # fmt: skip
+    body = {"name": "x", "code": root["code"], "organization_id": ORG_ID}
+    dup = await api.call("POST", "/hr/departments", "HR_MANAGER", json=body)
     assert dup.status_code == 409 and dup.json()["error"]["code"] == "DUPLICATE_RESOURCE"
     bad_parent = await api.call(
         "POST",
@@ -70,10 +71,11 @@ async def test_department_crud_and_cycle(api: ApiClient, db_session: AsyncSessio
 
 
 async def test_department_permissions(api: ApiClient) -> None:
-    body = {"name": "x", "code": uniq()}
-    assert (await api.call("POST", "/hr/departments", "CEO", json=body)).status_code == 403
+    body = {"name": "x", "code": uniq(), "organization_id": ORG_ID}
+    # M1.2 R-DEC-30: ghi cơ cấu = hr:admin (CEO/ADM/DIR-O); MGR/EMP không; DIR khối khác → 403.
+    assert (await api.call("POST", "/hr/departments", "MANAGER", json=body)).status_code == 403
     assert (await api.call("GET", "/hr/departments", "CFO")).status_code == 403
-    assert (await api.call("GET", "/hr/departments", "ADMIN")).status_code == 403
+    assert (await api.call("GET", "/hr/departments", "ADMIN")).status_code == 200
 
 
 # ---------- EP-82 ----------
@@ -292,7 +294,7 @@ async def test_idempotent_employee_create(api: ApiClient) -> None:
     no_key = await api.http.post("/api/v1/hr/employees", json=body,
                                  headers={"Authorization": h["Authorization"]})  # fmt: skip
     assert no_key.status_code == 400
-    d = {"name": "Idem", "code": uniq()}
+    d = {"name": "Idem", "code": uniq(), "organization_id": ORG_ID}
     h2 = api.headers("HR_MANAGER", idem=True)
     a = await api.http.post("/api/v1/hr/departments", json=d, headers=h2)
     b = await api.http.post("/api/v1/hr/departments", json=d, headers=h2)

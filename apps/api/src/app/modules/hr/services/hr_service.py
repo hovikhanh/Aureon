@@ -9,7 +9,7 @@ FR-HR-02). The route commits.
 import re
 import unicodedata
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import ColumnElement, func, or_
@@ -35,6 +35,7 @@ from app.modules.hr.repositories import (
     PositionRepository,
     SalaryRepository,
 )
+from app.modules.hr.repositories.org import DeptRepository, valid_on
 from app.modules.hr.schemas import (
     ContractType,
     DepartmentCreate,
@@ -51,6 +52,7 @@ from app.modules.hr.schemas import (
 from app.modules.hr.services.org_service import OrgService
 from app.modules.hr.services.scope import (
     SELF_ROLES,
+    STRUCTURE_ONLY_ROLES,
     check_department,
     deny,
     department_scope,
@@ -71,6 +73,10 @@ ONBOARD_FROM = frozenset({None, "probation", "terminated"})
 MAX_TREE_DEPTH = 256
 
 
+def _err(message: str, field: str, reason: str) -> BusinessRuleError:
+    return BusinessRuleError(message, details={"field": field, "reason": reason})
+
+
 def today() -> date:
     """Business "today" (UTC date) — single clock for delay filters and the dashboard."""
     return datetime.now(UTC).date()
@@ -87,6 +93,7 @@ def department_out(d: Department) -> DepartmentOut:
     return DepartmentOut(
         id=d.id, version=d.version, created_at=d.created_at, updated_at=d.updated_at,
         name=d.name, code=d.code, parent_id=d.parent_id, manager_id=d.head_employee_id,
+        organization_id=d.organization_id, valid_from=d.valid_from, valid_to=d.valid_to,
     )  # fmt: skip
 
 
@@ -150,12 +157,15 @@ class HrService:
 
     # ---------- EP-81 departments ----------
     async def list_departments(
-        self, page: PageParams, *, parent_id: uuid.UUID | None
-    ) -> tuple[list[DepartmentOut], int]:
-        filters = {"parent_id": parent_id} if parent_id else {}
+        self, page: PageParams, *, parent_id: uuid.UUID | None,
+        organization_id: uuid.UUID | None = None, as_of: date | None = None,
+    ) -> tuple[list[DepartmentOut], int]:  # fmt: skip
+        filters = {k: v for k, v in (("parent_id", parent_id),
+                                     ("organization_id", organization_id)) if v}  # fmt: skip
+        where = [valid_on(Department, as_of)] if as_of is not None else []
         items, total = await self.departments.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
-            filters=filters,
+            filters=filters, where=where,
         )  # fmt: skip
         return [department_out(d) for d in items], total
 
@@ -165,9 +175,16 @@ class HrService:
             raise NotFoundError("department not found")
         return obj
 
-    async def _check_refs(self, parent_id: uuid.UUID | None, manager_id: uuid.UUID | None) -> None:
-        if parent_id is not None and await self.departments.get(parent_id) is None:
-            raise BusinessRuleError("parent department not found", details={"field": "parent_id"})
+    async def _check_refs(
+        self, parent_id: uuid.UUID | None, manager_id: uuid.UUID | None,
+        organization_id: uuid.UUID | None = None,
+    ) -> None:  # fmt: skip
+        if parent_id is not None:
+            parent = await self.departments.get(parent_id)
+            if parent is None:
+                raise _err("parent department not found", "parent_id", "not_found")
+            if organization_id is not None and parent.organization_id != organization_id:
+                raise _err("parent in another organization", "parent_id", "other_organization")
         if manager_id is not None and await self.employees.get(manager_id) is None:
             raise BusinessRuleError("manager employee not found", details={"field": "manager_id"})
 
@@ -177,34 +194,42 @@ class HrService:
         while node is not None and depth < MAX_TREE_DEPTH:
             if node == id_:
                 raise BusinessRuleError(
-                    "department tree would contain a cycle", details={"field": "parent_id"}
+                    "department tree would contain a cycle",
+                    details={"field": "parent_id", "reason": "parent_cycle"},
                 )
             parent = await self.departments.get(node)
             node, depth = (parent.parent_id if parent else None), depth + 1
 
-    async def _default_organization(self) -> uuid.UUID:
-        """T-611: the tenant's single live Organization (EP-ORG-07 makes it explicit, T-613)."""
-        orgs = await OrganizationRepository(self.db).live()
-        if len(orgs) != 1:
-            raise BusinessRuleError(
-                "organization_id required", details={"field": "organization_id"}
-            )
-        return orgs[0].id
+    async def _publish_structure(
+        self, entity: str, table: str, obj_id: uuid.UUID, change: str, **extra: Any
+    ) -> None:
+        """R-DEC-35 `hr.org_structure_changed` — reference ids only (10 §9.2)."""
+        await self._publish("hr.org_structure_changed", table, obj_id, entity=entity,
+                            entity_id=obj_id, change=change,
+                            **{k: v for k, v in extra.items() if v is not None})  # fmt: skip
 
     async def create_department(self, user: Principal, body: DepartmentCreate) -> DepartmentOut:
+        org = await OrganizationRepository(self.db).get(body.organization_id)
+        if org is None:
+            raise _err("organization not found", "organization_id", "not_found")
         if await self.departments.by_code(body.code) is not None:
             raise DuplicateResourceError("department code exists", details={"code": body.code})
-        await self._check_refs(body.parent_id, body.manager_id)
+        await self._check_refs(body.parent_id, body.manager_id, org.id)
+        start = body.valid_from or today()
+        if start < org.valid_from:
+            raise _err("valid_from before the organization", "valid_from", "before_parent")
         obj = Department(
-            organization_id=await self._default_organization(), code=body.code, name=body.name,
+            organization_id=org.id, code=body.code, name=body.name,
             aliases=[], parent_id=body.parent_id, head_employee_id=body.manager_id,
-            valid_from=datetime.now(UTC).date(), source="MANUAL", created_by=user.user_id,
+            valid_from=start, source="MANUAL", created_by=user.user_id,
         )  # fmt: skip
         self.db.add(obj)
         await self._flush_unique("department code")
         await self.db.refresh(obj)
         out = department_out(obj)
         await self._audit("hr.department_create", "departments", obj, after=out)
+        await self._publish_structure("department", "departments", obj.id, "created",
+                                      department_id=obj.id, valid_from=start)  # fmt: skip
         return out
 
     async def update_department(
@@ -218,7 +243,7 @@ class HrService:
                 raise DuplicateResourceError(
                     "department code exists", details={"code": data["code"]}
                 )
-        await self._check_refs(data.get("parent_id"), data.get("manager_id"))
+        await self._check_refs(data.get("parent_id"), data.get("manager_id"), obj.organization_id)
         if "parent_id" in data:
             await self._check_tree(id_, data["parent_id"])
         if "manager_id" in data:
@@ -228,7 +253,24 @@ class HrService:
         await self.db.refresh(obj)
         out = department_out(obj)
         await self._audit("hr.department_update", "departments", obj, before, out)
+        await self._publish_structure("department", "departments", obj.id, "updated",
+                                      department_id=obj.id)  # fmt: skip
         return out
+
+    async def archive_department(self, user: Principal, id_: uuid.UUID) -> None:
+        """EP-ORG-10: `deleted_at` + `valid_to = today`; live children → 422 (FR-ORG-03)."""
+        obj = await self.get_department(id_)
+        kids = await DeptRepository(self.db).live_children(id_)
+        if any(kids.values()):
+            raise BusinessRuleError("department still has live children",
+                                    details={"reason": "has_live_children", **kids})  # fmt: skip
+        before = department_out(obj)
+        end = max(today(), obj.valid_from + timedelta(days=1))
+        await self.departments.update(obj, valid_to=end, deleted_at=datetime.now(UTC),
+                                      updated_by=user.user_id)  # fmt: skip
+        await self._audit("hr.department_archive", "departments", obj, before=before)
+        await self._publish_structure("department", "departments", obj.id, "archived",
+                                      department_id=obj.id)  # fmt: skip
 
     # ---------- EP-82 employees ----------
     def _employee_scope(self, user: Principal, e: Employee) -> None:
@@ -373,7 +415,10 @@ class HrService:
         obj = await self.get_employee_row(user, id_)
         old_status = obj.status
         before = employee_out(obj, (await self._out(user, obj)).title, level4=True)
-        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        data = body.model_dump(exclude_unset=True, exclude={"version", "effective_from"})
+        effective = body.effective_from or today()
+        if effective > today():
+            raise _err("effective_from cannot be in the future", "effective_from", "future")
         await self._validate_employee(data, obj)
         if "title" in data:
             title = data.pop("title")
@@ -394,7 +439,7 @@ class HrService:
         data["updated_by"] = user.user_id
         await self.employees.update(obj, expected_version=expected, **data)
         await self._flush_unique("employee")
-        await self.org.record_placement(obj, today(), actor=user.user_id)  # T-612
+        await self.org.record_placement(obj, effective, actor=user.user_id)  # T-612/EP-HR-04
         if obj.status == "terminated" and obj.termination_date is not None:
             await self.org.close_current(obj.id, obj.termination_date, actor=user.user_id)
         await self.db.refresh(obj)
@@ -415,6 +460,8 @@ class HrService:
     # ---------- EP-83 salary history (level 4) ----------
     @staticmethod
     def _salary_gate(user: Principal) -> None:
+        if user.role in STRUCTURE_ONLY_ROLES:  # R-DEC-30: ADM sees structure only
+            raise deny("hr records", role=user.role)
         if not sees_level4(user):
             raise SalaryDeniedError("salary history is level-4 data", details={"role": user.role})
 

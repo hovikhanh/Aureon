@@ -62,6 +62,8 @@ class DepartmentCreate(BaseModel):
     code: str = Field(min_length=1, max_length=50)
     parent_id: uuid.UUID | None = None
     manager_id: uuid.UUID | None = None
+    organization_id: uuid.UUID  # EP-ORG-07 (M1.2)
+    valid_from: date | None = None
 
 
 class DepartmentUpdate(_Patch):
@@ -76,6 +78,9 @@ class DepartmentOut(_Out):
     code: str
     parent_id: uuid.UUID | None
     manager_id: uuid.UUID | None
+    organization_id: uuid.UUID
+    valid_from: date
+    valid_to: date | None
 
 
 # ---------- EP-82 employees ----------
@@ -102,6 +107,7 @@ class EmployeeCreate(_EmployeeLevel4):
 
 
 class EmployeeUpdate(_Patch, _EmployeeLevel4):
+    effective_from: date | None = None  # EP-HR-04: start of the new assignment (default today)
     employee_code: str | None = Field(default=None, min_length=1, max_length=50)
     full_name: str | None = Field(default=None, min_length=1, max_length=200)
     email: str | None = Field(default=None, max_length=254, pattern=EMAIL_RE)

@@ -101,6 +101,23 @@ export type AssessmentOut = {
   assessed_by: string | null;
 };
 
+export type AssignmentCreate = {
+  employee_id: string;
+  department_id: string;
+  team_id?: string | null;
+  position_id?: string | null;
+  manager_id?: string | null;
+  valid_from: string;
+  reason?: string | null;
+};
+
+export type AssignmentUpdate = {
+  version?: number | null;
+  reason?: string | null;
+  manager_id?: string | null;
+  valid_to?: string | null;
+};
+
 export type AuditLogOut = {
   id: string;
   occurred_at: string;
@@ -575,6 +592,8 @@ export type DepartmentCreate = {
   code: string;
   parent_id?: string | null;
   manager_id?: string | null;
+  organization_id: string;
+  valid_from?: string | null;
 };
 
 export type DepartmentOut = {
@@ -586,6 +605,9 @@ export type DepartmentOut = {
   code: string;
   parent_id: string | null;
   manager_id: string | null;
+  organization_id: string;
+  valid_from: string;
+  valid_to: string | null;
 };
 
 export type DepartmentUpdate = {
@@ -624,6 +646,21 @@ export type DocumentPageOut = {
   ocr_used: boolean;
   ocr_confidence: number | null;
   text_content: string | null;
+};
+
+export type EmployeeAssignmentOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  employee_id: string;
+  department_id: string;
+  team_id: string | null;
+  position_id: string | null;
+  manager_id: string | null;
+  valid_from: string;
+  valid_to: string | null;
+  reason: string | null;
 };
 
 export type EmployeeCreate = {
@@ -675,6 +712,7 @@ export type EmployeeUpdate = {
   bank_account?: string | null;
   emergency_contact?: Record<string, unknown> | null;
   version?: number | null;
+  effective_from?: string | null;
   employee_code?: string | null;
   full_name?: string | null;
   email?: string | null;
@@ -770,6 +808,11 @@ export type Envelope_DepartmentOut_ = {
 
 export type Envelope_DocumentOut_ = {
   data: DocumentOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_EmployeeAssignmentOut_ = {
+  data: EmployeeAssignmentOut;
   meta?: Meta | null;
 };
 
@@ -903,8 +946,23 @@ export type Envelope_ObjectiveOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_OrgTreeOut_ = {
+  data: OrgTreeOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_OrganizationOut_ = {
+  data: OrganizationOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_PipelineOut_ = {
   data: PipelineOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_PositionOut_ = {
+  data: PositionOut;
   meta?: Meta | null;
 };
 
@@ -998,6 +1056,11 @@ export type Envelope_TaskOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_TeamOut_ = {
+  data: TeamOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_TokenOut_ = {
   data: TokenOut;
   meta?: Meta | null;
@@ -1085,6 +1148,11 @@ export type Envelope_list_DecisionOut__ = {
 
 export type Envelope_list_DepartmentOut__ = {
   data: DepartmentOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_EmployeeAssignmentOut__ = {
+  data: EmployeeAssignmentOut[];
   meta?: Meta | null;
 };
 
@@ -1178,8 +1246,18 @@ export type Envelope_list_ObjectiveOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_OrganizationOut__ = {
+  data: OrganizationOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_PerformanceRow__ = {
   data: PerformanceRow[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_PositionOut__ = {
+  data: PositionOut[];
   meta?: Meta | null;
 };
 
@@ -1235,6 +1313,11 @@ export type Envelope_list_TargetOut__ = {
 
 export type Envelope_list_TaskOut__ = {
   data: TaskOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_TeamOut__ = {
+  data: TeamOut[];
   meta?: Meta | null;
 };
 
@@ -2162,6 +2245,40 @@ export type OnTimePoint = {
   tasks_on_time_pct: number | null;
 };
 
+export type OrgTreeOut = {
+  as_of: string;
+  organization: TreeOrganization;
+  departments: TreeDepartment[];
+};
+
+export type OrganizationCreate = {
+  code: string;
+  name: string;
+  legal_name?: string | null;
+  tax_code?: string | null;
+  valid_from?: string | null;
+};
+
+export type OrganizationOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  name: string;
+  legal_name: string | null;
+  tax_code: string | null;
+  valid_from: string;
+  valid_to: string | null;
+};
+
+export type OrganizationUpdate = {
+  version?: number | null;
+  name?: string | null;
+  legal_name?: string | null;
+  tax_code?: string | null;
+};
+
 export type Pagination = {
   total: number;
   limit: number;
@@ -2209,6 +2326,38 @@ export type PipelineTrendPoint = {
   period_key: string;
   pipeline_value: number;
   weighted_pipeline: number;
+};
+
+export type PositionCreate = {
+  department_id: string;
+  code: string;
+  title: string;
+  level?: number | null;
+  headcount_budget: number;
+  reports_to_position_id?: string | null;
+};
+
+export type PositionOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  department_id: string;
+  code: string;
+  title: string;
+  level: number | null;
+  headcount_budget: number;
+  reports_to_position_id: string | null;
+  filled: number;
+  vacant: number;
+};
+
+export type PositionUpdate = {
+  version?: number | null;
+  title?: string | null;
+  level?: number | null;
+  headcount_budget?: number | null;
+  reports_to_position_id?: string | null;
 };
 
 export type ProductCreate = {
@@ -2849,6 +2998,34 @@ export type TaskUpdate = {
   is_critical?: boolean | null;
 };
 
+export type TeamCreate = {
+  department_id: string;
+  code: string;
+  name: string;
+  lead_employee_id?: string | null;
+  valid_from?: string | null;
+};
+
+export type TeamOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  department_id: string;
+  code: string;
+  name: string;
+  lead_employee_id: string | null;
+  valid_from: string;
+  valid_to: string | null;
+};
+
+export type TeamUpdate = {
+  version?: number | null;
+  code?: string | null;
+  name?: string | null;
+  lead_employee_id?: string | null;
+};
+
 export type Thresholds = {
   warning: number;
   critical: number;
@@ -2871,6 +3048,41 @@ export type ToolOut = {
   classification: string;
   reversible: string;
   cost_estimate: string;
+};
+
+export type TreeDepartment = {
+  id: string;
+  code: string;
+  name: string;
+  parent_id: string | null;
+  manager_id: string | null;
+  headcount: number;
+  teams: TreeTeam[];
+  members: TreeMember[];
+};
+
+export type TreeMember = {
+  employee_id: string;
+  employee_code: string;
+  full_name: string;
+  team_id: string | null;
+  position_id: string | null;
+  position_title: string | null;
+  manager_id: string | null;
+};
+
+export type TreeOrganization = {
+  id: string;
+  code: string;
+  name: string;
+};
+
+export type TreeTeam = {
+  id: string;
+  code: string;
+  name: string;
+  lead_employee_id: string | null;
+  headcount: number;
 };
 
 export type TrendPoint = {
@@ -3404,6 +3616,10 @@ export interface ApiOperations {
     request: DepartmentCreate;
     response: Envelope_DepartmentOut_;
   };
+  "DELETE /api/v1/hr/departments/{department_id}": {
+    request: void;
+    response: void;
+  };
   "GET /api/v1/hr/departments/{department_id}": {
     request: void;
     response: Envelope_DepartmentOut_;
@@ -3519,6 +3735,82 @@ export interface ApiOperations {
   "POST /api/v1/idp/review-queue/merge": {
     request: MergeIn;
     response: Envelope_MergeOut_;
+  };
+  "GET /api/v1/org/assignments": {
+    request: void;
+    response: Envelope_list_EmployeeAssignmentOut__;
+  };
+  "POST /api/v1/org/assignments": {
+    request: AssignmentCreate;
+    response: Envelope_EmployeeAssignmentOut_;
+  };
+  "PATCH /api/v1/org/assignments/{assignment_id}": {
+    request: AssignmentUpdate;
+    response: Envelope_EmployeeAssignmentOut_;
+  };
+  "GET /api/v1/org/organizations": {
+    request: void;
+    response: Envelope_list_OrganizationOut__;
+  };
+  "POST /api/v1/org/organizations": {
+    request: OrganizationCreate;
+    response: Envelope_OrganizationOut_;
+  };
+  "DELETE /api/v1/org/organizations/{organization_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/org/organizations/{organization_id}": {
+    request: void;
+    response: Envelope_OrganizationOut_;
+  };
+  "PATCH /api/v1/org/organizations/{organization_id}": {
+    request: OrganizationUpdate;
+    response: Envelope_OrganizationOut_;
+  };
+  "GET /api/v1/org/positions": {
+    request: void;
+    response: Envelope_list_PositionOut__;
+  };
+  "POST /api/v1/org/positions": {
+    request: PositionCreate;
+    response: Envelope_PositionOut_;
+  };
+  "DELETE /api/v1/org/positions/{position_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/org/positions/{position_id}": {
+    request: void;
+    response: Envelope_PositionOut_;
+  };
+  "PATCH /api/v1/org/positions/{position_id}": {
+    request: PositionUpdate;
+    response: Envelope_PositionOut_;
+  };
+  "GET /api/v1/org/teams": {
+    request: void;
+    response: Envelope_list_TeamOut__;
+  };
+  "POST /api/v1/org/teams": {
+    request: TeamCreate;
+    response: Envelope_TeamOut_;
+  };
+  "DELETE /api/v1/org/teams/{team_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/org/teams/{team_id}": {
+    request: void;
+    response: Envelope_TeamOut_;
+  };
+  "PATCH /api/v1/org/teams/{team_id}": {
+    request: TeamUpdate;
+    response: Envelope_TeamOut_;
+  };
+  "GET /api/v1/org/tree": {
+    request: void;
+    response: Envelope_OrgTreeOut_;
   };
   "POST /api/v1/platform/approvals/{id}/decide": {
     request: DecideIn;

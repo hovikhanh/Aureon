@@ -17,6 +17,8 @@ from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.modules.hr.routes.org import AsOf
+from app.modules.hr.routes.org import router as org_router
 from app.modules.hr.schemas import (
     ApprovalIn,
     DepartmentCreate,
@@ -41,11 +43,14 @@ from app.modules.hr.services.hr_service import HrService, department_out, today
 from app.modules.hr.services.metrics import Period, resolve_period
 
 router = EnvelopeRouter(tags=["hr"])
+router.include_router(org_router)  # D01 `/org/*` (EP-ORG, M1.2) — same `hr` module (R-DEC-24)
 
 Db = Annotated[AsyncSession, Depends(get_db)]
 # Bản ghi con người (O) cô lập theo khối (R-DEC-12a): DIR ngoài khối O → 403.
 Reader = Annotated[Principal, Depends(require_pillar_permission("hr:read"))]
 Writer = Annotated[Principal, Depends(require_pillar_permission("hr:write"))]
+# R-DEC-30: ghi cơ cấu (EP-ORG-07/09/10) = hr:admin (CEO, ADM, DIR khối O).
+StructureAdmin = Annotated[Principal, Depends(require_pillar_permission("hr:admin"))]
 # hr:approve là cổng ngân sách của Finance-DIR (chỉ CFO nền v2.1 có hr:approve); dependency
 # chặn vai không có quyền, service `decide` siết thêm "đúng Finance-DIR (khối F)".
 Approver = Annotated[Principal, Depends(require_permission("hr:approve"))]
@@ -85,16 +90,20 @@ async def hr_workload(
 # ---------- EP-81 departments (L C R U) ----------
 @router.get("/hr/departments", response_model=list[DepartmentOut])
 async def list_departments(
-    db: Db, _: Reader,
+    db: Db, _: Reader, as_of: AsOf,
     page: Annotated[PageParams, Depends(page_params("name", "code"))],
-    parent_id: uuid.UUID | None = None,
+    parent_id: uuid.UUID | None = None, organization_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    items, total = await HrService(db).list_departments(page, parent_id=parent_id)
+    items, total = await HrService(db).list_departments(
+        page, parent_id=parent_id, organization_id=organization_id, as_of=as_of
+    )
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
 
 @router.post("/hr/departments", response_model=DepartmentOut, status_code=201)
-async def create_department(body: DepartmentCreate, db: Db, user: Writer, idem: Idem) -> Any:
+async def create_department(
+    body: DepartmentCreate, db: Db, user: StructureAdmin, idem: Idem
+) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return DepartmentOut.model_validate(hit)
     out = await HrService(db).create_department(user, body)
@@ -110,13 +119,20 @@ async def get_department(department_id: uuid.UUID, db: Db, _: Reader) -> Any:
 
 @router.patch("/hr/departments/{department_id}", response_model=DepartmentOut)
 async def update_department(
-    department_id: uuid.UUID, body: DepartmentUpdate, db: Db, user: Writer,
+    department_id: uuid.UUID, body: DepartmentUpdate, db: Db, user: StructureAdmin,
     if_match: IfMatch = None,
 ) -> Any:  # fmt: skip
     exp = expected_version(if_match, body.version)
     out = await HrService(db).update_department(user, department_id, body, exp)
     await db.commit()
     return out
+
+
+@router.delete("/hr/departments/{department_id}", status_code=204, response_class=Response)
+async def archive_department(department_id: uuid.UUID, db: Db, user: StructureAdmin) -> Response:
+    await HrService(db).archive_department(user, department_id)
+    await db.commit()
+    return Response(status_code=204)
 
 
 # ---------- EP-82 employees (L C R U D) ----------

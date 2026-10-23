@@ -37,8 +37,11 @@ def uniq(prefix: str = "T") -> str:
     return f"{prefix}{uuid.uuid4().hex[:10].upper()}"
 
 
+ORG_ID = "a0211042-441b-5ba9-84d3-a17aa0f5844f"  # seed_uuid("organization", "ABC")
+
+
 async def make_department(api: ApiClient, **kw: Any) -> dict[str, Any]:
-    body = {"name": "Phòng thử", "code": uniq("D"), **kw}
+    body = {"name": "Phòng thử", "code": uniq("D"), "organization_id": ORG_ID, **kw}
     r = await api.call("POST", "/hr/departments", "HR_MANAGER", json=body)
     assert r.status_code == 201, r.text
     return dict(r.json()["data"])

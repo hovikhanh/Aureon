@@ -103,8 +103,11 @@ class AssignmentRepository(BaseRepository[EmployeeAssignment]):
         limit: int = 20,
         offset: int = 0,
         order: str = "asc",
+        within: set[uuid.UUID] | None = None,
     ) -> tuple[Sequence[EmployeeAssignment], int]:
         where: list[ColumnElement[bool]] = []
+        if within is not None:
+            where.append(EmployeeAssignment.department_id.in_(within))
         if employee_id is not None:
             where.append(EmployeeAssignment.employee_id == employee_id)
         if department_id is not None:

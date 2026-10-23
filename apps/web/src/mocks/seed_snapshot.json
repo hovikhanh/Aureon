@@ -1704,7 +1704,7 @@
    "pillar": null,
    "status": "ok",
    "unit": "SCORE",
-   "value": 88.6
+   "value": 88.7
   },
   {
    "code": "METRIC-FIN-01",
@@ -2175,6 +2175,8 @@
    "ai:admin",
    "ai:query",
    "dashboard:admin",
+   "hr:admin",
+   "hr:read",
    "idp:admin",
    "platform:admin",
    "platform:read"
@@ -2194,6 +2196,7 @@
    "execution:write",
    "finance:query",
    "finance:read",
+   "hr:admin",
    "hr:query",
    "hr:read",
    "idp:read",
@@ -2221,6 +2224,7 @@
    "finance:query",
    "finance:read",
    "finance:write",
+   "hr:admin",
    "hr:approve",
    "hr:query",
    "hr:read",

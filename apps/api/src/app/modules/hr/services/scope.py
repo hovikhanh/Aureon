@@ -6,6 +6,7 @@ and (later) AI tools.
 - EMP: own profile only (`o`), matched by the JWT e-mail (DEC-196); level-4 masked.
 - REV: `hr:read ◑r` = only records of an assigned review — assignments arrive with IDP
   (T-4xx), so until then every employee / hiring-plan read is `403 FORBIDDEN_SCOPE` (DEC-196).
+- ADM: `hr:read ◑s` = org structure only (R-DEC-30) — record reads are `403 FORBIDDEN_SCOPE`.
 - Everyone else reaching an `hr:query` endpoint (Finance-DIR, CEO): company aggregates.
 
 R-DEC-12a: 5 C-level nền v2.1 gộp vào ROLE-DIR; phân biệt khối bằng `scope_pillars`.
@@ -19,7 +20,11 @@ from app.core.errors import ScopeDeniedError
 
 DEPARTMENT_ROLES = frozenset({"MGR"})
 SELF_ROLES = frozenset({"EMP"})
-NO_RECORD_ROLES = frozenset({"REV"})
+# R-DEC-30: ADM `hr:read ◑s` = org structure only — employee / salary / hiring records → 403.
+STRUCTURE_ONLY_ROLES = frozenset({"ADM"})
+NO_RECORD_ROLES = frozenset({"REV"}) | STRUCTURE_ONLY_ROLES
+# Who may read the org structure (EP-ORG-*): EMP / REV → FORBIDDEN_SCOPE (10 §7.2.1).
+NO_STRUCTURE_ROLES = frozenset({"EMP", "REV"})
 
 
 def _dir_with_pillar(user: Principal, pillar: str) -> bool:
@@ -74,3 +79,14 @@ def check_department(user: Principal, department_id: uuid.UUID | None) -> None:
         raise deny("hr records", role=user.role)
     if user.role in DEPARTMENT_ROLES and department_id != user.department_id:
         raise deny("department", department_id=department_id)
+
+
+def structure_scope(user: Principal) -> uuid.UUID | None:
+    """EP-ORG reads: department pin for MGR (own subtree), None = whole org; EMP/REV → 403."""
+    if user.role in NO_STRUCTURE_ROLES:
+        raise deny("org structure", role=user.role)
+    if user.role in DEPARTMENT_ROLES:
+        if user.department_id is None:
+            raise deny("org structure", role=user.role)
+        return user.department_id
+    return None

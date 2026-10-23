@@ -2,7 +2,7 @@
 
 `ROLE_PERMISSIONS` is what goes into `auth.roles.permissions` and the JWT `permissions[]` claim.
 `ROLE_SCOPES` keeps the 02 §5.3 scope marks per permission (d/o/p/r/l/t/k/u, `agg` = ○ aggregate
-only); data scoping itself is enforced in services (02 §6).
+only, `s` = org structure only — R-DEC-30); data scoping itself is enforced in services (02 §6).
 
 ROLE-DIR gộp 5 C-level của nền v2.1 (CFO/VP_SALES/HR_MANAGER/CPO/RISK_MANAGER → union quyền);
 chống leo quyền bằng `scope_pillars` của user (R-DEC-12a) — domain bị lọc theo khối phụ trách
@@ -42,6 +42,7 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "sales:query",
         "hr:read",
         "hr:query",
+        "hr:admin",
         "product:read",
         "product:query",
         "risk:read",
@@ -73,6 +74,7 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "hr:write",
         "hr:query",
         "hr:approve",
+        "hr:admin",
         "product:read",
         "product:write",
         "product:query",
@@ -137,6 +139,8 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "ai:write",
     ),
     "ADM": (
+        "hr:read",  # scope `s` = chỉ cơ cấu tổ chức (R-DEC-30)
+        "hr:admin",
         "idp:admin",
         "ai:query",
         "ai:admin",
@@ -213,6 +217,7 @@ ROLE_SCOPES: dict[str, dict[str, str]] = {
         "idp:write": "r",
         "ai:write": "r",
     },
-    "ADM": {},
+    # R-DEC-30: ADM đọc hr chỉ phần cơ cấu (org/department/team/position/assignment/tree).
+    "ADM": {"hr:read": "s"},
     "AI": {},
 }

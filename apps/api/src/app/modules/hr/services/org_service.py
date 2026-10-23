@@ -5,26 +5,29 @@ transaction, under `SELECT … FOR UPDATE` on the employee, and syncs the cached
 on `hr.employees`. Overlap of past ranges is rejected here (no `btree_gist`, OQ-05-07); the
 partial unique index backs "≤ 1 current row per employee" at DB level.
 
-HTTP routes (EP-ORG-21..23), `hr:admin` and the `hr.org_structure_changed` event come in T-613.
+Every write emits `hr.org_structure_changed` (R-DEC-35) in the same transaction; HTTP routes
+EP-ORG-21..23 live in `routes/org.py` (T-613).
 """
 
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.base_repository import BaseRepository
-from app.core.errors import BusinessRuleError, ConflictStateError
+from app.core.errors import BusinessRuleError, ConflictStateError, NotFoundError, ScopeDeniedError
+from app.core.events.outbox import publish_in_tx
 from app.modules.hr.models import Employee, EmployeeAssignment, Position, Team
 from app.modules.hr.repositories import (
     AssignmentRepository,
     DepartmentRepository,
     EmployeeRepository,
 )
+from app.modules.hr.repositories.org import DeptRepository
 
 CACHE_FIELDS = ("department_id", "team_id", "position_id", "manager_id")
 
@@ -48,6 +51,10 @@ def _snapshot(a: EmployeeAssignment) -> dict[str, str | None]:
     """Audit payload — reference ids + dates only (no level 3/4 data)."""
     keys = ("employee_id", *CACHE_FIELDS, "valid_from", "valid_to")
     return {k: (str(v) if (v := getattr(a, k)) is not None else None) for k in keys}
+
+
+def _today() -> date:
+    return datetime.now(UTC).date()
 
 
 class OrgService:
@@ -78,6 +85,14 @@ class OrgService:
             if await self.employees.get(p.manager_id) is None:
                 raise _rule("manager not found", "not_found", "manager_id")
 
+    async def _event(self, a: EmployeeAssignment, change: str) -> None:
+        payload = {"entity": "employee_assignment", "entity_id": str(a.id), "change": change,
+                   "employee_id": str(a.employee_id), "department_id": str(a.department_id),
+                   "valid_from": a.valid_from.isoformat()}  # fmt: skip
+        await publish_in_tx(self.db, event_type="hr.org_structure_changed", producer="hr",
+                            aggregate_schema="hr", aggregate_table="employee_assignments",
+                            aggregate_id=a.id, payload=payload)  # fmt: skip
+
     # ---------- writes ----------
     async def _lock(self, employee_id: uuid.UUID) -> Employee:
         emp = await self.employees.lock(employee_id)
@@ -103,6 +118,8 @@ class OrgService:
         source: str = "MANUAL",
     ) -> EmployeeAssignment:
         """Close the current assignment at `valid_from` and open a new one (one transaction)."""
+        if valid_from > _today():
+            raise _rule("valid_from cannot be in the future", "future", "valid_from")
         emp = await self._lock(employee_id)
         await self._check_placement(employee_id, placement)
         current = await self.assignments.current(employee_id)
@@ -118,6 +135,7 @@ class OrgService:
             await record_audit(self.db, action="hr.assignment_close", target_schema="hr",
                                target_table="employee_assignments", target_id=current.id,
                                before=before, after=_snapshot(current))  # fmt: skip
+            await self._event(current, "updated")
         elif await self.assignments.overlapping(employee_id, valid_from, None, exclude=None):
             raise _rule("assignment overlaps another period", "overlap", "valid_from")
         new = EmployeeAssignment(
@@ -131,6 +149,7 @@ class OrgService:
         await record_audit(self.db, action="hr.assignment_create", target_schema="hr",
                            target_table="employee_assignments", target_id=new.id,
                            after=_snapshot(new))  # fmt: skip
+        await self._event(new, "created")
         return new
 
     async def close_current(
@@ -141,12 +160,13 @@ class OrgService:
         current = await self.assignments.current(employee_id)
         if current is None:
             return None
-        end = max(valid_to, date.fromordinal(current.valid_from.toordinal() + 1))
+        end = max(valid_to, current.valid_from + timedelta(days=1))
         before = _snapshot(current)
         await self.assignments.update(current, valid_to=end, updated_by=actor)
         await record_audit(self.db, action="hr.assignment_close", target_schema="hr",
                            target_table="employee_assignments", target_id=current.id,
                            before=before, after=_snapshot(current))  # fmt: skip
+        await self._event(current, "updated")
         return current
 
     async def record_placement(
@@ -176,6 +196,7 @@ class OrgService:
             await record_audit(self.db, action="hr.assignment_update", target_schema="hr",
                                target_table="employee_assignments", target_id=current.id,
                                before=before, after=_snapshot(current))  # fmt: skip
+            await self._event(current, "updated")
             return current
         return await self.assign(emp.id, placement, effective, actor=actor, source=source)
 
@@ -184,11 +205,59 @@ class OrgService:
         if any(getattr(emp, f) != v for f, v in values.items()):
             await self.employees.update(emp, updated_by=actor, **values)
 
+    async def get(self, id_: uuid.UUID) -> EmployeeAssignment:
+        a = await self.assignments.get(id_)
+        if a is None:
+            raise NotFoundError("assignment not found")
+        return a
+
+    async def update(
+        self, id_: uuid.UUID, data: dict[str, object], expected: int, *, actor: uuid.UUID | None
+    ) -> EmployeeAssignment:
+        """EP-ORG-23: `reason`, `manager_id`, `valid_to` (close early) only."""
+        a = await self.get(id_)
+        emp = await self._lock(a.employee_id)
+        mgr = data.get("manager_id")
+        if isinstance(mgr, uuid.UUID):
+            if mgr == a.employee_id:
+                raise _rule("employee cannot manage themself", "manager_self", "manager_id")
+            if await self.employees.get(mgr) is None:
+                raise _rule("manager not found", "not_found", "manager_id")
+        if "valid_to" in data:
+            end = data["valid_to"]
+            if a.valid_to is not None:
+                raise _rule("assignment already closed", "already_closed", "valid_to")
+            if not isinstance(end, date) or end <= a.valid_from:
+                raise _rule("valid_to must be after valid_from", "invalid_range", "valid_to")
+        before = _snapshot(a)
+        await self.assignments.update(a, expected_version=expected, updated_by=actor, **data)
+        if a.valid_to is None and "manager_id" in data and emp.manager_id != a.manager_id:
+            await self.employees.update(emp, manager_id=a.manager_id, updated_by=actor)
+        await record_audit(self.db, action="hr.assignment_update", target_schema="hr",
+                           target_table="employee_assignments", target_id=a.id,
+                           before=before, after=_snapshot(a))  # fmt: skip
+        await self._event(a, "updated")
+        return a
+
     # ---------- reads ----------
     async def at(self, employee_id: uuid.UUID, as_of: date) -> EmployeeAssignment | None:
         """Assignment in force on `as_of` (half-open range), or None."""
         rows, _ = await self.assignments.history(employee_id=employee_id, as_of=as_of, limit=2)
         return rows[0] if rows else None
+
+    async def list_scoped(
+        self, root: uuid.UUID | None, *, employee_id: uuid.UUID | None,
+        department_id: uuid.UUID | None, as_of: date | None, limit: int, offset: int,
+    ) -> tuple[Sequence[EmployeeAssignment], int]:  # fmt: skip
+        """EP-ORG-21: `root` = MGR department (own subtree only), None = whole organisation."""
+        within = None if root is None else await DeptRepository(self.db).subtree_ids(root)
+        if within is not None and department_id is not None and department_id not in within:
+            raise ScopeDeniedError("department outside your scope",
+                                   details={"department_id": str(department_id)})  # fmt: skip
+        return await self.assignments.history(
+            employee_id=employee_id, department_id=department_id, as_of=as_of,
+            limit=limit, offset=offset, within=within,
+        )  # fmt: skip
 
     async def history(
         self,

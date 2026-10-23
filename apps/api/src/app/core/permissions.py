@@ -15,7 +15,7 @@ VALID_PERMISSIONS: frozenset[str] = frozenset(
     {
         "finance:read", "finance:write", "finance:query",
         "sales:read", "sales:write", "sales:query",
-        "hr:read", "hr:write", "hr:query", "hr:approve",
+        "hr:read", "hr:write", "hr:query", "hr:approve", "hr:admin",  # hr:admin = R-DEC-30
         "product:read", "product:write", "product:query",
         "risk:read", "risk:write", "risk:query", "risk:approve",
         "execution:read", "execution:write", "execution:query",
