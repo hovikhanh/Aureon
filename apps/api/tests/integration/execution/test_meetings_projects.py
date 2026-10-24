@@ -131,8 +131,9 @@ async def test_project_crud(api: ApiClient, db_session: AsyncSession) -> None:
     assert [x["id"] for x in lst.json()["data"]] == [p["id"]]
     assert (await as_user(api, "GET", f"/work/projects/{p['id']}", "EMP",
                           owner)).status_code == 200  # fmt: skip
+    # read by id outside scope → 404 (10 §7.2.2 M1.3)
     assert (await as_user(api, "GET", f"/work/projects/{p['id']}", "EMP",
-                          uuid.uuid4())).status_code == 403  # fmt: skip
+                          uuid.uuid4())).status_code == 404  # fmt: skip
     t = await make_task(api, project_id=p["id"])
     assert (await api.call("DELETE", f"/work/projects/{p['id']}", "CEO")).status_code == 409
     await api.call("DELETE", f"/work/tasks/{t['id']}", "CEO")

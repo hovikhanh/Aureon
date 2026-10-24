@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, func, select
 
 from app.core.base_model import Base
-from app.core.base_repository import BaseRepository
+from app.core.base_repository import BaseRepository, tenant_ids_where
 from app.modules.execution.models import (
     CheckIn,
     Decision,
@@ -87,12 +87,14 @@ class TaskRepository(Repo[Task]):
         stmt = self._live().where(Task.id.in_(ids)).order_by(Task.id).with_for_update()
         return (await self.db.execute(stmt)).scalars().all()
 
-    async def count_by(self, column: Any, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
-        """Live task count grouped by `column` (e.g. sub-tasks per parent)."""
+    async def count_by(
+        self, column: Any, ids: Sequence[uuid.UUID], *extra: ColumnElement[bool]
+    ) -> dict[uuid.UUID, int]:
+        """Live task count grouped by `column` (e.g. sub-tasks per parent), `extra` filters."""
         if not ids:
             return {}
         stmt = self._scoped(select(column, func.count()).where(
-            column.in_(ids), Task.deleted_at.is_(None)
+            column.in_(ids), Task.deleted_at.is_(None), *extra
         ).group_by(column))  # fmt: skip
         return {k: int(n) for k, n in (await self.db.execute(stmt)).all()}
 
@@ -106,6 +108,12 @@ class TaskRepository(Repo[Task]):
             column.in_(ids), Task.deleted_at.is_(None)
         ).group_by(column, Task.status))  # fmt: skip
         return [(k, st, int(n)) for k, st, n in (await self.db.execute(stmt)).all()]
+
+    @staticmethod
+    def project_ids_assigned_to(ids: Sequence[uuid.UUID]) -> Any:
+        """Subquery: projects having a live task assigned to one of `ids` (EMP project scope)."""
+        stmt = tenant_ids_where(Task, Task.assignee_id.in_(ids), Task.deleted_at.is_(None))
+        return stmt.with_only_columns(Task.project_id)
 
 
 class TaskDependencyRepository(Repo[TaskDependency]):
@@ -155,6 +163,13 @@ class DecisionRepository(Repo[Decision]):
 
 class ProjectRepository(Repo[Project]):
     model = Project
+
+    async def ids_matching(
+        self, filters: dict[str, Any], where: Sequence[ColumnElement[bool]]
+    ) -> Sequence[Project]:
+        """Every live project matching (for computed filters such as `late`)."""
+        clauses = [getattr(Project, k) == v for k, v in filters.items()]
+        return await self.where(*clauses, *where, order=Project.id)
 
     async def running(self, as_of: date) -> Sequence[Project]:
         """`active` projects with a schedule that has started by `as_of` (METRIC-OPS-02)."""

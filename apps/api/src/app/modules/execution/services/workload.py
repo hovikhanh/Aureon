@@ -83,3 +83,69 @@ async def workload(
 ) -> list[WorkloadRow]:
     """Per-assignee load for the week ending `as_of` (highest first). Read-only."""
     return rows_from(await load_tasks(db, department_id, as_of), as_of)
+
+
+@dataclass(frozen=True)
+class GridCell:
+    week: str  # ISO `YYYY-Www`
+    hours: float
+    load_pct: float
+    open_tasks: int
+
+
+@dataclass(frozen=True)
+class GridRow:
+    employee_id: uuid.UUID
+    department_id: uuid.UUID | None
+    cells: list[GridCell]
+    overloaded: bool
+
+
+def iso_week(d: date) -> str:
+    y, w, _ = d.isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def week_ends(week_end: date, weeks: int) -> list[date]:
+    """`weeks` week-end dates, oldest first, the last one = `week_end`."""
+    return [week_end - timedelta(days=7 * i) for i in range(weeks - 1, -1, -1)]
+
+
+def grid_from(tasks: Sequence[Task], week_end: date, weeks: int) -> list[GridRow]:
+    """Person × week grid (R-DEC-44). `overloaded` = last **and** previous week > 110 % (DEC-226,
+    same as `rows_from`); rows sorted by last-week load (highest first). Pure."""
+    ends = week_ends(week_end, max(weeks, 1))
+    per_week = [weekly_hours(tasks, e) for e in ends]
+    over_by = {r.employee_id: r.overloaded for r in rows_from(tasks, week_end)}
+    dept: dict[uuid.UUID, uuid.UUID | None] = {}
+    for t in sorted(tasks, key=lambda t: t.created_at):
+        if t.assignee_id is not None:
+            dept[t.assignee_id] = t.department_id  # latest task wins
+    people = sorted({e for w in per_week for e in w}, key=str)
+    rows = []
+    for emp in people:
+        cells = []
+        for e, w in zip(ends, per_week, strict=True):
+            n, h = w.get(emp, (0, Decimal(0)))
+            cells.append(GridCell(week=iso_week(e), hours=float(h),
+                                  load_pct=float(load_pct(h)), open_tasks=n))  # fmt: skip
+        rows.append(GridRow(employee_id=emp, department_id=dept.get(emp), cells=cells,
+                            overloaded=over_by.get(emp, False)))  # fmt: skip
+    return sorted(rows, key=lambda r: (-r.cells[-1].load_pct, str(r.employee_id)))
+
+
+async def weekly_grid(
+    db: AsyncSession, dept: uuid.UUID | None, week_end: date, weeks: int
+) -> list[GridRow]:
+    """Shared by EP-TASK-18 and the EP-49 heatmap (05 §2.5). Read-only."""
+    span = max(weeks, OVERLOAD_WEEKS)
+    since = week_end - timedelta(days=7 * span - 1)
+    tasks = await TaskRepository(db).assigned_active(since, week_end + timedelta(days=1), dept)
+    return grid_from(tasks, week_end, weeks)
+
+
+def parse_iso_week(week: str) -> date:
+    """`YYYY-Www` → Sunday of that ISO week (the week-end used by `weekly_hours`)."""
+    if len(week) != 8 or week[4:6] != "-W" or not (week[:4] + week[6:]).isdigit():
+        raise ValueError(week)
+    return date.fromisocalendar(int(week[:4]), int(week[6:]), 7)

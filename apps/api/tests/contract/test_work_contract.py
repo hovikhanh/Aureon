@@ -32,10 +32,7 @@ ROW = re.compile(
 # EP-TASK-19 is specified as a bullet (10 §7.2.2), not a table row.
 EP_TASK_19 = ("EP-TASK-19", "POST", "/work/tasks/{id}/reassign-requests", "execution:write")
 # Shrinks as T-619..T-622 replace the stubs with real handlers.
-STUBS = {
-    "EP-TASK-14", "EP-TASK-15", "EP-TASK-16", "EP-TASK-17", "EP-TASK-18", "EP-TASK-19",
-    "EP-WF-01", "EP-WF-02",
-}  # fmt: skip
+STUBS = {"EP-TASK-19", "EP-WF-01", "EP-WF-02"}
 
 
 def _norm(path: str) -> str:

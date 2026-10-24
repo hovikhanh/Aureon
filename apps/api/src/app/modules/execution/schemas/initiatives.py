@@ -82,4 +82,4 @@ class MilestoneOut(Out):
     due_date: date
     status: str
     done_at: datetime | None
-    late: bool | None = None  # TODO-T-620: `planned` and past `due_date` (R-DEC-49)
+    late: bool | None = None  # `planned` and past `due_date` (R-DEC-49), computed at read

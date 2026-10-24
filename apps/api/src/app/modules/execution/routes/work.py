@@ -1,7 +1,7 @@
 """`/work/*` — D11 Task / Project / Milestone / Workload (10 §7.2.2, R-DEC-40).
 
 EP-TASK-01..05, 09..13 moved from `/execution/{tasks,projects}` with v2.1 behaviour (no alias).
-EP-TASK-06..08 dependencies (T-619). EP-TASK-14..19 stubs (`501`) until T-620/T-622. Static paths
+EP-TASK-06..08, 14..18 real (T-619/T-620); EP-TASK-19 stub (`501`) until T-622. Static paths
 (`/work/workload`, `/work/tasks/{id}/dependencies`) are declared before `{id}` catch-alls.
 """
 
@@ -33,9 +33,27 @@ from app.modules.execution.schemas.tasks import (
     TaskOut,
     TaskUpdate,
 )
-from app.modules.execution.schemas.work import ProjectDetailOut, WorkloadOut
-from app.modules.execution.services.meeting_service import ProjectService, project_out
+from app.modules.execution.schemas.work import (
+    ProjectDetailOut,
+    WorkloadCellOut,
+    WorkloadOut,
+    WorkloadRowOut,
+    WorkloadSummaryOut,
+)
+from app.modules.execution.services.base import today
+from app.modules.execution.services.dashboard_service import ExecutionDashboardService
+from app.modules.execution.services.meeting_service import ProjectService
+from app.modules.execution.services.metrics import pct
 from app.modules.execution.services.task_service import TaskService
+from app.modules.execution.services.workload import (
+    OVERLOAD_PCT,
+    OVERLOAD_WEEKS,
+    WEEKLY_CAPACITY_HOURS,
+    iso_week,
+    parse_iso_week,
+    week_ends,
+    weekly_grid,
+)
 from app.modules.platform.schemas import ApprovalRequestOut
 
 router = EnvelopeRouter(prefix="/work", tags=["work"])
@@ -49,10 +67,31 @@ Querier = Annotated[Principal, Depends(require_permission("execution:query"))]
 # ---------- EP-TASK-18 workload (static path first) ----------
 @router.get("/workload", response_model=WorkloadOut, summary="EP-TASK-18 Workload heatmap")
 async def get_workload(
-    user: Querier, week: str | None = None,
+    db: Db, user: Querier, response: Response, week: str | None = None,
     weeks: Annotated[int, Query(ge=1, le=8)] = 4, department_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-TASK-18", "T-620")
+    dept = ExecutionDashboardService.department(user, department_id)  # MGR pinned → else 403
+    if week is None:
+        week_end = parse_iso_week(iso_week(today()))
+    else:
+        try:
+            week_end = parse_iso_week(week)
+        except ValueError as exc:
+            raise BadRequestError("week must be ISO YYYY-Www", details={"param": "week"}) from exc
+    rows = await weekly_grid(db, dept, week_end, weeks)
+    over = sum(r.overloaded for r in rows)
+    response.headers["Cache-Control"] = "private, max-age=60"
+    response.headers["Vary"] = "Authorization"
+    return WorkloadOut(
+        weeks=[iso_week(e) for e in week_ends(week_end, weeks)],
+        threshold_pct=float(OVERLOAD_PCT), overload_weeks=OVERLOAD_WEEKS,
+        capacity_hours=float(WEEKLY_CAPACITY_HOURS),
+        rows=[WorkloadRowOut(employee_id=r.employee_id, department_id=r.department_id,
+                             cells=[WorkloadCellOut(**vars(c)) for c in r.cells],
+                             overloaded=r.overloaded) for r in rows],
+        summary=WorkloadSummaryOut(people=len(rows), overloaded_count=over,
+                                   overloaded_pct=pct(over, len(rows)) or 0.0),
+    )  # fmt: skip
 
 
 # ---------- EP-TASK-01..05 tasks ----------
@@ -172,10 +211,10 @@ async def list_projects(
     owner_id: uuid.UUID | None = None, late: bool | None = None,
     initiative_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    # TODO-T-620: `late` / `initiative_id` filters (computed late, column from 0014).
     items, total = await ProjectService(db).list_projects(
-        user, page, status=status, department_id=department_id, owner_id=owner_id
-    )
+        user, page, status=status, department_id=department_id, owner_id=owner_id,
+        late=late, initiative_id=initiative_id,
+    )  # fmt: skip
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
 
@@ -195,9 +234,7 @@ async def create_project(body: ProjectCreate, db: Db, user: Writer, idem: Idem) 
     "/projects/{project_id}", response_model=ProjectDetailOut, summary="EP-TASK-11 Get project"
 )
 async def get_project(project_id: uuid.UUID, db: Db, user: Reader) -> Any:
-    p = project_out(await ProjectService(db).get_project(user, project_id))
-    # TODO-T-620: fill `milestones` + `task_counts` (ProjectDetailOut defaults are empty).
-    return ProjectDetailOut(**p.model_dump())
+    return await ProjectService(db).detail(user, project_id)
 
 
 @router.patch(
@@ -222,32 +259,44 @@ async def delete_project(project_id: uuid.UUID, db: Db, user: Writer) -> Respons
     return Response(status_code=204)
 
 
-# ---------- EP-TASK-14..17 milestones per project (stubs → T-620) ----------
+# ---------- EP-TASK-14..17 milestones per project ----------
 MS_PATH = "/projects/{project_id}/milestones"
 
 
 @router.get(MS_PATH, response_model=list[MilestoneOut], summary="EP-TASK-14 List milestones")
-async def list_project_milestones(project_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-TASK-14", "T-620")
+async def list_project_milestones(
+    project_id: uuid.UUID, db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("due_date", "title"))],
+) -> Any:  # fmt: skip
+    items, total = await ProjectService(db).list_milestones(user, project_id, page)
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
 
 @router.post(
     MS_PATH, response_model=MilestoneOut, status_code=201, summary="EP-TASK-15 Create milestone"
 )
 async def create_project_milestone(
-    project_id: uuid.UUID, body: MilestoneCreate, user: Writer, idem: Idem
+    project_id: uuid.UUID, body: MilestoneCreate, db: Db, user: Writer, idem: Idem
 ) -> Any:
-    not_implemented("EP-TASK-15", "T-620")
+    if (hit := await idem.replay(body)) is not None:
+        return MilestoneOut.model_validate(hit)
+    out = await ProjectService(db).create_milestone(user, project_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.patch(
     MS_PATH + "/{milestone_id}", response_model=MilestoneOut, summary="EP-TASK-16 Update milestone"
 )
 async def update_project_milestone(
-    project_id: uuid.UUID, milestone_id: uuid.UUID, body: MilestoneUpdate, user: Writer,
+    project_id: uuid.UUID, milestone_id: uuid.UUID, body: MilestoneUpdate, db: Db, user: Writer,
     if_match: IfMatch = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-TASK-16", "T-620")
+    exp = expected_version(if_match, body.version)
+    out = await ProjectService(db).update_milestone(user, project_id, milestone_id, body, exp)
+    await db.commit()
+    return out
 
 
 @router.delete(
@@ -255,6 +304,8 @@ async def update_project_milestone(
     summary="EP-TASK-17 Delete milestone",
 )  # fmt: skip
 async def delete_project_milestone(
-    project_id: uuid.UUID, milestone_id: uuid.UUID, user: Writer
+    project_id: uuid.UUID, milestone_id: uuid.UUID, db: Db, user: Writer
 ) -> Response:
-    not_implemented("EP-TASK-17", "T-620")
+    await ProjectService(db).delete_milestone(user, project_id, milestone_id)
+    await db.commit()
+    return Response(status_code=204)

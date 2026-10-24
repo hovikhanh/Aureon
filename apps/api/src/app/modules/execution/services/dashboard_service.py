@@ -27,7 +27,7 @@ from app.modules.execution.schemas.dashboard import (
 )
 from app.modules.execution.services import metrics as m
 from app.modules.execution.services import scope
-from app.modules.execution.services.workload import load_pct, load_tasks, rows_from, weekly_hours
+from app.modules.execution.services.workload import load_tasks, rows_from, weekly_grid
 from app.modules.platform.services.pillar_snapshot import (
     PillarSnapshot,
     pillar_snapshot,
@@ -94,16 +94,11 @@ class ExecutionDashboardService:
         )
 
     async def _heatmap(self, dept: uuid.UUID | None, as_of: date) -> list[HeatCell]:
-        since = as_of - timedelta(days=7 * HEAT_WEEKS - 1)
-        tasks = await self.tasks.assigned_active(since, as_of + timedelta(days=1), dept)
-        cells: list[HeatCell] = []
-        for i in range(HEAT_WEEKS - 1, -1, -1):
-            week_end = as_of - timedelta(days=7 * i)
-            y, w, _ = week_end.isocalendar()
-            for emp, (_, hours) in sorted(weekly_hours(tasks, week_end).items(), key=str):
-                cells.append(HeatCell(employee_ref=str(emp), week=f"{y}-W{w:02d}",
-                                      load_pct=float(load_pct(hours))))  # fmt: skip
-        return cells
+        """Sparse view of `weekly_grid` (shared with EP-TASK-18): week, then person."""
+        rows = await weekly_grid(self.db, dept, as_of, HEAT_WEEKS)
+        cells = [(c.week, str(r.employee_id), c) for r in rows for c in r.cells if c.open_tasks]
+        return [HeatCell(employee_ref=emp, week=week, load_pct=c.load_pct)
+                for week, emp, c in sorted(cells, key=lambda x: (x[0], x[1]))]  # fmt: skip
 
     async def _trend(self, dept: uuid.UUID | None, as_of: date) -> list[OnTimePoint]:
         out = []
