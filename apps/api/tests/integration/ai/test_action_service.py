@@ -280,3 +280,14 @@ async def test_kill_switch_status_roundtrip(db_session) -> None:
     )
     st = await svc.status()
     assert st.enabled is True and st.mode == "WRITE_OFF"
+
+
+async def test_propose_refuses_card_the_asker_cannot_confirm_m16(db_session) -> None:
+    """M1.6 review: no ACT structure card for a role outside `hr:admin` (R-DEC-61) — `propose`
+    applies the ACT's own permission + pillar check (`ActionDef.permitted`) up front."""
+    with pytest.raises(PermissionDeniedError):
+        await ActionService(db_session).propose(
+            principal("EMP"), action_name="ACT-create_department",
+            tool_name="TOOL-create_department",
+            input_data={"code": "X-REV", "name": "Review"}, idempotency_key="act-perm-1",
+        )  # fmt: skip

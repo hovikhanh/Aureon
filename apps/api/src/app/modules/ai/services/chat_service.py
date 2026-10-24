@@ -118,6 +118,9 @@ class ChatService:
             if demo is not None:
                 return await self._finish_replay(user, conv, user_msg, demo)
         tool_specs = await self._tool_specs(user, guard.classification)
+        # agent `allowed_tools` ∩ permissions ∩ classification ceiling — a model call outside
+        # this set (hallucinated / injected name) is refused, never dispatched (P06, FR-ADM-03)
+        advertised = {t.name for t in tool_specs}
         system = SYSTEM_VI if locale == "vi" else SYSTEM_EN
         # T-309: the model never sees level-4 PII; level-3 contacts become stable EMP-/CLI- codes.
         # (The user's own message is persisted verbatim; only the model context is scrubbed.)
@@ -157,7 +160,10 @@ class ChatService:
                     break
                 calls_made += 1
                 spec = get_tool(tc.name)
-                if (
+                if tc.name not in advertised:  # M1.6 review: only tools sent to the model run
+                    result = ToolResult(tc.name, "error", 0, error_code="AI_TOOL_NOT_AVAILABLE")
+                    await self._log_tool(user, user_msg.id, tc.name, tc.arguments, result)
+                elif (
                     spec is not None
                     and spec.is_write
                     and spec.action_name

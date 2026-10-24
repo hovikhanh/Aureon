@@ -78,6 +78,8 @@ class ActionService:
         act = get_action(action_name)
         if act is None:
             raise NotFoundError(f"unknown action {action_name}")
+        if not act.permitted(user):  # M1.6 review: no card the asker could never confirm
+            raise PermissionDeniedError(f"missing {' | '.join(act.required_permission)}")
         level = await resolve_level(
             self.db, action_name=action_name, role=user.role, amount=amount,
             agent_code=agent_code,

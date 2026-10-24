@@ -195,3 +195,23 @@ async def test_chat_advertises_only_agent_tools_m16(db_session) -> None:
     gw2 = ScriptedGateway(ChatResponse(content="ok", provider="fixture", model="x"))
     await ChatService(db_session, gw2).chat(principal("CEO"), "Tổng quan?", locale="vi")
     assert gw2.requests[0].tools == ()
+
+
+async def test_model_call_outside_advertised_tools_is_refused_m16(db_session) -> None:
+    """M1.6 review: a tool the model names but was not advertised (agent `ceo` lacks
+    `TOOL-list_tasks` / `TOOL-create_department`; `TOOL-nope` unknown) never runs and never
+    drafts a card — `ToolCallLog error/AI_TOOL_NOT_AVAILABLE` (P06, FR-ADM-03)."""
+    from app.modules.ai.models import AIAction
+
+    user = principal("CEO")
+    count = select(func.count()).select_from(AIAction)
+    before = (await db_session.execute(count)).scalar_one()
+    for tool in ("TOOL-list_tasks", "TOOL-create_department", "TOOL-nope"):
+        gw = _tool_then_answer(tool, "ok")
+        turn = await ChatService(db_session, gw).chat(user, "Việc quá hạn?", locale="vi")
+        assert turn.function_calls == [{"tool": tool, "status": "error", "latency_ms": 0}]
+        assert turn.suggested_actions == [] and turn.sources == []
+        log = (await db_session.execute(select(ToolCallLog).where(
+            ToolCallLog.tool_name == tool))).scalars().one()  # fmt: skip
+        assert (log.status, log.error_code) == ("error", "AI_TOOL_NOT_AVAILABLE")
+    assert (await db_session.execute(count)).scalar_one() == before
