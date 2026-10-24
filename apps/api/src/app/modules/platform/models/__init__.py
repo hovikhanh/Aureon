@@ -183,10 +183,18 @@ class ApprovalRequest(BusinessModel):
         ),
         Index("ix_approval_requests_status_due_at", "status", "due_at"),
         Index("ix_approval_requests_target", "target_table", "target_id"),
+        Index(
+            "ix_approval_requests_tenant_id_status_department_id",
+            "tenant_id",
+            "status",
+            "department_id",
+        ),
         {"schema": S},
     )
 
     rule_id: Mapped[uuid.UUID] = fk(f"{S}.approval_rules.id")
+    target_kind: Mapped[str] = txt()  # 0015 — stored, from the rule (R-DEC-45)
+    department_id: Mapped[uuid.UUID | None] = sr(index=False)  # 0015 — MGR `d` inbox scope
     target_schema: Mapped[str | None] = txt(nullable=True)
     target_table: Mapped[str | None] = txt(nullable=True)
     target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

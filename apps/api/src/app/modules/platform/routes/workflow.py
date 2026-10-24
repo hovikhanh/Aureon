@@ -1,7 +1,8 @@
 """`/workflow/*` — D04 Approval cơ bản (10 §7.2.2 EP-WF-01..03, R-DEC-40/45).
 
 EP-WF-03 moved from `/platform/approvals/{id}/decide` (EP-125) with v2.1 behaviour, no alias.
-EP-WF-01/02 are contract stubs (`501`) until T-622. Only `platform:approve` on every route.
+EP-WF-01 inbox (`assigned_to=me`, R-DEC-45) + EP-WF-02 detail (T-622). Only `platform:approve`
+on every route. The final approve runs the hook keyed by the request's `target_kind`.
 """
 
 import uuid
@@ -11,10 +12,10 @@ from fastapi import Depends, Query
 
 from app.core.approval_hooks import get_approval_hook
 from app.core.deps import DbSession, Principal, require_permission
+from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.platform.models import ApprovalRequest
 from app.modules.platform.schemas import ApprovalDetailOut, ApprovalRequestOut, DecideIn
 from app.modules.platform.services.approval_service import ApprovalService
@@ -30,22 +31,27 @@ ApprovalStatus = Literal["PENDING", "APPROVED", "REJECTED", "CANCELLED", "EXPIRE
     summary="EP-WF-01 Approval inbox",
 )  # fmt: skip
 async def list_approval_requests(
-    _: Approver,
+    user: Approver,
+    db: DbSession,
     page: Annotated[PageParams, Depends(page_params("due_at", "created_at"))],
     assigned_to: Annotated[Literal["me"], Query()] = "me",
     status: ApprovalStatus | None = None,
     rule_code: str | None = None,
     target_kind: str | None = None,
 ) -> Any:
-    not_implemented("EP-WF-01", "T-622")
+    items, total, pending = await ApprovalService(db).inbox(
+        user, page, status=status, rule_code=rule_code, target_kind=target_kind
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset,
+                pending_count=pending)  # fmt: skip
 
 
 @router.get(
     "/approval-requests/{id}", response_model=ApprovalDetailOut,
     summary="EP-WF-02 Approval request detail",
 )  # fmt: skip
-async def get_approval_request(id: uuid.UUID, _: Approver) -> Any:
-    not_implemented("EP-WF-02", "T-622")
+async def get_approval_request(id: uuid.UUID, user: Approver, db: DbSession) -> Any:
+    return await ApprovalService(db).detail(user, id)
 
 
 @router.post(
@@ -62,15 +68,18 @@ async def decide_approval(
     this transaction (04 §10.4).
     """
 
+    if (hit := await idem.replay(body)) is not None:
+        return ApprovalRequestOut.model_validate(hit)
+
     async def _on_approved(req: ApprovalRequest) -> None:
-        if req.ai_action_id is None:
-            return
-        hook = get_approval_hook("ai_action")
-        if hook is not None:
-            await hook(db, approver, req.ai_action_id)
+        target = req.ai_action_id if req.target_kind == "ai_action" else req.target_id
+        hook = get_approval_hook(req.target_kind)
+        if hook is not None and target is not None:
+            await hook(db, approver, target, dict(req.payload or {}))
 
     out = await ApprovalService(db).decide(
         approver, id, decision=body.decision, reason=body.reason, on_approved=_on_approved
     )
     await db.commit()
+    await idem.remember(out)
     return out

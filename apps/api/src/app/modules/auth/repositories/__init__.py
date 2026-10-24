@@ -30,6 +30,23 @@ class UserRepository:
         stmt = select(User).where(User.employee_id == employee_id, User.deleted_at.is_(None))
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
+    async def names(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, str]:
+        if not ids:
+            return {}
+        rows = await self.db.execute(select(User.id, User.full_name).where(User.id.in_(ids)))
+        return {i: n for i, n in rows.all()}
+
+    async def active_by_roles(
+        self, role_ids: Sequence[uuid.UUID], department_id: uuid.UUID | None
+    ) -> Sequence[User]:
+        stmt = select(User).where(
+            User.role_id.in_(role_ids), User.is_active.is_(True), User.deleted_at.is_(None),
+            User.is_service_account.is_(False),
+        )  # fmt: skip
+        if department_id is not None:
+            stmt = stmt.where(User.department_id == department_id)
+        return (await self.db.execute(stmt.order_by(User.id))).scalars().all()
+
     async def page(
         self, *, role_id: uuid.UUID | None, is_active: bool | None,
         department_id: uuid.UUID | None, q: str | None, sort_by: str, order: str,

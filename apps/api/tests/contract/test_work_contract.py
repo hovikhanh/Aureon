@@ -8,19 +8,14 @@
 """
 
 import re
-import uuid
 from pathlib import Path
 
 import pytest
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
-from fastapi.testclient import TestClient
 
-from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.config import REPO_ROOT
-from app.core.security import sign_access_token
 from app.main import API_PREFIX, create_app
-from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 
 pytestmark = pytest.mark.contract
 
@@ -31,8 +26,6 @@ ROW = re.compile(
 )
 # EP-TASK-19 is specified as a bullet (10 §7.2.2), not a table row.
 EP_TASK_19 = ("EP-TASK-19", "POST", "/work/tasks/{id}/reassign-requests", "execution:write")
-# Shrinks as T-619..T-622 replace the stubs with real handlers.
-STUBS = {"EP-TASK-19", "EP-WF-01", "EP-WF-02"}
 
 
 def _norm(path: str) -> str:
@@ -103,24 +96,8 @@ def test_old_paths_removed(routes: dict[tuple[str, str], APIRoute]) -> None:
     assert leftovers == []
 
 
-def test_stubs_answer_501_envelope(routes: dict[tuple[str, str], APIRoute]) -> None:
-    token, _ = sign_access_token(
-        user_id=uuid.uuid4(), email="ceo@abc.test", role="CEO", role_id="CEO",
-        permissions=list(ROLE_PERMISSIONS["CEO"]), department_id=None, scope_pillars=(),
-        tenant_id=DEFAULT_TENANT_ID,
-    )  # fmt: skip
-    client = TestClient(create_app())
-    hdr = {"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())}
-    bodies = {
-        "EP-TASK-07": {"depends_on_task_id": str(uuid.uuid4())},
-        "EP-TASK-15": {"title": "M", "due_date": "2026-11-30"},
-        "EP-TASK-16": {"version": 1},
-        "EP-TASK-19": {"to_assignee_id": str(uuid.uuid4()), "reason": "r"},
-    }
-    for ep, method, path, _ in spec_rows():
-        if ep not in STUBS:
-            continue
-        url = API_PREFIX + re.sub(r"\{[^}]+\}", str(uuid.uuid4()), path)
-        res = client.request(method, url, headers=hdr, json=bodies.get(ep))
-        assert res.status_code == 501, (ep, res.status_code, res.text)
-        assert set(res.json()["error"]) == {"code", "message", "details"}
+def test_no_m13_stub_left() -> None:
+    """T-619..T-622 replaced every `501` stub of 10 §7.2.2 with a real handler."""
+    src = REPO_ROOT / "apps/api/src/app/modules"
+    for f in ("execution/routes/work.py", "platform/routes/workflow.py"):
+        assert "not_implemented" not in (src / f).read_text(encoding="utf-8"), f

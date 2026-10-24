@@ -258,7 +258,9 @@ class ActionService:
         )  # fmt: skip
 
 
-async def _execute_approved_ai_action(db: Any, approver: Any, action_id: uuid.UUID) -> None:
+async def _execute_approved_ai_action(
+    db: Any, approver: Any, action_id: uuid.UUID, _payload: dict[str, Any]
+) -> None:
     """Approval hook for `target_kind="ai_action"` — run the action when its approval finalises.
 
     Registered in `core.approval_hooks` so `platform` can execute an `ai` action on `APPROVED`

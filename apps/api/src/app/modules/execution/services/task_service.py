@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.approval_hooks import register_approval_hook
 from app.core.audit import Actor, record_audit
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError, DuplicateResourceError
@@ -26,6 +27,7 @@ from app.modules.execution.repositories import (
     TaskRepository,
 )
 from app.modules.execution.schemas.tasks import (
+    ReassignRequestCreate,
     SourceRef,
     TaskBriefOut,
     TaskCreate,
@@ -39,12 +41,15 @@ from app.modules.execution.services import scope
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
 from app.modules.execution.services.initiative_service import InitiativeService
 from app.modules.execution.services.task_rules import (
+    CLOSED,
     MAX_DEPENDENCY_DEPTH,
     can_transition,
     find_cycle,
     is_overdue,
     source_kind_matches,
 )
+from app.modules.platform.schemas import ApprovalRequestOut
+from app.modules.platform.services.approval_service import ApprovalService
 
 RULE = "FR-TASK-01"
 NOT_NULL = frozenset({"title", "priority", "status", "is_critical"})
@@ -423,6 +428,44 @@ class TaskService(ExecBase):
             found.append(t.id)
         await self.db.flush()
         return found
+
+    # ---------- EP-TASK-19 reassign request (R-DEC-45) ----------
+    async def request_reassign(
+        self, user: Principal, id_: uuid.UUID, body: ReassignRequestCreate
+    ) -> ApprovalRequestOut:
+        """EMP asks to move their task to someone else; the department MGR approves (EP-WF-03).
+
+        MGR/DIR/CEO who may write the task change the assignee directly → 422."""
+        if scope.level(user, "write") != "o":
+            await self.get(user, id_, "write")  # out of scope → 403
+            raise BusinessRuleError("direct reassign allowed for this role",
+                                    details={"reason": "direct_reassign_allowed"})  # fmt: skip
+        t = await self.get(user, id_)
+        if t.status in CLOSED:
+            raise ConflictStateError(f"task is {t.status}", details={"status": t.status})
+        payload = {
+            "task_id": str(t.id), "from_assignee_id": _s(t.assignee_id),
+            "to_assignee_id": str(body.to_assignee_id), "reason": body.reason,
+            "task_version": t.version,
+        }  # fmt: skip
+        return await ApprovalService(self.db).create_for_task_reassign(
+            task_id=t.id, department_id=t.department_id, requested_by=user.user_id,
+            payload=payload,
+        )  # fmt: skip
+
+
+async def _apply_approved_reassign(
+    db: Any, approver: Any, task_id: uuid.UUID, payload: dict[str, Any]
+) -> None:
+    """Approval hook `task_reassign` (R-DEC-45): same tx as the final approve. The task must
+    still be at the version seen when the request was made — else 409 and the whole decide
+    rolls back (request stays PENDING)."""
+    version = int(payload["task_version"])
+    body = TaskUpdate(assignee_id=uuid.UUID(str(payload["to_assignee_id"])), version=version)
+    await TaskService(db).update(approver, task_id, body, version)
+
+
+register_approval_hook("task_reassign", _apply_approved_reassign)
 
 
 async def detect_overdue_tasks(db: AsyncSession, as_of: date) -> list[uuid.UUID]:

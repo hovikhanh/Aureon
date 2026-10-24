@@ -6,7 +6,9 @@ in `ai`), and `platform` must not import that module (DEC-125). Each owning modu
 callback here at import time, keyed by the approval `target_kind`; the platform approval service
 looks it up by key. `core` holds only the registry — it imports no module.
 
-A hook receives `(db, approver, target_id)` and performs the execution in `db`'s transaction.
+A hook receives `(db, approver, target_id, payload)` and performs the execution in `db`'s
+transaction (`payload` = the request's stored payload, e.g. `task_reassign` → new assignee +
+the task version seen at request time — R-DEC-45). Registered kinds: `ai_action`, `task_reassign`.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-ApprovalHook = Callable[[Any, Any, uuid.UUID], Awaitable[None]]
+ApprovalHook = Callable[[Any, Any, uuid.UUID, dict[str, Any]], Awaitable[None]]
 
 _HOOKS: dict[str, ApprovalHook] = {}
 

@@ -2159,6 +2159,7 @@ export type Meta = {
   generated_at?: string | null;
   pagination?: Pagination | null;
   unread_count?: number | null;
+  pending_count?: number | null;
 };
 
 export type MetricCreate = {

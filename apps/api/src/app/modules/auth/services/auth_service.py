@@ -7,6 +7,7 @@ written via `core.audit.record_audit` (T-007): `auth.login`, `auth.logout`,
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -208,6 +209,31 @@ class AuthService:
         if user is None or not user.is_active or user.is_service_account:
             return None
         return user.email, user.locale
+
+    async def user_id_for_employee(self, employee_id: uuid.UUID | None) -> uuid.UUID | None:
+        """Public employee → active user id (R-DEC-46 notifications). `None` when the employee
+        has no (active) account — callers skip the notification and log at info level."""
+        if employee_id is None:
+            return None
+        user = await self.users.by_employee(employee_id)
+        if user is None or not user.is_active:
+            return None
+        return user.id
+
+    async def user_names(self, user_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, str]:
+        """Public `{user_id: full_name}` (EP-WF-01 `requested_by_name`)."""
+        return await self.users.names(list(set(user_ids)))
+
+    async def users_with_roles(
+        self, role_codes: Sequence[str], *, department_id: uuid.UUID | None = None
+    ) -> list[uuid.UUID]:
+        """Public: active (non-service) users holding one of `role_codes`, optionally in a
+        department — approval notification recipients (R-DEC-45/46)."""
+        from sqlalchemy import select
+
+        roles = (await self.db.execute(select(Role.id).where(Role.code.in_(role_codes)))).scalars()
+        users = await self.users.active_by_roles(list(roles), department_id)
+        return [u.id for u in users]
 
     async def find_user_by_role(
         self, role_code: str, *, department_id: uuid.UUID | None = None

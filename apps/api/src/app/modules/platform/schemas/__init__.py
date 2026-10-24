@@ -45,7 +45,7 @@ class ApprovalRequestOut(BaseModel):
     requested_by: uuid.UUID
     due_at: datetime
     escalated_at: datetime | None = None
-    # TODO-T-622: `department_id` / stored `target_kind` (0015) and inbox fields filled by service.
+    # 0015: stored `target_kind` + `department_id` (MGR inbox scope, R-DEC-45).
     department_id: uuid.UUID | None = None
     title_key: str | None = None  # i18n key, no fixed sentence (CLAUDE.md §5.2)
     params: dict[str, object] = Field(default_factory=dict)

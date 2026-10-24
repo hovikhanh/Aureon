@@ -1,7 +1,7 @@
 """`/work/*` — D11 Task / Project / Milestone / Workload (10 §7.2.2, R-DEC-40).
 
 EP-TASK-01..05, 09..13 moved from `/execution/{tasks,projects}` with v2.1 behaviour (no alias).
-EP-TASK-06..08, 14..18 real (T-619/T-620); EP-TASK-19 stub (`501`) until T-622. Static paths
+EP-TASK-06..08, 14..19 real (T-619/T-620/T-622). Static paths
 (`/work/workload`, `/work/tasks/{id}/dependencies`) are declared before `{id}` catch-alls.
 """
 
@@ -19,7 +19,6 @@ from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.execution.schemas.common import ProjectStatus, TaskStatus
 from app.modules.execution.schemas.initiatives import MilestoneCreate, MilestoneOut, MilestoneUpdate
 from app.modules.execution.schemas.meetings import ProjectCreate, ProjectOut, ProjectUpdate
@@ -172,9 +171,14 @@ async def delete_dependency(
     summary="EP-TASK-19 Request task reassignment",
 )  # fmt: skip
 async def create_reassign_request(
-    task_id: uuid.UUID, body: ReassignRequestCreate, user: Writer, idem: Idem
+    task_id: uuid.UUID, body: ReassignRequestCreate, db: Db, user: Writer, idem: Idem
 ) -> Any:
-    not_implemented("EP-TASK-19", "T-622")
+    if (hit := await idem.replay(body)) is not None:
+        return ApprovalRequestOut.model_validate(hit)
+    out = await TaskService(db).request_reassign(user, task_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get("/tasks/{task_id}", response_model=TaskOut, summary="EP-TASK-03 Get task")
