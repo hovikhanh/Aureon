@@ -6,7 +6,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import DEFAULT_TENANT_ID
 from app.core.model_gateway import CallRecord, ModelGateway
+from app.core.tenant import current_tenant
 from app.modules.ai.models import ModelCallLog
 from app.modules.ai.repositories import ModelCallLogRepository, month_start
 
@@ -46,6 +48,9 @@ class ModelCallLogWriter:
                 status=rec.status,
                 error_code=rec.error_code,
                 prompt_sha256=rec.prompt_sha256,
+                tenant_id=current_tenant() or DEFAULT_TENANT_ID,
+                request_id=_uuid(rec.request_id),
+                agent_profile_code=rec.agent_profile_code,
             )
         )
 
@@ -54,6 +59,11 @@ class ModelCallLogWriter:
 
 
 def _uuid(value: Any) -> uuid.UUID | None:
+    if isinstance(value, str):
+        try:
+            return uuid.UUID(value)
+        except ValueError:
+            return None
     return value if isinstance(value, uuid.UUID) else None
 
 

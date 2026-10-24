@@ -37,9 +37,10 @@ from app.core.model_gateway.types import (
 from app.core.model_gateway.types import (
     Message as GwMessage,
 )
-from app.modules.ai.models import Conversation, Message, ToolCallLog
+from app.modules.ai.models import Conversation, Message
 from app.modules.ai.services.agent_catalog import CHAT_AGENT
 from app.modules.ai.services.agent_service import AgentService
+from app.modules.ai.services.autonomy import resolve_level
 from app.modules.ai.services.demo_replay import (
     DemoAnswer,
     build_answer,
@@ -47,8 +48,9 @@ from app.modules.ai.services.demo_replay import (
     replay_enabled,
 )
 from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
+from app.modules.ai.services.tool_audit import log_tool_call
 from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
-from app.modules.ai.tools import get_tool, tool_kind
+from app.modules.ai.tools import get_tool
 
 MAX_TOOL_CALLS = 8
 HISTORY_PAIRS = 10  # FR-AI-05: last 10 message pairs
@@ -129,6 +131,7 @@ class ChatService:
                 task="chat", messages=tuple(history), caller_module="ai",
                 classification=guard.classification, tools=tuple(tool_specs),
                 user_id=user.user_id, message_id=user_msg.id, temperature=0.2,
+                agent_profile_code=AGENT_CODE,
             )  # fmt: skip
             resp = await self.gateway.chat(req)
             tokens_in += resp.usage.tokens_in
@@ -145,7 +148,7 @@ class ChatService:
                     break
                 calls_made += 1
                 result = await executor.run(tc.name, tc.arguments)
-                await self._log_tool(user_msg.id, tc.name, tc.arguments, result)
+                await self._log_tool(user, user_msg.id, tc.name, tc.arguments, result)
                 fcalls.append(
                     {"tool": tc.name, "status": result.status, "latency_ms": result.latency_ms}
                 )
@@ -179,13 +182,12 @@ class ChatService:
     async def _finish_replay(
         self, user: Principal, conv: Conversation, user_msg: Message, demo: DemoAnswer
     ) -> ChatTurnResult:
-        for fc in demo.function_calls:
-            self.db.add(ToolCallLog(
-                message_id=user_msg.id, tool_name=fc["tool"], tool_kind=tool_kind(fc["tool"]),
-                arguments={},
-                status=fc["status"], http_status=None, latency_ms=fc["latency_ms"],
-                agent_profile_code=AGENT_CODE, autonomy_level="L0",
-            ))  # fmt: skip
+        for fc in demo.function_calls:  # replay runs READ tools only → L0
+            await log_tool_call(
+                self.db, tool_name=fc["tool"], arguments={}, status=fc["status"],
+                latency_ms=fc["latency_ms"], agent_code=AGENT_CODE, user_id=user.user_id,
+                autonomy_level="L0", message_id=user_msg.id,
+            )  # fmt: skip
         assistant = await self._add_message(
             conv.id, "assistant", demo.answer, [s.as_dict() for s in demo.sources],
             demo.function_calls, user, tokens_in=0, tokens_out=0,
@@ -237,19 +239,23 @@ class ChatService:
         return msg
 
     async def _log_tool(
-        self, message_id: uuid.UUID, tool: str, arguments: dict[str, Any], result: ToolResult
-    ) -> None:
+        self, user: Principal, message_id: uuid.UUID, tool: str, arguments: dict[str, Any],
+        result: ToolResult,
+    ) -> None:  # fmt: skip
+        """READ tools run at L0; non-READ calls carry the effective level (`resolve_level`)."""
         spec = get_tool(tool)
-        self.db.add(
-            ToolCallLog(
-                message_id=message_id, tool_name=tool, tool_kind=tool_kind(tool),
-                arguments=arguments,
-                status=result.status, http_status=None, latency_ms=result.latency_ms,
-                agent_profile_code=AGENT_CODE,
-                autonomy_level=spec.autonomy_default if spec else None,
-            )
+        level: str | None = "L0"
+        if spec is None or spec.kind == "APPROVAL":
+            level = None
+        elif spec.kind != "READ" and spec.action_name:
+            level = await resolve_level(self.db, action_name=spec.action_name, role=user.role,
+                                        amount=None, agent_code=AGENT_CODE)  # fmt: skip
+        await log_tool_call(
+            self.db, tool_name=tool, arguments=arguments, status=result.status,
+            latency_ms=result.latency_ms, agent_code=AGENT_CODE, user_id=user.user_id,
+            autonomy_level=level, message_id=message_id, error_code=result.error_code,
+            result_refs=result.sources,
         )  # fmt: skip
-        await self.db.flush()
 
     async def _tool_specs(self, user: Principal, classification: str) -> list[ToolSpec]:
         """Agent `allowed_tools` ∩ the asker's permissions (FR-ADM-03); disabled agent → none."""

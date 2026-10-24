@@ -46,7 +46,7 @@ from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
-from app.modules.ai.services.cost_service import CostService
+from app.modules.ai.services.cost_service import CostService, period_window
 from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
 
@@ -272,9 +272,11 @@ async def list_tools(
 async def ai_usage(
     admin: AiAdmin,
     db: DbSession,
-    group_by: Literal["provider", "model", "task_kind", "user"] = "provider",
+    group_by: Literal["provider", "model", "task_kind", "user", "agent"] = "provider",
+    period: str | None = None,
 ) -> CostSummaryOut:
-    return await CostService(db).usage(group_by=group_by)
+    start, end = period_window(period)
+    return await CostService(db).usage(group_by=group_by, start=start, end=end)
 
 
 def _words(text: str) -> list[str]:

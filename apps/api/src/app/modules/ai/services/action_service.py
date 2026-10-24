@@ -15,6 +15,7 @@ card (the person is the actor) — it only stops L3 auto-execute.
 
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -40,6 +41,7 @@ from app.modules.ai.services.action_registry import (
     is_finance_action,
 )
 from app.modules.ai.services.autonomy import resolve_level
+from app.modules.ai.services.tool_audit import log_tool_call, request_uuid
 from app.modules.platform.services.approval_service import ApprovalService
 
 UNDO_WINDOW = timedelta(hours=24)  # DEC-134 (AI actions; IDP STP = 7 days)
@@ -84,16 +86,26 @@ class ActionService:
             action_name=action_name, tool_name=tool_name, agent_profile_code=agent_code,
             autonomy_level=level, status="proposed", on_behalf_of=user.user_id,
             message_id=message_id, input=input_data, idempotency_key=idempotency_key,
-            source="AI", verification=verification,
+            source="AI", verification=verification, request_id=request_uuid(),
         )  # fmt: skip
         self.db.add(action)
         await self.db.flush()
         await self._audit(action, "ai.action_proposed")
+        started = time.monotonic()
 
         if level == "L3":
             await self._execute(user, action)
         elif level == "L2" and is_finance_action(action_name) and amount is not None:
             await self._maybe_open_approval(user, action, amount)
+        if tool_name is not None:  # T-647: the WRITE tool call that created the card
+            await log_tool_call(
+                self.db, tool_name=tool_name, arguments=input_data,
+                status="error" if action.status == "failed" else "ok",
+                latency_ms=int((time.monotonic() - started) * 1000), agent_code=agent_code,
+                user_id=user.user_id, autonomy_level=level, message_id=message_id,
+                result_refs=action.result_refs or [], ai_action_id=action.id,
+                approval_request_id=action.approval_request_id,
+            )  # fmt: skip
         return self._to_out(action)
 
     # ---------- confirm / reject (EP-115) ----------
@@ -262,6 +274,8 @@ class ActionService:
             result_refs=list(a.result_refs or []), on_behalf_of=a.on_behalf_of,
             approval_request_id=a.approval_request_id, executed_at=a.executed_at,
             undo_deadline=a.undo_deadline, can_undo=can_undo,
+            agent_profile_code=a.agent_profile_code,
+            request_id=str(a.request_id) if a.request_id else None, created_at=a.created_at,
         )  # fmt: skip
 
 
