@@ -44,6 +44,9 @@ type RouteRule = { prefix: string } & AccessRule;
 const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/home/pillar", roles: ["CEO", "DIR"], anyOf: ["dashboard:read"] },
   { prefix: "/work/approvals", roles: ["CEO", "DIR", "MGR"], anyOf: ["platform:approve"] },
+  // M1.3 (06 §3.4, R-DEC-48): SCR-55/56 projects (EMP: projects with own tasks), SCR-57 workload
+  { prefix: "/work/projects", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { prefix: "/work/workload", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:query"] },
   { prefix: "/data/review", roles: ["REV", "DIR", "MGR", "CEO"], anyOf: ["idp:approve"] },
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"] },
@@ -100,6 +103,21 @@ export function safeCallback(cb: string | null, origin: string): string {
 
 export function visibleNav(role: string, perms: readonly string[], pillars: readonly string[] = []): NavItem[] {
   return NAV_ITEMS.filter((i) => allowed(i, role, perms, pillars));
+}
+
+/** Tab bar of `/work` (06 §3.4 Spec lock M1.3): Task của tôi · Nhóm (not EMP) · Dự án · Workload · Phê duyệt. */
+export type WorkTabKey = "mine" | "board" | "projects" | "workload" | "approvals";
+export interface WorkTab extends AccessRule { key: WorkTabKey; href: string; scr: string }
+export const WORK_TABS: readonly WorkTab[] = [
+  { key: "mine", href: "/work", scr: "SCR-42", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { key: "board", href: "/work?view=board", scr: "SCR-42", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:read"] },
+  { key: "projects", href: "/work/projects", scr: "SCR-55", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { key: "workload", href: "/work/workload", scr: "SCR-57", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:query"] },
+  { key: "approvals", href: "/work/approvals", scr: "SCR-43", roles: ["CEO", "DIR", "MGR"], anyOf: ["platform:approve"] },
+];
+
+export function visibleWorkTabs(role: string, perms: readonly string[]): WorkTab[] {
+  return WORK_TABS.filter((tab) => allowed(tab, role, perms));
 }
 
 /** Every human role lands on Trang chủ (SCR-40); the AI actor has no UI. */

@@ -39,10 +39,11 @@ export function listAudit(req: MockRequest): Response {
   const q = req.query;
   const action = q.get("action");
   const actor = q.get("actor_type");
+  const target = q.get("target_id");
   const from = q.get("from") ?? q.get("occurred_from");
   const to = q.get("to") ?? q.get("occurred_to");
   if (from && to && from > to) throw new MockHttpError(400, "BAD_REQUEST", "from must be <= to", { param: "from" });
-  const out = rows.filter((r) => (!action || r.action === action) && (!actor || r.actor_type === actor)
+  const out = rows.filter((r) => (!action || r.action === action) && (!actor || r.actor_type === actor) && (!target || r.target_id === target)
     && (!from || r.occurred_at >= from) && (!to || r.occurred_at <= to));
   return paginate(out as unknown as Record<string, unknown>[], parsePage(q, ["occurred_at"]));
 }
