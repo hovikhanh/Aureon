@@ -1,14 +1,15 @@
 """`/kpis/*` — D08 KPI + D10 KPI check-ins: EP-KPI-01..10, EP-PRF-03/04 (10 §7.2.3, R-DEC-58).
 
 EP-KPI-01..07 moved from `/execution/kpis*` with v2.1 behaviour (no alias); EP-PRF-03/04 replace
-`/execution/check-ins?kpi_id=` / `POST /execution/check-ins {kpi_id}`. Filters / endpoints that
-need M1.4 columns answer `501` until their task (`core/stub.py`).
+`/execution/check-ins?kpi_id=` / `POST /execution/check-ins {kpi_id}`. EP-KPI-08..10 (T-627):
+effective-dated targets and per-period evaluations (R-DEC-52/53).
 """
 
 import uuid
+from datetime import date
 from typing import Annotated, Any
 
-from fastapi import Depends, Response
+from fastapi import Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import IfMatch, expected_version
@@ -17,8 +18,7 @@ from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
-from app.modules.execution.schemas.common import KpiBand
+from app.modules.execution.schemas.common import PERIOD, KpiBand
 from app.modules.execution.schemas.kpi import (
     KpiCreate,
     KpiEvaluationOut,
@@ -30,7 +30,9 @@ from app.modules.execution.schemas.kpi import (
     MeasurementOut,
 )
 from app.modules.execution.schemas.okr import CheckInCreate, CheckInOut
-from app.modules.execution.services.kpi_service import KpiService, kpi_out
+from app.modules.execution.services import scope
+from app.modules.execution.services.kpi_service import KpiService
+from app.modules.execution.services.kpi_target_service import KpiTargetService
 
 router = EnvelopeRouter(prefix="/kpis", tags=["goals"])
 
@@ -52,11 +54,9 @@ async def list_kpis(
     strategic_objective_id: uuid.UUID | None = None, department_id: uuid.UUID | None = None,
     parent_kpi_id: uuid.UUID | None = None, band: KpiBand | None = None,
 ) -> Any:  # fmt: skip
-    if band is not None:
-        not_implemented("EP-KPI-01 band", "T-627")
     items, total = await KpiService(db).list_kpis(
         user, page, owner_id=owner_id, metric_code=metric_code, department_id=department_id,
-        parent_kpi_id=parent_kpi_id, strategic_objective_id=strategic_objective_id,
+        parent_kpi_id=parent_kpi_id, strategic_objective_id=strategic_objective_id, band=band,
     )  # fmt: skip
     return _page(items, total, page)
 
@@ -73,7 +73,8 @@ async def create_kpi(body: KpiCreate, db: Db, user: Writer, idem: Idem) -> Any:
 
 @router.get("/{kpi_id}", response_model=KpiOut, summary="EP-KPI-03 Get KPI")
 async def get_kpi(kpi_id: uuid.UUID, db: Db, user: Reader) -> Any:
-    return kpi_out(await KpiService(db).get_kpi(user, kpi_id))
+    svc = KpiService(db)
+    return await svc.out(await svc.get_kpi(user, kpi_id))
 
 
 @router.patch("/{kpi_id}", response_model=KpiOut, summary="EP-KPI-04 Update KPI")
@@ -129,17 +130,30 @@ async def create_measurement(
     "/{kpi_id}/targets", response_model=list[KpiTargetOut], summary="EP-KPI-08 List KPI targets"
 )
 async def list_targets(
-    kpi_id: uuid.UUID, user: Reader, period_key: str | None = None, as_of: str | None = None
-) -> Any:
-    not_implemented("EP-KPI-08", "T-627")
+    kpi_id: uuid.UUID, db: Db, user: Reader, period_key: str | None = None,
+    as_of: date | None = None,
+) -> Any:  # fmt: skip
+    """All versions (closed ones too), sorted `period_key`, `valid_from` (R-DEC-52)."""
+    await KpiService(db).get_kpi(user, kpi_id)
+    return await KpiTargetService(db).list_targets(kpi_id, period_key, as_of)
 
 
 @router.post(
     "/{kpi_id}/targets", response_model=KpiTargetOut, status_code=201,
     summary="EP-KPI-09 Set KPI target (effective-dated)",
 )  # fmt: skip
-async def create_target(kpi_id: uuid.UUID, body: KpiTargetCreate, user: Writer, idem: Idem) -> Any:
-    not_implemented("EP-KPI-09", "T-627")
+async def create_target(
+    kpi_id: uuid.UUID, body: KpiTargetCreate, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return KpiTargetOut.model_validate(hit)
+    await KpiService(db).get_kpi(user, kpi_id, "write")
+    if scope.level(user, "write") == "o":  # 10 EP-KPI-09 "không EMP"
+        raise scope.deny("KPI target", kpi_id=kpi_id)
+    out = await KpiTargetService(db).upsert(kpi_id, body, user.user_id)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get(
@@ -147,9 +161,13 @@ async def create_target(kpi_id: uuid.UUID, body: KpiTargetCreate, user: Writer, 
     summary="EP-KPI-10 List KPI evaluations",
 )  # fmt: skip
 async def list_evaluations(
-    kpi_id: uuid.UUID, user: Reader, from_period: str | None = None, to_period: str | None = None
-) -> Any:
-    not_implemented("EP-KPI-10", "T-627")
+    kpi_id: uuid.UUID, db: Db, user: Reader,
+    from_period: Annotated[str | None, Query(pattern=PERIOD)] = None,
+    to_period: Annotated[str | None, Query(pattern=PERIOD)] = None,
+) -> Any:  # fmt: skip
+    """`period_key` asc; default = the latest 12 periods (SCR-58 chart)."""
+    await KpiService(db).get_kpi(user, kpi_id)
+    return await KpiTargetService(db).list_evaluations(kpi_id, from_period, to_period)
 
 
 # ---------- EP-PRF-03/04 KPI check-ins ----------

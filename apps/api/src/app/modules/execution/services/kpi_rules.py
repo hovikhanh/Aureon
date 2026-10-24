@@ -5,17 +5,22 @@
   LOWER (above); BINARY = 100 when actual ≥ target else 0. Floor 0, cap `score_cap_pct` (150).
   Division by zero: numerator 0 → 100 (on target), otherwise the cap.
 - Band = highest band whose lower bound (`band_thresholds`, % achievement) ≤ achievement.
+- M1.4 (05 §2.6): `gap_value` (≥ 0 while the target is not met), on-time KPI period (grace days
+  after the period end, local calendar day), effective target version `[valid_from, valid_to)`.
 """
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 DEFAULT_BANDS: dict[str, float] = {
     "CRITICAL": 0, "BELOW": 70, "NEAR": 90, "MEETS": 100, "EXCEEDS": 110,
 }  # fmt: skip
 DEFAULT_CAP = Decimal(150)
 Q4 = Decimal("0.0001")
+LOCAL_TZ = ZoneInfo("Asia/Ho_Chi_Minh")  # business calendar (05 §2.6)
+LOW_BANDS = frozenset({"BELOW", "CRITICAL"})  # `execution.kpi_below_threshold`
 
 
 def _ratio(num: Decimal, den: Decimal, cap: Decimal) -> Decimal:
@@ -98,3 +103,31 @@ def period_bounds(period_key: str) -> tuple[date, date]:
         m = int(rest[1:])
         return date(year, m, 1), date(year + 1, 1, 1) if m == 12 else date(year, m + 1, 1)
     raise ValueError(f"invalid period_key {period_key!r}")
+
+
+def gap_value(
+    direction: str, actual: Decimal, target: Decimal, minimum: Decimal | None = None
+) -> Decimal:
+    """Distance to the target by `direction`: positive = short of it, ≤ 0 = met (05 §2.6)."""
+    if direction == "LOWER_IS_BETTER":
+        return actual - target
+    if direction == "WITHIN_RANGE":
+        low = minimum if minimum is not None else target
+        if actual < low:
+            return low - actual
+        return actual - target if actual > target else Decimal(0)
+    return target - actual  # HIGHER_IS_BETTER, BINARY
+
+
+def local_day(at: datetime) -> date:
+    return at.astimezone(LOCAL_TZ).date()
+
+
+def on_time(measured_at: datetime, period_key: str, grace_days: int) -> bool:
+    """On-time KPI period: measured before `end(P) + grace` (local day, 05 §2.6)."""
+    _, end = period_bounds(period_key)
+    return local_day(measured_at) < end + timedelta(days=grace_days)
+
+
+def in_force(valid_from: date, valid_to: date | None, day: date) -> bool:
+    return valid_from <= day and (valid_to is None or day < valid_to)

@@ -108,16 +108,19 @@ async def test_kpi_measurements_and_event(api: ApiClient, db_session: AsyncSessi
     md = m.json()["data"]
     assert md["achievement_pct"] == 80 and md["evaluation_band"] == "BELOW"
     again = await api.call("POST", url, "CEO", json={"period_key": "2037-08", "actual_value": 95})
-    ad = again.json()["data"]
-    assert ad["id"] == md["id"] and ad["evaluation_band"] == "MEETS"
+    ad = again.json()["data"]  # R-DEC-51: a new row per measurement (history kept)
+    assert ad["id"] != md["id"] and ad["evaluation_band"] == "MEETS"
+    assert ad["data_source"] == "manual" and ad["measured_by"] is not None
     events = await outbox_for(db_session, kid)
     assert [e[0] for e in events] == ["execution.kpi_measured"] * 2
-    assert events[1][1] == {"kpi_id": kid, "period_key": "2037-08",
-                            "actual_value": "95", "achievement_pct": "100.0000"}  # fmt: skip
+    v21 = {"kpi_id": kid, "period_key": "2037-08", "actual_value": "95",
+           "achievement_pct": "100.0000"}  # fmt: skip
+    assert v21.items() <= events[1][1].items()  # v2.1 fields kept, payload extended (R-DEC-56)
+    assert events[1][1]["band"] == "MEETS" and events[1][1]["previous_band"] == "BELOW"
     q = await api.call("POST", url, "CEO", json={"period_key": "2037-Q3", "actual_value": 1})
     assert q.status_code == 422
     lst = await api.call("GET", url, "CEO")
-    assert lst.json()["meta"]["pagination"]["total"] == 1
+    assert lst.json()["meta"]["pagination"]["total"] == 2
     up = await patch(api, f"/kpis/{kid}", 1, target=100, direction="LOWER_IS_BETTER",
                      name=None)  # fmt: skip
     assert up.status_code == 200 and up.json()["data"]["target"] == 100
@@ -151,6 +154,12 @@ async def test_check_ins(api: ApiClient, db_session: AsyncSession) -> None:
     o = await make(api, "/objectives", {
         "title": "o", "owner_id": str(owner), "period_key": "2037"})  # fmt: skip
     k = await make(api, f"/objectives/{o['id']}/key-results", kr(owner))
+    draft = await api.call("POST", f"/key-results/{k['id']}/check-ins", "CEO",
+                           json={"value": 1, "confidence": "HIGH"})  # fmt: skip
+    assert draft.status_code == 409  # EP-PRF-02: objective not active
+    assert draft.json()["error"]["details"]["reason"] == "objective_not_active"
+    await make(api, f"/objectives/{o['id']}/key-results", kr(owner, weight_pct=0))
+    assert (await patch(api, f"/objectives/{o['id']}", 1, status="active")).status_code == 200
     missing = await api.call("POST", f"/key-results/{uuid.uuid4()}/check-ins", "CEO",
                              json={"value": 1, "confidence": "HIGH"})  # fmt: skip
     assert missing.status_code == 404

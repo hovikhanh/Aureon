@@ -8,6 +8,7 @@
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -41,14 +42,14 @@ MAX_KR, MIN_KR_ACTIVE = 5, 2
 RULE = "FR-OKR-01"
 
 
-def objective_out(o: Objective) -> ObjectiveOut:
+def objective_out(o: Objective, at_risk_kr_count: int = 0) -> ObjectiveOut:
     return ObjectiveOut(
         **_c19(o), title=o.title, owner_id=o.owner_id, period_key=o.period_key,
         parent_id=o.parent_id, level=o.level, okr_type=o.okr_type,
         weight_pct=float(o.weight_pct), team_id=o.team_id, department_id=o.department_id,
         pillar=o.pillar, status=o.status, progress_pct=float(o.progress_pct),
         score=num(o.score), source_document_id=o.source_document_id,
-        strategic_objective_id=o.strategic_objective_id,
+        strategic_objective_id=o.strategic_objective_id, at_risk_kr_count=at_risk_kr_count,
     )  # fmt: skip
 
 
@@ -59,6 +60,8 @@ def kr_out(k: KeyResult) -> KeyResultOut:
         current_value=num(k.current_value), owner_id=k.owner_id, status=k.status,
         confidence=k.confidence, weight_pct=float(k.weight_pct),
         progress_pct=float(kr_progress_pct(k.baseline, k.target, k.current_value)),
+        at_risk=k.at_risk, at_risk_since=k.at_risk_since,
+        at_risk_reasons=list(k.at_risk_reasons or []), last_checked_in_at=k.last_checked_in_at,
     )  # fmt: skip
 
 
@@ -80,18 +83,28 @@ class OkrService(ExecBase):
         self, user: Principal, page: PageParams, *, period_key: str | None,
         owner_id: uuid.UUID | None, department_id: uuid.UUID | None = None,
         parent_id: uuid.UUID | None = None, strategic_objective_id: uuid.UUID | None = None,
+        at_risk: bool | None = None,
     ) -> tuple[list[ObjectiveOut], int]:  # fmt: skip
         pred = scope.predicate(user, "read", dept=Objective.department_id,
                                own=[Objective.owner_id == user.user_id])  # fmt: skip
+        where = [pred] if pred is not None else []
+        if at_risk is not None:  # has ≥ 1 at-risk KR (EP-OKR-01)
+            risky = Objective.id.in_(KeyResultRepository.objectives_with_at_risk())
+            where.append(risky if at_risk else ~risky)
         raw = {"period_key": period_key, "owner_id": owner_id, "department_id": department_id,
                "parent_id": parent_id,
                "strategic_objective_id": strategic_objective_id}  # fmt: skip
         filters = {k: v for k, v in raw.items() if v}
         items, total = await self.objectives.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
-            filters=filters, where=[pred] if pred is not None else [],
+            filters=filters, where=where,
         )  # fmt: skip
-        return [objective_out(o) for o in items], total
+        counts = await self.krs.at_risk_counts([o.id for o in items])
+        return [objective_out(o, counts.get(o.id, 0)) for o in items], total
+
+    async def out(self, o: Objective) -> ObjectiveOut:
+        """ObjectiveOut + `at_risk_kr_count` (EP-OKR-02..04)."""
+        return objective_out(o, (await self.krs.at_risk_counts([o.id])).get(o.id, 0))
 
     async def get_objective(
         self, user: Principal, id_: uuid.UUID, action: str = "read"
@@ -135,7 +148,7 @@ class OkrService(ExecBase):
         self, user: Principal, id_: uuid.UUID, body: ObjectiveUpdate, expected: int
     ) -> ObjectiveOut:
         o = await self.get_objective(user, id_, "write")
-        before = objective_out(o)
+        before = await self.out(o)
         data = body.model_dump(exclude_unset=True, exclude={"version"})
         _drop_nulls(data, "title", "owner_id", "period_key", "level", "okr_type", "weight_pct",
                     "status")  # fmt: skip
@@ -157,7 +170,7 @@ class OkrService(ExecBase):
         for so_id in dict.fromkeys((old_so, o.strategic_objective_id)):
             await StrategyService(self.db).recompute_progress(so_id)
         await self.db.refresh(o)
-        out = objective_out(o)
+        out = await self.out(o)
         await self.audit("objective_update", "objectives", o.id, before, out)
         return out
 
@@ -250,9 +263,14 @@ class OkrService(ExecBase):
         await self.recompute_progress(k.objective_id)
         await self.audit("key_result_delete", "key_results", k.id, before=before)
 
-    async def apply_check_in(self, k: KeyResult, value: Decimal, confidence: str) -> None:
+    async def apply_check_in(
+        self, k: KeyResult, value: Decimal | None, confidence: str | None,
+        at: datetime | None,
+    ) -> None:  # fmt: skip
+        """KR state after a check-in (or its undo): value, confidence, `last_checked_in_at`."""
         k.current_value = value
         k.confidence = confidence
+        k.last_checked_in_at = at
         k.version = (k.version or 0) + 1
         await self.db.flush()
         await self.recompute_progress(k.objective_id)

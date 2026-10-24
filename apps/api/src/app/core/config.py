@@ -115,6 +115,11 @@ class ConfigService(BaseSettings):
     # second SLA span (2×) → escalate to the department head (hourly `check_review_sla` beat).
     review_sla_hours: int = Field(default=24, gt=0)
 
+    # --- Goals M1.4 (05 §2.6, R-DEC-54/55): on-time KPI/KR (METRIC-STR-01) + KR at-risk ---
+    goals_kpi_grace_days: int = Field(default=5, ge=0, le=31)
+    goals_kr_checkin_max_age_days: int = Field(default=7, gt=0, le=92)
+    goals_kr_behind_ratio: float = Field(default=0.7, gt=0, le=1)
+
     # --- Dashboard / DQ / SLA (DEC-148, DEC-158) ---
     dq_weight_completeness: float = 0.3
     dq_weight_accuracy: float = 0.4
