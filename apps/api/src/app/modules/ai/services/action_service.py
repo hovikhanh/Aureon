@@ -33,7 +33,12 @@ from app.core.errors import (
 from app.modules.ai.models import AIAction
 from app.modules.ai.repositories import AIActionRepository
 from app.modules.ai.schemas import AIActionOut
-from app.modules.ai.services.action_registry import UndoThunk, get_action, is_finance_action
+from app.modules.ai.services.action_registry import (
+    ActionContext,
+    ActionOutcome,
+    get_action,
+    is_finance_action,
+)
 from app.modules.ai.services.autonomy import resolve_level
 from app.modules.platform.services.approval_service import ApprovalService
 
@@ -53,7 +58,6 @@ class ActionService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         # undo thunks for actions executed in this request; a later-turn undo rebuilds from refs
-        self._undo_registry: dict[uuid.UUID, UndoThunk] = {}
 
     # ---------- propose (from a tool call) ----------
     async def propose(
@@ -130,11 +134,7 @@ class ActionService:
         act = get_action(action.action_name)
         if act is None or not act.reversible:
             raise ConflictStateError("action is not reversible")
-        undo_thunk = self._undo_registry.pop(action.id, None)
-        if undo_thunk is not None:
-            await undo_thunk()
-        else:
-            await self._undo_from_refs(user, action)
+        await self._undo_from_refs(user, action)
         action.status = "undone"
         action.undone_at = datetime.now(UTC)
         action.undone_by = user.user_id
@@ -175,7 +175,13 @@ class ActionService:
         if act is None:
             raise NotFoundError(f"unknown action {action.action_name}")
         try:
-            outcome = await act.run(self.db, user, dict(action.input), action.id)
+            params, errors = act.parse(dict(action.input))
+            if params is None or errors:
+                raise ActionRejectedError(
+                    "invalid action input", details={"action_name": act.name, "errors": errors}
+                )
+            ctx = ActionContext(source="AI", ai_action_id=action.id)
+            outcome = await act.run(self.db, user, params, ctx)
         except AppError:
             raise
         except Exception as exc:  # pragma: no cover - defensive
@@ -185,10 +191,13 @@ class ActionService:
         now = datetime.now(UTC)
         action.status = "executed"
         action.executed_at = now
-        action.result_refs = outcome.result_refs
+        # `ai_actions.result_refs` keeps its v2.1 shape `{type, id, table: "<schema>.<table>"}`
+        action.result_refs = [
+            {"type": "record", "id": r["id"], "table": f"{r['schema']}.{r['table']}"}
+            for r in outcome.result_refs
+        ]
         action.undo_deadline = now + UNDO_WINDOW if act.reversible else None
         await self.db.flush()
-        self._undo_registry[action.id] = outcome.undo
         await self._audit(action, "ai.action_executed")
 
     async def _maybe_open_approval(self, user: Principal, action: AIAction, amount: int) -> None:
@@ -208,19 +217,17 @@ class ActionService:
             raise PermissionDeniedError(f"missing {domain}:write")
 
     async def _undo_from_refs(self, user: Principal, action: AIAction) -> None:
-        """Reverse from `result_refs` when the in-request undo thunk is gone (e.g. a later turn).
-
-        Only `execution.tasks` is wired as reversible in v2.0; reverse via the execution public
-        service (DEC-125 — no cross-module model import).
-        """
-        from app.modules.execution.services.task_service import TaskService
-
-        for ref in action.result_refs or []:
-            if ref.get("table") == "execution.tasks":
-                try:
-                    await TaskService(self.db).delete(user, uuid.UUID(ref["id"]))
-                except NotFoundError:
-                    continue
+        """Reverse through the Action Registry v2 `undo` of the ACT (R-DEC-60) from the stored
+        `result_refs` — no in-process thunk, so undo works from any later request."""
+        act = get_action(action.action_name)
+        if act is None or not action.result_refs:
+            return
+        try:
+            refs = [{"schema": r["table"].split(".")[0], "table": r["table"].split(".")[-1],
+                     "id": r["id"]} for r in action.result_refs]  # fmt: skip
+            await act.undo(self.db, user, ActionOutcome(refs))
+        except NotFoundError:
+            return  # already gone
 
     async def _get(self, action_id: uuid.UUID) -> AIAction:
         action = await AIActionRepository(self.db).by_id(action_id)

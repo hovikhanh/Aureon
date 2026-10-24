@@ -132,7 +132,24 @@ class OkrService(ExecBase):
         return list(await self.krs.where(KeyResult.objective_id == objective_id,
                                          order=KeyResult.created_at))  # fmt: skip
 
-    async def create_objective(self, user: Principal, body: ObjectiveCreate) -> ObjectiveOut:
+    async def objective_id_by_key(
+        self, period_key: str, title: str, owner_id: uuid.UUID | None = None
+    ) -> uuid.UUID | None:
+        """Public lookup for ACT-upsert_objective / _key_result (`(period_key, title, owner)`)."""
+        clauses = [Objective.period_key == period_key, Objective.title == title]
+        if owner_id is not None:
+            clauses.append(Objective.owner_id == owner_id)
+        found = await self.objectives.where(*clauses, order=Objective.created_at)
+        return found[0].id if found else None
+
+    async def kr_id_by_title(self, objective_id: uuid.UUID, title: str) -> uuid.UUID | None:
+        found = await self.krs.where(KeyResult.objective_id == objective_id,
+                                     KeyResult.title == title)  # fmt: skip
+        return found[0].id if found else None
+
+    async def create_objective(
+        self, user: Principal, body: ObjectiveCreate, *, source: str = "MANUAL"
+    ) -> ObjectiveOut:
         data = body.model_dump()
         gs = await goal_scope.resolve(self.db, user)
         gs.require_writer("objective")
@@ -141,7 +158,7 @@ class OkrService(ExecBase):
             await self._check_activation(user, None)
         self.require_root_link(data, "parent_id", RULE)
         await self.require_refs(data, RULE, parent_id=Objective)
-        o = await self.objectives.create(**data, progress_pct=Decimal(0), source="MANUAL",
+        o = await self.objectives.create(**data, progress_pct=Decimal(0), source=source,
                                          created_by=user.user_id)  # fmt: skip
         await self.db.refresh(o)
         out = objective_out(o)
@@ -229,7 +246,12 @@ class OkrService(ExecBase):
         return k
 
     async def create_kr(
-        self, user: Principal, objective_id: uuid.UUID, body: KeyResultCreate
+        self,
+        user: Principal,
+        objective_id: uuid.UUID,
+        body: KeyResultCreate,
+        *,
+        source: str = "MANUAL",
     ) -> KeyResultOut:
         o = await self.get_objective(user, objective_id, "write")
         data = body.model_dump()
@@ -237,7 +259,7 @@ class OkrService(ExecBase):
             raise BusinessRuleError(f"at most {MAX_KR} key results per objective",
                                     details={"field": "objective_id", "reason": "kr_count",
                                              "rule": RULE})  # fmt: skip
-        k = await self.krs.create(**data, objective_id=o.id, source="MANUAL",
+        k = await self.krs.create(**data, objective_id=o.id, source=source,
                                   created_by=user.user_id)  # fmt: skip
         await self.recompute_progress(o.id)
         await self.db.refresh(k)

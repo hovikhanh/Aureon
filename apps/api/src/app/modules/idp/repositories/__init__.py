@@ -11,7 +11,12 @@ from typing import Any
 from sqlalchemy import ColumnElement, func, select
 
 from app.core.base_repository import BaseRepository
-from app.modules.idp.models import ExtractedField, ReviewAssignment, SourceDocument
+from app.modules.idp.models import (
+    DocumentAction,
+    ExtractedField,
+    ReviewAssignment,
+    SourceDocument,
+)
 
 
 class SourceDocumentRepository(BaseRepository[SourceDocument]):
@@ -67,3 +72,18 @@ class ExtractedFieldRepository(BaseRepository[ExtractedField]):
         if ordered:
             stmt = stmt.order_by(ExtractedField.field_name.asc())
         return list((await self.db.execute(stmt)).scalars().all())
+
+
+class DocumentActionRepository(BaseRepository[DocumentAction]):
+    """`idp.document_actions` — one row per executed ACT (R-DEC-63, append + status flip)."""
+
+    model = DocumentAction
+
+    async def for_document(
+        self, document_id: uuid.UUID, *, newest_first: bool = False
+    ) -> list[DocumentAction]:
+        order = DocumentAction.seq.desc() if newest_first else DocumentAction.seq
+        stmt = self._scoped(select(DocumentAction)).where(
+            DocumentAction.source_document_id == document_id
+        )
+        return list((await self.db.execute(stmt.order_by(order))).scalars())

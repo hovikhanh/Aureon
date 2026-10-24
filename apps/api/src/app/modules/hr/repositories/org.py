@@ -139,6 +139,10 @@ class DeptRepository(_Dated[Department]):
 class TeamRepository(_Dated[Team]):
     model = Team
 
+    async def by_department_code(self, department_id: uuid.UUID, code: str) -> Team | None:
+        stmt = self._live().where(Team.department_id == department_id, Team.code == code)
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
     async def current_assignments(self, id_: uuid.UUID) -> int:
         stmt = (
             BaseRepository(self.db, EmployeeAssignment)

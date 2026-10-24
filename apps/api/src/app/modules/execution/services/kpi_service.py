@@ -180,7 +180,15 @@ class KpiService(ExecBase):
         gs.check(action, dept=k.department_id, owners=(k.owner_id,), pillar=k.pillar, what="KPI")
         return k
 
-    async def create_kpi(self, user: Principal, body: KpiCreate) -> KpiOut:
+    async def kpi_id_by_code(self, code: str) -> uuid.UUID | None:
+        """Public lookup for the Action Registry v2 (`kpi_code`, T-636) — no scope check; the
+        ACT then goes through `get_kpi` / `update_kpi` with the caller's scope."""
+        found = await self.kpis.where(Kpi.code == code)
+        return found[0].id if found else None
+
+    async def create_kpi(
+        self, user: Principal, body: KpiCreate, *, source: str = "MANUAL"
+    ) -> KpiOut:
         data = body.model_dump()
         data["target_value"] = data.pop("target")
         gs = await goal_scope.resolve(self.db, user)
@@ -189,7 +197,7 @@ class KpiService(ExecBase):
         await self.require_unique(Kpi, "code", data["code"], None)
         self.require_root_link(data, "parent_kpi_id", RULE)
         await self.require_refs(data, RULE, parent_kpi_id=Kpi)
-        k = await self.kpis.create(**data, source="MANUAL", created_by=user.user_id)
+        k = await self.kpis.create(**data, source=source, created_by=user.user_id)
         await self.db.refresh(k)
         out = kpi_out(k)
         await self.audit("kpi_create", "kpis", k.id, after=out)

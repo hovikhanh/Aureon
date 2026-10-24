@@ -15,7 +15,7 @@ from fastapi import Depends, File, Form, Query, Response, UploadFile, status
 
 from app.core.concurrency import IfMatch, parse_if_match
 from app.core.deps import DbSession, Principal, require_permission
-from app.core.envelope import Page
+from app.core.envelope import Envelope, Page, build_meta
 from app.core.errors import NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
@@ -217,14 +217,18 @@ async def review_approve(
     if_match: IfMatch = None,
 ) -> ApproveOut:
     exp = parse_if_match(if_match)
-    out = await CommitService(db).approve(
+    res = await CommitService(db).approve(
         user,
         document_id,
         comment=body.comment,
         expected_version=exp if exp is not None else body.version,
     )
     await db.commit()
-    return out
+    if res.pending_permissions:  # APPROVED, waiting for EP-DC-23 (R-DEC-61)
+        meta = build_meta()
+        meta.pending_permissions = res.pending_permissions
+        return Envelope[ApproveOut](data=res.out, meta=meta)  # type: ignore[return-value]
+    return res.out
 
 
 @router.post(

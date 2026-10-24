@@ -40,6 +40,14 @@ def _reviewer(dept: uuid.UUID | None = None, uid: uuid.UUID | None = None) -> Pr
     )
 
 
+def _committer(dept: uuid.UUID | None = None) -> Principal:
+    """Approver that also holds the INVOICE target permission (`finance:write`, R-DEC-61)."""
+    return Principal(
+        user_id=uuid.uuid4(), role="DIR", permissions=frozenset(ROLE_PERMISSIONS["DIR"]),
+        department_id=dept, scope_pillars=("F",),
+    )  # fmt: skip
+
+
 def _file(name: str, mime: str, data: bytes) -> UploadFile:
     return UploadFile(filename=name, content_type=mime, chunks=iter([data]))
 
@@ -219,10 +227,10 @@ async def test_lock_blocks_other_reviewer(db_session, idp_store) -> None:
 async def test_approve_commits_finance_invoice(db_session, idp_store) -> None:
     from app.modules.finance.models import Invoice
 
-    user = _reviewer()
+    user = _committer()
     doc_id = await _ingest_invoice(db_session, user)
     await ReviewService(db_session).open(user, doc_id)
-    out = await CommitService(db_session).approve(user, doc_id, comment="looks good")
+    out = (await CommitService(db_session).approve(user, doc_id, comment="looks good")).out
     assert out.document.status == "COMMITTED"
     assert out.undo_deadline is not None
     assert len(out.actions) == 1
@@ -239,7 +247,7 @@ async def test_approve_commits_finance_invoice(db_session, idp_store) -> None:
 async def test_approve_uses_corrected_value(db_session, idp_store) -> None:
     from app.modules.finance.models import Invoice
 
-    user = _reviewer()
+    user = _committer()
     doc_id = await _ingest_invoice(db_session, user)
     svc = ReviewService(db_session)
     await svc.open(user, doc_id)
@@ -249,7 +257,7 @@ async def test_approve_uses_corrected_value(db_session, idp_store) -> None:
         doc_id,
         FieldPatchIn(fields=[FieldCorrectionIn(field_id=num.id, value="0009999")]),
     )
-    out = await CommitService(db_session).approve(user, doc_id)
+    out = (await CommitService(db_session).approve(user, doc_id)).out
     inv = (
         await db_session.execute(
             select(Invoice).where(Invoice.id == uuid.UUID(out.actions[0].ids[0]))
@@ -315,7 +323,7 @@ async def test_reassign_requires_reason(db_session, idp_store) -> None:
 
 # ------------------------------------------------------------ T-411 merge
 async def test_merge_nests_children_under_parent(db_session, idp_store) -> None:
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
     b = await _ingest_invoice(db_session, user)
     parent, children = await ReviewService(db_session).merge(user, [a, b], primary_id=a)
@@ -411,9 +419,10 @@ async def test_approve_other_doctype_is_metadata_only(db_session, idp_store) -> 
     if doc.status == "AUTO_APPROVED":  # OTHER may route either way; force a review state
         doc.status = "NEEDS_REVIEW"
         await db_session.flush()
-    out = await CommitService(db_session).approve(user, doc_id)
-    assert out.document.status == "COMMITTED"
-    assert out.actions == []
+    res = await CommitService(db_session).approve(user, doc_id)
+    assert res.pending_permissions == []
+    assert res.out.document.status == "COMMITTED"
+    assert res.out.actions == []
 
 
 async def test_approve_version_conflict(db_session, idp_store) -> None:
@@ -450,7 +459,7 @@ async def test_commit_invoice_duplicate_number_rejected(db_session, idp_store) -
     """A finance business-rule failure surfaces as ACTION_REJECTED (04 §10, IDP-E11)."""
     from app.core.errors import ActionRejectedError
 
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
     await CommitService(db_session).approve(user, a)  # first commit wins the number UQ
     b = await _ingest_invoice(db_session, user)  # same fixture → same invoice_number
@@ -523,7 +532,7 @@ async def test_reassign_requires_exactly_one_target(db_session, idp_store) -> No
 async def test_merge_bad_primary_id(db_session, idp_store) -> None:
     from app.core.errors import ValidationError
 
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
     b = await _ingest_invoice(db_session, user)
     with pytest.raises(ValidationError):
@@ -533,7 +542,10 @@ async def test_merge_bad_primary_id(db_session, idp_store) -> None:
 async def test_commit_parse_helpers() -> None:
     from datetime import date
 
-    from app.modules.idp.services.commit_service import _as_date, _as_int, _as_str, _as_vat
+    from app.modules.idp.services.actions.finance import as_date as _as_date
+    from app.modules.idp.services.actions.finance import as_int as _as_int
+    from app.modules.idp.services.actions.finance import as_str as _as_str
+    from app.modules.idp.services.actions.finance import as_vat as _as_vat
 
     assert _as_int("1.234.567") == 1234567
     assert _as_int("1,234,567") == 1234567
