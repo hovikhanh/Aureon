@@ -52,13 +52,11 @@ async def list_kpis(
     strategic_objective_id: uuid.UUID | None = None, department_id: uuid.UUID | None = None,
     parent_kpi_id: uuid.UUID | None = None, band: KpiBand | None = None,
 ) -> Any:  # fmt: skip
-    if strategic_objective_id is not None:
-        not_implemented("EP-KPI-01 strategic_objective_id", "T-626")
     if band is not None:
         not_implemented("EP-KPI-01 band", "T-627")
     items, total = await KpiService(db).list_kpis(
         user, page, owner_id=owner_id, metric_code=metric_code, department_id=department_id,
-        parent_kpi_id=parent_kpi_id,
+        parent_kpi_id=parent_kpi_id, strategic_objective_id=strategic_objective_id,
     )  # fmt: skip
     return _page(items, total, page)
 

@@ -47,6 +47,7 @@ from app.modules.execution.schemas.strategy import (
 )
 from app.modules.execution.services.initiative_service import InitiativeService, initiative_out
 from app.modules.execution.services.kpi_service import KpiService
+from app.modules.execution.services.strategy_service import StrategyService, strategy_out
 
 router = EnvelopeRouter(prefix="/goals", tags=["goals"])
 
@@ -98,43 +99,54 @@ async def check_ins_due(user: Reader) -> Any:
 # ---------- EP-STR-02..06 strategies ----------
 @router.get("/strategies", response_model=list[StrategyOut], summary="EP-STR-02 List strategies")
 async def list_strategies(
-    user: Reader,
+    db: Db, user: Reader,
     page: Annotated[PageParams, Depends(page_params("code", "period_start"))],
     status: StrategyStatus | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-STR-02", "T-628")
+    items, total = await StrategyService(db).list_strategies(page, status=status)
+    return _page(items, total, page)
 
 
 @router.post(
     "/strategies", response_model=StrategyOut, status_code=201,
     summary="EP-STR-03 Create strategy",
 )  # fmt: skip
-async def create_strategy(body: StrategyCreate, user: Writer, idem: Idem) -> Any:
-    not_implemented("EP-STR-03", "T-628")
+async def create_strategy(body: StrategyCreate, db: Db, user: Writer, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return StrategyOut.model_validate(hit)
+    out = await StrategyService(db).create_strategy(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get(
     "/strategies/{strategy_id}", response_model=StrategyOut, summary="EP-STR-04 Get strategy"
 )
-async def get_strategy(strategy_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-STR-04", "T-628")
+async def get_strategy(strategy_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return strategy_out(await StrategyService(db).get_strategy(strategy_id))
 
 
 @router.patch(
     "/strategies/{strategy_id}", response_model=StrategyOut, summary="EP-STR-05 Update strategy"
 )
 async def update_strategy(
-    strategy_id: uuid.UUID, body: StrategyUpdate, user: Writer, if_match: IfMatch = None
+    strategy_id: uuid.UUID, body: StrategyUpdate, db: Db, user: Writer, if_match: IfMatch = None
 ) -> Any:
-    not_implemented("EP-STR-05", "T-628")
+    exp = expected_version(if_match, body.version)
+    out = await StrategyService(db).update_strategy(user, strategy_id, body, exp)
+    await db.commit()
+    return out
 
 
 @router.delete(
     "/strategies/{strategy_id}", status_code=204, response_class=Response,
     summary="EP-STR-06 Delete strategy",
 )  # fmt: skip
-async def delete_strategy(strategy_id: uuid.UUID, user: Writer) -> Response:
-    not_implemented("EP-STR-06", "T-628")
+async def delete_strategy(strategy_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await StrategyService(db).delete_strategy(user, strategy_id)
+    await db.commit()
+    return Response(status_code=204)
 
 
 # ---------- EP-STR-07..11 strategic objectives ----------
@@ -145,12 +157,15 @@ SO = "/strategic-objectives"
     SO, response_model=list[StrategicObjectiveOut], summary="EP-STR-07 List strategic objectives"
 )
 async def list_strategic_objectives(
-    user: Reader,
+    db: Db, user: Reader,
     page: Annotated[PageParams, Depends(page_params("sort_order", "code"))],
     strategy_id: uuid.UUID | None = None, pillar: Pillar | None = None,
     department_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-STR-07", "T-628")
+    items, total = await StrategyService(db).list_sos(
+        user, page, strategy_id=strategy_id, pillar=pillar, department_id=department_id
+    )
+    return _page(items, total, page)
 
 
 @router.post(
@@ -158,17 +173,22 @@ async def list_strategic_objectives(
     summary="EP-STR-08 Create strategic objective",
 )  # fmt: skip
 async def create_strategic_objective(
-    body: StrategicObjectiveCreate, user: Writer, idem: Idem
+    body: StrategicObjectiveCreate, db: Db, user: Writer, idem: Idem
 ) -> Any:
-    not_implemented("EP-STR-08", "T-628")
+    if (hit := await idem.replay(body)) is not None:
+        return StrategicObjectiveOut.model_validate(hit)
+    out = await StrategyService(db).create_so(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get(
     SO + "/{so_id}", response_model=StrategicObjectiveOut,
     summary="EP-STR-09 Get strategic objective",
 )  # fmt: skip
-async def get_strategic_objective(so_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-STR-09", "T-628")
+async def get_strategic_objective(so_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return await StrategyService(db).so_detail(user, so_id)
 
 
 @router.patch(
@@ -176,17 +196,23 @@ async def get_strategic_objective(so_id: uuid.UUID, user: Reader) -> Any:
     summary="EP-STR-10 Update strategic objective",
 )  # fmt: skip
 async def update_strategic_objective(
-    so_id: uuid.UUID, body: StrategicObjectiveUpdate, user: Writer, if_match: IfMatch = None
-) -> Any:
-    not_implemented("EP-STR-10", "T-628")
+    so_id: uuid.UUID, body: StrategicObjectiveUpdate, db: Db, user: Writer,
+    if_match: IfMatch = None,
+) -> Any:  # fmt: skip
+    exp = expected_version(if_match, body.version)
+    out = await StrategyService(db).update_so(user, so_id, body, exp)
+    await db.commit()
+    return out
 
 
 @router.delete(
     SO + "/{so_id}", status_code=204, response_class=Response,
     summary="EP-STR-11 Delete strategic objective",
 )  # fmt: skip
-async def delete_strategic_objective(so_id: uuid.UUID, user: Writer) -> Response:
-    not_implemented("EP-STR-11", "T-628")
+async def delete_strategic_objective(so_id: uuid.UUID, db: Db, user: Writer) -> Response:
+    await StrategyService(db).delete_so(user, so_id)
+    await db.commit()
+    return Response(status_code=204)
 
 
 # ---------- EP-STR-12..16 initiatives (v2.1 EP-45) ----------
@@ -202,11 +228,10 @@ async def list_initiatives(
     objective_id: uuid.UUID | None = None, status: InitiativeStatus | None = None,
     pillar: Pillar | None = None, strategic_objective_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    if strategic_objective_id is not None:
-        not_implemented("EP-STR-12 strategic_objective_id", "T-626")
     items, total = await InitiativeService(db).list_initiatives(
-        user, page, objective_id=objective_id, status=status, pillar=pillar
-    )
+        user, page, objective_id=objective_id, status=status, pillar=pillar,
+        strategic_objective_id=strategic_objective_id,
+    )  # fmt: skip
     return _page(items, total, page)
 
 

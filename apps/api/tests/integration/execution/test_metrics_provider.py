@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.execution.services.metrics import compute
 from tests.conftest import ApiClient
-from tests.integration.execution.helpers import make, make_task, uniq
+from tests.integration.execution.helpers import make, make_strategic_objective, make_task, uniq
 
 pytestmark = pytest.mark.integration
 AS_OF = date(2041, 3, 20)
@@ -31,6 +31,7 @@ async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSessio
                                                   "period_key": "2041"})  # fmt: skip
     i = await make(api, "/goals/initiatives", {
         "code": uniq("INI"), "title": "i", "objective_id": o["id"], "owner_id": str(emp),
+        "strategic_objective_id": (await make_strategic_objective(api))["id"],
         "start_date": "2041-01-01", "planned_end_date": "2041-12-31", "status": "active",
         "weight_pct": 10})  # fmt: skip
     got = {r.code: r for r in await compute(db_session, AS_OF)}

@@ -1888,8 +1888,8 @@ export type InitiativeCreate = {
   code: string;
   title: string;
   description?: string | null;
-  objective_id: string;
-  strategic_objective_id?: string | null;
+  strategic_objective_id: string;
+  objective_id?: string | null;
   pillar?: ("F" | "O" | "C" | "U" | "S") | null;
   owner_id: string;
   department_id?: string | null;
@@ -1912,7 +1912,7 @@ export type InitiativeOut = {
   title: string;
   description: string | null;
   objective_id: string | null;
-  strategic_objective_id?: string | null;
+  strategic_objective_id: string | null;
   pillar: string | null;
   owner_id: string;
   department_id: string | null;

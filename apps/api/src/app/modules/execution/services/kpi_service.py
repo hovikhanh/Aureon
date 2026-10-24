@@ -51,7 +51,7 @@ from app.modules.execution.schemas.kpi import (
 )
 from app.modules.execution.schemas.okr import CheckInCreate, CheckInOut
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import M14_PENDING_KPI, ExecBase, not_found, now_utc, today
+from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
 from app.modules.execution.services.kpi_rules import (
     DEFAULT_BANDS,
     achievement_pct,
@@ -73,6 +73,7 @@ def kpi_out(k: Kpi) -> KpiOut:
         data_source_kind=k.data_source_kind, parent_kpi_id=k.parent_kpi_id,
         weight_pct=float(k.weight_pct), initiative_id=k.initiative_id,
         department_id=k.department_id, status=k.status,
+        strategic_objective_id=k.strategic_objective_id, pillar=k.pillar,
     )  # fmt: skip
 
 
@@ -122,11 +123,12 @@ class KpiService(ExecBase):
     async def list_kpis(
         self, user: Principal, page: PageParams, *, owner_id: uuid.UUID | None,
         metric_code: str | None, department_id: uuid.UUID | None = None,
-        parent_kpi_id: uuid.UUID | None = None,
+        parent_kpi_id: uuid.UUID | None = None, strategic_objective_id: uuid.UUID | None = None,
     ) -> tuple[list[KpiOut], int]:  # fmt: skip
         pred = self._pred(user)
         raw = {"owner_id": owner_id, "metric_code": metric_code, "department_id": department_id,
-               "parent_kpi_id": parent_kpi_id}  # fmt: skip
+               "parent_kpi_id": parent_kpi_id,
+               "strategic_objective_id": strategic_objective_id}  # fmt: skip
         filters = {k: v for k, v in raw.items() if v is not None}
         items, total = await self.kpis.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
@@ -142,11 +144,12 @@ class KpiService(ExecBase):
         return k
 
     async def create_kpi(self, user: Principal, body: KpiCreate) -> KpiOut:
-        data = body.model_dump(exclude=M14_PENDING_KPI)
+        data = body.model_dump()
         data["target_value"] = data.pop("target")
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         await self.require_unique(Kpi, "code", data["code"], None)
+        self.require_root_link(data, "parent_kpi_id", RULE)
         await self.require_refs(data, RULE, parent_kpi_id=Kpi)
         k = await self.kpis.create(**data, source="MANUAL", created_by=user.user_id)
         await self.db.refresh(k)
@@ -159,7 +162,7 @@ class KpiService(ExecBase):
     ) -> KpiOut:
         k = await self.get_kpi(user, id_, "write")
         before = kpi_out(k)
-        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING_KPI})
+        data = body.model_dump(exclude_unset=True, exclude={"version"})
         if "target" in data:
             data["target_value"] = data.pop("target")
         for key in ("name", "unit", "target_value", "owner_id", "direction", "value_type",
@@ -172,6 +175,9 @@ class KpiService(ExecBase):
         if data.get("parent_kpi_id") == k.id:
             raise BusinessRuleError("KPI cannot be its own parent",
                                     details={"field": "parent_kpi_id", "rule": RULE})  # fmt: skip
+        self.require_root_link({"parent_kpi_id": k.parent_kpi_id,
+                                "strategic_objective_id": k.strategic_objective_id, **data},
+                               "parent_kpi_id", RULE)  # fmt: skip
         await self.require_refs(data, RULE, parent_kpi_id=Kpi)
         await self.kpis.update(k, expected_version=expected, updated_by=user.user_id, **data)
         await self.db.refresh(k)
