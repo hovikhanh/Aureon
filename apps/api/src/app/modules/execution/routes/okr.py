@@ -18,7 +18,6 @@ from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.execution.schemas.okr import (
     CheckInCreate,
     CheckInOut,
@@ -31,7 +30,7 @@ from app.modules.execution.schemas.okr import (
     ObjectiveUpdate,
 )
 from app.modules.execution.services.kpi_service import KpiService
-from app.modules.execution.services.okr_service import OkrService, kr_out, objective_out
+from app.modules.execution.services.okr_service import OkrService, kr_out
 
 router = EnvelopeRouter(tags=["goals"])
 
@@ -55,11 +54,9 @@ async def list_objectives(
     strategic_objective_id: uuid.UUID | None = None, department_id: uuid.UUID | None = None,
     parent_id: uuid.UUID | None = None, at_risk: bool | None = None,
 ) -> Any:  # fmt: skip
-    if at_risk is not None:
-        not_implemented("EP-OKR-01 at_risk", "T-627")
     items, total = await OkrService(db).list_objectives(
         user, page, period_key=period_key, owner_id=owner_id, department_id=department_id,
-        parent_id=parent_id, strategic_objective_id=strategic_objective_id,
+        parent_id=parent_id, strategic_objective_id=strategic_objective_id, at_risk=at_risk,
     )  # fmt: skip
     return _page(items, total, page)
 
@@ -78,7 +75,8 @@ async def create_objective(body: ObjectiveCreate, db: Db, user: Writer, idem: Id
 
 @router.get(OBJ + "/{objective_id}", response_model=ObjectiveOut, summary="EP-OKR-03 Get objective")
 async def get_objective(objective_id: uuid.UUID, db: Db, user: Reader) -> Any:
-    return objective_out(await OkrService(db).get_objective(user, objective_id))
+    svc = OkrService(db)
+    return await svc.out(await svc.get_objective(user, objective_id))
 
 
 @router.patch(
@@ -161,8 +159,14 @@ async def delete_key_result(kr_id: uuid.UUID, db: Db, user: Writer) -> Response:
     KR + "/{kr_id}/measurements", response_model=list[KrMeasurementOut],
     summary="EP-OKR-11 List key result measurements",
 )  # fmt: skip
-async def list_kr_measurements(kr_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-OKR-11", "T-627")
+async def list_kr_measurements(
+    kr_id: uuid.UUID, db: Db, user: Reader,
+    page: Annotated[PageParams, Depends(page_params("measured_at"))],
+) -> Any:  # fmt: skip
+    """`sort_by=measured_at` desc by default (10: "sort measured_at desc")."""
+    await OkrService(db).get_kr(user, kr_id)  # 404 / 403 FORBIDDEN_SCOPE on the target
+    items, total = await KpiService(db).list_kr_measurements(kr_id, page)
+    return _page(items, total, page)
 
 
 # ---------- EP-PRF-01/02 KR check-ins ----------

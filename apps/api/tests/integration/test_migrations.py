@@ -21,7 +21,7 @@ APPEND_ONLY = {
     "idp.document_pages", "idp.extraction_jobs", "idp.extraction_reviews", "idp.import_batches",
     "idp.review_assignments", "hr.salary_history", "sales.deal_stage_history",
     "risk.risk_assessments", "execution.kpi_measurements", "product.product_metrics",
-    "execution.check_ins",
+    "execution.check_ins", "execution.kr_measurements",
 }  # fmt: skip
 
 
