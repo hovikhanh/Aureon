@@ -2,7 +2,8 @@
 
 Seed v3 (T-603b, 08 §2–§5, R-DEC-23): 7 roles + 10 demo users + the AI actor, company ABC
 (7 departments, ~150 employees), finance / sales / execution data for UC-01/02/03/04/06/07,
-product & risk kept (frozen, R-DEC-16) and owned by the CEO, metric catalog (32) + recompute.
+product & risk kept (frozen, R-DEC-16) and owned by the CEO, M1.4 goal layer (T-631),
+metric catalog (33) + recompute.
 `python -m app.seed.snapshot` exports `seed_snapshot.json` for the mock FE (T-604).
 """
 
@@ -23,6 +24,7 @@ from app.modules.platform.services.metric_store import MetricStore, seed_catalog
 from app.seed.auth_seed import SeedReport, seed_auth
 from app.seed.execution_seed import seed_execution
 from app.seed.finance_seed import seed_finance
+from app.seed.goals_seed import seed_goals
 from app.seed.hr_seed import seed_hr
 from app.seed.product_seed import seed_product
 from app.seed.risk_seed import seed_risk
@@ -58,6 +60,7 @@ async def run() -> SeedReport:
             ("product", seed_product(session, cpo)),
             ("risk", seed_risk(session, ceo)),
             ("execution", seed_execution(session, ceo)),
+            ("execution", seed_goals(session, ceo)),  # M1.4 — upsert, not skip-flagged
         )
         for name, job in groups:
             for group, n in (await job).items():

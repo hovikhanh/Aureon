@@ -6,7 +6,7 @@
 #   4. purge Celery queues + restart worker/beat
 #   5. put 1 INVOICE in NEEDS_REVIEW (fixture extraction, no live LLM)
 #   6. verify (seed v3, T-603b): 7 departments · 154 employees · 10 demo users + AI actor ·
-#      32 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW; then export seed_snapshot.json (mock FE)
+#      33 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW; then export seed_snapshot.json (mock FE)
 # Usage: ./scripts/demo_reset.sh [-y] [--host]
 #   -y      skips the confirmation prompt
 #   --host  runs Python on the host venv even when the api container is up (the image does not
