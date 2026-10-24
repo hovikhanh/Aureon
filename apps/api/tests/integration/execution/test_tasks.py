@@ -127,10 +127,11 @@ async def test_overdue_filter_and_job(api: ApiClient, db_session: AsyncSession) 
     await make_task(api, due_date="2037-05-01", department_id=str(dept))
     ids = await detect_overdue_tasks(db_session, date(2037, 4, 1))
     assert uuid.UUID(late["id"]) in ids and uuid.UUID(closed["id"]) not in ids
-    events = await outbox_for(db_session, late["id"])
+    events = [e for e in await outbox_for(db_session, late["id"])
+              if e[0] == "execution.task_overdue"]  # fmt: skip
     assert events == [("execution.task_overdue", {
         "task_id": late["id"], "assignee_id": late["assignee_id"],
-        "department_id": str(dept), "due_date": "2037-03-01"})]  # fmt: skip
+        "department_id": str(dept), "due_date": "2037-03-01", "days_late": 31})]  # fmt: skip
     again = await detect_overdue_tasks(db_session, date(2037, 4, 2))
     assert uuid.UUID(late["id"]) not in again
     moved = await api.call("PATCH", f"/work/tasks/{late['id']}", "CEO",

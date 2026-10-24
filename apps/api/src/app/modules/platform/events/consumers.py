@@ -31,6 +31,8 @@ AFFECTS: dict[str, set[str]] = {
     "risk.risk_level_changed": {"risk"},
     "risk.risk_mitigated": {"risk"},
     "execution.task_overdue": {"execution"},
+    "execution.task_created": {"execution"},  # R-DEC-47 — OPS-01 / HR-03
+    "execution.task_completed": {"execution"},  # R-DEC-47 — OPS-01 / OPS-02
     "execution.kpi_measured": {"execution"},
     "idp.document_committed": {"finance", "sales", "hr", "product", "risk", "execution"},
     "idp.document_rolled_back": {"finance", "sales", "hr", "product", "risk", "execution"},

@@ -8,7 +8,7 @@ publish `EVT-execution.task_overdue` once — `overdue_notified_at` marks the ta
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date
 from typing import Any
 
 from sqlalchemy import ColumnElement
@@ -69,6 +69,10 @@ def task_out(
         overdue=is_overdue(t.status, t.due_date, as_of or today()),
         subtask_count=subtasks, depends_on_open=blockers,
     )  # fmt: skip
+
+
+def _s(v: uuid.UUID | None) -> str | None:
+    return str(v) if v is not None else None
 
 
 def _own(user: Principal) -> list[ColumnElement[bool]]:
@@ -190,7 +194,23 @@ class TaskService(ExecBase):
         await self.db.refresh(t)
         out = await self.out(t)
         await self.audit("task_create", "tasks", t.id, after=out)
+        await self._emit("execution.task_created", t, {
+            "parent_task_id": _s(t.parent_task_id), "task_source": t.task_source,
+            "source_ref_kind": (t.source_ref or {}).get("kind"),
+        })  # fmt: skip
         return out
+
+    async def _emit(self, event_type: str, t: Task, extra: dict[str, Any]) -> None:
+        """Outbox event in the caller's tx (10 §9.2, R-DEC-47) — ids only, no `title`/PII."""
+        payload = {
+            "task_id": str(t.id), "assignee_id": _s(t.assignee_id),
+            "department_id": _s(t.department_id), "project_id": _s(t.project_id),
+            "due_date": t.due_date.isoformat() if t.due_date else None, **extra,
+        }  # fmt: skip
+        await publish_in_tx(
+            self.db, event_type=event_type, producer="execution", aggregate_schema="execution",
+            aggregate_table="tasks", aggregate_id=t.id, payload=payload,
+        )  # fmt: skip
 
     @staticmethod
     def _status_fields(data: dict[str, Any], current: Task | None, status: str) -> None:
@@ -240,13 +260,22 @@ class TaskService(ExecBase):
         if "due_date" in data and data["due_date"] != t.due_date:
             data["overdue_notified_at"] = None  # re-arm EVT-execution.task_overdue
         data = {k: v for k, v in data.items() if k not in NOT_NULL or v is not None}
-        old_initiative = t.initiative_id
+        old_initiative, old_status = t.initiative_id, t.status
         await self.tasks.update(t, expected_version=expected, updated_by=user.user_id, **data)
         await self._progress(old_initiative, t.initiative_id)
         await self.db.refresh(t)
         out = await self.out(t)
         await self.audit("task_update", "tasks", t.id, before, out)
+        if t.status == "done" and old_status != "done":
+            await self._completed(t)
         return out
+
+    async def _completed(self, t: Task) -> None:
+        """`execution.task_completed` (R-DEC-47); `on_time` = same rule as METRIC-OPS-01."""
+        done_at = t.done_at or now_utc()
+        on_time = t.due_date is not None and done_at.astimezone(UTC).date() <= t.due_date
+        await self._emit("execution.task_completed", t,
+                         {"done_at": done_at.isoformat(), "on_time": on_time})  # fmt: skip
 
     async def _require_unblocked(self, t: Task) -> None:
         """R-DEC-43: `done` only when every `depends_on` task is `done`/`cancelled` → else 422."""
@@ -378,6 +407,7 @@ class TaskService(ExecBase):
                 "assignee_id": str(t.assignee_id) if t.assignee_id else None,
                 "department_id": str(t.department_id) if t.department_id else None,
                 "due_date": t.due_date.isoformat() if t.due_date else None,
+                "days_late": (as_of - t.due_date).days if t.due_date else None,  # M1.3
             }
             await publish_in_tx(
                 self.db, event_type="execution.task_overdue", producer="execution",
