@@ -107,6 +107,10 @@ class ConfigService(BaseSettings):
     idp_max_file_size_mb: int = Field(default=50, gt=0)  # 04 §15.1
     idp_max_pages: int = Field(default=300, gt=0)
     idp_max_files_per_upload: int = Field(default=100, gt=0)
+    # C5 import (10 §7.2.4, R-DEC-62): data rows / sheets / columns per file → 413 above
+    idp_import_max_rows: int = Field(default=5000, gt=0)
+    idp_import_max_sheets: int = Field(default=20, gt=0)
+    idp_import_max_columns: int = Field(default=60, gt=0)
     # OCR backend: `stub` (deterministic, demo/CI default) | `paddle` (in-process, 07 §47).
     # `paddle` is only used when the optional package is importable (DEC-049 fixture/replay demo).
     ocr_provider: Literal["stub", "paddle"] = "stub"

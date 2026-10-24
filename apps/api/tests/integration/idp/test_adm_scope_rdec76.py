@@ -62,6 +62,7 @@ async def test_adm_import_scope(api: ApiClient) -> None:
     h2 = api.headers("ADMIN", idem=True)
     ok = await api.http.post("/api/v1/data-capture/imports", headers=h2,
                              data={"document_type": "HR_ROSTER"}, files=files)  # fmt: skip
-    assert ok.status_code == 501  # scope passes; C5 import body lands in T-635
+    # scope passes (not 403); the 1-byte body is not an OOXML zip → 415 (TC-M15-05)
+    assert ok.status_code == 415, ok.text
     form = await api.call("GET", "/data-capture/forms/INVOICE", "ADMIN")
     assert form.status_code == 403

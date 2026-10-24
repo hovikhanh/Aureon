@@ -44,6 +44,7 @@ from app.modules.idp.services.actions.executor import (
     missing_permissions,
     run_all,
 )
+from app.modules.idp.services.capture_common import document_out
 from app.modules.idp.services.scope import (
     document_visible,
     ensure_doc_type_scope,
@@ -133,6 +134,11 @@ class CommitService:
             raise PermissionDeniedError("missing target permission", details={"missing": missing})
         return await self._commit(user, doc, loaded, None, stp=False)
 
+    async def commit_direct(self, user: Principal, doc: SourceDocument) -> ApproveOut:
+        """C1 entrant = confirmer (R-DEC-65): commit a just-recorded manual document now."""
+        loaded = await self._load(doc)
+        return await self._commit(user, doc, loaded, None, stp=False)
+
     async def planned(self, user: Principal, doc: SourceDocument) -> list[Step]:
         """ACT plan of a document (EP-DC-05 `planned_actions`, no write)."""
         return (await self._load(doc)).steps
@@ -173,7 +179,7 @@ class CommitService:
             why=comment,
         )  # fmt: skip
         await self._emit_committed(doc, loaded, done, user, stp=stp)
-        return ApproveOut(document=DocumentOut.model_validate(doc), actions=actions,
+        return ApproveOut(document=document_out(doc, loaded.type_code), actions=actions,
                           undo_deadline=doc.undo_deadline)  # fmt: skip
 
     async def _emit_committed(

@@ -85,3 +85,30 @@ async def test_ep25_and_ep26_expose_pipeline_results(api, db_session, idp_store)
 async def test_ep25_not_found(api, idp_store) -> None:
     resp = await api.http.get(f"/api/v1/idp/documents/{uuid.uuid4()}", headers=api.headers("CFO"))
     assert resp.status_code == 404
+
+
+async def test_ep_dc_01_document_type_preselect(api, idp_store, db_session) -> None:
+    """T-635: `document_type` preselects the type (classifier skipped); unknown → 422."""
+    from sqlalchemy import select
+
+    from app.modules.idp.models import DocumentType, SourceDocument
+
+    h = api.headers("CFO", idem=True)
+    resp = await api.http.post(
+        "/api/v1/idp/documents", headers=h, data={"document_type": "PERIOD_REPORT"},
+        files=[("files", ("inv-pre.pdf", s.invoice_pdf() + b"%pre", "application/pdf"))],
+    )  # fmt: skip
+    assert resp.status_code == 202, resp.text
+    doc_id = uuid.UUID(resp.json()["data"]["document_ids"][0])
+    doc = (await db_session.execute(select(SourceDocument).where(
+        SourceDocument.id == doc_id))).scalar_one()  # fmt: skip
+    inv = (await db_session.execute(select(DocumentType.id).where(
+        DocumentType.code == "PERIOD_REPORT"))).scalar_one()  # fmt: skip
+    assert doc.type_preselected is True and doc.document_type_id == inv
+    bad = await api.http.post(
+        "/api/v1/idp/documents", headers=api.headers("CFO", idem=True),
+        data={"document_type": "NOPE"},
+        files=[("files", ("x.pdf", s.invoice_pdf(), "application/pdf"))],
+    )  # fmt: skip
+    assert bad.status_code == 422
+    assert bad.json()["error"]["details"]["fields"] == ["document_type"]

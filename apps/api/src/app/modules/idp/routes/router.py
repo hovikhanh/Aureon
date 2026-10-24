@@ -20,7 +20,6 @@ from app.core.errors import NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.idp.routes.data_capture import router as data_capture_router
 from app.modules.idp.routes.lineage import router as lineage_router
 from app.modules.idp.schemas import (
@@ -86,9 +85,8 @@ async def upload_documents(
     document_type: Annotated[str | None, Form()] = None,
 ) -> UploadResultOut:
     ensure_doc_type_scope(user, document_type)  # R-DEC-76 (ADM: only #4 HR_ROSTER)
-    if document_type is not None:
-        not_implemented("EP-DC-01 document_type", "T-635")
-    result = await UploadService(db).upload(user, [_to_svc_file(f) for f in files])
+    files_in = [_to_svc_file(f) for f in files]
+    result = await UploadService(db).upload(user, files_in, document_type=document_type)
     await db.commit()
     # Hand each accepted (non-duplicate) document to the pipeline out of band.
     from app.modules.idp.services.pipeline import enqueue_pipeline

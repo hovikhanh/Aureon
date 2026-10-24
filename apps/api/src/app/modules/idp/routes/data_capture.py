@@ -7,12 +7,15 @@ M1.5 task answer `501` (`core/stub.py`). Static paths (`/inbox`, `/imports`, …
 """
 
 import uuid
+from collections.abc import Iterator
 from typing import Annotated, Any
 
 from fastapi import Depends, File, Form, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal, get_db, require_permission
+from app.core.envelope import Page
+from app.core.errors import DuplicateResourceError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
@@ -48,7 +51,12 @@ from app.modules.idp.schemas.capture import (
 )
 from app.modules.idp.services.admin_service import CaptureAdminService
 from app.modules.idp.services.commit_service import CommitService
+from app.modules.idp.services.import_parse import XLSX
+from app.modules.idp.services.import_service import ImportService
+from app.modules.idp.services.inbox_service import InboxFilters, InboxService
+from app.modules.idp.services.manual_service import ManualService
 from app.modules.idp.services.scope import ensure_doc_type_scope
+from app.modules.idp.services.upload_service import UploadFile as SvcUploadFile
 
 router = EnvelopeRouter(prefix="/data-capture", tags=["data-capture"])
 
@@ -57,6 +65,17 @@ Reader = Annotated[Principal, Depends(require_permission("idp:read"))]
 Writer = Annotated[Principal, Depends(require_permission("idp:write"))]
 Approver = Annotated[Principal, Depends(require_permission("idp:approve"))]
 Admin = Annotated[Principal, Depends(require_permission("idp:admin"))]
+_CHUNK = 1024 * 1024  # stream 1 MB chunks (04 §15.1)
+
+
+def _svc_file(upload: UploadFile) -> SvcUploadFile:
+    def _chunks() -> Iterator[bytes]:
+        upload.file.seek(0)
+        while data := upload.file.read(_CHUNK):
+            yield data
+
+    return SvcUploadFile(filename=upload.filename, content_type=upload.content_type,
+                         chunks=_chunks())  # fmt: skip
 
 
 # ---------- EP-DC-13 inbox ----------
@@ -67,24 +86,32 @@ async def inbox(
     group: InboxGroup | None = None, channel: str | None = None,
     document_type: str | None = None, mine: bool = False, q: str | None = None,
     date_from: str | None = None, date_to: str | None = None,
+    *, db: Db,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-DC-13", "T-635")
+    filters = InboxFilters(group=group, channel=channel, document_type=document_type, mine=mine,
+                           q=q, date_from=date_from, date_to=date_to)  # fmt: skip
+    items, total, counts = await InboxService(db).inbox(user, page, filters)
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset, counts=counts)
 
 
 # ---------- EP-DC-15/16 C1 manual ----------
 @router.get("/forms/{document_type}", response_model=FormOut, summary="EP-DC-15 C1 form schema")
-async def get_form(document_type: str, user: Writer) -> Any:
-    ensure_doc_type_scope(user, document_type)  # R-DEC-76
-    not_implemented("EP-DC-15", "T-635")
+async def get_form(document_type: str, user: Writer, db: Db) -> Any:
+    return await ManualService(db).form(user, document_type)  # R-DEC-76 scope inside
 
 
 @router.post(
     "/manual", response_model=ManualSubmitOut, status_code=201,
     summary="EP-DC-16 C1 manual submit",
 )  # fmt: skip
-async def manual_submit(body: ManualSubmitIn, user: Writer, idem: Idem) -> Any:
+async def manual_submit(body: ManualSubmitIn, user: Writer, db: Db, idem: Idem) -> Any:
     ensure_doc_type_scope(user, body.document_type)  # R-DEC-76
-    not_implemented("EP-DC-16", "T-635")
+    if (hit := await idem.replay(body)) is not None:
+        return ManualSubmitOut.model_validate(hit)
+    out = await ManualService(db).submit(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 # ---------- EP-DC-17..22 C5 import ----------
@@ -93,28 +120,40 @@ async def manual_submit(body: ManualSubmitIn, user: Writer, idem: Idem) -> Any:
     summary="EP-DC-17 C5 import upload + preview",
 )  # fmt: skip
 async def import_upload(
-    user: Writer, idem: Idem,
+    user: Writer, db: Db, idem: Idem,
     file: Annotated[UploadFile, File(description="one .xlsx / .csv file")],
     document_type: Annotated[str | None, Form()] = None,
 ) -> Any:  # fmt: skip
     ensure_doc_type_scope(user, document_type)  # R-DEC-76
-    not_implemented("EP-DC-17", "T-635")
+    key = {"filename": file.filename, "size": file.size, "document_type": document_type}
+    if (hit := await idem.replay(key)) is not None:
+        return ImportPreviewOut.model_validate(hit)
+    outcome = await ImportService(db).upload(user, _svc_file(file), document_type)
+    await db.commit()  # a DUPLICATE document is kept (05 §6) before answering 409
+    if outcome.preview is None:
+        raise DuplicateResourceError("file already imported", details={
+            "duplicate_of_id": str(outcome.duplicate_of_id),
+            "document_id": str(outcome.document_id)})  # fmt: skip
+    await idem.remember(outcome.preview)
+    return outcome.preview
 
 
 @router.get(
     "/imports/{batch_id}", response_model=ImportPreviewOut, summary="EP-DC-18 C5 import preview"
 )
-async def import_get(batch_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-DC-18", "T-635")
+async def import_get(batch_id: uuid.UUID, user: Reader, db: Db) -> Any:
+    return await ImportService(db).preview(user, batch_id)
 
 
 @router.patch(
     "/imports/{batch_id}/mapping", response_model=ImportPreviewOut,
     summary="EP-DC-19 C5 update column mapping",
 )  # fmt: skip
-async def import_mapping(batch_id: uuid.UUID, body: ImportMappingIn, user: Writer) -> Any:
+async def import_mapping(batch_id: uuid.UUID, body: ImportMappingIn, user: Writer, db: Db) -> Any:
     ensure_doc_type_scope(user, body.document_type)  # R-DEC-76
-    not_implemented("EP-DC-19", "T-635")
+    out = await ImportService(db).update_mapping(user, batch_id, body)
+    await db.commit()
+    return out
 
 
 @router.get(
@@ -125,8 +164,12 @@ async def import_rows(
     batch_id: uuid.UUID, user: Reader,
     page: Annotated[PageParams, Depends(page_params("row_number"))],
     status: Annotated[str, Query(pattern="^(valid|invalid|all)$")] = "all",
+    *, db: Db,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-DC-20", "T-635")
+    items, total = await ImportService(db).rows(
+        user, batch_id, status, page.limit, page.offset, page.order
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
 
 @router.get(
@@ -135,16 +178,26 @@ async def import_rows(
     responses={200: {"content": {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}}}},
 )  # fmt: skip
-async def import_error_file(batch_id: uuid.UUID, user: Reader) -> Response:
-    not_implemented("EP-DC-21", "T-635")
+async def import_error_file(batch_id: uuid.UUID, user: Reader, db: Db) -> Response:
+    content = await ImportService(db).error_file(user, batch_id)
+    return Response(content=content, media_type=XLSX, headers={
+        "Content-Disposition": f'attachment; filename="import-errors-{batch_id}.xlsx"',
+        "Cache-Control": "no-store"})  # fmt: skip
 
 
 @router.post(
     "/imports/{batch_id}/submit", response_model=ImportSubmitOut,
     summary="EP-DC-22 C5 submit valid rows for review",
 )  # fmt: skip
-async def import_submit(batch_id: uuid.UUID, body: VersionIn, user: Writer, idem: Idem) -> Any:
-    not_implemented("EP-DC-22", "T-635")
+async def import_submit(
+    batch_id: uuid.UUID, body: VersionIn, user: Writer, db: Db, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ImportSubmitOut.model_validate(hit)
+    out = await ImportService(db).submit(user, batch_id, body.version)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 # ---------- EP-DC-14, 23..25 per-document ----------
@@ -153,9 +206,12 @@ async def import_submit(batch_id: uuid.UUID, body: VersionIn, user: Writer, idem
     summary="EP-DC-14 View source document (presigned 5 min)",
 )  # fmt: skip
 async def document_source(
-    document_id: uuid.UUID, user: Reader, page: Annotated[int | None, Query(ge=1)] = None
-) -> Any:
-    not_implemented("EP-DC-14", "T-635")
+    document_id: uuid.UUID, user: Reader, db: Db,
+    page: Annotated[int | None, Query(ge=1)] = None,
+) -> Any:  # fmt: skip
+    out = await InboxService(db).source(user, document_id, page)
+    await db.commit()  # `idp.source_view` audit (level ≥ 3)
+    return out
 
 
 @router.post(

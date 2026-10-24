@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import ARRAY, ColumnElement, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
@@ -59,3 +59,43 @@ async def type_in_scope(db: AsyncSession, user: Principal, doc: SourceDocument) 
     if user.role not in STRUCTURE_ONLY_ROLES:
         return True
     return doc.document_type_id in await structure_type_ids(db)
+
+
+async def inbox_filter(db: AsyncSession, user: Principal) -> ColumnElement[bool] | None:
+    """EP-DC-13 scope by role (10 §7.2.4 scope table; ADM per R-DEC-76). `None` = no filter.
+
+    CEO: whole company · DIR: own submissions, documents they reviewed, or documents whose
+    `pillars` meet their `scope_pillars` (empty scope = every pillar) · MGR: department +
+    sub-departments + own · REV: current assignment + own · EMP: own · ADM (scope `s`): own
+    #4 HR_ROSTER documents only. Unknown roles fall back to own documents (default deny).
+    """
+    from app.core.org_scope import department_subtree
+    from app.modules.idp.models import ExtractionReview, ReviewAssignment
+
+    own = SourceDocument.submitted_by == user.user_id
+    if user.role == "CEO":
+        return None
+    if user.role in STRUCTURE_ONLY_ROLES:
+        return own & SourceDocument.document_type_id.in_(await structure_type_ids(db))
+    if user.role == "DIR":
+        if not user.scope_pillars:
+            return None
+        reviewed = select(ExtractionReview.source_document_id).where(
+            ExtractionReview.reviewer_id == user.user_id
+        )
+        from sqlalchemy import cast, literal
+
+        from app.core.enums import PILLAR
+
+        wanted = cast(literal(sorted(user.scope_pillars), ARRAY(PILLAR)), ARRAY(PILLAR))
+        pillars = SourceDocument.pillars.op("&&")(wanted)
+        return or_(own, SourceDocument.id.in_(reviewed), pillars)
+    if user.role == "MGR" and user.department_id is not None:
+        depts = await department_subtree(db, [user.department_id])
+        return or_(own, SourceDocument.department_id.in_(depts))
+    if user.role == "REV":
+        assigned = select(ReviewAssignment.source_document_id).where(
+            ReviewAssignment.is_current.is_(True), ReviewAssignment.to_user_id == user.user_id
+        )
+        return or_(own, SourceDocument.id.in_(assigned))
+    return own
