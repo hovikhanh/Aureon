@@ -19,4 +19,14 @@ export const qk = {
   roles: () => ["admin", "roles"] as const,
   notifications: () => ["notifications"] as const,
   notificationPrefs: () => ["notifications", "preferences"] as const,
+  // M1.3 work (T-625F) — task lists under "work","tasks" so a mutation refreshes every view
+  tasks: (params: Record<string, unknown>) => ["work", "tasks", params] as const,
+  task: (id: string) => ["work", "task", id] as const,
+  taskDependencies: (id: string) => ["work", "task", id, "dependencies"] as const,
+  taskHistory: (id: string) => ["work", "task", id, "history"] as const,
+  projects: (params: Record<string, unknown>) => ["work", "projects", params] as const,
+  project: (id: string) => ["work", "project", id] as const,
+  workload: (params: Record<string, unknown>) => ["work", "workload", params] as const,
+  approvals: (params: Record<string, unknown>) => ["workflow", "approvals", params] as const,
+  approval: (id: string) => ["workflow", "approval", id] as const,
 };

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SNAPSHOT, type RoleCode } from "@/mocks/fixtures";
 import { LEGACY_ROUTES, legacyRedirect } from "./legacy-routes";
-import { ROUTE_RULES, canAccess, landingFor, safeCallback, visibleNav } from "./permissions";
+import { ROUTE_RULES, WORK_TABS, canAccess, landingFor, safeCallback, visibleNav, visibleWorkTabs } from "./permissions";
 
 /** The real JWT permission matrix of each role (exported from the BE by the seed snapshot). */
 const perms = (r: RoleCode) => SNAPSHOT.role_permissions[r];
@@ -64,6 +64,8 @@ describe("route guard (06 §3.4)", () => {
     ["/business/finance/invoices", "REV", true], ["/business/finance/invoices", "EMP", false],
     ["/business/hr/employees", "EMP", true], ["/business/hr/employees", "ADM", false],
     ["/admin/audit", "ADM", true], ["/admin/audit", "CEO", false], ["/admin", "CEO", true],
+    ["/work/projects", "EMP", true], ["/work/projects/abc", "MGR", true], ["/work/projects", "REV", false],
+    ["/work/workload", "MGR", true], ["/work/workload", "DIR", true], ["/work/workload", "EMP", false], ["/work/workload", "ADM", false],
     ["/goals", "REV", false], ["/ask", "AI", false], ["/403", "EMP", true],
   ] as const)("%s as %s → %s", (path, role, ok) => {
     expect(canAccess(path, role, perms(role))).toBe(ok);
@@ -72,6 +74,33 @@ describe("route guard (06 §3.4)", () => {
   it("every human role lands on /home; the AI actor has no UI", () => {
     for (const r of ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"] as const) expect(landingFor(r, perms(r))).toBe("/home");
     expect(landingFor("AI", perms("AI"))).toBe("/403");
+  });
+});
+
+describe("/work tabs per role (06 §3.4 M1.3, R-DEC-48)", () => {
+  it.each([
+    ["CEO", ["mine", "board", "projects", "workload", "approvals"]],
+    ["DIR", ["mine", "board", "projects", "workload", "approvals"]],
+    ["MGR", ["mine", "board", "projects", "workload", "approvals"]],
+    ["EMP", ["mine", "projects"]],
+    ["REV", []],
+    ["ADM", []],
+  ] as const)("%s → %j", (role, keys) => {
+    expect(visibleWorkTabs(role, perms(role)).map((t) => t.key)).toEqual(keys);
+  });
+
+  it("a tab is hidden when its permission is missing (MGR without platform:approve)", () => {
+    const p = perms("MGR").filter((x) => x !== "platform:approve" && x !== "execution:query");
+    expect(visibleWorkTabs("MGR", p).map((t) => t.key)).toEqual(["mine", "board", "projects"]);
+  });
+
+  it("every tab route is guarded by the same rule as its tab", () => {
+    for (const tab of WORK_TABS) {
+      for (const r of ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"] as const) {
+        if (tab.key === "board") continue; // query-string view of /work
+        expect(canAccess(tab.href, r, perms(r)), `${tab.href} ${r}`).toBe(visibleWorkTabs(r, perms(r)).some((t) => t.key === tab.key));
+      }
+    }
   });
 });
 
