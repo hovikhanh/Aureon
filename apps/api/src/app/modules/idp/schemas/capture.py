@@ -238,6 +238,7 @@ class DocumentTypeOut(BaseModel):
     is_active: bool
     current_schema_version: int | None
     channels_supported: list[str]
+    version: int  # optimistic lock for EP-DC-28 (R-DEC-60bis)
 
 
 class DocumentTypePatch(BaseModel):

@@ -713,6 +713,7 @@ export type DocumentOut = {
   undo_deadline?: string | null;
   can_undo?: boolean;
   rolled_back_at?: string | null;
+  version: number;
 };
 
 export type DocumentPageOut = {
@@ -734,6 +735,7 @@ export type DocumentTypeOut = {
   is_active: boolean;
   current_schema_version: number | null;
   channels_supported: string[];
+  version: number;
 };
 
 export type DocumentTypePatch = {

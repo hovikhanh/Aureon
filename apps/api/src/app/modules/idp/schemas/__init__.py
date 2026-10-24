@@ -42,6 +42,8 @@ class DocumentOut(BaseModel):
     undo_deadline: datetime | None = None
     can_undo: bool = False
     rolled_back_at: datetime | None = None
+    # optimistic lock for EP-DC-08/22/23 `{version}` bodies (R-DEC-60bis)
+    version: int
 
 
 class DocumentPageOut(BaseModel):
