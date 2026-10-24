@@ -139,3 +139,46 @@ async def test_sse_done_carries_suggested_actions(api: ApiClient, db_session) ->
     names = {line.split(": ", 1)[1] for b in events for line in b.splitlines()
              if line.startswith("event: ")}  # fmt: skip
     assert names <= {"start", "thinking", "tool_call", "tool_result", "token", "done", "error"}
+
+
+async def test_only_asker_rejects_or_undoes_admin_lists_tenant(api: ApiClient, db_session) -> None:
+    """EP-AI-07/09..11: confirm/reject/undo only by `on_behalf_of` (403 FORBIDDEN_SCOPE);
+    `ai:admin` lists the whole tenant + `agent_profile_code` filter; audit
+    `ai.action_confirm` / `ai.action_reject` (10 §7.2.5)."""
+    from app.core.audit import AUDIT_LOGS
+
+    _install(api.app)
+    uid = uuid.uuid4()
+    card = (await _ask(api, uid)).json()["data"]["suggested_actions"][0]
+    url = f"/api/v1/ai/actions/{card['id']}"
+    for role, code in (("CEO", "FORBIDDEN_SCOPE"), ("ADM", "FORBIDDEN_ROLE")):  # ADM: no ai:write
+        r = await api.http.post(f"{url}/reject", json={"reason": "x"},
+                                headers=api.headers(role, idem=True))  # fmt: skip
+        assert r.status_code == 403 and r.json()["error"]["code"] == code
+    q = {"agent_profile_code": "ceo", "status": "proposed"}
+    adm = await api.http.get("/api/v1/ai/actions", headers=api.headers("ADM"), params=q)
+    assert card["id"] in {a["id"] for a in adm.json()["data"]}
+    none = await api.http.get("/api/v1/ai/actions", headers=api.headers("ADM"),
+                              params={"agent_profile_code": "task"})  # fmt: skip
+    assert card["id"] not in {a["id"] for a in none.json()["data"]}
+    assert (await api.http.get(url, headers=api.headers("ADM"))).status_code == 200
+    assert (await api.http.get(url, headers=api.headers("MGR"))).status_code == 404
+    mine = api.headers("CEO", user_id=uid, idem=True)
+    assert (await api.http.post(f"{url}/confirm", json={}, headers=mine)).status_code == 200
+    other = await api.http.post(f"{url}/undo", json={}, headers=api.headers("CEO", idem=True))
+    assert other.status_code == 403 and other.json()["error"]["code"] == "FORBIDDEN_SCOPE"
+    undo = await api.http.post(f"{url}/undo", json={}, headers=api.headers("CEO", user_id=uid,
+                                                                           idem=True))  # fmt: skip
+    assert undo.status_code == 200 and undo.json()["data"]["status"] == "undone"
+    acts = set((await db_session.execute(select(AUDIT_LOGS.c.action).where(
+        AUDIT_LOGS.c.target_id == uuid.UUID(card["id"])))).scalars())  # fmt: skip
+    assert {"ai.action_proposed", "ai.action_confirm", "ai.action_executed",
+            "ai.action_undone"} <= acts  # fmt: skip
+
+    card2 = (await _ask(api, uid)).json()["data"]["suggested_actions"][0]
+    rej = await api.http.post(f"/api/v1/ai/actions/{card2['id']}/reject", json={"reason": "no"},
+                              headers=api.headers("CEO", user_id=uid, idem=True))  # fmt: skip
+    assert rej.status_code == 200 and rej.json()["data"]["status"] == "rejected"
+    acts2 = set((await db_session.execute(select(AUDIT_LOGS.c.action).where(
+        AUDIT_LOGS.c.target_id == uuid.UUID(card2["id"])))).scalars())  # fmt: skip
+    assert "ai.action_reject" in acts2

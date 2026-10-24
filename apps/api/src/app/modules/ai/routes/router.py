@@ -203,9 +203,12 @@ async def dismiss_insight(
 
 @router.get("/actions", response_model=list[AIActionOut], summary="EP-AI-07 AI actions")
 async def list_actions(
-    user: AiUser, db: DbSession, status: str | None = None, autonomy_level: str | None = None
-) -> list[AIActionOut]:
-    return await ActionService(db).list_for(user, status=status, autonomy_level=autonomy_level)
+    user: AiUser, db: DbSession, status: str | None = None, autonomy_level: str | None = None,
+    agent_profile_code: str | None = None,
+) -> list[AIActionOut]:  # fmt: skip
+    return await ActionService(db).list_for(
+        user, status=status, autonomy_level=autonomy_level, agent_profile_code=agent_profile_code
+    )
 
 
 @router.get("/actions/{action_id}", response_model=AIActionOut, summary="EP-AI-08 AI action")

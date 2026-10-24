@@ -32,9 +32,15 @@ class AIActionRepository(BaseRepository[AIAction]):
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def list_for_user(
-        self, user_id: uuid.UUID, *, status: str | None = None, autonomy_level: str | None = None
-    ) -> Sequence[AIAction]:
-        stmt = self._scoped(select(AIAction)).where(AIAction.on_behalf_of == user_id)
+        self, user_id: uuid.UUID | None, *, status: str | None = None,
+        autonomy_level: str | None = None, agent_profile_code: str | None = None,
+    ) -> Sequence[AIAction]:  # fmt: skip
+        """`user_id=None` = whole tenant (`ai:admin`, EP-AI-07)."""
+        stmt = self._scoped(select(AIAction))
+        if user_id is not None:
+            stmt = stmt.where(AIAction.on_behalf_of == user_id)
+        if agent_profile_code is not None:
+            stmt = stmt.where(AIAction.agent_profile_code == agent_profile_code)
         if status is not None:
             stmt = stmt.where(AIAction.status == status)
         if autonomy_level is not None:

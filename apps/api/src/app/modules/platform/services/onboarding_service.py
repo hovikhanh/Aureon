@@ -15,6 +15,13 @@ State = `platform.system_settings` key `onboarding.state` (no new table); `versi
 
 Every applied action: audit `platform.onboarding_<action>` in the same transaction.
 `progress` is derived through `core/onboarding` sources (hr/auth/execution) — never the client.
+
+Step `review` (05 §2.8 "tự `done` khi import `org_import` đã commit") is **derived on read**: a
+stored `pending` review whose `org_import` refs (`org_import_id` / `document_id`) point at a
+`COMMITTED` C5 document is returned as `done` (`updated_at` = commit time). Chosen over a
+consumer of `idp.document_committed` because it needs no new event pair / consumer / field and
+follows an undo (`ROLLED_BACK` → `pending` again); an explicit `complete_step`/`reopen_step`
+on `review` is stored and wins.
 """
 
 from __future__ import annotations
@@ -30,7 +37,7 @@ from app.core.config import get_config
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ValidationError
 from app.core.events.outbox import publish_in_tx
-from app.core.onboarding import collect_progress
+from app.core.onboarding import collect_progress, import_committed_at
 from app.modules.platform.schemas import (
     OnboardingPatchIn,
     OnboardingProgressOut,
@@ -89,6 +96,13 @@ def clean_refs(refs: dict[str, Any] | None) -> dict[str, Any]:
     return out
 
 
+def _maybe_uuid(v: Any) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(v)) if v else None
+    except ValueError:
+        return None
+
+
 TOP_REFS = ("organization_id", "org_import_id", "goals_import_id", "document_ids")
 
 
@@ -103,6 +117,7 @@ class OnboardingService:
         return await self._out(state, row.version if row else 0)
 
     async def _out(self, state: dict[str, Any], version: int) -> OnboardingStateOut:
+        state = await self._derive_review(state)
         progress = OnboardingProgressOut(**await collect_progress(self.db))
         return OnboardingStateOut(**state, version=version, progress=progress)
 
@@ -140,6 +155,20 @@ class OnboardingService:
         if body.action == "finish":
             await self._completed_event(sid, state, out.progress)
         return out
+
+    async def _derive_review(self, state: dict[str, Any]) -> dict[str, Any]:
+        review = state["steps"].get("review") or {}
+        if state["status"] == "not_started" or review.get("status", "pending") != "pending":
+            return state
+        refs = (state["steps"].get("org_import") or {}).get("refs") or {}
+        ids = [_maybe_uuid(refs.get(k) or (state["refs"].get(k) if k == "org_import_id" else None))
+               for k in ("org_import_id", "document_id")]  # fmt: skip
+        at = await import_committed_at(self.db, ids[0], ids[1])
+        if at is None:
+            return state
+        steps = state["steps"] | {"review": {"status": "done", "updated_at": at,
+                                             "refs": review.get("refs", {})}}  # fmt: skip
+        return state | {"steps": steps}
 
     def _transition(
         self, state: dict[str, Any], body: OnboardingPatchIn, refs: dict[str, Any]

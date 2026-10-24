@@ -25,7 +25,8 @@ function list(req: MockRequest): Response {
 }
 function find(req: MockRequest, own = false): MAction {
   const a = aiStore().actions.find((x) => x.id === req.params.id);
-  if (!a || !sees(req.claims, a)) throw new MockHttpError(404, "NOT_FOUND", "action not found");
+  // BE: a decision on someone else's card is 403 FORBIDDEN_SCOPE (even without `ai:admin`); reads stay 404
+  if (!a || (!own && !sees(req.claims, a))) throw new MockHttpError(404, "NOT_FOUND", "action not found");
   if (own && a.on_behalf_of !== req.claims.sub) throw new MockHttpError(403, "FORBIDDEN_SCOPE", "only the served user may act on this card");
   return a;
 }
@@ -35,9 +36,9 @@ function execute(a: MAction, c: MockClaims): void {
     const p = a.input_preview;
     const t = task({ id: newAiId("task"), title: String(p.title ?? "Task"), due_date: (p.due_date as string) ?? null, priority: String(p.priority ?? "medium"), owner_id: c.sub, task_source: "ai", source_ref: { kind: "ai_action", id: a.id } });
     workStore().tasks.push(t);
-    a.result_refs = [{ type: "record", entity: "task", id: t.id, label: t.title }];
+    a.result_refs = [{ type: "record", id: t.id, table: "execution.tasks" }]; // BE `ai_actions.result_refs` shape
   } else {
-    a.result_refs = [{ type: "record", entity: a.action_name.replace("ACT-", ""), id: newAiId("record"), label: a.action_name }];
+    a.result_refs = [{ type: "record", id: newAiId("record"), table: `mock.${a.action_name.replace("ACT-", "")}` }];
   }
 }
 
@@ -74,7 +75,7 @@ function undo(req: MockRequest): Response {
   if (a.status !== "executed") throw new MockHttpError(409, "CONFLICT_STATE", "action is not executed", { status: a.status });
   if (!a.undo_deadline || a.undo_deadline <= nowIso()) throw new MockHttpError(410, "UNDO_EXPIRED", "undo window expired", { undo_deadline: a.undo_deadline });
   for (const r of a.result_refs) {
-    const t = r.entity === "task" ? workStore().tasks.find((x) => x.id === r.id) : undefined;
+    const t = r.table === "execution.tasks" ? workStore().tasks.find((x) => x.id === r.id) : undefined;
     if (t) t.deleted = true;
   }
   a.status = "undone";

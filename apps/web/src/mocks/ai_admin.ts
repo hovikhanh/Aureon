@@ -23,7 +23,7 @@ function putKill(req: MockRequest): Response {
   if (mode !== "WRITE_OFF" && mode !== "L0") throw invalid("mode");
   const agents = Array.isArray(b.agents) ? b.agents.map(String) : [];
   const unknown = agents.filter((a) => !AGENT_CODES.has(a));
-  if (unknown.length) throw new MockHttpError(422, "VALIDATION_ERROR", "unknown agent", { field: "agents", unknown });
+  if (unknown.length) throw new MockHttpError(422, "VALIDATION_ERROR", "unknown agent", { field: "agents", agents: unknown });
   Object.assign(aiStore().kill, { enabled: b.enabled, mode, agents: b.enabled ? agents : [], changed_by: req.claims.sub, changed_at: nowIso(), reason });
   recordAudit(req.claims, "ai.kill_switch", "kill_switch", "ai.kill_switch", reason);
   return ok(killOut());
@@ -65,7 +65,7 @@ function patchAgent(req: MockRequest): Response {
   expectVersion(b, a.version);
   if (b.max_autonomy_level != null) {
     if (!["L0", "L1", "L2", "L3"].includes(String(b.max_autonomy_level))) throw invalid("max_autonomy_level");
-    if (rank(String(b.max_autonomy_level)) > rank(CEILING)) throw rule("above_ceiling", { autonomy_ceiling: CEILING });
+    if (rank(String(b.max_autonomy_level)) > rank(CEILING)) throw rule("above_ceiling", { ceiling: CEILING });
   }
   if (b.allowed_tools != null) {
     if (!Array.isArray(b.allowed_tools)) throw invalid("allowed_tools");

@@ -79,7 +79,7 @@ export function ImportStep({ state, viewer, patch, goTo, step }: StepProps & { s
             {step === "goals_import" && <Button variant="ghost" onClick={() => void skip()} disabled={busy} data-testid="goals-skip">{t("onboarding.skip")}</Button>}
           </div>
           {batchId && <BatchPanel key={batchId} batchId={batchId} type={cfg.type} onSubmitted={async (r) => {
-            await patch(state, "complete_step", step, { [cfg.ref]: batchId, document_id: r.document_id, rows_submitted: r.rows_submitted, rows_excluded: r.rows_excluded });
+            await patch(state, "complete_step", step, { [cfg.ref]: batchId, document_id: r.document_id, rows: r.rows_submitted }); // BE refs whitelist: ids + `rows`/`count`
             goTo(step === "org_import" ? "review" : "finish");
           }} />}
         </>
@@ -92,7 +92,7 @@ function DoneNote({ step, refs, goTo }: { step: ImportKind; refs: Record<string,
   const t = useTranslations();
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm" data-testid="import-done">
-      <span className="text-success">{t("onboarding.importDone", { n: Number(refs.rows_submitted ?? 0) })}</span>
+      <span className="text-success">{t("onboarding.importDone", { n: Number(refs.rows ?? 0) })}</span>
       <Button size="sm" onClick={() => goTo(step === "org_import" ? "review" : "finish")}>{t("onboarding.continue")}</Button>
     </div>
   );

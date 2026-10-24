@@ -55,7 +55,7 @@ function seedLogs(actions: MAction[]): Pick<AiAdminStore, "toolCalls" | "modelCa
     toolCalls.push({ id: mockId("tool_call", String(i)), created_at: at, request_id: req, user_id: user, agent_profile_code: agent, tool_name: tool, tool_kind: "READ",
       status, error_code: status === "forbidden" ? "FORBIDDEN_SCOPE" : status === "error" ? "AI_TOOL_TIMEOUT" : null, latency_ms: 40 + i * 7, autonomy_level: "L0",
       ai_action_id: null, message_id: mockId("message", String(i)), arguments: { period: "2026-10", employee: "EMP-0046" },
-      result_refs: status === "ok" ? [{ type: "metric_value", id: "METRIC-EXE-01", label: "METRIC-EXE-01", period_key: "2026-10" }] : [] });
+      result_refs: status === "ok" ? [{ type: "metric_value", id: "METRIC-EXE-01", label: "METRIC-EXE-01" }] : [] });
   }
   for (const a of actions) {
     toolCalls.push({ id: mockId("tool_call", a.id), created_at: a.created_at, request_id: a.request_id, user_id: a.on_behalf_of, agent_profile_code: a.agent_profile_code,

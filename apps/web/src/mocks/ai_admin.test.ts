@@ -102,7 +102,9 @@ describe("EP-AI-07..11 actions", () => {
     expect(((await call("/ai/actions?status=proposed", ADM)).json.data as unknown[]).length).toBe(3);
     const ceoCard = ((await call("/ai/actions?status=proposed", CEO)).json.data as { id: string; action_name: string }[]).find((a) => a.action_name === "ACT-create_task")!;
     expect((await call(`/ai/actions/${ceoCard.id}/confirm`, ADM, "POST", {})).status).toBe(403);
-    expect((await call(`/ai/actions/${ceoCard.id}/confirm`, MGR, "POST", {})).status).toBe(404);
+    const other = await call(`/ai/actions/${ceoCard.id}/confirm`, MGR, "POST", {});
+    expect([other.status, other.json.error?.code]).toEqual([403, "FORBIDDEN_SCOPE"]); // BE: only the asker decides
+    expect((await call(`/ai/actions/${ceoCard.id}`, MGR)).status).toBe(404); // read outside own scope
     expect((await call(`/ai/actions/${ceoCard.id}/reject`, CEO, "POST", { reason: "" })).status).toBe(422);
     // kill switch WRITE_OFF does not block a human confirming an L2 card (R-DEC-78)
     await call("/ai/kill-switch", ADM, "PUT", { enabled: true, reason: "test" });

@@ -168,3 +168,37 @@ async def test_reset_in_progress_outside_demo(api: ApiClient, monkeypatch) -> No
     v = (await _patch(api, action="start")).json()["data"]["version"]
     r = await _patch(api, action="reset", version=v, reason="sai")
     assert r.status_code == 200 and r.json()["data"]["status"] == "not_started"
+
+
+async def test_review_is_derived_done_when_org_import_commits(api: ApiClient, db_session) -> None:
+    """05 §2.8: `review` auto-`done` once the `org_import` C5 document is COMMITTED (derived on
+    read — follows undo; an explicit `reopen_step review` is stored and wins)."""
+    from datetime import UTC, datetime
+
+    from app.modules.idp.models import ImportBatch
+    from tests.integration.idp.test_inbox_t635 import _doc
+
+    owner = uuid.uuid4()
+    doc = await _doc(db_session, owner, "NEEDS_REVIEW", kind="FILE", name="DOC-06.xlsx")
+    batch = ImportBatch(kind="excel_import", submitted_by=owner, status="open",
+                        source_document_id=doc.id)  # fmt: skip
+    db_session.add(batch)
+    await db_session.flush()
+    await _patch(api, action="start")
+    s = await _step(api, "complete_step", "org_import",
+                    refs={"org_import_id": str(batch.id), "rows": 12})  # fmt: skip
+    assert s["steps"]["review"]["status"] == "pending"
+    at = datetime(2026, 10, 20, 3, 0, tzinfo=UTC)
+    doc.status, doc.committed_at = "COMMITTED", at
+    await db_session.flush()
+    s = await _state(api)
+    assert s["steps"]["review"]["status"] == "done"
+    assert s["steps"]["review"]["updated_at"].startswith("2026-10-20T03:00")
+    doc.status = "ROLLED_BACK"  # undo → back to pending (not stored)
+    await db_session.flush()
+    assert (await _state(api))["steps"]["review"]["status"] == "pending"
+    doc.status = "COMMITTED"
+    await db_session.flush()
+    # finish only needs company/org_import/users; the derived review shows done meanwhile
+    s = await _step(api, "reopen_step", "review")
+    assert s["steps"]["review"]["status"] == "in_progress"  # explicit state wins

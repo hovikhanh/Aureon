@@ -120,24 +120,26 @@ class ActionService:
         self, user: Principal, action_id: uuid.UUID, *, edited_input: dict[str, Any] | None = None
     ) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_write(user, action)
         if action.status != "proposed":
             raise ConflictStateError("action is not awaiting confirmation")
-        self._require_write(user, action)
         if action.approval_request_id is not None:
             raise ConflictStateError("action awaits approval; decide the request first")
         if edited_input is not None:
             action.input = edited_input
         await self._execute(user, action)
+        await self._audit(action, "ai.action_confirm")  # EP-AI-09 (10 §7.2.5)
         return self._to_out(action)
 
     async def reject(self, user: Principal, action_id: uuid.UUID, *, reason: str) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_owner(user, action)  # only the asker decides the card (EP-AI-10)
         if action.status != "proposed":
             raise ConflictStateError("only a proposed action can be rejected")
         action.status = "rejected"
         action.why = reason
         await self.db.flush()
-        await self._audit(action, "ai.action_rejected", metadata={"reason": reason})
+        await self._audit(action, "ai.action_reject", metadata={"reason": reason})
         return self._to_out(action)
 
     # ---------- undo (EP-116) ----------
@@ -145,11 +147,11 @@ class ActionService:
         self, user: Principal, action_id: uuid.UUID, *, reason: str | None = None
     ) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_write(user, action)
         if action.status != "executed":
             raise ConflictStateError("only an executed action can be undone")
         if action.undo_deadline is None or action.undo_deadline < datetime.now(UTC):
             raise UndoExpiredError("undo window (24h) has passed")
-        self._require_write(user, action)
         act = get_action(action.action_name)
         if act is None or not act.reversible:
             raise ConflictStateError("action is not reversible")
@@ -174,16 +176,19 @@ class ActionService:
 
     # ---------- reads ----------
     async def list_for(
-        self, user: Principal, *, status: str | None = None, autonomy_level: str | None = None
-    ) -> list[AIActionOut]:
+        self, user: Principal, *, status: str | None = None, autonomy_level: str | None = None,
+        agent_profile_code: str | None = None,
+    ) -> list[AIActionOut]:  # fmt: skip
+        """EP-AI-07: own cards; `ai:admin` → whole tenant (SCR-64 queue, 10 §7.2.5)."""
         rows = await AIActionRepository(self.db).list_for_user(
-            user.user_id, status=status, autonomy_level=autonomy_level
-        )
+            None if user.has("ai:admin") else user.user_id, status=status,
+            autonomy_level=autonomy_level, agent_profile_code=agent_profile_code,
+        )  # fmt: skip
         return [self._to_out(a) for a in rows]
 
     async def get(self, user: Principal, action_id: uuid.UUID) -> AIActionOut:
         action = await self._get(action_id)
-        if action.on_behalf_of != user.user_id:
+        if action.on_behalf_of != user.user_id and not user.has("ai:admin"):
             raise NotFoundError("action not found")
         return self._to_out(action)
 
@@ -235,9 +240,13 @@ class ActionService:
         action.approval_request_id = req.id
         await self.db.flush()
 
-    def _require_write(self, user: Principal, action: AIAction) -> None:
+    @staticmethod
+    def _require_owner(user: Principal, action: AIAction) -> None:
         if action.on_behalf_of != user.user_id:  # only the asker decides the card (TC-M16-18)
             raise ScopeDeniedError("action belongs to another user")
+
+    def _require_write(self, user: Principal, action: AIAction) -> None:
+        self._require_owner(user, action)
         if not user.has("ai:write"):
             raise PermissionDeniedError("missing ai:write")
         act = get_action(action.action_name)

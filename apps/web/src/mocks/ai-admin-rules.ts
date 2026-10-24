@@ -47,8 +47,8 @@ export function checkPolicy(toolName: string, level: unknown, maxLevel: unknown,
   if (tool.kind === "READ" || tool.kind === "APPROVAL") throw rule("not_configurable");
   const l = String(level) as Level;
   const m = String(maxLevel) as Level;
-  if (rank(l) > rank(m) || rank(m) > rank(tool.autonomy_max)) throw rule("above_tool_max", { autonomy_max: tool.autonomy_max });
-  if (rank(l) > rank(CEILING) || rank(m) > rank(CEILING)) throw rule("above_ceiling", { autonomy_ceiling: CEILING });
+  if (rank(l) > rank(m) || rank(m) > rank(tool.autonomy_max)) throw rule("above_tool_max", { tool_max: tool.autonomy_max });
+  if (rank(l) > rank(CEILING) || rank(m) > rank(CEILING)) throw rule("above_ceiling", { ceiling: CEILING });
   if (tool.kind === "EXECUTION" && rank(m) > rank("L2")) throw rule("execution_max_l2");
   if (tool.action_name && CRITICAL_ACTS.has(tool.action_name) && rank(l) > rank("L2")) throw rule("critical_field");
   if (maxAmount !== null && maxAmount !== undefined) {
@@ -68,5 +68,5 @@ export const reasonOf = (b: Record<string, unknown>) => {
 };
 export const expectVersion = (b: Record<string, unknown>, v: number) => {
   if (typeof b.version !== "number") throw invalid("version");
-  if (b.version !== v) throw new MockHttpError(409, "CONFLICT_STATE", "stale version", { expected: v });
+  if (b.version !== v) throw new MockHttpError(409, "CONFLICT_STATE", "version mismatch", { current_version: v });
 };

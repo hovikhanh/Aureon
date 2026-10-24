@@ -33,3 +33,25 @@ async def collect_progress(db: AsyncSession) -> dict[str, Any]:
     linked: set[uuid.UUID] = merged.pop("user_employee_ids", set())
     merged["employees_without_user"] = len(employee_ids - linked)
     return merged
+
+
+# --- org import commit state (05 §2.8: step `review` is `done` once the `org_import` commits) ---
+# `idp` registers how to read "is the C5 import committed?" (same pattern as the sources above);
+# `platform` derives `review` from it on read — no new event, consumer or field.
+CommittedAt = Callable[[AsyncSession, uuid.UUID | None, uuid.UUID | None], Awaitable[str | None]]
+
+_COMMITTED: list[CommittedAt] = []
+
+
+def register_import_committed(fn: CommittedAt) -> None:
+    """Install the `idp` reader (re-registration replaces it)."""
+    _COMMITTED[:] = [fn]
+
+
+async def import_committed_at(
+    db: AsyncSession, batch_id: uuid.UUID | None, document_id: uuid.UUID | None
+) -> str | None:
+    """ISO `committed_at` of the import's source document when it is `COMMITTED`, else None."""
+    if not _COMMITTED or (batch_id is None and document_id is None):
+        return None
+    return await _COMMITTED[0](db, batch_id, document_id)

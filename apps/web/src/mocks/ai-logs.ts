@@ -21,8 +21,15 @@ function pageOf<T extends { created_at: string }>(rows: T[], page: Page, key: (r
 }
 const matches = (q: URLSearchParams, r: Record<string, unknown>, keys: string[]) => keys.every((k) => !q.get(k) || String(r[k]) === q.get(k));
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function checkRequestId(q: URLSearchParams): void {
+  const r = q.get("request_id");
+  if (r && !UUID.test(r)) throw new MockHttpError(400, "BAD_REQUEST", "request_id must be a UUID", { param: "request_id" });
+}
+
 function toolCalls(req: MockRequest): Response {
   const q = req.query;
+  checkRequestId(q);
   const { from, to } = range(q);
   const page = parsePage(q, ["created_at"]);
   const rows = aiStore().toolCalls.filter((r) => r.created_at >= from && r.created_at <= to
@@ -31,6 +38,7 @@ function toolCalls(req: MockRequest): Response {
 }
 function modelCalls(req: MockRequest): Response {
   const q = req.query;
+  checkRequestId(q);
   const { from, to } = range(q);
   const page = parsePage(q, ["created_at", "estimated_cost_micro_usd", "latency_ms"]);
   const rows = aiStore().modelCalls.filter((r) => r.created_at >= from && r.created_at <= to

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MOCK_USERS, claimsFor } from "./fixtures";
 import { handleMock } from "./router";
 import { resetMockStore } from "./store";
+import { captureStore } from "./capture-store";
 
 const user = (email: string) => claimsFor(MOCK_USERS.find((u) => u.email === email)!);
 const CEO = user("ceo@abc.demo");
@@ -17,6 +18,7 @@ async function call(path: string, claims: C, method = "GET", body?: unknown) {
   const res = await handleMock({ method, path, query: new URLSearchParams(), headers, body, claims });
   return { status: res.status, json: (await res.json()) as Json };
 }
+const ORG = "0a1b2c3d-0000-4000-8000-000000000001";
 const patch = (claims: C, body: Record<string, unknown>) => call("/platform/onboarding", claims, "PATCH", body);
 
 beforeEach(() => resetMockStore());
@@ -32,16 +34,18 @@ describe("EP-ADM-13/14 onboarding", () => {
 
   it("start idempotent → steps with version (409 stale / 422 missing) → skip only goals_import → finish missing_steps", async () => {
     const s1 = (await patch(ADM, { action: "start" })).json.data;
-    expect(s1).toMatchObject({ status: "in_progress", steps: { company: { status: "in_progress" } } });
+    expect(s1).toMatchObject({ status: "in_progress", steps: { company: { status: "pending" } } });
     expect((await patch(ADM, { action: "start" })).json.data.version).toBe(s1.version);
     expect((await patch(ADM, { action: "complete_step", step: "company" })).status).toBe(422);
     expect((await patch(ADM, { action: "complete_step", step: "company", version: 99 })).status).toBe(409);
-    const s2 = (await patch(ADM, { action: "complete_step", step: "company", refs: { organization_id: "org-1" }, version: s1.version })).json.data;
-    expect(s2.steps.company).toMatchObject({ status: "done", refs: { organization_id: "org-1" } });
-    expect(s2.steps.org_import.status).toBe("in_progress");
+    const s2 = (await patch(ADM, { action: "complete_step", step: "company", refs: { organization_id: ORG }, version: s1.version })).json.data;
+    expect(s2.steps.company).toMatchObject({ status: "done", refs: { organization_id: ORG } });
+    expect(s2.refs).toEqual({ organization_id: ORG });
+    expect(s2.steps.org_import.status).toBe("pending");
+    expect((await patch(ADM, { action: "complete_step", step: "company", refs: { rows_submitted: 3 }, version: s2.version })).json.error).toMatchObject({ details: { field: "refs.rows_submitted" } }); // whitelist
     expect((await patch(ADM, { action: "complete_step", step: "users", refs: { email: "a@b.c" }, version: s2.version })).status).toBe(422); // refs: codes only
     const skipUsers = await patch(ADM, { action: "skip_step", step: "users", version: s2.version });
-    expect(skipUsers.json.error).toMatchObject({ code: "BUSINESS_RULE_VIOLATION", details: { reason: "step_required" } });
+    expect(skipUsers.json.error).toMatchObject({ code: "BUSINESS_RULE_VIOLATION", details: { reason: "not_skippable" } });
     const s3 = (await patch(ADM, { action: "skip_step", step: "goals_import", version: s2.version })).json.data;
     const fin = await patch(ADM, { action: "finish", version: s3.version });
     expect(fin.status).toBe(422);
@@ -56,6 +60,21 @@ describe("EP-ADM-13/14 onboarding", () => {
     expect(s.completed_at).toBeTruthy();
     expect((await patch(CEO, { action: "reset", version: s.version })).status).toBe(422);
     expect((await patch(CEO, { action: "reset", reason: "demo", version: s.version })).json.data.status).toBe("not_started");
+  });
+
+  it("start on completed returns the current state; review is derived done once the org import commits (05 §2.8)", async () => {
+    let s = (await patch(ADM, { action: "start" })).json.data;
+    const doc = captureStore().docs[0]!;
+    const batch = "0a1b2c3d-0000-4000-8000-0000000000b1";
+    captureStore().batches.push({ id: batch, document_id: doc.id } as never);
+    doc.status = "NEEDS_REVIEW";
+    s = (await patch(ADM, { action: "complete_step", step: "org_import", refs: { org_import_id: batch, document_id: doc.id, rows: 5 }, version: s.version })).json.data;
+    expect(s.steps.review.status).toBe("pending");
+    Object.assign(doc, { status: "COMMITTED", committed_at: "2026-10-20T03:00:00Z" });
+    s = (await call("/platform/onboarding", ADM)).json.data;
+    expect(s.steps.review).toMatchObject({ status: "done", updated_at: "2026-10-20T03:00:00Z" });
+    doc.status = "ROLLED_BACK"; // undo → pending again (derived, not stored)
+    expect((await call("/platform/onboarding", ADM)).json.data.steps.review.status).toBe("pending");
   });
 });
 
