@@ -31,6 +31,7 @@ async def _approved(db) -> tuple[uuid.UUID, int]:
     res = await CommitService(db).approve(rev, doc_id)
     assert res.out.document.status == "APPROVED"
     assert res.out.actions == [] and res.pending_permissions == ["finance:write"]
+    assert res.out.document.version >= 1  # R-DEC-60bis
     doc = (await db.execute(select(SourceDocument).where(SourceDocument.id == doc_id))).scalar_one()
     return doc_id, doc.version
 
