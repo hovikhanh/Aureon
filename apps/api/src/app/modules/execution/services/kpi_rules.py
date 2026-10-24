@@ -131,3 +131,16 @@ def on_time(measured_at: datetime, period_key: str, grace_days: int) -> bool:
 
 def in_force(valid_from: date, valid_to: date | None, day: date) -> bool:
     return valid_from <= day and (valid_to is None or day < valid_to)
+
+
+def last_ended_period(period_type: str, day: date) -> str:
+    """Most recently ended period of `period_type` at `day` (due KPI-period, 05 §2.6)."""
+    start, _ = period_bounds(period_key_for(period_type, day))
+    return period_key_for(period_type, start - timedelta(days=1))
+
+
+def periods_overlap(a: str, b: str) -> bool:
+    """`[start, end)` of two period keys overlap (a year objective spans its quarters)."""
+    a0, a1 = period_bounds(a)
+    b0, b1 = period_bounds(b)
+    return a0 < b1 and b0 < a1

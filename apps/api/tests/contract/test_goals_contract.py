@@ -7,7 +7,7 @@ match 10 §7.2.3 (R-DEC-39/58).
 * each of those routes depends on exactly one `require_permission` guard;
 * the old `/execution/{kpis,objectives,key-results,check-ins,initiatives}*` paths are gone (no
   alias), `/execution/{meetings,decisions,dashboard}` stay;
-* contract stubs answer `501` in the 10 §1.3 error envelope (no new error code).
+* the M1.4 stubs (`501`) are all replaced since T-628 (`/goals/tree` answers 200).
 """
 
 import re
@@ -80,11 +80,9 @@ def test_old_paths_removed(routes: dict[tuple[str, str], APIRoute]) -> None:
     assert {"/execution/meetings", "/execution/decisions", "/execution/dashboard"} <= kept
 
 
-async def test_old_paths_404_and_stub_501(api: ApiClient) -> None:
+async def test_old_paths_404_and_tree_live(api: ApiClient) -> None:
     for url in ("/execution/kpis", "/execution/objectives", "/execution/check-ins",
                 "/execution/initiatives"):  # fmt: skip
         assert (await api.call("GET", url, "CEO")).status_code == 404, url
-    r = await api.call("GET", "/goals/tree", "CEO")
-    assert r.status_code == 501
-    assert r.json()["error"]["code"] == "INTERNAL_ERROR"
-    assert "EP-STR-01" in r.json()["error"]["message"]
+    r = await api.call("GET", "/goals/tree", "CEO")  # was the 501 stub until T-628
+    assert r.status_code == 200 and set(r.json()["data"]) == {"strategies", "unaligned"}

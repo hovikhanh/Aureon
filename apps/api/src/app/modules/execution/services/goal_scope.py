@@ -22,7 +22,7 @@ from sqlalchemy import ColumnElement, or_
 
 from app.core.deps import Principal
 from app.core.errors import PermissionDeniedError
-from app.modules.execution.services.scope import deny, self_ids
+from app.modules.execution.services.scope import allowed, deny, self_ids
 
 FULL = frozenset({"CEO"})
 SO_WRITERS = frozenset({"CEO", "DIR"})
@@ -78,3 +78,18 @@ def check_so_write(user: Principal, pillar: str | None) -> None:
         )
     if user.role == "DIR" and not _pillar_ok(user, pillar):
         raise deny("strategic objective", pillar=pillar, rule="R-DEC-57")
+
+
+# ---------- EP-STR-01 tree visibility (T-628; T-632 widens to the department subtree) ----------
+def row_visible(user: Principal, *, dept: uuid.UUID | None, owners: tuple[Any, ...]) -> bool:
+    """KPI / Objective / Initiative node readable in full (else, as an ancestor of a visible
+    node, it is sent `{id, code?, title?, restricted: true}`)."""
+    return allowed(user, "read", dept=dept, owners=owners)
+
+
+def check_department_filter(user: Principal, department_id: uuid.UUID | None) -> None:
+    """`department_id` filter must be inside the caller's scope → else `403 FORBIDDEN_SCOPE`."""
+    if department_id is None or user.role in FULL:
+        return
+    if department_id != user.department_id:
+        raise deny("department", department_id=department_id)

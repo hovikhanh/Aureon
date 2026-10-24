@@ -313,6 +313,16 @@ class KpiEvaluationRepository(Repo[KpiEvaluation]):
         )  # fmt: skip
         return {e.kpi_id: e for e in (await self.db.execute(stmt)).scalars().all()}
 
+    async def of_periods(
+        self, pairs: Sequence[tuple[uuid.UUID, str]]
+    ) -> set[tuple[uuid.UUID, str]]:
+        """Which `(kpi_id, period_key)` pairs already have an evaluation."""
+        if not pairs:
+            return set()
+        rows = await self.where(KpiEvaluation.kpi_id.in_({k for k, _ in pairs}),
+                                KpiEvaluation.period_key.in_({p for _, p in pairs}))  # fmt: skip
+        return {(e.kpi_id, e.period_key) for e in rows} & set(pairs)
+
     @staticmethod
     def kpis_with_latest_band(band: str) -> Select[tuple[uuid.UUID]]:
         """Subquery: KPI ids whose latest-period evaluation has `band` (EP-KPI-01 `band`)."""
