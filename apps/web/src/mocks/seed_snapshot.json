@@ -2858,6 +2858,48 @@
    "team": "ADM-OFF"
   }
  ],
+ "initiatives": [
+  {
+   "code": "INI-01",
+   "department": "SAL",
+   "pillar": "C",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 74,
+   "start_date": "2026-01-01",
+   "title": "Tăng trưởng doanh thu 15%",
+   "weight_pct": 30
+  },
+  {
+   "code": "INI-02",
+   "department": "FIN",
+   "pillar": "F",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 70,
+   "start_date": "2026-04-01",
+   "title": "Giảm DSO xuống 45 ngày",
+   "weight_pct": 25
+  },
+  {
+   "code": "INI-03",
+   "department": "PRD",
+   "pillar": "U",
+   "planned_end_date": "2027-03-31",
+   "progress_pct": 30,
+   "start_date": "2026-06-01",
+   "title": "Ra mắt ABC Insight",
+   "weight_pct": 25
+  },
+  {
+   "code": "INI-04",
+   "department": "SVC",
+   "pillar": "O",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 58,
+   "start_date": "2026-07-01",
+   "title": "Chuẩn hóa quy trình bảo trì",
+   "weight_pct": 20
+  }
+ ],
  "kpis": [
   {
    "code": "KPI-CO-01",
@@ -2869,6 +2911,7 @@
     "2026-09": 25.5
    },
    "name": "Doanh thu thuần (tỷ)",
+   "parent": null,
    "target": 27.0,
    "unit": "tỷ VND"
   },
@@ -2882,6 +2925,7 @@
     "2026-09": 18.2
    },
    "name": "Biên lợi nhuận gộp (%)",
+   "parent": null,
    "target": 20.0,
    "unit": "%"
   },
@@ -2895,6 +2939,7 @@
     "2026-09": 3.9
    },
    "name": "Doanh số mới khách hàng lớn (tỷ)",
+   "parent": "KPI-CO-01",
    "target": 6.0,
    "unit": "tỷ VND"
   },
@@ -2908,6 +2953,7 @@
     "2026-09": 10
    },
    "name": "Số cơ hội mới",
+   "parent": "KPI-CO-01",
    "target": 12,
    "unit": "cơ hội"
   },
@@ -2921,6 +2967,7 @@
     "2026-09": 96
    },
    "name": "Tỷ lệ bảo trì đúng SLA (%)",
+   "parent": null,
    "target": 95,
    "unit": "%"
   },
@@ -2934,6 +2981,7 @@
     "2026-09": 1.9
    },
    "name": "Thời gian giao hàng TB (ngày)",
+   "parent": null,
    "target": 2.0,
    "unit": "ngày"
   },
@@ -2947,6 +2995,7 @@
     "2026-09": 45
    },
    "name": "DSO (ngày)",
+   "parent": "KPI-CO-02",
    "target": 45,
    "unit": "ngày"
   },
@@ -2960,6 +3009,7 @@
     "2026-09": 12.0
    },
    "name": "Chi phí vận hành / doanh thu (%)",
+   "parent": "KPI-CO-02",
    "target": 12,
    "unit": "%"
   },
@@ -2973,6 +3023,7 @@
     "2026-09": 31
    },
    "name": "Thời gian tuyển dụng TB (ngày)",
+   "parent": null,
    "target": 30,
    "unit": "ngày"
   },
@@ -2986,6 +3037,7 @@
     "2026-09": 33
    },
    "name": "Đơn hàng qua ABC Order (%)",
+   "parent": null,
    "target": 35,
    "unit": "%"
   },
@@ -2999,6 +3051,7 @@
     "2026-09": 1
    },
    "name": "Sự cố nghiêm trọng / tháng",
+   "parent": null,
    "target": 2,
    "unit": "sự cố"
   },
@@ -3012,6 +3065,7 @@
     "2026-09": 92
    },
    "name": "Hồ sơ số hóa đúng hạn (%)",
+   "parent": null,
    "target": 90,
    "unit": "%"
   }

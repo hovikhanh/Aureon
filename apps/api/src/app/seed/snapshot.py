@@ -103,8 +103,13 @@ def _execution() -> dict[str, Any]:
         ],
         "kpis": [
             {"code": c, "name": n, "department": d, "unit": u, "direction": dr, "target": tg,
-             "measurements": dict(zip(X.KPI_PERIODS, a, strict=True))}
-            for c, n, d, u, dr, tg, a, _ in X.KPIS
+             "measurements": dict(zip(X.KPI_PERIODS, a, strict=True)), "parent": par}
+            for c, n, d, u, dr, tg, a, par in X.KPIS
+        ],
+        "initiatives": [
+            {"code": c, "title": t, "pillar": p, "department": d, "start_date": s.isoformat(),
+             "planned_end_date": e.isoformat(), "progress_pct": pr, "weight_pct": w}
+            for c, t, p, d, s, e, pr, w in X.INITIATIVES
         ],
         "okrs": [
             {"code": c, "title": t, "department": d, "period_key": "2026-Q4",

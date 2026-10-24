@@ -18,8 +18,6 @@ const dId = (code: string) => mockId("department", code);
 const uId = (email: string) => mockId("user", email);
 const userOf = (role: string, dept?: string) => SNAPSHOT.users.find((u) => u.role === role && (!dept || u.department === dept));
 export const CEO_UID = uId(userOf("CEO")?.email ?? "ceo");
-const EMP_USER = userOf("EMP");
-export const EMP_UID = EMP_USER ? uId(EMP_USER.email) : null;
 
 interface Base { id: string; version: number; source: string; data_classification: string; created_at: string; updated_at: string; deleted: boolean }
 export interface MStrategy extends Base { code: string; name: string; vision: string | null; mission: string | null; period_start: string; period_end: string; owner_id: string; status: string }
@@ -57,58 +55,48 @@ export const base = (id: string, at = WORK_STAMP): Base => ({ id, version: 1, so
 type SnapKpi = { code: string; name: string; department?: string | null; direction?: string; unit?: string; target?: number; measurements?: Record<string, number>; parent?: string | null };
 type SnapKr = { title: string; unit?: string; baseline?: number; target?: number; current?: number; confidence?: string };
 type SnapOkr = { code: string; title: string; department?: string | null; period_key?: string; key_results?: SnapKr[] };
-const SNAP = SNAPSHOT as unknown as { kpis?: SnapKpi[]; okrs?: SnapOkr[] };
-
-/** Owner of a department row = the login account heading it (CEO for company rows) — mock-only until T-631. */
-function ownerOf(dept: string | null | undefined): string {
-  const head = SNAPSHOT.departments.find((d) => d.code === dept)?.head;
-  const u = head ? SNAPSHOT.users.find((x) => x.employee === head && !x.is_service_account) : undefined;
-  return u ? uId(u.email) : CEO_UID;
-}
-const DEPT_PILLAR: Record<string, Pillar> = { SAL: "C", FIN: "F", PRD: "U", SVC: "O", HR: "O", ADM: "O" };
-// exec_data.KPIS parents (the snapshot does not export `parent` yet)
-const KPI_PARENT: Record<string, string> = { "KPI-SAL-01": "KPI-CO-01", "KPI-SAL-02": "KPI-CO-01", "KPI-FIN-01": "KPI-CO-02", "KPI-FIN-02": "KPI-CO-02" };
-const SO_DEF: [string, string, Pillar, string, number][] = [
-  ["SO-C", "Tăng trưởng doanh thu từ khách hàng lớn", "C", "SAL", 30],
-  ["SO-F", "Dòng tiền và biên lợi nhuận lành mạnh", "F", "FIN", 25],
-  ["SO-U", "ABC Order thành kênh bán chính", "U", "PRD", 25],
-  ["SO-O", "Vận hành và đội ngũ chuẩn hóa", "O", "SVC", 20],
-];
-const KPI_SO: Record<string, string> = { "KPI-CO-01": "SO-C", "KPI-CO-02": "SO-F", "KPI-SVC-01": "SO-O", "KPI-SVC-02": "SO-O", "KPI-HR-01": "SO-O", "KPI-PRD-01": "SO-U", "KPI-PRD-02": "SO-U" };
-const OKR_SO: Record<string, string> = { "OKR-CO": "SO-F", "OKR-SAL": "SO-C", "OKR-FIN": "SO-F", "OKR-PRD": "SO-U", "OKR-SVC": "SO-O" };
-// exec_data.INITIATIVES + project links (T-631 will seed `projects.initiative_id`)
-const INI_DEF: [string, string, Pillar, string, string, string, number, number, string | null, string[]][] = [
-  ["INI-01", "Tăng trưởng doanh thu 15%", "C", "SAL", "2026-01-01", "2026-12-31", 74, 30, "OKR-SAL", ["PRJ-CRM", "PRJ-KA", "PRJ-HN"]],
-  ["INI-02", "Giảm DSO xuống 45 ngày", "F", "FIN", "2026-04-01", "2026-12-31", 70, 25, "OKR-FIN", ["PRJ-ERP"]],
-  ["INI-03", "Ra mắt ABC Insight", "U", "PRD", "2026-06-01", "2027-03-31", 30, 25, "OKR-PRD", ["PRJ-DATA", "PRJ-ORD4"]],
-  ["INI-04", "Chuẩn hóa quy trình bảo trì", "O", "SVC", "2026-07-01", "2026-12-31", 58, 20, "OKR-SVC", ["PRJ-CARE", "PRJ-WMS"]],
-];
-/** T-631: two LOW KRs raised to MEDIUM so only the UC-04 KR is at risk (08 §4.4). */
-const CONFIDENCE_FIX: Record<string, string> = { "OKR-CO:1": "MEDIUM", "OKR-PRD:2": "MEDIUM" };
+type SnapSo = { code: string; title: string; pillar: Pillar; department: string; owner: string; weight_pct: number; kpis: string[]; objectives: string[]; initiative: string; projects: string[] };
+type SnapIni = { code: string; title: string; pillar: Pillar; department: string; start_date: string; planned_end_date: string; progress_pct: number; weight_pct: number };
+type SnapCheckIn = { okr: string; key_result: number; value: number; confidence: "HIGH" | "MEDIUM" | "LOW"; date: string; by: string; note: string | null };
+type SnapStrategy = { code: string; name: string; period_start: string; period_end: string; strategic_objectives: SnapSo[] };
+const SNAP = SNAPSHOT as unknown as { kpis?: SnapKpi[]; okrs?: SnapOkr[]; strategy?: SnapStrategy; initiatives?: SnapIni[]; check_ins?: SnapCheckIn[]; reference_date?: string };
+/** `goals_seed.REFERENCE` — seed at-risk flags are evaluated on this day (not on the wall clock). */
+const SEED_DAY = SNAP.reference_date ?? "2026-10-20";
+const OKR_PERIOD = "2026-Q4";
 export const UC04_KR = "OKR-SAL:1";
+/** employee@ owns KR OKR-SVC #1 through its seed check-in (`exec_data.CHECK_INS`). */
 export const EMP_KR = "OKR-SVC:1";
-export const EMP_KPI = "KPI-SVC-02";
 export const soId = (code: string) => mockId("strategic_objective", code);
 export const kpiId = (code: string) => mockId("kpi", code);
 export const objId = (code: string) => mockId("objective", code);
 export const krId = (key: string) => mockId("key_result", key);
 export const iniId = (code: string) => mockId("initiative", code);
-export const STRATEGY_ID = mockId("strategy", "STR-2026");
+export const STRATEGY_ID = mockId("strategy", SNAP.strategy?.code ?? "STR");
+/** `checked_at(day)`: 09:00 Asia/Ho_Chi_Minh = 02:00Z. */
+const checkedAt = (day: string) => `${day}T02:00:00Z`;
 
+/** Mirror of `goals_seed.seed_goals` over the snapshot: KPI / Objective owners = CEO, KR owner = author of its seed check-in. */
 function seedGoals(): GoalStore {
   const s: GoalStore = { strategies: [], sos: [], kpis: [], targets: [], measurements: [], evaluations: [], objectives: [], krs: [], krMeasurements: [], checkIns: [], initiatives: [], seq: 0 };
-  s.strategies.push({ ...base(STRATEGY_ID), code: "STR-2026", name: "Tăng trưởng bền vững 2026–2027", vision: "Nhà phân phối thiết bị văn phòng số 1 phía Nam", mission: null,
-    period_start: "2026-01-01", period_end: "2028-01-01", owner_id: CEO_UID, status: "active" });
-  SO_DEF.forEach(([code, title, pillar, dept, w], i) => s.sos.push({ ...base(soId(code)), strategy_id: STRATEGY_ID, code, title, description: null, pillar,
-    owner_id: ownerOf(dept), department_id: dId(dept), weight_pct: w, sort_order: i + 1, status: "active", progress_pct: 0 }));
-  for (const [code, title, pillar, dept, start, end, prog, w, okr, projects] of INI_DEF) {
-    s.initiatives.push({ ...base(iniId(code)), code, title, description: null, objective_id: okr ? objId(okr) : null, strategic_objective_id: soId(`SO-${pillar}`), pillar,
-      owner_id: ownerOf(dept), department_id: dId(dept), start_date: start, planned_end_date: end, status: "active", progress_pct: prog, weight_pct: w,
-      budget_amount: null, currency: "VND", project_codes: projects });
-  }
+  const st = SNAP.strategy;
   for (const k of SNAP.kpis ?? []) seedKpi(s, k);
   for (const o of SNAP.okrs ?? []) seedOkr(s, o);
+  if (st) {
+    s.strategies.push({ ...base(STRATEGY_ID), code: st.code, name: st.name, vision: null, mission: null, period_start: st.period_start, period_end: st.period_end, owner_id: CEO_UID, status: "active" });
+    st.strategic_objectives.forEach((so, i) => {
+      const id = soId(so.code);
+      s.sos.push({ ...base(id), strategy_id: STRATEGY_ID, code: so.code, title: so.title, description: null, pillar: so.pillar, owner_id: uId(so.owner),
+        department_id: dId(so.department), weight_pct: so.weight_pct, sort_order: i, status: "active", progress_pct: 0 });
+      const ini = (SNAP.initiatives ?? []).find((x) => x.code === so.initiative);
+      if (ini) s.initiatives.push({ ...base(iniId(ini.code)), code: ini.code, title: ini.title, description: null, objective_id: so.objectives[0] ? objId(so.objectives[0]) : null,
+        strategic_objective_id: id, pillar: ini.pillar, owner_id: CEO_UID, department_id: dId(ini.department), start_date: ini.start_date, planned_end_date: ini.planned_end_date,
+        status: "active", progress_pct: ini.progress_pct, weight_pct: ini.weight_pct, budget_amount: null, currency: "VND", project_codes: so.projects });
+      for (const k of s.kpis) if (so.kpis.includes(k.code)) Object.assign(k, { strategic_objective_id: id, pillar: so.pillar });
+      for (const o of s.objectives) if (so.objectives.some((c) => objId(c) === o.id)) Object.assign(o, { strategic_objective_id: id, pillar: so.pillar });
+    });
+  }
   seedCheckIns(s);
+  seedAtRisk(s);
   for (const so of s.sos) recomputeSo(s, so);
   return s;
 }
@@ -116,21 +104,17 @@ function seedGoals(): GoalStore {
 function seedKpi(s: GoalStore, k: SnapKpi): void {
   const id = kpiId(k.code);
   const dept = k.department ?? null;
-  const parent = k.parent ?? KPI_PARENT[k.code] ?? null;
+  const parent = k.parent ?? null;
   const target = k.target ?? 0;
   const direction = k.direction ?? "HIGHER_IS_BETTER";
-  s.kpis.push({ ...base(id), code: k.code, name: k.name, unit: k.unit ?? "", target, owner_id: k.code === EMP_KPI && EMP_UID ? EMP_UID : ownerOf(dept), metric_code: null,
+  s.kpis.push({ ...base(id), code: k.code, name: k.name, unit: k.unit ?? "", target, owner_id: CEO_UID, metric_code: null,
     key_result_id: null, period_type: "MONTH", direction, value_type: "numeric", data_source_kind: "manual", parent_kpi_id: parent ? kpiId(parent) : null,
     weight_pct: 100, initiative_id: null, department_id: dept ? dId(dept) : null, status: "active",
-    strategic_objective_id: parent ? null : KPI_SO[k.code] ? soId(KPI_SO[k.code]!) : null, pillar: dept ? DEPT_PILLAR[dept] ?? null : k.code === "KPI-CO-02" ? "F" : "C" });
+    strategic_objective_id: null, pillar: null });
   for (const [period, actual] of Object.entries(k.measurements ?? {})) {
     const b = periodBounds(period);
     if (!b) continue;
-    // mock-only: one mid-period target change on the UC-03 KPI (06 §3.4 SCR-58 "đổi ngày — lý do")
-    if (k.code === "KPI-SAL-01" && period === "2026-09") {
-      s.targets.push(target_(id, period, 6.5, b[0], `${period}-15`, null, "closed"));
-      s.targets.push(target_(id, period, target, `${period}-15`, null, "Điều chỉnh theo thị trường Q3", "open"));
-    } else s.targets.push(target_(id, period, target, b[0], null, null, "open"));
+    s.targets.push(target_(id, period, target, b[0], null, null, "open"));
     const t = currentTarget(s, id, period)!;
     measure(s, s.kpis.at(-1)!, t, { period_key: period, actual_value: actual, measured_at: `${period}-28T03:00:00Z`, measured_by: null, data_source: "manual", note: null, check_in_id: null, source_document_id: null });
   }
@@ -177,10 +161,9 @@ export function latestEvaluation(s: GoalStore, kpi: string): MEvaluation | undef
 function seedOkr(s: GoalStore, o: SnapOkr): void {
   const oid = objId(o.code);
   const dept = o.department ?? null;
-  const so = OKR_SO[o.code];
-  s.objectives.push({ ...base(oid), title: o.title, owner_id: ownerOf(dept), period_key: o.period_key ?? "2026-Q4", parent_id: null, level: dept ? "department" : "company",
-    okr_type: "committed", weight_pct: 100, team_id: null, department_id: dept ? dId(dept) : null, pillar: dept ? DEPT_PILLAR[dept] ?? null : "F", status: "active",
-    progress_pct: 0, score: null, source_document_id: null, strategic_objective_id: so ? soId(so) : null });
+  s.objectives.push({ ...base(oid), title: o.title, owner_id: CEO_UID, period_key: o.period_key ?? OKR_PERIOD, parent_id: null, level: dept ? "department" : "company",
+    okr_type: "committed", weight_pct: 100, team_id: null, department_id: dept ? dId(dept) : null, pillar: null, status: "active",
+    progress_pct: 0, score: null, source_document_id: null, strategic_objective_id: null });
   const krs = o.key_results ?? [];
   krs.forEach((kr, i) => {
     const key = `${o.code}:${i}`;
@@ -188,7 +171,7 @@ function seedOkr(s: GoalStore, o: SnapOkr): void {
     const target = kr.target ?? 0;
     const current = kr.current ?? null;
     s.krs.push({ ...base(krId(key)), objective_id: oid, title: kr.title, metric_code: null, unit: kr.unit ?? "", baseline, target, current_value: current,
-      owner_id: key === EMP_KR && EMP_UID ? EMP_UID : ownerOf(dept), status: "active", confidence: CONFIDENCE_FIX[key] ?? kr.confidence ?? null,
+      owner_id: CEO_UID, status: "active", confidence: kr.confidence ?? null,
       weight_pct: Math.round((100 / krs.length) * 100) / 100, progress_pct: krProgressPct(baseline, target, current), at_risk: false, at_risk_since: null,
       at_risk_reasons: [], last_checked_in_at: null });
   });
@@ -210,11 +193,12 @@ export function recomputeSo(s: GoalStore, so: MSO): void {
 
 export interface CheckInBody { value: number; confidence: "HIGH" | "MEDIUM" | "LOW"; note: string | null; blocker: string | null; support_needed: string | null; next_action: string | null }
 /** EP-PRF-02 core — one "transaction": CheckIn + KRMeasurement + KR update + at-risk (R-DEC-55) + Objective progress. */
-export function checkInKr(s: GoalStore, kr: MKr, b: CheckInBody, userId: string, at: string, today = workToday()): { checkIn: MCheckIn; becameAtRisk: boolean } {
+export function checkInKr(s: GoalStore, kr: MKr, b: CheckInBody, userId: string, at: string, today = workToday()): { checkIn: MCheckIn; becameAtRisk: boolean; expectedPct: number } {
   const o = s.objectives.find((x) => x.id === kr.objective_id)!;
   const ci: MCheckIn = { id: mockId("check_in", `${kr.id}:${s.checkIns.length}:${at}`), created_at: at, key_result_id: kr.id, kpi_id: null, ...b, checked_in_at: at, user_id: userId };
   const progress = krProgressPct(kr.baseline, kr.target, b.value);
-  const prev = kr.progress_pct;
+  // BE: previous = progress of the latest KRMeasurement (none → null), not the KR column
+  const prev = s.krMeasurements.filter((m) => m.key_result_id === kr.id).sort((x, y) => y.measured_at.localeCompare(x.measured_at))[0]?.progress_pct ?? null;
   s.checkIns.push(ci);
   s.krMeasurements.push({ id: mockId("kr_measurement", ci.id), created_at: at, key_result_id: kr.id, check_in_id: ci.id, period_key: o.period_key, value: b.value,
     progress_pct: progress, previous_progress_pct: prev, confidence: b.confidence, measured_at: at, measured_by: userId });
@@ -223,29 +207,28 @@ export function checkInKr(s: GoalStore, kr: MKr, b: CheckInBody, userId: string,
   Object.assign(kr, { current_value: b.value, confidence: b.confidence, progress_pct: progress, last_checked_in_at: at, at_risk: risk.at_risk,
     at_risk_reasons: risk.reasons, at_risk_since: risk.at_risk ? kr.at_risk_since ?? at : null, version: kr.version + 1, updated_at: at });
   recomputeObjective(s, o.id);
-  return { checkIn: ci, becameAtRisk: became };
+  return { checkIn: ci, becameAtRisk: became, expectedPct: risk.expected_pct };
 }
 
+/** `goals_seed._check_ins`: snapshot check-ins in date order per KR (KR owner = author). */
 function seedCheckIns(s: GoalStore): void {
-  const kr = (key: string) => s.krs.find((k) => k.id === krId(key));
-  const seed = (key: string, value: number, conf: CheckInBody["confidence"], day: string, note: string | null, blocker: string | null = null) => {
-    const k = kr(key);
-    if (k) checkInKr(s, k, { value, confidence: conf, note, blocker, support_needed: null, next_action: null }, k.owner_id, `${day}T08:00:00Z`, day);
-  };
-  const uc04 = kr(UC04_KR);
-  if (uc04) Object.assign(uc04, { current_value: 2.4, progress_pct: 0 });
-  seed(UC04_KR, 2.58, "MEDIUM", "2026-10-09", "Thêm 2 cơ hội lớn vào pipeline");
-  seed(UC04_KR, 2.52, "LOW", "2026-10-16", "Một cơ hội lớn lùi sang Q1/2027", "Thiếu presales cho khách hàng KA");
-  seed("OKR-SAL:0", 2, "MEDIUM", "2026-10-15", "Ký thêm hợp đồng KA thứ 2");
-  seed("OKR-SAL:2", 63, "HIGH", "2026-10-15", null);
-  seed("OKR-CO:0", 16.5, "MEDIUM", "2026-10-16", "Doanh thu tháng 10 bám kế hoạch");
-  seed("OKR-FIN:0", 45, "MEDIUM", "2026-10-14", null);
-  seed("OKR-PRD:0", 33, "HIGH", "2026-10-15", null);
-  seed("OKR-HR:0", 3, "MEDIUM", "2026-10-13", null);
-  seed("OKR-SVC:0", 96, "HIGH", "2026-10-16", null);
-  seed(EMP_KR, 1.9, "MEDIUM", "2026-10-09", "Đã tối ưu tuyến giao Bình Dương");
-  // seed at-risk state = 08 §4.4 (T-631): only the UC-04 KR is flagged; others are re-evaluated on their next check-in
-  for (const k of s.krs) if (k.id !== krId(UC04_KR)) Object.assign(k, { at_risk: false, at_risk_reasons: [], at_risk_since: null });
+  const rows = [...(SNAP.check_ins ?? [])].sort((x, y) => x.date.localeCompare(y.date));
+  for (const r of rows) {
+    const k = s.krs.find((x) => x.id === krId(`${r.okr}:${r.key_result}`));
+    if (!k) continue;
+    k.owner_id = uId(r.by);
+    checkInKr(s, k, { value: r.value, confidence: r.confidence, note: r.note, blocker: null, support_needed: null, next_action: null }, k.owner_id, checkedAt(r.date), SEED_DAY);
+  }
+}
+
+/** `goals_seed._at_risk`: R-DEC-55 flags of every KR re-evaluated at the reference day (UC-04 → exactly one KR). */
+function seedAtRisk(s: GoalStore): void {
+  for (const k of s.krs) {
+    const o = s.objectives.find((x) => x.id === k.objective_id)!;
+    const last = s.krMeasurements.filter((m) => m.key_result_id === k.id).sort((x, y) => y.measured_at.localeCompare(x.measured_at))[0];
+    const r = atRisk({ progress: k.progress_pct, previousProgress: last?.previous_progress_pct ?? null, confidence: k.confidence, periodKey: o.period_key, today: SEED_DAY });
+    Object.assign(k, { at_risk: r.at_risk, at_risk_reasons: r.at_risk ? r.reasons : [], at_risk_since: r.at_risk ? k.last_checked_in_at ?? checkedAt(SEED_DAY) : null });
+  }
   for (const o of s.objectives) recomputeObjective(s, o.id);
 }
 

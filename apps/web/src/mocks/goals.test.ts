@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MOCK_USERS, claimsFor } from "./fixtures";
 import { handleMock } from "./router";
 import { resetMockStore } from "./store";
-import { EMP_KPI, EMP_KR, UC04_KR, kpiId, krId, objId, iniId, soId, STRATEGY_ID } from "./goals-store";
+import { EMP_KR, UC04_KR, kpiId, krId, objId, iniId, soId, STRATEGY_ID } from "./goals-store";
 
 const user = (email: string) => claimsFor(MOCK_USERS.find((u) => u.email === email)!);
 const CEO = user("ceo@abc.demo");
@@ -34,7 +34,7 @@ describe("EP-STR-01 /goals/tree", () => {
     expect(r.status).toBe(200);
     const st = r.json!.data.strategies;
     expect(st).toHaveLength(1);
-    expect(st[0]!.strategic_objectives!.map((s) => s.code)).toEqual(["SO-C", "SO-F", "SO-U", "SO-O"]);
+    expect(st[0]!.strategic_objectives!.map((s) => s.code)).toEqual(["SO-01", "SO-02", "SO-03", "SO-04"]);
     const nodes = all(r.json!.data);
     const sal01 = nodes.find((n) => n.code === "KPI-SAL-01")!;
     expect(sal01.latest_evaluation).toMatchObject({ band: "CRITICAL", period_key: "2026-09" });
@@ -43,16 +43,15 @@ describe("EP-STR-01 /goals/tree", () => {
     const ini3 = nodes.find((n) => n.id === iniId("INI-03"))!;
     expect(ini3.on_track).toBe(false);
     expect(ini3.projects).toHaveLength(2);
-    expect(r.json!.data.unaligned.kpis.map((k) => k.code)).toEqual(["KPI-ADM-01"]);
-    expect(r.json!.data.unaligned.objectives.map((o) => o.title)).toEqual(["Đủ người cho tăng trưởng"]);
+    expect(r.json!.data.unaligned).toEqual({ kpis: [], objectives: [] }); // seed: every root is aligned
   });
 
   it("EMP: only own KR/KPI + restricted ancestors (no initiatives, no other departments)", async () => {
     const r = await call<Tree>("/goals/tree", { claims: EMP });
     const nodes = all(r.json!.data);
     const open = nodes.filter((n) => n.restricted === false || n.restricted === undefined);
-    expect(open.map((n) => n.id).sort()).toEqual([kpiId(EMP_KPI), krId(EMP_KR)].sort());
-    expect(nodes.find((n) => n.id === soId("SO-O"))?.restricted).toBe(true);
+    expect(open.map((n) => n.id)).toEqual([krId(EMP_KR)]);
+    expect(nodes.find((n) => n.id === soId("SO-04"))?.restricted).toBe(true);
     expect(nodes.find((n) => n.id === objId("OKR-SVC"))?.restricted).toBe(true);
     expect(nodes.find((n) => n.id === objId("OKR-SVC"))?.key_results).toHaveLength(1);
     expect(nodes.some((n) => n.code === "KPI-SAL-01")).toBe(false);
@@ -79,19 +78,19 @@ describe("strategy / SO / initiative writes", () => {
     expect((await call("/goals/strategies", { method: "POST", body })).status).toBe(400);
     const overlap = await call("/goals/strategies", { method: "POST", body, headers: IDEM });
     expect(overlap.json!.error).toMatchObject({ code: "BUSINESS_RULE_VIOLATION", details: { reason: "overlapping_active_strategy" } });
-    expect((await call("/goals/strategies", { method: "POST", body: { ...body, code: "STR-2026", status: "draft" }, headers: IDEM })).status).toBe(409);
+    expect((await call("/goals/strategies", { method: "POST", body: { ...body, code: "STR-2026-2027", status: "draft" }, headers: IDEM })).status).toBe(409);
     expect((await call(`/goals/strategies/${STRATEGY_ID}`, { method: "DELETE" })).json!.error!.details.reason).toBe("has_live_children");
     const so = { strategy_id: STRATEGY_ID, code: "SO-Z", title: "Z", owner_id: SALES.sub, pillar: "F" };
     expect((await call("/goals/strategic-objectives", { method: "POST", body: so, claims: SALES, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_SCOPE");
     expect((await call("/goals/strategic-objectives", { method: "POST", body: { ...so, pillar: "C" }, claims: SALES, headers: IDEM })).status).toBe(201);
-    expect((await call(`/goals/strategic-objectives/${soId("SO-C")}`, { method: "DELETE" })).json!.error!.details.reason).toBe("has_live_links");
+    expect((await call(`/goals/strategic-objectives/${soId("SO-01")}`, { method: "DELETE" })).json!.error!.details.reason).toBe("has_live_links");
   });
 
   it("initiative: SO required (422), EMP 403, project-linked delete → 409, version conflict → 409", async () => {
     const b = { code: "INI-09", title: "Y", owner_id: MGR.sub, start_date: "2026-10-01", planned_end_date: "2026-12-31" };
     expect((await call("/goals/initiatives", { method: "POST", body: b, headers: IDEM })).json!.error).toMatchObject({ code: "BUSINESS_RULE_VIOLATION", details: { field: "strategic_objective_id" } });
-    expect((await call("/goals/initiatives", { method: "POST", body: { ...b, strategic_objective_id: soId("SO-O") }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_ROLE");
-    expect((await call("/goals/initiatives", { method: "POST", body: { ...b, strategic_objective_id: soId("SO-O") }, claims: MGR, headers: IDEM })).status).toBe(201);
+    expect((await call("/goals/initiatives", { method: "POST", body: { ...b, strategic_objective_id: soId("SO-04") }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_ROLE");
+    expect((await call("/goals/initiatives", { method: "POST", body: { ...b, strategic_objective_id: soId("SO-04") }, claims: MGR, headers: IDEM })).status).toBe(201);
     expect((await call(`/goals/initiatives/${iniId("INI-04")}`, { method: "DELETE" })).status).toBe(409);
     expect((await call(`/goals/initiatives/${iniId("INI-04")}`, { method: "PATCH", body: { version: 9, title: "n" } })).json!.error!.code).toBe("CONFLICT_STATE");
     expect((await call<unknown[]>(`/goals/initiatives/${iniId("INI-04")}/projects`)).json!.data).toHaveLength(2);
@@ -104,20 +103,21 @@ describe("KPI (EP-KPI-01..10, PRF-03/04)", () => {
     const id = kpiId("KPI-SAL-01");
     const ev = await call<{ period_key: string; band: string }[]>(`/kpis/${id}/evaluations`);
     expect(ev.json!.data.map((e) => [e.period_key, e.band])).toEqual([["2026-07", "NEAR"], ["2026-08", "BELOW"], ["2026-09", "CRITICAL"]]);
-    const tg = await call<{ valid_to: string | null; reason: string | null }[]>(`/kpis/${id}/targets?period_key=2026-09`);
-    expect(tg.json!.data).toHaveLength(2);
-    expect(tg.json!.data[0]!.valid_to).toBe("2026-09-15");
+    const tg = await call<{ valid_to: string | null; target: number }[]>(`/kpis/${id}/targets?period_key=2026-09`);
+    expect(tg.json!.data).toMatchObject([{ valid_to: null, target: 6 }]); // seed: one target version per period
     expect((await call(`/kpis/${id}`, { claims: EMP })).json!.error!.code).toBe("FORBIDDEN_SCOPE");
     expect((await call<unknown[]>("/kpis?band=CRITICAL")).json!.data).toHaveLength(1);
   });
 
-  it("measurement: period/type mismatch 422, locked 409, INSERT history, EMP own KPI ok / target-set 403", async () => {
-    const id = kpiId(EMP_KPI);
-    expect((await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-Q4", actual_value: 1 }, claims: EMP, headers: IDEM })).status).toBe(422);
-    expect((await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-10", actual_value: 1.8 }, claims: EMP, headers: IDEM })).status).toBe(201);
-    await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-10", actual_value: 1.7 }, claims: EMP, headers: IDEM });
+  it("measurement: EMP other KPI 403, period/type mismatch 422, INSERT history, target-set EMP 403", async () => {
+    const id = kpiId("KPI-SVC-02");
+    expect((await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-10", actual_value: 1.8 }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_SCOPE"); // seed: EMP owns no KPI
+    expect((await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-Q4", actual_value: 1 }, claims: MGR, headers: IDEM })).status).toBe(422);
+    expect((await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-10", actual_value: 1.8 }, claims: MGR, headers: IDEM })).status).toBe(201);
+    await call(`/kpis/${id}/measurements`, { method: "POST", body: { period_key: "2026-10", actual_value: 1.7 }, claims: MGR, headers: IDEM });
     expect((await call<unknown[]>(`/kpis/${id}/measurements?period_key=2026-10`)).json!.data).toHaveLength(2);
-    expect((await call(`/kpis/${id}/targets`, { method: "POST", body: { period_key: "2026-10", target: 1.5 }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_ROLE");
+    expect((await call(`/kpis/${id}/targets`, { method: "POST", body: { period_key: "2026-10", target: 1.5 }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_SCOPE");
+    expect((await call("/kpis", { method: "POST", body: { code: "KPI-X", name: "x", unit: "x", target: 1, owner_id: EMP.sub }, claims: EMP, headers: IDEM })).json!.error!.code).toBe("FORBIDDEN_ROLE");
     const t = await call(`/kpis/${id}/targets`, { method: "POST", body: { period_key: "2026-10", target: 1.5, valid_from: "2026-10-20", reason: "Siết SLA" }, claims: MGR, headers: IDEM });
     expect(t.status).toBe(201);
     expect((await call(`/kpis/${id}/targets`, { method: "POST", body: { period_key: "2026-10", target: 1.4, valid_from: "2026-10-05" }, claims: MGR, headers: IDEM })).status).toBe(422);
@@ -135,9 +135,9 @@ describe("KPI (EP-KPI-01..10, PRF-03/04)", () => {
 describe("OKR + check-in (EP-OKR-*, EP-PRF-01/02/05/06)", () => {
   it("EMP F4: due cards (prefill null), check-in own KR, other KR 403, MGR sees it in the team feed", async () => {
     const due = await call<{ target_id: string; due: boolean; prefill: null }[]>("/goals/check-ins/due", { claims: EMP });
-    expect(due.json!.data.map((d) => d.target_id).sort()).toEqual([kpiId(EMP_KPI), krId(EMP_KR)].sort());
+    expect(due.json!.data.map((d) => d.target_id)).toEqual([krId(EMP_KR)]);
     expect(due.json!.data.every((d) => d.prefill === null)).toBe(true);
-    expect(due.json!.data.find((d) => d.target_id === krId(EMP_KR))?.due).toBe(true);
+    expect(due.json!.data[0]).toMatchObject({ target_type: "key_result", unit: "ngày", current_value: 1.9, target: 1.8, last_checked_in_at: "2026-10-16T02:00:00Z" });
     const r = await call<{ target_type: string; kr_measurement: { previous_progress_pct: number } }>(`/key-results/${krId(EMP_KR)}/check-ins`, {
       method: "POST", body: { value: 1.85, confidence: "MEDIUM", note: "ok" }, claims: EMP, headers: IDEM });
     expect(r.status).toBe(201);
