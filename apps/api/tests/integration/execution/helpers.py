@@ -77,3 +77,19 @@ async def outbox_for(db: AsyncSession, aggregate_id: str) -> list[tuple[str, dic
 
 async def patch(api: ApiClient, url: str, version: int, role: str = "CEO", **body: Any) -> Any:
     return await api.call("PATCH", url, role, json={**body, "version": version})
+
+
+async def make_strategy(api: ApiClient, **kw: Any) -> dict[str, Any]:
+    return await make(api, "/goals/strategies", {
+        "code": uniq("STR"), "name": "Chiến lược", "period_start": "2037-01-01",
+        "period_end": "2038-01-01", "owner_id": str(uuid.uuid4()), **kw})  # fmt: skip
+
+
+async def make_strategic_objective(
+    api: ApiClient, strategy_id: Any = None, role: str = "CEO", **kw: Any
+) -> dict[str, Any]:
+    """StrategicObjective (R-DEC-50) — every new Initiative needs one (EP-STR-13)."""
+    sid = strategy_id or (await make_strategy(api))["id"]
+    return await make(api, "/goals/strategic-objectives", {
+        "strategy_id": str(sid), "code": uniq("SO"), "title": "Mục tiêu chiến lược",
+        "owner_id": str(uuid.uuid4()), **kw}, role)  # fmt: skip

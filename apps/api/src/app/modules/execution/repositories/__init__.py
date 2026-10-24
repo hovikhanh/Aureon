@@ -21,6 +21,8 @@ from app.modules.execution.models import (
     Milestone,
     Objective,
     Project,
+    StrategicObjective,
+    Strategy,
     Task,
     TaskDependency,
 )
@@ -201,6 +203,25 @@ class ProjectRepository(Repo[Project]):
             Project.start_date <= as_of,
             order=Project.id,
         )
+
+
+class StrategyRepository(Repo[Strategy]):
+    model = Strategy
+
+    async def active_overlapping(
+        self, start: date, end: date, exclude: uuid.UUID | None
+    ) -> Sequence[Strategy]:
+        """Live `active` strategies overlapping `[start, end]`, locked `FOR UPDATE` (05 §2.6)."""
+        stmt = self._live().where(
+            Strategy.status == "active", Strategy.period_start < end, Strategy.period_end > start
+        )
+        if exclude is not None:
+            stmt = stmt.where(Strategy.id != exclude)
+        return (await self.db.execute(stmt.with_for_update())).scalars().all()
+
+
+class StrategicObjectiveRepository(Repo[StrategicObjective]):
+    model = StrategicObjective
 
 
 class ObjectiveRepository(Repo[Objective]):

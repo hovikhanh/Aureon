@@ -55,13 +55,11 @@ async def list_objectives(
     strategic_objective_id: uuid.UUID | None = None, department_id: uuid.UUID | None = None,
     parent_id: uuid.UUID | None = None, at_risk: bool | None = None,
 ) -> Any:  # fmt: skip
-    if strategic_objective_id is not None:
-        not_implemented("EP-OKR-01 strategic_objective_id", "T-626")
     if at_risk is not None:
         not_implemented("EP-OKR-01 at_risk", "T-627")
     items, total = await OkrService(db).list_objectives(
         user, page, period_key=period_key, owner_id=owner_id, department_id=department_id,
-        parent_id=parent_id,
+        parent_id=parent_id, strategic_objective_id=strategic_objective_id,
     )  # fmt: skip
     return _page(items, total, page)
 

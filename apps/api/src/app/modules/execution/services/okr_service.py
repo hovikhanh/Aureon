@@ -32,9 +32,10 @@ from app.modules.execution.schemas.okr import (
     ObjectiveUpdate,
 )
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import M14_PENDING, ExecBase, not_found, num
+from app.modules.execution.services.base import ExecBase, not_found, num
 from app.modules.execution.services.kpi_rules import kr_progress_pct, weighted_avg
 from app.modules.execution.services.meeting_service import _c19
+from app.modules.execution.services.strategy_service import StrategyService
 
 MAX_KR, MIN_KR_ACTIVE = 5, 2
 RULE = "FR-OKR-01"
@@ -47,6 +48,7 @@ def objective_out(o: Objective) -> ObjectiveOut:
         weight_pct=float(o.weight_pct), team_id=o.team_id, department_id=o.department_id,
         pillar=o.pillar, status=o.status, progress_pct=float(o.progress_pct),
         score=num(o.score), source_document_id=o.source_document_id,
+        strategic_objective_id=o.strategic_objective_id,
     )  # fmt: skip
 
 
@@ -77,12 +79,13 @@ class OkrService(ExecBase):
     async def list_objectives(
         self, user: Principal, page: PageParams, *, period_key: str | None,
         owner_id: uuid.UUID | None, department_id: uuid.UUID | None = None,
-        parent_id: uuid.UUID | None = None,
+        parent_id: uuid.UUID | None = None, strategic_objective_id: uuid.UUID | None = None,
     ) -> tuple[list[ObjectiveOut], int]:  # fmt: skip
         pred = scope.predicate(user, "read", dept=Objective.department_id,
                                own=[Objective.owner_id == user.user_id])  # fmt: skip
         raw = {"period_key": period_key, "owner_id": owner_id, "department_id": department_id,
-               "parent_id": parent_id}  # fmt: skip
+               "parent_id": parent_id,
+               "strategic_objective_id": strategic_objective_id}  # fmt: skip
         filters = {k: v for k, v in raw.items() if v}
         items, total = await self.objectives.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
@@ -114,11 +117,12 @@ class OkrService(ExecBase):
                                          order=KeyResult.created_at))  # fmt: skip
 
     async def create_objective(self, user: Principal, body: ObjectiveCreate) -> ObjectiveOut:
-        data = body.model_dump(exclude=M14_PENDING)
+        data = body.model_dump()
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         if data["status"] == "active":
             await self._check_activation(user, None)
+        self.require_root_link(data, "parent_id", RULE)
         await self.require_refs(data, RULE, parent_id=Objective)
         o = await self.objectives.create(**data, progress_pct=Decimal(0), source="MANUAL",
                                          created_by=user.user_id)  # fmt: skip
@@ -132,7 +136,7 @@ class OkrService(ExecBase):
     ) -> ObjectiveOut:
         o = await self.get_objective(user, id_, "write")
         before = objective_out(o)
-        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING})
+        data = body.model_dump(exclude_unset=True, exclude={"version"})
         _drop_nulls(data, "title", "owner_id", "period_key", "level", "okr_type", "weight_pct",
                     "status")  # fmt: skip
         scope.require_self(user, data.get("owner_id"), field="owner_id")
@@ -143,9 +147,15 @@ class OkrService(ExecBase):
         if data.get("parent_id") == o.id:
             raise BusinessRuleError("objective cannot be its own parent",
                                     details={"field": "parent_id", "rule": RULE})  # fmt: skip
+        self.require_root_link({"parent_id": o.parent_id,
+                                "strategic_objective_id": o.strategic_objective_id, **data},
+                               "parent_id", RULE)  # fmt: skip
         await self.require_refs(data, RULE, parent_id=Objective)
+        old_so = o.strategic_objective_id
         await self.objectives.update(o, expected_version=expected, updated_by=user.user_id,
                                      **data)  # fmt: skip
+        for so_id in dict.fromkeys((old_so, o.strategic_objective_id)):
+            await StrategyService(self.db).recompute_progress(so_id)
         await self.db.refresh(o)
         out = objective_out(o)
         await self.audit("objective_update", "objectives", o.id, before, out)
@@ -160,6 +170,7 @@ class OkrService(ExecBase):
         before = objective_out(o)
         o.updated_by = user.user_id
         await self.objectives.soft_delete(o)
+        await StrategyService(self.db).recompute_progress(o.strategic_objective_id)
         await self.audit("objective_delete", "objectives", o.id, before=before)
 
     async def recompute_progress(self, objective_id: uuid.UUID) -> None:
@@ -170,6 +181,7 @@ class OkrService(ExecBase):
                  for k in await self._krs_of(objective_id)]  # fmt: skip
         o.progress_pct = weighted_avg(pairs)
         await self.db.flush()
+        await StrategyService(self.db).recompute_progress(o.strategic_objective_id)
 
     # ---------- key results ----------
     async def list_krs(

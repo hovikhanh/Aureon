@@ -5,6 +5,9 @@
   milestones, share of `done` among the initiative's non-cancelled tasks; else 0. It is
   recomputed whenever a milestone or a linked task changes.
 - `planned_end_date ≥ start_date`; milestone `done` stamps `done_at`.
+- M1.4 (R-DEC-50): `strategic_objective_id` required on create (EP-STR-13), `objective_id`
+  optional; any change of `progress_pct` / weight / SO link recomputes the StrategicObjective
+  `progress_pct` in the same transaction (EP-STR-15, 05 §2.6).
 """
 
 import uuid
@@ -34,9 +37,10 @@ from app.modules.execution.schemas.initiatives import (
     MilestoneUpdate,
 )
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import M14_PENDING, ExecBase, not_found, now_utc, today
+from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
 from app.modules.execution.services.meeting_service import _c19
 from app.modules.execution.services.project_rules import milestone_late
+from app.modules.execution.services.strategy_service import StrategyService
 
 RULE = "FR-INI-01"
 
@@ -44,7 +48,8 @@ RULE = "FR-INI-01"
 def initiative_out(i: Initiative) -> InitiativeOut:
     return InitiativeOut(
         **_c19(i), code=i.code, title=i.title, description=i.description,
-        objective_id=i.objective_id, pillar=i.pillar, owner_id=i.owner_id,
+        objective_id=i.objective_id, strategic_objective_id=i.strategic_objective_id,
+        pillar=i.pillar, owner_id=i.owner_id,
         department_id=i.department_id, start_date=i.start_date,
         planned_end_date=i.planned_end_date, status=i.status,
         progress_pct=float(i.progress_pct), weight_pct=float(i.weight_pct),
@@ -81,11 +86,12 @@ class InitiativeService(ExecBase):
 
     async def list_initiatives(
         self, user: Principal, page: PageParams, *, objective_id: uuid.UUID | None,
-        status: str | None, pillar: str | None,
+        status: str | None, pillar: str | None, strategic_objective_id: uuid.UUID | None = None,
     ) -> tuple[list[InitiativeOut], int]:  # fmt: skip
         pred = scope.predicate(user, "read", dept=Initiative.department_id,
                                own=[Initiative.owner_id == user.user_id])  # fmt: skip
-        raw = {"objective_id": objective_id, "status": status, "pillar": pillar}
+        raw = {"objective_id": objective_id, "status": status, "pillar": pillar,
+               "strategic_objective_id": strategic_objective_id}  # fmt: skip
         items, total = await self.initiatives.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
             filters={k: v for k, v in raw.items() if v is not None},
@@ -111,7 +117,7 @@ class InitiativeService(ExecBase):
             )
 
     async def create_initiative(self, user: Principal, body: InitiativeCreate) -> InitiativeOut:
-        data = body.model_dump(exclude=M14_PENDING)
+        data = body.model_dump()
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         self._dates(data["start_date"], data["planned_end_date"])
@@ -119,6 +125,7 @@ class InitiativeService(ExecBase):
         await self.require_refs(data, RULE, objective_id=Objective)
         i = await self.initiatives.create(**data, progress_pct=Decimal(0), source="MANUAL",
                                           created_by=user.user_id)  # fmt: skip
+        await self._so_progress(i.strategic_objective_id)
         await self.db.refresh(i)
         out = initiative_out(i)
         await self.audit("initiative_create", "initiatives", i.id, after=out)
@@ -129,9 +136,10 @@ class InitiativeService(ExecBase):
     ) -> InitiativeOut:
         i = await self.get_initiative(user, id_, "write")
         before = initiative_out(i)
-        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING})
-        _drop_nulls(data, "code", "title", "objective_id", "owner_id", "start_date",
-                    "planned_end_date", "status", "weight_pct")  # fmt: skip
+        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        _drop_nulls(data, "code", "title", "objective_id", "strategic_objective_id", "owner_id",
+                    "start_date", "planned_end_date", "status", "weight_pct")  # fmt: skip
+        old_so = i.strategic_objective_id
         scope.require_self(user, data.get("owner_id"), field="owner_id")
         if "department_id" in data:
             data["department_id"] = scope.pin_department(user, data["department_id"])
@@ -142,6 +150,7 @@ class InitiativeService(ExecBase):
         await self.require_refs(data, RULE, objective_id=Objective)
         await self.initiatives.update(i, expected_version=expected, updated_by=user.user_id,
                                       **data)  # fmt: skip
+        await self._so_progress(old_so, i.strategic_objective_id)
         await self.db.refresh(i)
         out = initiative_out(i)
         await self.audit("initiative_update", "initiatives", i.id, before, out)
@@ -161,6 +170,7 @@ class InitiativeService(ExecBase):
         before = initiative_out(i)
         i.updated_by = user.user_id
         await self.initiatives.soft_delete(i)
+        await self._so_progress(i.strategic_objective_id)
         await self.audit("initiative_delete", "initiatives", i.id, before=before)
 
     async def recompute_progress(self, initiative_id: uuid.UUID | None) -> None:
@@ -176,6 +186,12 @@ class InitiativeService(ExecBase):
             ts = await self.tasks.where(Task.initiative_id == i.id)
             i.progress_pct = share_done([t.status for t in ts], skip="cancelled")
         await self.db.flush()
+        await self._so_progress(i.strategic_objective_id)
+
+    async def _so_progress(self, *so_ids: uuid.UUID | None) -> None:
+        svc = StrategyService(self.db)
+        for so_id in dict.fromkeys(so_ids):
+            await svc.recompute_progress(so_id)
 
     # ---------- milestones ----------
     async def list_milestones(

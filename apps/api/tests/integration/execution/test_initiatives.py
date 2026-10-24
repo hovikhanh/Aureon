@@ -11,6 +11,7 @@ from tests.integration.execution.helpers import (
     as_user,
     audit_actions,
     make,
+    make_strategic_objective,
     make_task,
     patch,
     uniq,
@@ -22,8 +23,10 @@ pytestmark = pytest.mark.integration
 async def make_initiative(api: ApiClient, owner: Any, **kw: Any) -> dict[str, Any]:
     o = await make(api, "/objectives", {
         "title": "o", "owner_id": str(owner), "period_key": "2037"})  # fmt: skip
+    so = await make_strategic_objective(api)
     return await make(api, "/goals/initiatives", {
         "code": uniq("INI"), "title": "Mở chi nhánh Đà Nẵng", "objective_id": o["id"],
+        "strategic_objective_id": so["id"],
         "owner_id": str(owner), "start_date": "2037-01-01", "planned_end_date": "2037-12-31",
         "weight_pct": 30, "pillar": "S", **kw})  # fmt: skip
 
@@ -85,11 +88,13 @@ async def test_initiative_crud_scope_filters(api: ApiClient, db_session: AsyncSe
     iid = ini["id"]
     dup = await api.call("POST", "/goals/initiatives", "CEO", json={
         "code": ini["code"], "title": "x", "objective_id": ini["objective_id"],
+        "strategic_objective_id": ini["strategic_objective_id"],
         "owner_id": str(owner), "start_date": "2037-01-01",
         "planned_end_date": "2037-02-01"})  # fmt: skip
     assert dup.status_code == 409
     bad = await api.call("POST", "/goals/initiatives", "CEO", json={
         "code": uniq("INI"), "title": "x", "objective_id": str(uuid.uuid4()),
+        "strategic_objective_id": ini["strategic_objective_id"],
         "owner_id": str(owner), "start_date": "2037-01-01",
         "planned_end_date": "2037-02-01"})  # fmt: skip
     assert bad.status_code == 422

@@ -1,4 +1,4 @@
-"""Schema `execution` — 14 tables (05 §4.7). Column groups follow 05 §2.1."""
+"""Schema `execution` (05 §4.7 + M1.3 §2.5 + M1.4 §2.6). Column groups follow 05 §2.1."""
 
 import uuid
 from datetime import date, datetime
@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     SmallInteger,
     UniqueConstraint,
@@ -53,6 +54,7 @@ INITIATIVE_STATUS = pg_enum(
 MILESTONE_STATUS = pg_enum(S, "milestone_status", "planned", "done", "missed")
 TRANSCRIPT_STATUS = pg_enum(S, "transcript_status", "UPLOADED", "PROCESSED", "FAILED")
 TASK_DEPENDENCY_TYPE = pg_enum(S, "task_dependency_type", "finish_to_start")  # 05 §2.5
+STRATEGY_STATUS = pg_enum(S, "strategy_status", "draft", "active", "closed")  # 05 §2.6
 
 MODULE_ENUMS: tuple[ENUM, ...] = (
     DECISION_STATUS,
@@ -71,6 +73,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
     MILESTONE_STATUS,
     TRANSCRIPT_STATUS,
     TASK_DEPENDENCY_TYPE,
+    STRATEGY_STATUS,
 )
 
 
@@ -253,12 +256,65 @@ class TaskDependency(BusinessModel):
     )
 
 
+# ---------- Strategy (05 §2.6, R-DEC-50) ----------
+class Strategy(BusinessModel):
+    """ENT-Strategy — "≤ 1 `active` overlapping per tenant" is checked in the service."""
+
+    __tablename__ = "strategies"
+    __table_args__ = (
+        CheckConstraint("period_end > period_start", name="period_end_after_start"),
+        Index("uq_strategies_code_live", "code", unique=True,
+              postgresql_where=text("deleted_at IS NULL")),
+        {"schema": S},
+    )  # fmt: skip
+
+    code: Mapped[str] = txt()
+    name: Mapped[str] = txt()
+    vision: Mapped[str | None] = txt(nullable=True)
+    mission: Mapped[str | None] = txt(nullable=True)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    status: Mapped[str] = mapped_column(STRATEGY_STATUS, nullable=False)
+
+
+class StrategicObjective(BusinessModel):
+    """ENT-StrategicObjective — parent of root KPI / root Objective / Initiative (R-DEC-50).
+
+    `progress_pct` is system-computed (05 §2.6): weighted mean of live initiatives' progress
+    (weights `weight_pct`, all 0 → plain mean); no initiative → mean of directly linked
+    objectives; none → 0.
+    """
+
+    __tablename__ = "strategic_objectives"
+    __table_args__ = (
+        CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
+        Index("uq_strategic_objectives_code_live", "code", unique=True,
+              postgresql_where=text("deleted_at IS NULL")),
+        Index("ix_strategic_objectives_strategy_id_sort_order", "strategy_id", "sort_order"),
+        {"schema": S},
+    )  # fmt: skip
+
+    strategy_id: Mapped[uuid.UUID] = fk(f"{S}.strategies.id")
+    code: Mapped[str] = txt()
+    title: Mapped[str] = txt()
+    description: Mapped[str | None] = txt(nullable=True)
+    pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    department_id: Mapped[uuid.UUID | None] = sr()
+    weight_pct: Mapped[Any] = pct(nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    status: Mapped[str] = mapped_column(OKR_STATUS, nullable=False)
+    progress_pct: Mapped[Any] = pct(nullable=False)
+
+
 # ---------- OKR ----------
 class Objective(BusinessModel):
     __tablename__ = "objectives"
     __table_args__ = (
         CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
         CheckConstraint("score BETWEEN 0 AND 1", name="score_0_1"),
+        CheckConstraint("parent_id IS NULL OR strategic_objective_id IS NULL", name="so_root_only"),
         {"schema": S},
     )
 
@@ -276,6 +332,9 @@ class Objective(BusinessModel):
     progress_pct: Mapped[Any] = pct(nullable=False)
     score: Mapped[Any] = mapped_column(Numeric(3, 2), nullable=True)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
 
 
 class KeyResult(BusinessModel):
@@ -311,7 +370,10 @@ class Initiative(BusinessModel):
     code: Mapped[str] = txt(unique=True)
     title: Mapped[str] = txt()
     description: Mapped[str | None] = txt(nullable=True)
-    objective_id: Mapped[uuid.UUID] = fk(f"{S}.objectives.id")
+    objective_id: Mapped[uuid.UUID | None] = fk(f"{S}.objectives.id", nullable=True)
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
     pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)
     owner_id: Mapped[uuid.UUID] = sr(nullable=False)
     department_id: Mapped[uuid.UUID | None] = sr()
@@ -344,6 +406,9 @@ class Kpi(BusinessModel):
     __tablename__ = "kpis"
     __table_args__ = (
         CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
+        CheckConstraint(
+            "parent_kpi_id IS NULL OR strategic_objective_id IS NULL", name="so_root_only"
+        ),
         {"schema": S},
     )
 
@@ -363,6 +428,10 @@ class Kpi(BusinessModel):
     owner_id: Mapped[uuid.UUID] = sr(nullable=False)
     department_id: Mapped[uuid.UUID | None] = sr()
     status: Mapped[str] = mapped_column(OKR_STATUS, nullable=False)
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
+    pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)  # DIR khối scope (R-DEC-57)
 
 
 class KpiTarget(BusinessModel):
