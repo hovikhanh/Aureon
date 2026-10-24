@@ -32,8 +32,10 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
     await page.getByTestId("approve").click();
 
+    // M1.5: a committing approve shows the UndoToast (06 §5.1) before returning to the queue
+    await expect(page.getByTestId("undo-toast")).toBeVisible();
+    await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
     await expect(page).toHaveURL(/\/data\/review$/);
-    await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
     await expect(page.locator(`[data-document-id="${doc.document_id}"]`)).toHaveCount(0);
 
     // Invoice may be on page 2+ of the list (20/page, many E2E invoices) — verify via API.
