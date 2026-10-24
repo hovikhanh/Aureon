@@ -184,3 +184,17 @@ def test_scanner_sees_lazy_and_from_imports(tmp_path: Path) -> None:
     assert _target("app.modules.hr.repositories.EmployeeRepository") == ("hr", "repositories")
     assert _target("app.modules.hr.services")[1] in PUBLIC_LAYERS  # type: ignore[index]
     assert _owner(APP / "modules" / "risk" / "services" / "risk_service.py") == ("risk", "services")
+
+
+def test_execution_reads_org_tree_only_through_core() -> None:
+    """R-DEC-57 / T-632: `execution` resolves the department subtree via `core/org_scope.py`
+    (provider registered by `hr`), never by importing `hr` (`hr → execution` exists)."""
+    assert "hr" not in _module_graph().get("execution", set())
+    hr_init = (APP / "modules" / "hr" / "__init__.py").read_text(encoding="utf-8")
+    assert "register_subtree_provider(" in hr_init
+    import importlib
+
+    from app.core import org_scope
+
+    importlib.import_module("app.modules.hr")
+    assert org_scope._PROVIDER, "hr did not register the department subtree provider"

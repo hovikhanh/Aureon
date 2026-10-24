@@ -6,7 +6,7 @@ Reads are scoped by `structure_scope` (EMP/REV → 403, MGR → own department s
 """
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -68,6 +68,15 @@ class StructureService:
         self.teams = TeamRepository(db)
         self.positions = PositionsRepository(db)
         self.employees = EmployeeRepository(db)
+
+    # ---------- public: department subtree (R-DEC-57, `core/org_scope`) ----------
+    async def subtree_ids(self, root_ids: Iterable[uuid.UUID]) -> set[uuid.UUID]:
+        """Every root + its live descendant departments (goal scope DIR / MGR, T-632)."""
+        out: set[uuid.UUID] = set()
+        for root in set(root_ids):
+            if root not in out:
+                out |= await self.depts.subtree_ids(root)
+        return out
 
     # ---------- shared ----------
     async def _record(
@@ -392,3 +401,8 @@ class StructureService:
                 for d in depts
             ],
         )  # fmt: skip
+
+
+async def department_subtree(db: AsyncSession, roots: Iterable[uuid.UUID]) -> set[uuid.UUID]:
+    """`core.org_scope` provider (registered by `app.modules.hr`)."""
+    return await StructureService(db).subtree_ids(roots)

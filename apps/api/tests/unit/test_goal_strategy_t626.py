@@ -45,14 +45,19 @@ def test_so_write_by_pillar() -> None:
     assert e.value.code == "FORBIDDEN_ROLE"
 
 
+def _gs(p: Principal, *depts: uuid.UUID) -> goal_scope.GoalScope:
+    return goal_scope.GoalScope(p, frozenset(depts))
+
+
 def test_so_readable() -> None:
     dept, other = uuid.uuid4(), uuid.uuid4()
-    emp = _p("EMP", dept=dept)
+    emp = _gs(_p("EMP", dept=dept))
     assert goal_scope.so_readable(emp, dept=None, owner=uuid.uuid4(), pillar="F")  # company
-    assert goal_scope.so_readable(emp, dept=other, owner=emp.user_id, pillar=None)  # own
+    assert goal_scope.so_readable(emp, dept=other, owner=emp.user.user_id, pillar=None)  # own
     assert not goal_scope.so_readable(emp, dept=other, owner=uuid.uuid4(), pillar="F")
-    assert goal_scope.so_readable(_p("MGR", dept=dept), dept=dept, owner=uuid.uuid4(), pillar=None)
-    assert goal_scope.so_readable(_p("DIR", ("F",)), dept=other, owner=uuid.uuid4(), pillar="F")
-    assert not goal_scope.so_readable(_p("DIR", ("F",)), dept=other, owner=uuid.uuid4(),
-                                      pillar="C")  # fmt: skip
-    assert goal_scope.so_predicate(_p("CEO"), dept=None, owner=None, pillar=None) is None
+    mgr = _gs(_p("MGR", dept=dept), dept)
+    assert goal_scope.so_readable(mgr, dept=dept, owner=uuid.uuid4(), pillar=None)
+    dir_f = _gs(_p("DIR", ("F",)))
+    assert goal_scope.so_readable(dir_f, dept=other, owner=uuid.uuid4(), pillar="F")
+    assert not goal_scope.so_readable(dir_f, dept=other, owner=uuid.uuid4(), pillar="C")
+    assert goal_scope.so_predicate(_gs(_p("CEO")), dept=None, owner=None, pillar=None) is None

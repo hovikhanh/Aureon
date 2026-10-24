@@ -165,7 +165,8 @@ class StrategyService(ExecBase):
         pillar: str | None, department_id: uuid.UUID | None,
     ) -> tuple[list[StrategicObjectiveOut], int]:  # fmt: skip
         SO = StrategicObjective
-        pred = goal_scope.so_predicate(user, dept=SO.department_id, owner=SO.owner_id,
+        gs = await goal_scope.resolve(self.db, user)
+        pred = goal_scope.so_predicate(gs, dept=SO.department_id, owner=SO.owner_id,
                                        pillar=SO.pillar)  # fmt: skip
         raw = {"strategy_id": strategy_id, "pillar": pillar, "department_id": department_id}
         items, total = await self.sos.list_page(
@@ -179,7 +180,8 @@ class StrategyService(ExecBase):
         o = await self.sos.get(id_)
         if o is None:
             raise not_found("strategic objective")
-        goal_scope.check_so_read(user, dept=o.department_id, owner=o.owner_id, pillar=o.pillar)
+        gs = await goal_scope.resolve(self.db, user)
+        goal_scope.check_so_read(gs, dept=o.department_id, owner=o.owner_id, pillar=o.pillar)
         return o
 
     async def _links(self, so_id: uuid.UUID) -> tuple[list[Kpi], list[Objective], list[Initiative]]:
