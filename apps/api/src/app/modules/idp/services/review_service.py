@@ -53,15 +53,18 @@ from app.modules.idp.schemas import (
     DocumentPageOut,
     FieldPatchIn,
     FieldPatchOut,
+    PlannedActionOut,
     ReassignOut,
     ReviewAssignmentOut,
     ReviewDetailOut,
     ReviewFieldOut,
     ReviewOpenOut,
     ReviewQueueItemOut,
+    ReviewRowOut,
 )
 from app.modules.idp.services.scope import (
-    document_visible,
+    assigned_to,
+    review_visible,
     sees_all_departments,
     structure_type_ids,
     type_in_scope,
@@ -114,6 +117,7 @@ class ReviewService:
             where.append(
                 (SourceDocument.department_id == user.department_id)
                 | (SourceDocument.submitted_by == user.user_id)
+                | SourceDocument.id.in_(assigned_to(user))  # REV role pool / named reviewer
             )
         if filters.assigned_to is not None:
             sub = select(ReviewAssignment.source_document_id).where(
@@ -178,11 +182,14 @@ class ReviewService:
         fields = await self._fields(job.id) if job else []
         xd = (job.xd_results or {}) if job else {}
         assignment = await self._current_assignment(document_id)
+        show4 = await self._sees_level4(user, doc)
+        outs = [_field_out(f, show4) for f in fields]
+        planned, can_commit = await self._plan(user, doc)
         return ReviewDetailOut(
             document=DocumentOut.model_validate(doc),
             job_id=job.id if job else None,
             pages=[DocumentPageOut.model_validate(p) for p in pages],
-            fields=[_field_out(f) for f in fields],
+            fields=outs,
             validation_errors=list(xd.get("validation_errors", [])),
             document_confidence=float(job.document_confidence)
             if job and job.document_confidence
@@ -192,7 +199,41 @@ class ReviewService:
             assigned_to=assignment.to_user_id if assignment else None,
             locked_by=doc.locked_by,
             locked_until=doc.locked_until,
+            rows=_rows(outs),
+            planned_actions=planned,
+            can_commit=can_commit,
         )
+
+    async def _sees_level4(self, user: Principal, doc: SourceDocument) -> bool:
+        """CEO / DIR khối O, or REV inside its assigned review session (CLAUDE.md §5.3)."""
+        from app.core.field_policy import sees_level4
+        from app.modules.idp.services.scope import in_review_session
+
+        return sees_level4(user) or await in_review_session(self.db, user, doc)
+
+    async def _plan(
+        self, user: Principal, doc: SourceDocument
+    ) -> tuple[list[PlannedActionOut], bool]:
+        """EP-DC-05 `planned_actions` (ACT plan, no write) + `can_commit` (EP-DC-23 gate)."""
+        from app.modules.idp.services.commit_service import CommitService
+
+        if doc.status in ("COMMITTED", "REJECTED", "ROLLED_BACK", "FAILED", "DUPLICATE"):
+            return [], False
+        steps = await CommitService(self.db).planned(user, doc)
+        counts: dict[str, int] = {}
+        acts = {}
+        for step in steps:
+            counts[step.act.name] = counts.get(step.act.name, 0) + 1
+            acts[step.act.name] = step.act
+        planned = [
+            PlannedActionOut(action_name=name, count=n,
+                             required_permission=acts[name].required_permission[0],
+                             permitted=acts[name].permitted(user))
+            for name, n in counts.items()
+        ]  # fmt: skip
+        can_commit = (doc.status == "APPROVED" and user.has("idp:write")
+                      and all(p.permitted for p in planned))  # fmt: skip
+        return planned, can_commit
 
     # ------------------------------------------------------------ open/release
     async def open(self, user: Principal, document_id: uuid.UUID) -> ReviewOpenOut:
@@ -300,8 +341,9 @@ class ReviewService:
             },
             why=next((e.reason for e in body.fields if e.reason), None),
         )
+        show4 = await self._sees_level4(user, doc)
         return FieldPatchOut(
-            fields=[_field_out(f) for f in fields],
+            fields=[_field_out(f, show4) for f in fields],
             validation_errors=validation.errors,
             validations_ok=validation.ok,
         )
@@ -338,6 +380,7 @@ class ReviewService:
             )
         )
         doc.status = "REJECTED"
+        doc.version += 1
         doc.status_reason = reason
         doc.locked_by = None
         doc.locked_until = None
@@ -564,15 +607,11 @@ class ReviewService:
         doc = await SourceDocumentRepository(self.db).by_id(document_id)
         if (
             doc is None
-            or not self._visible(user, doc)
+            or not await review_visible(self.db, user, doc)
             or not await type_in_scope(self.db, user, doc)
         ):
             raise NotFoundError("document not found")
         return doc
-
-    @staticmethod
-    def _visible(user: Principal, doc: SourceDocument) -> bool:
-        return document_visible(user, doc)
 
     @staticmethod
     def _check_lock(doc: SourceDocument, user: Principal) -> None:
@@ -654,15 +693,25 @@ def _effective(field: ExtractedField) -> Any:
     return field.value
 
 
-def _field_out(field: ExtractedField) -> ReviewFieldOut:
+_MASKED = {"masked": True}
+
+
+def _field_out(field: ExtractedField, show_level4: bool = True) -> ReviewFieldOut:
+    """Level ≥ 4 values (salary, CCCD, STK…) → `{masked: true}` unless the caller may read
+    them (10 §7.2.4: masked in preview/review/lineage; CLAUDE.md §5.3)."""
+    hide = int(field.sensitivity_level or 0) >= 4 and not show_level4
+
+    def v(value: Any) -> Any:
+        return _MASKED if hide and value is not None else value
+
     return ReviewFieldOut(
         id=field.id,
         field_name=field.field_name,
         row_index=field.row_index,
         value_type=field.value_type,
-        ai_value=field.value,
-        corrected_value=field.corrected_value,
-        effective_value=_effective(field),
+        ai_value=v(field.value),
+        corrected_value=v(field.corrected_value),
+        effective_value=v(_effective(field)),
         confidence=float(field.confidence),
         confidence_band=field.confidence_band,
         is_critical=field.is_critical,
@@ -671,3 +720,12 @@ def _field_out(field: ExtractedField) -> ReviewFieldOut:
         validation=list(field.validation or []),
         correction_reason=field.correction_reason,
     )
+
+
+def _rows(fields: list[ReviewFieldOut]) -> list[ReviewRowOut]:
+    """EP-DC-05 `rows[]`: table fields grouped by `row_index` (ascending)."""
+    grouped: dict[int, list[ReviewFieldOut]] = {}
+    for f in fields:
+        if f.row_index is not None:
+            grouped.setdefault(f.row_index, []).append(f)
+    return [ReviewRowOut(row_index=i, fields=grouped[i]) for i in sorted(grouped)]

@@ -114,11 +114,19 @@ async def test_queue_department_scoping(db_session, idp_store) -> None:
     dept_a, dept_b = uuid.uuid4(), uuid.uuid4()
     owner_a = _reviewer(dept=dept_a)
     await _ingest_invoice(db_session, owner_a)
-    # a reviewer in another department sees nothing
-    _, total_b = await ReviewService(db_session).queue(
+    # a manager of another department sees nothing (department scope, 04 §8.2)
+    mgr_b = Principal(
+        user_id=uuid.uuid4(), role="MGR",
+        permissions=frozenset(ROLE_PERMISSIONS["MGR"]), department_id=dept_b,
+    )  # fmt: skip
+    _, total_b = await ReviewService(db_session).queue(mgr_b, PageParams(), QueueFilters())
+    assert total_b == 0
+    # a REV of another department sees it through the `REV` role pool it is assigned to
+    # (10 §7.2.4 scope table: REV = "hàng chờ được phân")
+    _, total_rev = await ReviewService(db_session).queue(
         _reviewer(dept=dept_b), PageParams(), QueueFilters()
     )
-    assert total_b == 0
+    assert total_rev == 1
     # a no-department reviewer sees it
     no_dept = Principal(
         user_id=uuid.uuid4(), role="REV",

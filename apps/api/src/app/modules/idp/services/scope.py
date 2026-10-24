@@ -9,8 +9,9 @@ in the Ban Giám đốc department.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from sqlalchemy import ARRAY, ColumnElement, or_, select
+from sqlalchemy import ARRAY, ColumnElement, Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
@@ -70,7 +71,7 @@ async def inbox_filter(db: AsyncSession, user: Principal) -> ColumnElement[bool]
     #4 HR_ROSTER documents only. Unknown roles fall back to own documents (default deny).
     """
     from app.core.org_scope import department_subtree
-    from app.modules.idp.models import ExtractionReview, ReviewAssignment
+    from app.modules.idp.models import ExtractionReview
 
     own = SourceDocument.submitted_by == user.user_id
     if user.role == "CEO":
@@ -94,11 +95,37 @@ async def inbox_filter(db: AsyncSession, user: Principal) -> ColumnElement[bool]
         depts = await department_subtree(db, [user.department_id])
         return or_(own, SourceDocument.department_id.in_(depts))
     if user.role == "REV":
-        assigned = select(ReviewAssignment.source_document_id).where(
-            ReviewAssignment.is_current.is_(True), ReviewAssignment.to_user_id == user.user_id
-        )
-        return or_(own, SourceDocument.id.in_(assigned))
+        return or_(own, SourceDocument.id.in_(assigned_to(user)))
     return own
+
+
+def assigned_to(user: Principal) -> Select[Any]:
+    """Documents whose current review assignment names the caller or the caller's role pool
+    (`assign_initial_review` → `to_role_code="REV"`, 04 §8.2 "hàng chờ theo vai trò")."""
+    from app.modules.idp.models import ReviewAssignment
+
+    return select(ReviewAssignment.source_document_id).where(
+        ReviewAssignment.is_current.is_(True),
+        (ReviewAssignment.to_user_id == user.user_id)
+        | (ReviewAssignment.to_user_id.is_(None) & (ReviewAssignment.to_role_code == user.role)),
+    )
+
+
+async def in_review_session(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
+    """REV inside an assigned review session of `doc` (10 §7.2.4 scope table: REV reviews the
+    queue it is assigned; CLAUDE.md §5.3: level 4 readable in that session)."""
+    if user.role != "REV":
+        return False
+    from app.modules.idp.models import ReviewAssignment
+
+    stmt = assigned_to(user).where(ReviewAssignment.source_document_id == doc.id).limit(1)
+    return (await db.execute(stmt)).first() is not None
+
+
+async def review_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
+    """Review/approve side (EP-DC-05..10, 08): own department/submissions, or an assigned
+    review session (REV role pool)."""
+    return document_visible(user, doc) or await in_review_session(db, user, doc)
 
 
 async def lineage_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:

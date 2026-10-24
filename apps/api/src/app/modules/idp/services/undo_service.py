@@ -110,6 +110,7 @@ class UndoService:
             a.status, a.reverted_at, a.reverted_by = "reverted", now, user.user_id
         await LineageService(self.db).revoke([a.id for a in applied])
         doc.status = "ROLLED_BACK"
+        doc.version += 1
         doc.rolled_back_at, doc.rolled_back_by = now, user.user_id
         doc.rollback_reason_code = body.reason_code
         await self.db.flush()

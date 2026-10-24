@@ -49,8 +49,8 @@ from app.modules.idp.services.capture_common import document_out
 from app.modules.idp.services.critical import unconfirmed
 from app.modules.idp.services.lineage import record_commit_lineage
 from app.modules.idp.services.scope import (
-    document_visible,
     ensure_doc_type_scope,
+    review_visible,
     type_in_scope,
 )
 
@@ -113,6 +113,7 @@ class CommitService:
                 "reason": "critical_unconfirmed", "fields": pending_critical})  # fmt: skip
         self._add_review(doc, loaded, user, comment)
         doc.status = "APPROVED"
+        doc.version += 1  # R-DEC-60bis: every state transition bumps the optimistic lock
         doc.locked_by = None
         doc.locked_until = None
         await self._deactivate_assignments(doc.id)
@@ -139,6 +140,7 @@ class CommitService:
         missing = missing_permissions(user, loaded.steps)
         if missing:
             raise PermissionDeniedError("missing target permission", details={"missing": missing})
+        doc.version += 1
         return await self._commit(user, doc, loaded, None, stp=False)
 
     async def commit_direct(self, user: Principal, doc: SourceDocument) -> ApproveOut:
@@ -218,7 +220,9 @@ class CommitService:
         expected_version: int | None,
     ) -> SourceDocument:  # fmt: skip
         doc = await self._doc(document_id)
-        if not document_visible(user, doc) or not await type_in_scope(self.db, user, doc):
+        if not await review_visible(self.db, user, doc) or not await type_in_scope(
+            self.db, user, doc
+        ):
             raise NotFoundError("document not found")
         if doc.status not in states:
             raise ConflictStateError(f"cannot commit a {doc.status} document",

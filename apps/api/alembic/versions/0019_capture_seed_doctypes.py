@@ -8,7 +8,8 @@ Config rows (05 §2.7, R-DEC-65): one `document_types` row + `extraction_schemas
 `app.modules.idp.services.catalog` are the seed only — Admin edits the DB copy afterwards
 (EP-DC-27..35). INVOICE keeps its v1 schema; its `action_names` gets `ACT-create_invoice` when
 the row exists (fresh DBs create it lazily via `schema_registry`). Idempotent; downgrade
-removes exactly the seeded rows (by code).
+removes exactly the seeded rows (by code)
+that no captured document references.
 """
 
 import json
@@ -67,6 +68,15 @@ def upgrade() -> None:
     ))  # fmt: skip
 
 
+# Types still referenced by captured documents/jobs/batches are kept (deleting them would
+# delete user data); the upgrade skips an existing code, so down → up stays consistent.
+_IN_USE = (
+    "SELECT d.code FROM idp.document_types d WHERE d.code = ANY(:codes) AND ("
+    "EXISTS (SELECT 1 FROM idp.source_documents x WHERE x.document_type_id = d.id) OR "
+    "EXISTS (SELECT 1 FROM idp.import_batches x WHERE x.document_type_id = d.id) OR "
+    "EXISTS (SELECT 1 FROM idp.extraction_jobs j JOIN idp.extraction_schemas s "
+    "ON j.extraction_schema_id = s.id WHERE s.document_type_id = d.id))"
+)
 _DOWN = (
     "UPDATE idp.document_types SET current_schema_id = NULL WHERE code = ANY(:codes)",
     "DELETE FROM idp.validation_rules r USING idp.extraction_schemas s, idp.document_types d "
@@ -79,5 +89,7 @@ _DOWN = (
 
 def downgrade() -> None:
     conn = op.get_bind()
+    in_use = {r[0] for r in conn.execute(sa.text(_IN_USE), {"codes": list(_CODES)})}
+    codes = [c for c in _CODES if c not in in_use]
     for stmt in _DOWN:  # constant SQL; codes are bound parameters
-        conn.execute(sa.text(stmt), {"codes": list(_CODES)})
+        conn.execute(sa.text(stmt), {"codes": codes})

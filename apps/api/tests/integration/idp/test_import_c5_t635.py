@@ -13,7 +13,13 @@ import pytest
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import select, update
 
-from app.modules.idp.models import ExtractedField, ImportBatch, ReviewAssignment, SourceDocument
+from app.modules.idp.models import (
+    ExtractedField,
+    ExtractionJob,
+    ImportBatch,
+    ReviewAssignment,
+    SourceDocument,
+)
 from tests.conftest import ApiClient
 from tests.integration.idp.critical_helpers import approve_http
 
@@ -182,7 +188,9 @@ async def test_submit_valid_rows_then_dir_o_commits(api: ApiClient, db_session, 
     assert (out["rows_submitted"], out["rows_excluded"]) == (2, 3)
     assert out["document"]["status"] == "NEEDS_REVIEW"
     doc_id = uuid.UUID(out["document"]["id"])
-    fields = (await db_session.execute(select(ExtractedField).where(
+    fields = (await db_session.execute(select(ExtractedField).join(
+        ExtractionJob, ExtractionJob.id == ExtractedField.extraction_job_id).where(
+        ExtractionJob.source_document_id == doc_id,  # this document only (dev DB may hold others)
         ExtractedField.field_name == "employee_code",
         ExtractedField.source_location["sheet"].astext == "Nhân sự",
     ).order_by(ExtractedField.row_index))).scalars().all()  # fmt: skip

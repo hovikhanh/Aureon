@@ -92,6 +92,8 @@ async def test_undo_hr_import_reverses_all_and_opens_incidents(api: ApiClient, d
 
     doc_id, refs = await _committed(api, db_session)
     assert refs["hr.employees"]
+    tree = (await api.call("GET", "/org/tree", "CEO")).json()["data"]
+    assert "PB-L1" in {d["code"] for d in tree["departments"]}
     acts = (await api.call("GET", f"/data-capture/documents/{doc_id}/actions",
                            "HR_MANAGER")).json()["data"]  # fmt: skip
     assert [a["seq"] for a in acts] == sorted(a["seq"] for a in acts) and len(acts) >= 2
@@ -100,6 +102,11 @@ async def test_undo_hr_import_reverses_all_and_opens_incidents(api: ApiClient, d
     assert r.status_code == 200, r.text
     hr = HrService(db_session)
     assert await hr.employee_id_by_code("L637-04") is None  # soft-deleted by the undo
+    # created + archived the same day (`valid_to` = today + 1): gone from today's tree
+    tree = (await api.call("GET", "/org/tree", "CEO")).json()["data"]
+    assert "PB-L1" not in {d["code"] for d in tree["departments"]}
+    assert not {m["employee_code"] for d in tree["departments"] for m in d["members"]
+                if m["employee_code"].startswith("L637-")}  # fmt: skip
     incs = (await db_session.execute(select(CaptureIncident).where(
         CaptureIncident.source_document_id == doc_id))).scalars().all()  # fmt: skip
     assert incs and all(i.detected_by == "undo" and i.undetected and i.is_critical
