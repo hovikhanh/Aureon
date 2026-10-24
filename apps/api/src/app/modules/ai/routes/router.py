@@ -257,11 +257,15 @@ async def set_kill_switch(
 @router.get("/tools", response_model=list[ToolOut], summary="EP-AI-14 Tool Registry")
 async def list_tools(
     user: AiUser,
+    db: DbSession,
     kind: Literal["READ", "WRITE", "APPROVAL", "EXECUTION"] | None = None,
     domain: str | None = None,
+    agent: str | None = None,
     available_only: bool = False,
 ) -> list[ToolOut]:
-    return tool_catalog.list_tools(user, kind=kind, domain=domain, available_only=available_only)
+    return await tool_catalog.list_tools(
+        db, user, kind=kind, domain=domain, agent=agent, available_only=available_only
+    )
 
 
 @router.get("/usage", response_model=CostSummaryOut, summary="EP-AI-15 AI usage & cost")

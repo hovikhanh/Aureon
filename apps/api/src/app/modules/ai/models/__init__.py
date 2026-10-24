@@ -23,12 +23,20 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base_model import BusinessModel, ConfigModel, LogModel, SoftDeleteMixin
+from app.core.base_model import (
+    DEFAULT_TENANT_ID,
+    BusinessModel,
+    ConfigModel,
+    LogModel,
+    SoftDeleteMixin,
+    TenantMixin,
+)
 from app.core.columns import fk, money, schema_args, sr, txt
 from app.core.enums import (
     ALERT_SEVERITY,
@@ -64,7 +72,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
 
 
 # ---------- config ----------
-class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
+class AutonomyPolicy(ConfigModel, TenantMixin, SoftDeleteMixin):
     """ENT-AutonomyPolicy — config + soft delete (spec UQ is partial on `deleted_at IS NULL`).
 
     "L4 cấm bằng CK": `ai.autonomy_level` has no L4 value, so the enum itself forbids it.
@@ -76,19 +84,26 @@ class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
         # 05 writes the key as COALESCE(role_code::text,'*'), COALESCE(max_amount,-1); PG rejects
         # it (enum→text cast is not IMMUTABLE). NULLS NOT DISTINCT (PG15+) is the equivalent:
         # NULL role / NULL amount each act as one value. Proposed DEC, T-003 report.
+        # M1.6 (05 §2.8): key gains tenant + agent; NULL agent/role/amount = one value each.
         Index(
-            "uq_autonomy_policies_action_role_amount",
+            "uq_autonomy_policies_tenant_action_agent_role_amount",
+            "tenant_id",
             "action_name",
+            "agent_profile_code",
             "role_code",
             "max_amount",
             unique=True,
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
+        CheckConstraint("level <= max_level", name="level_le_max"),
         {"schema": S},
     )
 
     action_name: Mapped[str] = txt()
+    tool_name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    agent_profile_code: Mapped[str | None] = txt(nullable=True)  # NULL = every agent
+    reason: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     role_code: Mapped[str | None] = mapped_column(ROLE_CODE, nullable=True)
     max_amount: Mapped[int | None] = money(nullable=True)
     currency: Mapped[str | None] = mapped_column(CHAR(3), nullable=True)
@@ -97,13 +112,20 @@ class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
-class AgentProfile(ConfigModel):
-    """ENT-AIAgentProfile — config, no `deleted_at` (disable = `is_enabled = false`)."""
+class AgentProfile(ConfigModel, TenantMixin):
+    """ENT-AIAgent ≡ ENT-AIAgentProfile (R-DEC-71) — config, no `deleted_at` (disable =
+    `is_enabled = false`). Catalog fixed at P0: 6 agents seeded, no create/delete API."""
 
     __tablename__ = "agent_profiles"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="uq_agent_profiles_tenant_code"),
+        {"schema": S},
+    )
 
-    code: Mapped[str] = txt(unique=True)
+    code: Mapped[str] = txt()
+    agent_ref: Mapped[str] = txt(unique=True)  # AGT-* (00 §4 registry)
+    description_vi: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    description_en: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     name_vi: Mapped[str] = txt()
     name_en: Mapped[str] = txt()
     allowed_tools: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
@@ -183,8 +205,19 @@ class ModelCallLog(LogModel):
     """ENT-ModelCallLog — append-only; only `prompt_sha256`, never the raw prompt."""
 
     __tablename__ = "model_call_logs"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        Index("ix_model_call_logs_tenant_created", "tenant_id", text("created_at DESC")),
+        {"schema": S},
+    )
 
+    # M1.6 (05 §2.8, R-DEC-74): log tenant column (no TenantMixin, like outbox), request id,
+    # agent for `group_by=agent` / per-agent budget.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, server_default=text(f"'{DEFAULT_TENANT_ID}'")
+    )
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip
+    agent_profile_code: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     caller_module: Mapped[str] = txt()
     task_kind: Mapped[str] = txt()
     provider: Mapped[str] = txt()

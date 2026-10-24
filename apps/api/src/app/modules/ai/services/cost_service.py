@@ -94,3 +94,15 @@ class CostService:
             warn_80pct=used >= budget * 0.8 > 0,
             rows=rows,
         )
+
+    async def spend_by_agent(self, *, start: datetime | None = None) -> dict[str, float]:
+        """Month-to-date USD per `agent_profile_code` (EP-AI-16 `month_spend_usd`, FR-AIQ-05)."""
+        start = start or month_start(datetime.now(UTC))
+        stmt = (
+            select(ModelCallLog.agent_profile_code,
+                   func.coalesce(func.sum(ModelCallLog.estimated_cost_micro_usd), 0))
+            .where(ModelCallLog.created_at >= start,
+                   ModelCallLog.agent_profile_code.is_not(None))
+            .group_by(ModelCallLog.agent_profile_code)
+        )  # fmt: skip
+        return {str(k): int(v) / _MICRO for k, v in (await self.db.execute(stmt)).all()}

@@ -95,6 +95,8 @@ class ConfigService(BaseSettings):
     ai_demo_token_delay_sec: float = Field(default=0.03, ge=0, le=1)
     ai_monthly_budget_usd: float = Field(default=50, ge=0)
     ai_budget_alert_pct: int = Field(default=80, ge=1, le=100)
+    # R-DEC-72: hard autonomy ceiling — L2 through M1 (no L3 auto-execute), M3.2 → L3. L4 locked.
+    ai_autonomy_ceiling: Literal["L0", "L1", "L2", "L3"] = "L2"
 
     # --- IDP / ClamAV (DEC-138) ---
     clamav_host: str = "localhost"

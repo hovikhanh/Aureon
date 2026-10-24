@@ -2813,6 +2813,7 @@ export type Meta = {
   pending_count?: number | null;
   counts?: Record<string, number> | null;
   pending_permissions?: string[] | null;
+  defaults?: Record<string, unknown>[] | null;
 };
 
 export type MetricCreate = {

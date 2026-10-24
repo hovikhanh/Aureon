@@ -23,6 +23,8 @@ class SettingRow:
     value: dict[str, Any]
     updated_by: uuid.UUID | None
     updated_at: datetime | None
+    reason: str | None = None
+    version: int = 1
 
 
 class SystemSettingService:
@@ -34,7 +36,8 @@ class SystemSettingService:
         if row is None:
             return None
         return SettingRow(value=dict(row.value or {}), updated_by=row.updated_by,
-                          updated_at=row.updated_at)  # fmt: skip
+                          updated_at=row.updated_at, reason=row.updated_reason,
+                          version=row.version)  # fmt: skip
 
     async def set(
         self, key: str, value: dict[str, Any], *, reason: str, updated_by: uuid.UUID
@@ -51,8 +54,16 @@ class SystemSettingService:
             row.updated_reason = reason
             row.updated_by = updated_by
             row.updated_at = datetime.now(UTC)
+            row.version = row.version + 1
         await self.db.flush()
-        return SettingRow(value=dict(value), updated_by=updated_by, updated_at=row.updated_at)
+        return SettingRow(value=dict(value), updated_by=updated_by, updated_at=row.updated_at,
+                          reason=reason, version=row.version or 1)  # fmt: skip
+
+    async def id_of(self, key: str) -> uuid.UUID:
+        row = await self._row(key)
+        if row is None:
+            raise LookupError(key)
+        return row.id
 
     async def _row(self, key: str) -> SystemSetting | None:
         return (
