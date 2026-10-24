@@ -1,0 +1,10 @@
+{
+  "content": "Đã soạn thẻ giao việc \"Gọi lại khách hàng ABC\" cho NV-0001 (hạn 30/10/2026) — chờ anh/chị xác nhận.",
+  "model": "fixture",
+  "usage": {
+    "tokens_in": 0,
+    "tokens_out": 0
+  },
+  "tool_calls": [],
+  "data": null
+}

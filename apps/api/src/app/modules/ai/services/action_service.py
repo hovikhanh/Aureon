@@ -30,6 +30,7 @@ from app.core.errors import (
     ConflictStateError,
     NotFoundError,
     PermissionDeniedError,
+    ScopeDeniedError,
 )
 from app.modules.ai.models import AIAction
 from app.modules.ai.repositories import AIActionRepository
@@ -235,6 +236,8 @@ class ActionService:
         await self.db.flush()
 
     def _require_write(self, user: Principal, action: AIAction) -> None:
+        if action.on_behalf_of != user.user_id:  # only the asker decides the card (TC-M16-18)
+            raise ScopeDeniedError("action belongs to another user")
         if not user.has("ai:write"):
             raise PermissionDeniedError("missing ai:write")
         act = get_action(action.action_name)

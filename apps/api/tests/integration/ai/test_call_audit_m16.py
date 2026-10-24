@@ -60,7 +60,7 @@ async def test_chat_turn_logs_share_request_id(api: ApiClient, db_session) -> No
     )
     w = by["TOOL-create_task"]
     assert (w.tool_kind, w.autonomy_level) == ("WRITE", "L2")  # effective, not seed L3
-    assert w.error_code == "AI_WRITE_VIA_ACTION"  # T-645b routes it through propose()
+    assert w.error_code is None and w.ai_action_id is not None  # T-645b: propose() → card
     assert by["TOOL-get_finance_dashboard"].result_refs
     assert all(set(ref) == {"type", "id", "label"} for ref in by["TOOL-get_finance_dashboard"]
                .result_refs)  # fmt: skip
