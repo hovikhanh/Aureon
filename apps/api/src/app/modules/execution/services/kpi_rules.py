@@ -21,6 +21,14 @@ DEFAULT_CAP = Decimal(150)
 Q4 = Decimal("0.0001")
 LOCAL_TZ = ZoneInfo("Asia/Ho_Chi_Minh")  # business calendar (05 §2.6)
 LOW_BANDS = frozenset({"BELOW", "CRITICAL"})  # `execution.kpi_below_threshold`
+BAND_RANK = {"CRITICAL": 0, "BELOW": 1, "NEAR": 2, "MEETS": 3, "EXCEEDS": 4}
+
+
+def entered_low_band(new: str, previous: str | None) -> bool:
+    """Band moved into BELOW / CRITICAL from a better band, or first evaluation (10 §9.2)."""
+    if new not in LOW_BANDS:
+        return False
+    return previous is None or BAND_RANK[new] < BAND_RANK[previous]
 
 
 def _ratio(num: Decimal, den: Decimal, cap: Decimal) -> Decimal:

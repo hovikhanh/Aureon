@@ -56,6 +56,14 @@ celery_app.conf.update(
             "task": "app.jobs.detect_overdue_tasks",
             "schedule": crontab(minute=30, hour=8),
         },
+        "execution.kr_at_risk": {  # R-DEC-55 — daily KR at-risk (EVT-execution.okr_at_risk)
+            "task": "app.jobs.detect_kr_at_risk",
+            "schedule": crontab(minute=0, hour=7),
+        },
+        "execution.checkin_reminder": {  # 10 §9.2 — Friday weekly check-in reminder (F4)
+            "task": "app.jobs.checkin_reminder",
+            "schedule": crontab(minute=0, hour=8, day_of_week=5),
+        },
         "verify-action-outcome": {
             "task": "app.jobs.verify_action_outcome",
             "schedule": crontab(minute=5),

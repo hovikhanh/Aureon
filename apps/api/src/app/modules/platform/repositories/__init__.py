@@ -290,6 +290,20 @@ class NotificationRepository:
         stmt = self._mine(user_id).where(Notification.id == notification_id).with_for_update()
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
+    async def exists(
+        self, user_id: uuid.UUID, *, kind: str, since: datetime, link: str | None = None,
+        ref_table: str | None = None, ref_id: uuid.UUID | None = None, title: str | None = None,
+    ) -> bool:  # fmt: skip
+        stmt = self._mine(user_id).where(Notification.kind == kind,
+                                         Notification.created_at >= since)  # fmt: skip
+        if link is not None:
+            stmt = stmt.where(Notification.link == link)
+        if ref_table is not None:
+            stmt = stmt.where(Notification.ref_table == ref_table, Notification.ref_id == ref_id)
+        if title is not None:
+            stmt = stmt.where(Notification.title == title)
+        return (await self.db.execute(stmt.limit(1))).first() is not None
+
     async def read_all(self, user_id: uuid.UUID, up_to: datetime, at: datetime) -> int:
         res = await self.db.execute(
             update(Notification)

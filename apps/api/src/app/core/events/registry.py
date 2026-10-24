@@ -45,6 +45,9 @@ EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
         "hr.org_structure_changed",
         "execution.task_created",  # M1.3 R-DEC-47 (BRD `task.created`)
         "execution.task_completed",  # M1.3 R-DEC-47 (BRD `task.completed`)
+        "execution.kpi_below_threshold",  # M1.4 R-DEC-56 (BRD `kpi.below_threshold`)
+        "execution.okr_checked_in",  # M1.4 R-DEC-56 (BRD `okr.checked_in`)
+        "execution.okr_at_risk",  # M1.4 R-DEC-56 (BRD `okr.at_risk`)
     }
 )
 

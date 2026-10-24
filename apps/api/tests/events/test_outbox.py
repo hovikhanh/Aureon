@@ -42,6 +42,8 @@ def test_registry_has_28_events() -> None:
     assert EXTENSION_EVENT_TYPES == {
         "hr.org_structure_changed", "auth.user_access_changed",
         "execution.task_created", "execution.task_completed",  # M1.3 R-DEC-47
+        "execution.kpi_below_threshold", "execution.okr_checked_in",  # M1.4 R-DEC-56
+        "execution.okr_at_risk",
     }  # fmt: skip
     assert not EVENT_TYPES & EXTENSION_EVENT_TYPES
     assert all(is_registered(e) for e in EXTENSION_EVENT_TYPES)

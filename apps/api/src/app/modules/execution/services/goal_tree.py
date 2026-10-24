@@ -51,6 +51,7 @@ from app.modules.execution.schemas.strategy import (
     UnalignedOut,
 )
 from app.modules.execution.services import goal_scope
+from app.modules.execution.services.at_risk import current_objectives
 from app.modules.execution.services.base import num, today
 from app.modules.execution.services.kpi_rules import (
     kr_progress_pct,
@@ -266,8 +267,7 @@ class GoalTreeService:
         cfg = get_config()
         me = user.user_id
         out: list[CheckInDueOut] = []
-        objs = {o.id: o for o in await self.objectives.where(Objective.status == "active")
-                if (lambda b: b[0] <= day < b[1])(period_bounds(o.period_key))}  # fmt: skip
+        objs = {o.id: o for o in await current_objectives(self.db, day)}
         if objs:
             mine = await self.krs.where(
                 KeyResult.objective_id.in_(list(objs)), KeyResult.owner_id == me,
