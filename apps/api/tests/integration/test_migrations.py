@@ -23,6 +23,7 @@ APPEND_ONLY = {
     "risk.risk_assessments", "execution.kpi_measurements", "product.product_metrics",
     "execution.check_ins", "execution.kr_measurements",
     "idp.import_rows", "idp.document_actions",  # M1.5 log tables (05 §2.7)
+    "platform.dq_domain_scores",  # M1.5 computed DQ-01 breakdown (0020_capture_dq, upsert)
 }  # fmt: skip
 
 
