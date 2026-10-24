@@ -228,7 +228,7 @@ class ApprovalIn(BaseModel):
 
 
 # ---------- EP-87 workload ----------
-class WorkloadOut(BaseModel):
+class EmployeeWorkloadOut(BaseModel):
     employee_ref: str
     open_tasks: int
     load_pct: float

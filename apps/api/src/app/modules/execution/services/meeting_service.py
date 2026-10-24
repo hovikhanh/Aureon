@@ -264,12 +264,13 @@ class ProjectService(ExecBase):
 
     async def list_projects(
         self, user: Principal, page: PageParams, *, status: str | None,
-        department_id: uuid.UUID | None,
+        department_id: uuid.UUID | None, owner_id: uuid.UUID | None = None,
     ) -> tuple[list[ProjectOut], int]:  # fmt: skip
         pred = scope.predicate(user, "read", dept=Project.department_id,
                                own=[Project.owner_id == user.user_id])  # fmt: skip
+        flt = {"status": status, "department_id": department_id, "owner_id": owner_id}
         items, total = await self.projects.list_page(
-            **_page(page), filters=_clean({"status": status, "department_id": department_id}),
+            **_page(page), filters=_clean(flt),
             where=[pred] if pred is not None else [],
         )  # fmt: skip
         return [project_out(p) for p in items], total
@@ -283,6 +284,7 @@ class ProjectService(ExecBase):
 
     async def create_project(self, user: Principal, body: ProjectCreate) -> ProjectOut:
         data = body.model_dump()
+        data.pop("initiative_id", None)  # TODO-T-619: column `projects.initiative_id` (0014)
         data["planned_end_date"] = data.pop("due_date")
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
@@ -299,8 +301,8 @@ class ProjectService(ExecBase):
     ) -> ProjectOut:
         p = await self.get_project(user, id_, "write")
         before = project_out(p)
-        data = body.model_dump(exclude_unset=True, exclude={"version"})
-        if "due_date" in data:
+        data = body.model_dump(exclude_unset=True, exclude={"version", "initiative_id"})
+        if "due_date" in data:  # TODO-T-619: apply `initiative_id` once 0014 adds the column
             data["planned_end_date"] = data.pop("due_date")
         scope.require_self(user, data.get("owner_id"), field="owner_id")
         if "department_id" in data:

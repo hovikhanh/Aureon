@@ -6,6 +6,7 @@ publish `EVT-execution.task_overdue` once — `overdue_notified_at` marks the ta
 """
 
 import uuid
+from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
@@ -40,10 +41,19 @@ def task_out(t: Task, as_of: date | None = None) -> TaskOut:
         actual_hours=num(t.actual_hours), evidence=t.evidence, project_id=t.project_id,
         initiative_id=t.initiative_id, milestone_id=t.milestone_id, meeting_id=t.meeting_id,
         decision_id=t.decision_id, key_result_id=t.key_result_id, kpi_id=t.kpi_id,
-        parent_id=t.parent_id, is_critical=t.is_critical, task_source=t.task_source,
+        parent_task_id=t.parent_id, is_critical=t.is_critical, task_source=t.task_source,
         source_document_id=t.source_document_id,
         overdue=is_overdue(t.status, t.due_date, as_of or today()),
     )  # fmt: skip
+
+
+def _to_columns(data: dict[str, Any]) -> dict[str, Any]:
+    """API → ORM names. TODO-T-619: migration 0014 renames `parent_id` → `parent_task_id` and adds
+    `source_ref`; until then the API field maps to the old column and `source_ref` is not stored."""
+    if "parent_task_id" in data:
+        data["parent_id"] = data.pop("parent_task_id")
+    data.pop("source_ref", None)
+    return data
 
 
 def _own(user: Principal) -> list[ColumnElement[bool]]:
@@ -64,12 +74,22 @@ class TaskService(ExecBase):
 
     async def list_tasks(
         self, user: Principal, page: PageParams, *, filters: dict[str, Any],
-        overdue: bool | None,
+        overdue: bool | None, statuses: Sequence[str] | None = None, mine: bool = False,
+        due_from: date | None = None, due_to: date | None = None,
     ) -> tuple[list[TaskOut], int]:  # fmt: skip
         where: list[ColumnElement[bool]] = []
         pred = scope.predicate(user, "read", dept=Task.department_id, own=_own(user))
         if pred is not None:
             where.append(pred)
+        if statuses:
+            where.append(Task.status.in_(statuses))
+        if mine:  # TODO-T-619: also match `Principal.employee_id` (R-DEC-41)
+            where.append(Task.assignee_id == user.user_id)
+        if due_from is not None:
+            where.append(Task.due_date >= due_from)
+        if due_to is not None:
+            where.append(Task.due_date <= due_to)
+        filters = _to_columns(dict(filters))
         as_of = today()
         if overdue is True:
             where += [Task.due_date < as_of, Task.status.in_(OPEN_TASK_STATUSES)]
@@ -99,10 +119,10 @@ class TaskService(ExecBase):
         data["department_id"] = scope.pin_department(user, data["department_id"])
         _check_dates(data["start_date"], data["due_date"])
         self._status_fields(data, None, data["status"])
-        await self.require_refs(data, RULE, parent_id=Task)
+        await self.require_refs(data, RULE, parent_task_id=Task)
         if data["evidence"] is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
-        t = await self.tasks.create(**data, source="MANUAL", created_by=user.user_id)
+        t = await self.tasks.create(**_to_columns(data), source="MANUAL", created_by=user.user_id)
         await self._progress(t.initiative_id)
         await self.db.refresh(t)
         out = task_out(t)
@@ -143,17 +163,19 @@ class TaskService(ExecBase):
         _check_dates(data.get("start_date", t.start_date), data.get("due_date", t.due_date))
         if "status" in data or "blocked_reason" in data:
             self._status_fields(data, t, data.get("status") or t.status)
-        if data.get("parent_id") == t.id:
+        if data.get("parent_task_id") == t.id:
             raise BusinessRuleError("task cannot be its own parent",
-                                    details={"field": "parent_id", "rule": RULE})  # fmt: skip
-        await self.require_refs(data, RULE, parent_id=Task)
+                                    details={"field": "parent_task_id", "rule": RULE})  # fmt: skip
+        await self.require_refs(data, RULE, parent_task_id=Task)
         if data.get("evidence") is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
         if "due_date" in data and data["due_date"] != t.due_date:
             data["overdue_notified_at"] = None  # re-arm EVT-execution.task_overdue
         data = {k: v for k, v in data.items() if k not in NOT_NULL or v is not None}
         old_initiative = t.initiative_id
-        await self.tasks.update(t, expected_version=expected, updated_by=user.user_id, **data)
+        await self.tasks.update(
+            t, expected_version=expected, updated_by=user.user_id, **_to_columns(data)
+        )
         await self._progress(old_initiative, t.initiative_id)
         await self.db.refresh(t)
         out = task_out(t)

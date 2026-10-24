@@ -61,7 +61,7 @@ async def test_initiative_milestones_progress(api: ApiClient, db_session: AsyncS
     # task linked to milestone blocks deleting it
     tm = await make_task(api, milestone_id=m1["id"])
     assert (await api.call("DELETE", f"{url}/milestones/{m1['id']}", "CEO")).status_code == 409
-    await api.call("DELETE", f"/execution/tasks/{tm['id']}", "CEO")
+    await api.call("DELETE", f"/work/tasks/{tm['id']}", "CEO")
     assert (await api.call("DELETE", f"{url}/milestones/{m1['id']}", "CEO")).status_code == 204
     assert (await get(api, url))["progress_pct"] == 100
     assert (await api.call("GET", f"{url}/milestones/{m1['id']}", "CEO")).status_code == 404
@@ -72,7 +72,7 @@ async def test_initiative_milestones_progress(api: ApiClient, db_session: AsyncS
     # initiative still referenced
     assert (await api.call("DELETE", url, "CEO")).status_code == 409
     # moving a task off the initiative recomputes both
-    mv = await patch(api, f"/execution/tasks/{t1['id']}", 1, initiative_id=other["id"])
+    mv = await patch(api, f"/work/tasks/{t1['id']}", 1, initiative_id=other["id"])
     assert mv.status_code == 200
     assert (await get(api, f"/execution/initiatives/{other['id']}"))["progress_pct"] == 100
     acts = await audit_actions(db_session, m1["id"])

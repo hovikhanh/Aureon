@@ -30,11 +30,11 @@ from app.modules.hr.repositories import (
     SalaryRepository,
 )
 from app.modules.hr.schemas import (
+    EmployeeWorkloadOut,
     HeadcountPoint,
     HrDashboardOut,
     PeriodOut,
     TurnoverPoint,
-    WorkloadOut,
 )
 from app.modules.hr.services.metrics import (
     Period,
@@ -126,7 +126,7 @@ class HrDashboardService:
 
     async def workload(
         self, user: Principal, *, department_id: uuid.UUID | None, as_of: date
-    ) -> list[WorkloadOut]:
+    ) -> list[EmployeeWorkloadOut]:
         """EP-87 `[{ employee_ref, open_tasks, load_pct, overloaded }]` (METRIC-HR-03).
 
         Reads `execution.tasks` only through the execution public `workload` service (DEC-125);
@@ -135,7 +135,7 @@ class HrDashboardService:
         dept = self._department(user, department_id)
         rows = await execution_workload(self.db, dept, as_of)
         return [
-            WorkloadOut(employee_ref=str(r.employee_id), open_tasks=r.open_tasks,
+            EmployeeWorkloadOut(employee_ref=str(r.employee_id), open_tasks=r.open_tasks,
                         load_pct=r.load_pct, overloaded=r.overloaded)
             for r in rows
         ]  # fmt: skip

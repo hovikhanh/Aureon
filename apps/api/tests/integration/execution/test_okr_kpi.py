@@ -135,7 +135,7 @@ async def test_kpi_measurements_and_event(api: ApiClient, db_session: AsyncSessi
     assert selfp.status_code == 422
     t = await make_task(api, kpi_id=child["id"])
     assert (await api.call("DELETE", f"/execution/kpis/{child['id']}", "CEO")).status_code == 409
-    await api.call("DELETE", f"/execution/tasks/{t['id']}", "CEO")
+    await api.call("DELETE", f"/work/tasks/{t['id']}", "CEO")
     assert (await api.call("DELETE", f"/execution/kpis/{child['id']}", "CEO")).status_code == 204
     assert (await api.call("GET", f"/execution/kpis/{child['id']}", "CEO")).status_code == 404
     emp = await as_user(api, "GET", f"/execution/kpis/{kid}", "EMPLOYEE", owner)

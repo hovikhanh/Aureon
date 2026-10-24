@@ -30,7 +30,7 @@ class ReplayOut(BaseModel):
 
 
 class ApprovalRequestOut(BaseModel):
-    """EP-123/125 ApprovalRequestOut (10 §4.11)."""
+    """EP-WF-01..03 / EP-TASK-19 ApprovalRequestOut (10 §7.2.2, 05 §2.5)."""
 
     id: uuid.UUID
     rule_code: str | None = None
@@ -45,6 +45,13 @@ class ApprovalRequestOut(BaseModel):
     requested_by: uuid.UUID
     due_at: datetime
     escalated_at: datetime | None = None
+    # TODO-T-622: `department_id` / stored `target_kind` (0015) and inbox fields filled by service.
+    department_id: uuid.UUID | None = None
+    title_key: str | None = None  # i18n key, no fixed sentence (CLAUDE.md §5.2)
+    params: dict[str, object] = Field(default_factory=dict)
+    requested_by_name: str | None = None
+    overdue: bool = False
+    created_at: datetime | None = None
 
 
 class DecideIn(BaseModel):

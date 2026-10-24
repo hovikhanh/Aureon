@@ -237,7 +237,7 @@ _READ_TOOLS: tuple[ToolDef, ...] = (
     ),
     _read(
         "TOOL-list_tasks",
-        "EP-44.L",
+        "EP-TASK-01",
         "execution:read",
         risk="medium",
         scope="execution:record",
@@ -305,7 +305,7 @@ _READ_TOOLS: tuple[ToolDef, ...] = (
 _WRITE_TOOLS: tuple[ToolDef, ...] = (
     _write(
         "TOOL-create_task",
-        "EP-44.C / ACT-create_task",
+        "EP-TASK-02 / ACT-create_task",
         "execution",
         "execution:write",
         risk="medium",
@@ -437,7 +437,7 @@ _V21_TOOLS: tuple[ToolDef, ...] = (
     ),
     _write(
         "TOOL-assign_task",
-        "EP-44.U",
+        "EP-TASK-04",
         "execution",
         "execution:write",
         risk="medium",
@@ -489,7 +489,7 @@ _V21_TOOLS: tuple[ToolDef, ...] = (
         name="TOOL-approve_request",
         description="Approve an approval request (server-only).",
         domain="platform",
-        endpoint="EP-125 decision=approve",
+        endpoint="EP-WF-03 decision=approve",
         kind="APPROVAL",
         risk_level="high",
         autonomy_default="L0",
@@ -505,7 +505,7 @@ _V21_TOOLS: tuple[ToolDef, ...] = (
         name="TOOL-reject_request",
         description="Reject an approval request (server-only).",
         domain="platform",
-        endpoint="EP-125 decision=reject",
+        endpoint="EP-WF-03 decision=reject",
         kind="APPROVAL",
         risk_level="medium",
         autonomy_default="L0",

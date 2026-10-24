@@ -51,7 +51,8 @@ def initiative_out(i: Initiative) -> InitiativeOut:
 
 
 def milestone_out(m: Milestone) -> MilestoneOut:
-    return MilestoneOut(**_c19(m), initiative_id=m.initiative_id, title=m.title,
+    return MilestoneOut(**_c19(m), initiative_id=m.initiative_id, project_id=m.project_id,
+                        title=m.title,
                         due_date=m.due_date, status=m.status, done_at=m.done_at)  # fmt: skip
 
 

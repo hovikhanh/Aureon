@@ -51,6 +51,30 @@ export type AlertOut = {
   message_params: Record<string, unknown>;
 };
 
+export type ApprovalDetailOut = {
+  id: string;
+  rule_code?: string | null;
+  target_kind: string;
+  target_table?: string | null;
+  target_id?: string | null;
+  ai_action_id?: string | null;
+  amount?: number | null;
+  currency?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED";
+  step: number;
+  requested_by: string;
+  due_at: string;
+  escalated_at?: string | null;
+  department_id?: string | null;
+  title_key?: string | null;
+  params?: Record<string, unknown>;
+  requested_by_name?: string | null;
+  overdue?: boolean;
+  created_at?: string | null;
+  payload_diff?: Record<string, unknown>[];
+  timeline?: ApprovalTimelineStep[];
+};
+
 export type ApprovalIn = {
   decision: "approve" | "reject";
   reason: string;
@@ -70,6 +94,20 @@ export type ApprovalRequestOut = {
   requested_by: string;
   due_at: string;
   escalated_at?: string | null;
+  department_id?: string | null;
+  title_key?: string | null;
+  params?: Record<string, unknown>;
+  requested_by_name?: string | null;
+  overdue?: boolean;
+  created_at?: string | null;
+};
+
+export type ApprovalTimelineStep = {
+  step: number;
+  actor_ref: string | null;
+  decision: string;
+  reason?: string | null;
+  at?: string | null;
 };
 
 export type ApproveIn = {
@@ -726,6 +764,13 @@ export type EmployeeUpdate = {
   manager_id?: string | null;
 };
 
+export type EmployeeWorkloadOut = {
+  employee_ref: string;
+  open_tasks: number;
+  load_pct: number;
+  overloaded: boolean;
+};
+
 export type Envelope_AIActionOut_ = {
   data: AIActionOut;
   meta?: Meta | null;
@@ -733,6 +778,11 @@ export type Envelope_AIActionOut_ = {
 
 export type Envelope_AlertOut_ = {
   data: AlertOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ApprovalDetailOut_ = {
+  data: ApprovalDetailOut;
   meta?: Meta | null;
 };
 
@@ -981,6 +1031,11 @@ export type Envelope_ProductOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_ProjectDetailOut_ = {
+  data: ProjectDetailOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_ProjectOut_ = {
   data: ProjectOut;
   meta?: Meta | null;
@@ -1061,6 +1116,16 @@ export type Envelope_TargetOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_TaskDependenciesOut_ = {
+  data: TaskDependenciesOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_TaskDependencyOut_ = {
+  data: TaskDependencyOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_TaskOut_ = {
   data: TaskOut;
   meta?: Meta | null;
@@ -1091,6 +1156,11 @@ export type Envelope_UserOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_WorkloadOut_ = {
+  data: WorkloadOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_list_AIActionOut__ = {
   data: AIActionOut[];
   meta?: Meta | null;
@@ -1098,6 +1168,11 @@ export type Envelope_list_AIActionOut__ = {
 
 export type Envelope_list_AlertOut__ = {
   data: AlertOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ApprovalRequestOut__ = {
+  data: ApprovalRequestOut[];
   meta?: Meta | null;
 };
 
@@ -1173,6 +1248,11 @@ export type Envelope_list_EmployeeAssignmentOut__ = {
 
 export type Envelope_list_EmployeeOut__ = {
   data: EmployeeOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_EmployeeWorkloadOut__ = {
+  data: EmployeeWorkloadOut[];
   meta?: Meta | null;
 };
 
@@ -1358,11 +1438,6 @@ export type Envelope_list_ToolOut__ = {
 
 export type Envelope_list_UserAdminOut__ = {
   data: UserAdminOut[];
-  meta?: Meta | null;
-};
-
-export type Envelope_list_WorkloadOut__ = {
-  data: WorkloadOut[];
   meta?: Meta | null;
 };
 
@@ -2168,10 +2243,12 @@ export type MilestoneOut = {
   created_at: string;
   updated_at: string;
   initiative_id: string | null;
+  project_id?: string | null;
   title: string;
   due_date: string;
   status: string;
   done_at: string | null;
+  late?: boolean | null;
 };
 
 export type MilestoneUpdate = {
@@ -2501,6 +2578,34 @@ export type ProjectCreate = {
   status?: "planned" | "active" | "on_hold" | "done" | "cancelled";
   budget_amount?: number | null;
   currency?: string;
+  initiative_id?: string | null;
+};
+
+export type ProjectDetailOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  name: string;
+  owner_id: string;
+  department_id: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  actual_end_date: string | null;
+  status: string;
+  budget_amount: number | null;
+  currency: string;
+  initiative_id?: string | null;
+  progress_pct?: number | null;
+  planned_pct?: number | null;
+  late?: boolean | null;
+  open_tasks?: number | null;
+  overdue_tasks?: number | null;
+  milestones?: MilestoneOut[];
+  task_counts?: TaskCountsOut;
 };
 
 export type ProjectOut = {
@@ -2520,6 +2625,12 @@ export type ProjectOut = {
   status: string;
   budget_amount: number | null;
   currency: string;
+  initiative_id?: string | null;
+  progress_pct?: number | null;
+  planned_pct?: number | null;
+  late?: boolean | null;
+  open_tasks?: number | null;
+  overdue_tasks?: number | null;
 };
 
 export type ProjectUpdate = {
@@ -2533,6 +2644,7 @@ export type ProjectUpdate = {
   actual_end_date?: string | null;
   status?: ("planned" | "active" | "on_hold" | "done" | "cancelled") | null;
   budget_amount?: number | null;
+  initiative_id?: string | null;
 };
 
 export type ReadAllIn = {
@@ -2556,6 +2668,11 @@ export type ReassignIn = {
 export type ReassignOut = {
   document: DocumentOut;
   assignment: ReviewAssignmentOut;
+};
+
+export type ReassignRequestCreate = {
+  to_assignee_id: string;
+  reason: string;
 };
 
 export type RecommendationOut = {
@@ -2933,7 +3050,7 @@ export type ScenarioIn = {
 export type ScenarioOut = {
   scenario_id: string;
   impacts: ScenarioImpacts;
-  sources: SourceRef[];
+  sources: app__modules__risk__schemas__SourceRef[];
 };
 
 export type SimilarClient = {
@@ -2942,13 +3059,10 @@ export type SimilarClient = {
   score: number;
 };
 
-export type SourceRef = {
-  type: "metric_value" | "record" | "document_page" | "tool_result";
+export type SourceRef_Input = {
+  kind: "meeting" | "decision" | "ai_action" | "document" | "mitigation";
   id: string;
-  label: string;
-  period_key?: string | null;
-  value?: number | null;
-  lineage_url?: string | null;
+  page?: number | null;
 };
 
 export type StageChange = {
@@ -2997,6 +3111,21 @@ export type TargetUpdate = {
   currency?: string | null;
 };
 
+export type TaskBriefOut = {
+  dependency_id?: string | null;
+  task_id: string;
+  title?: string | null;
+  status?: string | null;
+  due_date?: string | null;
+  overdue?: boolean | null;
+  assignee_id?: string | null;
+  restricted?: boolean;
+};
+
+export type TaskCountsOut = {
+  by_status: Record<string, number>;
+};
+
 export type TaskCreate = {
   description?: string | null;
   owner_id?: string | null;
@@ -3015,13 +3144,36 @@ export type TaskCreate = {
   decision_id?: string | null;
   key_result_id?: string | null;
   kpi_id?: string | null;
-  parent_id?: string | null;
+  parent_task_id?: string | null;
+  source_ref?: SourceRef_Input | null;
   is_critical?: boolean;
   source_document_id?: string | null;
   title: string;
   priority?: "low" | "medium" | "high" | "urgent";
   status?: "backlog" | "todo" | "in_progress" | "blocked" | "in_review" | "done" | "cancelled";
   task_source?: "manual" | "meeting" | "ai" | "document" | "mitigation";
+};
+
+export type TaskDependenciesOut = {
+  depends_on: TaskBriefOut[];
+  blocks: TaskBriefOut[];
+};
+
+export type TaskDependencyCreate = {
+  depends_on_task_id: string;
+  dependency_type?: "finish_to_start";
+};
+
+export type TaskDependencyOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  task_id: string;
+  depends_on_task_id: string;
+  dependency_type: "finish_to_start";
 };
 
 export type TaskOut = {
@@ -3052,11 +3204,14 @@ export type TaskOut = {
   decision_id: string | null;
   key_result_id: string | null;
   kpi_id: string | null;
-  parent_id: string | null;
+  parent_task_id: string | null;
+  source_ref?: app__modules__execution__schemas__tasks__SourceRef | null;
   is_critical: boolean;
   task_source: string;
   source_document_id: string | null;
   overdue: boolean;
+  subtask_count?: number;
+  depends_on_open?: number;
 };
 
 export type TaskUpdate = {
@@ -3081,7 +3236,8 @@ export type TaskUpdate = {
   decision_id?: string | null;
   key_result_id?: string | null;
   kpi_id?: string | null;
-  parent_id?: string | null;
+  parent_task_id?: string | null;
+  source_ref?: SourceRef_Input | null;
   is_critical?: boolean | null;
 };
 
@@ -3261,11 +3417,33 @@ export type WinRateTrendPoint = {
   win_rate_pct: number | null;
 };
 
-export type WorkloadOut = {
-  employee_ref: string;
-  open_tasks: number;
+export type WorkloadCellOut = {
+  week: string;
   load_pct: number;
+  hours: number;
+  open_tasks: number;
+};
+
+export type WorkloadOut = {
+  weeks: string[];
+  threshold_pct: number;
+  overload_weeks: number;
+  capacity_hours: number;
+  rows: WorkloadRowOut[];
+  summary: WorkloadSummaryOut;
+};
+
+export type WorkloadRowOut = {
+  employee_id: string;
+  department_id: string | null;
+  cells: WorkloadCellOut[];
   overloaded: boolean;
+};
+
+export type WorkloadSummaryOut = {
+  people: number;
+  overloaded_count: number;
+  overloaded_pct: number;
 };
 
 export type app__modules__ai__schemas__SourceRefOut = {
@@ -3283,6 +3461,12 @@ export type app__modules__execution__schemas__dashboard__HeatCell = {
   load_pct: number;
 };
 
+export type app__modules__execution__schemas__tasks__SourceRef = {
+  kind: "meeting" | "decision" | "ai_action" | "document" | "mitigation";
+  id: string;
+  page?: number | null;
+};
+
 export type app__modules__finance__schemas__SourceRefOut = {
   type: "metric_value" | "record" | "document_page" | "tool_result";
   id: string;
@@ -3296,6 +3480,15 @@ export type app__modules__risk__schemas__HeatCell = {
   likelihood: number;
   impact: number;
   count: number;
+};
+
+export type app__modules__risk__schemas__SourceRef = {
+  type: "metric_value" | "record" | "document_page" | "tool_result";
+  id: string;
+  label: string;
+  period_key?: string | null;
+  value?: number | null;
+  lineage_url?: string | null;
 };
 
 export interface ApiOperations {
@@ -3551,46 +3744,6 @@ export interface ApiOperations {
     request: KeyResultUpdate;
     response: Envelope_KeyResultOut_;
   };
-  "GET /api/v1/execution/projects": {
-    request: void;
-    response: Envelope_list_ProjectOut__;
-  };
-  "POST /api/v1/execution/projects": {
-    request: ProjectCreate;
-    response: Envelope_ProjectOut_;
-  };
-  "DELETE /api/v1/execution/projects/{project_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/projects/{project_id}": {
-    request: void;
-    response: Envelope_ProjectOut_;
-  };
-  "PATCH /api/v1/execution/projects/{project_id}": {
-    request: ProjectUpdate;
-    response: Envelope_ProjectOut_;
-  };
-  "GET /api/v1/execution/tasks": {
-    request: void;
-    response: Envelope_list_TaskOut__;
-  };
-  "POST /api/v1/execution/tasks": {
-    request: TaskCreate;
-    response: Envelope_TaskOut_;
-  };
-  "DELETE /api/v1/execution/tasks/{task_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/tasks/{task_id}": {
-    request: void;
-    response: Envelope_TaskOut_;
-  };
-  "PATCH /api/v1/execution/tasks/{task_id}": {
-    request: TaskUpdate;
-    response: Envelope_TaskOut_;
-  };
   "GET /api/v1/finance/budgets": {
     request: void;
     response: Envelope_list_BudgetOut__;
@@ -3813,7 +3966,7 @@ export interface ApiOperations {
   };
   "GET /api/v1/hr/workload": {
     request: void;
-    response: Envelope_list_WorkloadOut__;
+    response: Envelope_list_EmployeeWorkloadOut__;
   };
   "POST /api/v1/idp/documents": {
     request: void;
@@ -3958,10 +4111,6 @@ export interface ApiOperations {
   "GET /api/v1/org/tree": {
     request: void;
     response: Envelope_OrgTreeOut_;
-  };
-  "POST /api/v1/platform/approvals/{id}/decide": {
-    request: DecideIn;
-    response: Envelope_ApprovalRequestOut_;
   };
   "GET /api/v1/platform/audit-logs": {
     request: void;
@@ -4246,6 +4395,94 @@ export interface ApiOperations {
   "PATCH /api/v1/sales/targets/{target_id}": {
     request: TargetUpdate;
     response: Envelope_TargetOut_;
+  };
+  "GET /api/v1/work/projects": {
+    request: void;
+    response: Envelope_list_ProjectOut__;
+  };
+  "POST /api/v1/work/projects": {
+    request: ProjectCreate;
+    response: Envelope_ProjectOut_;
+  };
+  "DELETE /api/v1/work/projects/{project_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/work/projects/{project_id}": {
+    request: void;
+    response: Envelope_ProjectDetailOut_;
+  };
+  "PATCH /api/v1/work/projects/{project_id}": {
+    request: ProjectUpdate;
+    response: Envelope_ProjectOut_;
+  };
+  "GET /api/v1/work/projects/{project_id}/milestones": {
+    request: void;
+    response: Envelope_list_MilestoneOut__;
+  };
+  "POST /api/v1/work/projects/{project_id}/milestones": {
+    request: MilestoneCreate;
+    response: Envelope_MilestoneOut_;
+  };
+  "DELETE /api/v1/work/projects/{project_id}/milestones/{milestone_id}": {
+    request: void;
+    response: void;
+  };
+  "PATCH /api/v1/work/projects/{project_id}/milestones/{milestone_id}": {
+    request: MilestoneUpdate;
+    response: Envelope_MilestoneOut_;
+  };
+  "GET /api/v1/work/tasks": {
+    request: void;
+    response: Envelope_list_TaskOut__;
+  };
+  "POST /api/v1/work/tasks": {
+    request: TaskCreate;
+    response: Envelope_TaskOut_;
+  };
+  "DELETE /api/v1/work/tasks/{task_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/work/tasks/{task_id}": {
+    request: void;
+    response: Envelope_TaskOut_;
+  };
+  "PATCH /api/v1/work/tasks/{task_id}": {
+    request: TaskUpdate;
+    response: Envelope_TaskOut_;
+  };
+  "GET /api/v1/work/tasks/{task_id}/dependencies": {
+    request: void;
+    response: Envelope_TaskDependenciesOut_;
+  };
+  "POST /api/v1/work/tasks/{task_id}/dependencies": {
+    request: TaskDependencyCreate;
+    response: Envelope_TaskDependencyOut_;
+  };
+  "DELETE /api/v1/work/tasks/{task_id}/dependencies/{dependency_id}": {
+    request: void;
+    response: void;
+  };
+  "POST /api/v1/work/tasks/{task_id}/reassign-requests": {
+    request: ReassignRequestCreate;
+    response: Envelope_ApprovalRequestOut_;
+  };
+  "GET /api/v1/work/workload": {
+    request: void;
+    response: Envelope_WorkloadOut_;
+  };
+  "GET /api/v1/workflow/approval-requests": {
+    request: void;
+    response: Envelope_list_ApprovalRequestOut__;
+  };
+  "GET /api/v1/workflow/approval-requests/{id}": {
+    request: void;
+    response: Envelope_ApprovalDetailOut_;
+  };
+  "POST /api/v1/workflow/approval-requests/{id}/decide": {
+    request: DecideIn;
+    response: Envelope_ApprovalRequestOut_;
   };
 }
 

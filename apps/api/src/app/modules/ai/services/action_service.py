@@ -143,7 +143,7 @@ class ActionService:
         return self._to_out(action)
 
     async def execute_approved(self, approver: Principal, action_id: uuid.UUID) -> None:
-        """Execute an action whose 2-sided approval just finalised (called by EP-125).
+        """Execute an action whose 2-sided approval just finalised (called by EP-WF-03).
 
         Runs in the approval's transaction (04 §10.4). The approver's `Principal` is the actor;
         the write still re-checks `<domain>:write` at commit time inside the executor.

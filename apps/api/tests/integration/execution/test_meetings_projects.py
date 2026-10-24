@@ -64,7 +64,7 @@ async def test_meeting_decision_task_chain(api: ApiClient, db_session: AsyncSess
     assert other.status_code == 403
     me_d = await as_user(api, "GET", "/execution/decisions", "EMP", me)
     assert [x["id"] for x in me_d.json()["data"]] == [d["id"]]
-    await api.call("DELETE", f"/execution/tasks/{t['id']}", "CEO")
+    await api.call("DELETE", f"/work/tasks/{t['id']}", "CEO")
     assert "execution.decision_update" in await audit_actions(db_session, d["id"])
 
 
@@ -113,34 +113,34 @@ async def test_project_crud(api: ApiClient, db_session: AsyncSession) -> None:
     body = {"code": uniq("PRJ"), "name": "ABC Order v3", "owner_id": str(owner),
             "department_id": str(dept), "start_date": "2037-01-01", "due_date": "2037-06-30",
             "status": "active", "budget_amount": 500_000_000}  # fmt: skip
-    p = await make(api, "/execution/projects", body)
+    p = await make(api, "/work/projects", body)
     assert p["due_date"] == "2037-06-30" and p["currency"] == "VND"
-    dup = await api.call("POST", "/execution/projects", "CEO", json=body)
+    dup = await api.call("POST", "/work/projects", "CEO", json=body)
     assert dup.status_code == 409 and dup.json()["error"]["code"] == "DUPLICATE_RESOURCE"
-    bad = await api.call("POST", "/execution/projects", "CEO",
+    bad = await api.call("POST", "/work/projects", "CEO",
                          json={**body, "code": uniq("PRJ"), "due_date": "2036-01-01"})  # fmt: skip
     assert bad.status_code == 422
-    up = await patch(api, f"/execution/projects/{p['id']}", 1, due_date="2037-07-31",
+    up = await patch(api, f"/work/projects/{p['id']}", 1, due_date="2037-07-31",
                      status="on_hold", code=uniq("PRJ"), name=None)  # fmt: skip
     assert up.status_code == 200 and up.json()["data"]["due_date"] == "2037-07-31"
-    p2 = await make(api, "/execution/projects", {**body, "code": uniq("PRJ")})
-    clash = await patch(api, f"/execution/projects/{p2['id']}", 1, code=up.json()["data"]["code"])
+    p2 = await make(api, "/work/projects", {**body, "code": uniq("PRJ")})
+    clash = await patch(api, f"/work/projects/{p2['id']}", 1, code=up.json()["data"]["code"])
     assert clash.status_code == 409
-    lst = await api.call("GET", "/execution/projects", "MANAGER", department_id=dept,
+    lst = await api.call("GET", "/work/projects", "MANAGER", department_id=dept,
                          params={"status": "on_hold", "department_id": str(dept)})  # fmt: skip
     assert [x["id"] for x in lst.json()["data"]] == [p["id"]]
-    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMP",
+    assert (await as_user(api, "GET", f"/work/projects/{p['id']}", "EMP",
                           owner)).status_code == 200  # fmt: skip
-    assert (await as_user(api, "GET", f"/execution/projects/{p['id']}", "EMP",
+    assert (await as_user(api, "GET", f"/work/projects/{p['id']}", "EMP",
                           uuid.uuid4())).status_code == 403  # fmt: skip
     t = await make_task(api, project_id=p["id"])
-    assert (await api.call("DELETE", f"/execution/projects/{p['id']}", "CEO")).status_code == 409
-    await api.call("DELETE", f"/execution/tasks/{t['id']}", "CEO")
-    mv = await patch(api, f"/execution/projects/{p['id']}", 2, department_id=str(uuid.uuid4()),
+    assert (await api.call("DELETE", f"/work/projects/{p['id']}", "CEO")).status_code == 409
+    await api.call("DELETE", f"/work/tasks/{t['id']}", "CEO")
+    mv = await patch(api, f"/work/projects/{p['id']}", 2, department_id=str(uuid.uuid4()),
                      role="MANAGER")  # fmt: skip
     assert mv.status_code == 403
-    assert (await api.call("DELETE", f"/execution/projects/{p['id']}", "CEO")).status_code == 204
-    assert (await api.call("GET", f"/execution/projects/{p['id']}", "CEO")).status_code == 404
+    assert (await api.call("DELETE", f"/work/projects/{p['id']}", "CEO")).status_code == 204
+    assert (await api.call("GET", f"/work/projects/{p['id']}", "CEO")).status_code == 404
     acts = await audit_actions(db_session, p["id"])
     assert acts == ["execution.project_create", "execution.project_delete",
                     "execution.project_update"]  # fmt: skip

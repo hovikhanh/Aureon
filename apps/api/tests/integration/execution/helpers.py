@@ -54,7 +54,7 @@ async def make(api: ApiClient, url: str, body: dict[str, Any], role: str = "CEO"
 
 
 async def make_task(api: ApiClient, **kw: Any) -> dict[str, Any]:
-    return await make(api, "/execution/tasks", {"title": uniq("Task"), **kw})
+    return await make(api, "/work/tasks", {"title": uniq("Task"), **kw})
 
 
 async def audit_actions(db: AsyncSession, target_id: str) -> list[str]:
