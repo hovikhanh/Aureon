@@ -1,7 +1,7 @@
 """`/work/*` — D11 Task / Project / Milestone / Workload (10 §7.2.2, R-DEC-40).
 
 EP-TASK-01..05, 09..13 moved from `/execution/{tasks,projects}` with v2.1 behaviour (no alias).
-EP-TASK-06..08, 14..19 are contract stubs (`501`) until T-619/T-620/T-622. Static paths
+EP-TASK-06..08 dependencies (T-619). EP-TASK-14..19 stubs (`501`) until T-620/T-622. Static paths
 (`/work/workload`, `/work/tasks/{id}/dependencies`) are declared before `{id}` catch-alls.
 """
 
@@ -35,7 +35,7 @@ from app.modules.execution.schemas.tasks import (
 )
 from app.modules.execution.schemas.work import ProjectDetailOut, WorkloadOut
 from app.modules.execution.services.meeting_service import ProjectService, project_out
-from app.modules.execution.services.task_service import TaskService, task_out
+from app.modules.execution.services.task_service import TaskService
 from app.modules.platform.schemas import ApprovalRequestOut
 
 router = EnvelopeRouter(prefix="/work", tags=["work"])
@@ -71,7 +71,6 @@ async def list_tasks(
 ) -> Any:  # fmt: skip
     if due_from is not None and due_to is not None and due_from > due_to:
         raise BadRequestError("due_from must be on/before due_to", details={"param": "due_from"})
-    # TODO-T-619: `source_kind` filters on `source_ref->>'kind'` once 0014 adds the column.
     filters = {
         "assignee_id": assignee_id, "owner_id": owner_id, "department_id": department_id,
         "initiative_id": initiative_id, "project_id": project_id,
@@ -79,7 +78,7 @@ async def list_tasks(
     }  # fmt: skip
     items, total = await TaskService(db).list_tasks(
         user, page, filters=filters, overdue=overdue, statuses=status, mine=mine,
-        due_from=due_from, due_to=due_to,
+        due_from=due_from, due_to=due_to, source_kind=source_kind,
     )  # fmt: skip
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
@@ -98,8 +97,8 @@ async def create_task(body: TaskCreate, db: Db, user: Writer, idem: Idem) -> Any
     "/tasks/{task_id}/dependencies", response_model=TaskDependenciesOut,
     summary="EP-TASK-06 List task dependencies",
 )  # fmt: skip
-async def list_dependencies(task_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-TASK-06", "T-619")
+async def list_dependencies(task_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return await TaskService(db).list_dependencies(user, task_id)
 
 
 @router.post(
@@ -107,17 +106,26 @@ async def list_dependencies(task_id: uuid.UUID, user: Reader) -> Any:
     summary="EP-TASK-07 Add task dependency",
 )  # fmt: skip
 async def create_dependency(
-    task_id: uuid.UUID, body: TaskDependencyCreate, user: Writer, idem: Idem
+    task_id: uuid.UUID, body: TaskDependencyCreate, db: Db, user: Writer, idem: Idem
 ) -> Any:
-    not_implemented("EP-TASK-07", "T-619")
+    if (hit := await idem.replay(body)) is not None:
+        return TaskDependencyOut.model_validate(hit)
+    out = await TaskService(db).add_dependency(user, task_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.delete(
     "/tasks/{task_id}/dependencies/{dependency_id}", status_code=204, response_class=Response,
     summary="EP-TASK-08 Remove task dependency",
 )  # fmt: skip
-async def delete_dependency(task_id: uuid.UUID, dependency_id: uuid.UUID, user: Writer) -> Response:
-    not_implemented("EP-TASK-08", "T-619")
+async def delete_dependency(
+    task_id: uuid.UUID, dependency_id: uuid.UUID, db: Db, user: Writer
+) -> Response:
+    await TaskService(db).remove_dependency(user, task_id, dependency_id)
+    await db.commit()
+    return Response(status_code=204)
 
 
 @router.post(
@@ -132,7 +140,8 @@ async def create_reassign_request(
 
 @router.get("/tasks/{task_id}", response_model=TaskOut, summary="EP-TASK-03 Get task")
 async def get_task(task_id: uuid.UUID, db: Db, user: Reader) -> Any:
-    return task_out(await TaskService(db).get(user, task_id))
+    svc = TaskService(db)
+    return await svc.out(await svc.get(user, task_id))
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut, summary="EP-TASK-04 Update task")

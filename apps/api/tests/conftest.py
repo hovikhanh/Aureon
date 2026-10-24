@@ -117,6 +117,7 @@ class ApiClient:
     def headers(
         role: str, *, department_id: Any = None, user_id: Any = None, idem: bool = False,
         scope_pillars: tuple[str, ...] | None = None, tenant_id: Any = None,
+        employee_id: Any = None,
     ) -> dict[str, str]:  # fmt: skip
         import uuid
 
@@ -130,7 +131,7 @@ class ApiClient:
             user_id=user_id or uuid.uuid4(), email=f"{role.lower()}@abc.test", role=v3_role,
             role_id=v3_role, permissions=list(ROLE_PERMISSIONS[v3_role]),
             department_id=department_id, tenant_id=tenant_id or DEFAULT_TENANT_ID,
-            scope_pillars=pillars,
+            scope_pillars=pillars, employee_id=employee_id,  # R-DEC-41
         )  # fmt: skip
         h = {"Authorization": f"Bearer {token}"}
         if idem:

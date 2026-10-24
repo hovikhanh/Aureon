@@ -72,6 +72,7 @@ def project_out(p: Project) -> ProjectOut:
         **_c19(p), code=p.code, name=p.name, owner_id=p.owner_id, department_id=p.department_id,
         start_date=p.start_date, due_date=p.planned_end_date, actual_end_date=p.actual_end_date,
         status=p.status, budget_amount=p.budget_amount, currency=p.currency,
+        initiative_id=p.initiative_id,
     )  # fmt: skip
 
 
@@ -284,11 +285,11 @@ class ProjectService(ExecBase):
 
     async def create_project(self, user: Principal, body: ProjectCreate) -> ProjectOut:
         data = body.model_dump()
-        data.pop("initiative_id", None)  # TODO-T-619: column `projects.initiative_id` (0014)
         data["planned_end_date"] = data.pop("due_date")
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         _dates(data["start_date"], data["planned_end_date"], "due_date")
+        await self.require_refs({"initiative_id": data["initiative_id"]}, "FR-STR-01")
         await self.require_unique(Project, "code", data["code"], None)
         p = await self.projects.create(**data, source="MANUAL", created_by=user.user_id)
         await self.db.refresh(p)
@@ -301,9 +302,11 @@ class ProjectService(ExecBase):
     ) -> ProjectOut:
         p = await self.get_project(user, id_, "write")
         before = project_out(p)
-        data = body.model_dump(exclude_unset=True, exclude={"version", "initiative_id"})
-        if "due_date" in data:  # TODO-T-619: apply `initiative_id` once 0014 adds the column
+        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        if "due_date" in data:
             data["planned_end_date"] = data.pop("due_date")
+        if data.get("initiative_id") is not None:
+            await self.require_refs({"initiative_id": data["initiative_id"]}, "FR-STR-01")
         scope.require_self(user, data.get("owner_id"), field="owner_id")
         if "department_id" in data:
             data["department_id"] = scope.pin_department(user, data["department_id"])

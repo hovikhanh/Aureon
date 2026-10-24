@@ -112,7 +112,6 @@ class TaskOut(Out):
     key_result_id: uuid.UUID | None
     kpi_id: uuid.UUID | None
     parent_task_id: uuid.UUID | None
-    # TODO-T-619: `source_ref` column + sub-task/dependency counts land with migration 0014.
     source_ref: SourceRef | None = None
     is_critical: bool
     task_source: str

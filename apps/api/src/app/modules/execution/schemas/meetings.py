@@ -137,7 +137,7 @@ class ProjectOut(Out):
     status: str
     budget_amount: int | None
     currency: str
-    # TODO-T-619 (`projects.initiative_id`, 0014) / TODO-T-620 (computed at read, R-DEC-49).
+    # `initiative_id` = column (0014); progress/planned/late/… computed at read (R-DEC-49).
     initiative_id: uuid.UUID | None = None
     progress_pct: float | None = None
     planned_pct: float | None = None

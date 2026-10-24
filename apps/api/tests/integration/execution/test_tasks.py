@@ -89,8 +89,9 @@ async def test_task_scope_manager_and_employee(api: ApiClient) -> None:
                          params={"department_id": str(dept), "limit": 100})  # fmt: skip
     assert lst.status_code == 200
     assert {x["department_id"] for x in lst.json()["data"]} == {str(dept)}
+    # read by id outside scope → 404 (10 §7.2.2 M1.3 convention)
     assert (await api.call("GET", f"/work/tasks/{t_other['id']}", "MANAGER",
-                           department_id=dept)).status_code == 403  # fmt: skip
+                           department_id=dept)).status_code == 404  # fmt: skip
     pinned = await api.call("POST", "/work/tasks", "MANAGER", department_id=dept,
                             json={"title": "m"})  # fmt: skip
     assert pinned.json()["data"]["department_id"] == str(dept)
@@ -101,7 +102,7 @@ async def test_task_scope_manager_and_employee(api: ApiClient) -> None:
     mine = await as_user(api, "GET", "/work/tasks", "EMPLOYEE", me)
     assert [x["id"] for x in mine.json()["data"]] == [t_other["id"]]
     assert (await as_user(api, "GET", f"/work/tasks/{t_dept['id']}", "EMPLOYEE",
-                          me)).status_code == 403  # fmt: skip
+                          me)).status_code == 404  # fmt: skip
     upd = await as_user(api, "PATCH", f"/work/tasks/{t_other['id']}", "EMPLOYEE", me,
                         json={"status": "in_progress", "version": 1})  # fmt: skip
     assert upd.status_code == 200

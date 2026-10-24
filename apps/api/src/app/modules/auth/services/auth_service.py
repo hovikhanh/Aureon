@@ -82,6 +82,7 @@ class AuthService:
             department_id=user.department_id,
             tenant_id=DEFAULT_TENANT_ID,  # single-tenant MVP (R-DEC-07/13)
             scope_pillars=tuple(user.scope_pillars),  # R-DEC-12a — khối phụ trách của DIR
+            employee_id=user.employee_id,  # R-DEC-41
             now=now,
         )
         raw = new_refresh_token()

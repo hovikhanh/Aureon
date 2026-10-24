@@ -26,24 +26,26 @@ _LEGACY: dict[str, tuple[str, tuple[str, ...]]] = {
 }  # fmt: skip
 
 
-def headers(role: str, user_id: Any, department_id: Any = None) -> dict[str, str]:
-    """Token for a fixed user id (owner / assignee scope `◑o`)."""
+def headers(
+    role: str, user_id: Any, department_id: Any = None, employee_id: Any = None
+) -> dict[str, str]:
+    """Token for a fixed user id (owner / assignee scope `◑o`); `employee_id` claim R-DEC-41."""
     v3, pillars = _LEGACY.get(role, (role, ()))
     token, _ = sign_access_token(
         user_id=user_id, email=f"{v3.lower()}@abc.test", role=v3, role_id=v3,
         permissions=list(ROLE_PERMISSIONS[v3]), department_id=department_id,
-        scope_pillars=pillars, tenant_id=DEFAULT_TENANT_ID,
+        scope_pillars=pillars, tenant_id=DEFAULT_TENANT_ID, employee_id=employee_id,
     )  # fmt: skip
     return {"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())}
 
 
 async def as_user(
     api: ApiClient, method: str, url: str, role: str, user_id: Any, *,
-    department_id: Any = None, json: Any = None, params: Any = None,
+    department_id: Any = None, json: Any = None, params: Any = None, employee_id: Any = None,
 ) -> Any:  # fmt: skip
     return await api.http.request(
         method, f"/api/v1{url}", json=json, params=params,
-        headers=headers(role, user_id, department_id),
+        headers=headers(role, user_id, department_id, employee_id),
     )  # fmt: skip
 
 

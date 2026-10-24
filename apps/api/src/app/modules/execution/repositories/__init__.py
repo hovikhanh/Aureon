@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime, time
 from typing import Any
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, func, select
 
 from app.core.base_model import Base
 from app.core.base_repository import BaseRepository
@@ -22,6 +22,7 @@ from app.modules.execution.models import (
     Objective,
     Project,
     Task,
+    TaskDependency,
 )
 
 OPEN_TASK_STATUSES = ("backlog", "todo", "in_progress", "blocked", "in_review")
@@ -80,6 +81,68 @@ class TaskRepository(Repo[Task]):
         if department_id is not None:
             clauses.append(Task.department_id == department_id)
         return await self.where(*clauses, order=Task.id)
+
+    async def lock(self, *ids: uuid.UUID) -> Sequence[Task]:
+        """`SELECT … FOR UPDATE` live tasks in ascending id order (deadlock-free, 05 §2.5)."""
+        stmt = self._live().where(Task.id.in_(ids)).order_by(Task.id).with_for_update()
+        return (await self.db.execute(stmt)).scalars().all()
+
+    async def count_by(self, column: Any, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
+        """Live task count grouped by `column` (e.g. sub-tasks per parent)."""
+        if not ids:
+            return {}
+        stmt = self._scoped(select(column, func.count()).where(
+            column.in_(ids), Task.deleted_at.is_(None)
+        ).group_by(column))  # fmt: skip
+        return {k: int(n) for k, n in (await self.db.execute(stmt)).all()}
+
+    async def status_counts(
+        self, column: Any, ids: Sequence[uuid.UUID]
+    ) -> list[tuple[Any, str, int]]:
+        """`(parent, status, count)` of live tasks grouped by `column` + status."""
+        if not ids:
+            return []
+        stmt = self._scoped(select(column, Task.status, func.count()).where(
+            column.in_(ids), Task.deleted_at.is_(None)
+        ).group_by(column, Task.status))  # fmt: skip
+        return [(k, st, int(n)) for k, st, n in (await self.db.execute(stmt)).all()]
+
+
+class TaskDependencyRepository(Repo[TaskDependency]):
+    model = TaskDependency
+
+    async def edges_from(self, ids: Sequence[uuid.UUID]) -> Sequence[TaskDependency]:
+        """Live `depends_on` edges leaving `ids` (one BFS level)."""
+        if not ids:
+            return []
+        return await self.where(TaskDependency.task_id.in_(ids))
+
+    async def find(self, task_id: uuid.UUID, depends_on: uuid.UUID) -> TaskDependency | None:
+        rows = await self.where(
+            TaskDependency.task_id == task_id, TaskDependency.depends_on_task_id == depends_on
+        )
+        return rows[0] if rows else None
+
+    async def touching(self, task_id: uuid.UUID) -> Sequence[TaskDependency]:
+        return await self.where(
+            (TaskDependency.task_id == task_id) | (TaskDependency.depends_on_task_id == task_id),
+            order=TaskDependency.created_at,
+        )
+
+    async def open_blockers(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
+        """Per blocked task: number of live `depends_on` tasks not `done`/`cancelled`."""
+        if not ids:
+            return {}
+        stmt = self._scoped(
+            select(TaskDependency.task_id, func.count())
+            .join(Task, Task.id == TaskDependency.depends_on_task_id)
+            .where(
+                TaskDependency.task_id.in_(ids), TaskDependency.deleted_at.is_(None),
+                Task.deleted_at.is_(None), Task.status.in_(OPEN_TASK_STATUSES),
+            )
+            .group_by(TaskDependency.task_id)
+        )  # fmt: skip
+        return {k: int(n) for k, n in (await self.db.execute(stmt)).all()}
 
 
 class MeetingRepository(Repo[Meeting]):

@@ -34,6 +34,7 @@ class Principal:
     jti: str = ""
     tenant_id: UUID | None = None  # always set for a request principal (R-DEC-21)
     scope_pillars: frozenset[str] = field(default_factory=frozenset)
+    employee_id: UUID | None = None  # R-DEC-41: "chính mình" in task scope = employee or user id
 
     def has(self, permission: str) -> bool:
         """Effective check: hold the permission AND the domain's pillar is in scope (R-DEC-12a)."""
@@ -79,6 +80,7 @@ async def get_current_user(
         jti=claims.jti,
         tenant_id=claims.tenant_id,
         scope_pillars=frozenset(claims.scope_pillars),
+        employee_id=claims.employee_id,
     )
 
 

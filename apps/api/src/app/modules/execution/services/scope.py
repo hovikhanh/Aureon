@@ -8,6 +8,8 @@ may not import — DEC-125):
 - `◑o` (EMP): only rows where they are owner / assignee (task), chair / attendee
   (meeting), owner (decision, objective, KR, KPI, initiative).
 A `◑d` caller without `department_id` in the JWT keeps only the "own" part.
+"Chính mình" (R-DEC-41) = the caller's `employee_id` (JWT claim) **or** `user_id` — task
+`assignee_id` holds `hr.employees.id`; rows written before the 0014 backfill may hold a user id.
 Role codes v3 (R-DEC-12): CEO/DIR/MGR/EMP/REV/ADM/AI.
 """
 
@@ -37,6 +39,16 @@ def level(user: Principal, action: str = "read") -> Level:
     return "all"
 
 
+def self_ids(user: Principal) -> tuple[uuid.UUID, ...]:
+    """Identifiers that mean "me" (R-DEC-41): user id + employee id when the user has one."""
+    return (user.user_id,) if user.employee_id is None else (user.user_id, user.employee_id)
+
+
+def self_assignee(user: Principal) -> uuid.UUID:
+    """Id a caller assigns to themselves: the employee id (R-DEC-41), else the user id."""
+    return user.employee_id or user.user_id
+
+
 def deny(what: str, **details: object) -> ScopeDeniedError:
     return ScopeDeniedError(
         f"{what} outside your scope", details={k: str(v) for k, v in details.items()}
@@ -62,7 +74,7 @@ def allowed(
     lvl = level(user, action)
     if lvl == "all":
         return True
-    if user.user_id in set(owners):
+    if set(self_ids(user)) & set(owners):
         return True
     return lvl == "d" and dept is not None and dept == user.department_id
 
@@ -91,5 +103,6 @@ def pin_department(user: Principal, requested: uuid.UUID | None) -> uuid.UUID | 
 
 def require_self(user: Principal, *ids: uuid.UUID | None, field: str) -> None:
     """EMPLOYEE (`◑o`) may only name themselves in owner / assignee fields."""
-    if level(user, "write") == "o" and any(i is not None and i != user.user_id for i in ids):
+    me = self_ids(user)
+    if level(user, "write") == "o" and any(i is not None and i not in me for i in ids):
         raise deny(field, field=field)

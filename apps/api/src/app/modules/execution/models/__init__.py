@@ -1,4 +1,4 @@
-"""Schema `execution` — 13 tables (05 §4.7). Column groups follow 05 §2.1."""
+"""Schema `execution` — 14 tables (05 §4.7). Column groups follow 05 §2.1."""
 
 import uuid
 from datetime import date, datetime
@@ -52,6 +52,7 @@ INITIATIVE_STATUS = pg_enum(
 )
 MILESTONE_STATUS = pg_enum(S, "milestone_status", "planned", "done", "missed")
 TRANSCRIPT_STATUS = pg_enum(S, "transcript_status", "UPLOADED", "PROCESSED", "FAILED")
+TASK_DEPENDENCY_TYPE = pg_enum(S, "task_dependency_type", "finish_to_start")  # 05 §2.5
 
 MODULE_ENUMS: tuple[ENUM, ...] = (
     DECISION_STATUS,
@@ -69,6 +70,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
     INITIATIVE_STATUS,
     MILESTONE_STATUS,
     TRANSCRIPT_STATUS,
+    TASK_DEPENDENCY_TYPE,
 )
 
 
@@ -152,7 +154,10 @@ class Project(BusinessModel):
     """ENT-Project — `currency` follows C8 (NOT NULL DEFAULT 'VND') although 05 marks Y."""
 
     __tablename__ = "projects"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        Index("ix_projects_tenant_id_initiative_id", "tenant_id", "initiative_id"),
+        {"schema": S},
+    )
 
     code: Mapped[str] = txt(unique=True)
     name: Mapped[str] = txt()
@@ -164,6 +169,13 @@ class Project(BusinessModel):
     status: Mapped[str] = mapped_column(PROJECT_STATUS, nullable=False)
     budget_amount: Mapped[int | None] = money(nullable=True)
     currency: Mapped[str] = currency()
+    # Initiative → Project (05 §2.5, 0014); SET NULL when the initiative goes away.
+    initiative_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.initiatives.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
 
 class Task(BusinessModel):
@@ -172,6 +184,17 @@ class Task(BusinessModel):
     __tablename__ = "tasks"
     __table_args__ = (
         Index("ix_tasks_assignee_id_status_due_date", "assignee_id", "status", "due_date"),
+        Index(
+            "ix_tasks_tenant_id_assignee_id_due_date",
+            "tenant_id",
+            "assignee_id",
+            "due_date",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        CheckConstraint(
+            "source_ref IS NULL OR (source_ref ? 'kind' AND source_ref ? 'id')",
+            name="source_ref_kind_id",
+        ),
         {"schema": S},
     )
 
@@ -187,7 +210,7 @@ class Task(BusinessModel):
     initiative_id: Mapped[uuid.UUID | None] = fk(f"{S}.initiatives.id", nullable=True)
     milestone_id: Mapped[uuid.UUID | None] = fk(f"{S}.milestones.id", nullable=True)
     kpi_id: Mapped[uuid.UUID | None] = fk(f"{S}.kpis.id", nullable=True)
-    parent_id: Mapped[uuid.UUID | None] = fk(f"{S}.tasks.id", nullable=True)
+    parent_task_id: Mapped[uuid.UUID | None] = fk(f"{S}.tasks.id", nullable=True)  # R-DEC-42
     priority: Mapped[str] = mapped_column(TASK_PRIORITY, nullable=False)
     status: Mapped[str] = mapped_column(TASK_STATUS, nullable=False)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -201,6 +224,33 @@ class Task(BusinessModel):
     task_source: Mapped[str] = mapped_column(TASK_SOURCE, nullable=False)
     overdue_notified_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+    # `{kind, id, page?}` pointer to the origin record (05 §2.5, P06 lineage).
+    source_ref: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
+
+
+class TaskDependency(BusinessModel):
+    """ENT-TaskDependency (FR-TASK-02, R-DEC-43): `task_id` is blocked by `depends_on_task_id`."""
+
+    __tablename__ = "task_dependencies"
+    __table_args__ = (
+        CheckConstraint("task_id <> depends_on_task_id", name="not_self"),
+        Index(
+            "uq_task_dependencies_tenant_id_task_id_depends_on_task_id_live",
+            "tenant_id", "task_id", "depends_on_task_id", unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        {"schema": S},
+    )  # fmt: skip
+
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{S}.tasks.id", ondelete="CASCADE"), index=True
+    )
+    depends_on_task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{S}.tasks.id", ondelete="CASCADE"), index=True
+    )
+    dependency_type: Mapped[str] = mapped_column(
+        TASK_DEPENDENCY_TYPE, nullable=False, server_default="finish_to_start"
+    )
 
 
 # ---------- OKR ----------
