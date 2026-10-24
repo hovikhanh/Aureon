@@ -29,4 +29,14 @@ export const qk = {
   workload: (params: Record<string, unknown>) => ["work", "workload", params] as const,
   approvals: (params: Record<string, unknown>) => ["workflow", "approvals", params] as const,
   approval: (id: string) => ["workflow", "approval", id] as const,
+  // M1.4 goals (T-626F..T-628F) — everything under "goals" so a check-in refreshes tree, details, feed
+  goalTree: (params: Record<string, unknown>) => ["goals", "tree", params] as const,
+  strategies: () => ["goals", "strategies"] as const,
+  kpi: (id: string) => ["goals", "kpi", id] as const,
+  kpiPart: (id: string, part: string, params: Record<string, unknown> = {}) => ["goals", "kpi", id, part, params] as const,
+  objective: (id: string) => ["goals", "objective", id] as const,
+  objectiveKrs: (id: string) => ["goals", "objective", id, "key-results"] as const,
+  krCheckIns: (id: string) => ["goals", "kr", id, "check-ins"] as const,
+  checkInsDue: () => ["goals", "check-ins", "due"] as const,
+  checkInFeed: (params: Record<string, unknown>) => ["goals", "check-ins", "feed", params] as const,
 };
