@@ -61,4 +61,4 @@ async def test_stub_answers_501_envelope(api: ApiClient) -> None:
     r = await api.call("GET", f"/lineage/hr.employees/{uuid.uuid4()}", "CEO")
     assert r.status_code == 501
     assert r.json()["error"]["code"] == "INTERNAL_ERROR"
-    assert (await api.call("GET", "/data-capture/inbox", "ADMIN")).status_code == 403
+    assert (await api.call("GET", "/data-capture/inbox", "AI")).status_code == 403

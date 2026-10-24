@@ -141,6 +141,8 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "ADM": (
         "hr:read",  # scope `s` = chỉ cơ cấu tổ chức (R-DEC-30)
         "hr:admin",
+        "idp:read",  # scope `s` = chỉ doc type #4 HR_ROSTER (R-DEC-76)
+        "idp:write",  # scope `s` (R-DEC-76)
         "idp:admin",
         "ai:query",
         "ai:admin",
@@ -218,6 +220,6 @@ ROLE_SCOPES: dict[str, dict[str, str]] = {
         "ai:write": "r",
     },
     # R-DEC-30: ADM đọc hr chỉ phần cơ cấu (org/department/team/position/assignment/tree).
-    "ADM": {"hr:read": "s"},
+    "ADM": {"hr:read": "s", "idp:read": "s", "idp:write": "s"},
     "AI": {},
 }

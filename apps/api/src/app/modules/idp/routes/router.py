@@ -43,6 +43,7 @@ from app.modules.idp.schemas import (
 from app.modules.idp.services.commit_service import CommitService
 from app.modules.idp.services.query_service import IdpQueryService
 from app.modules.idp.services.review_service import QueueFilters, ReviewService
+from app.modules.idp.services.scope import ensure_doc_type_scope
 from app.modules.idp.services.upload_service import UploadFile as SvcUploadFile
 from app.modules.idp.services.upload_service import UploadService
 
@@ -84,6 +85,7 @@ async def upload_documents(
     files: Annotated[list[UploadFile], File(description="1..100 files")],
     document_type: Annotated[str | None, Form()] = None,
 ) -> UploadResultOut:
+    ensure_doc_type_scope(user, document_type)  # R-DEC-76 (ADM: only #4 HR_ROSTER)
     if document_type is not None:
         not_implemented("EP-DC-01 document_type", "T-635")
     result = await UploadService(db).upload(user, [_to_svc_file(f) for f in files])
