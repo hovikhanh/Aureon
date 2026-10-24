@@ -88,16 +88,16 @@ export const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b
 
 export type AtRiskReason = "declining" | "low_confidence" | "behind_plan";
 /** R-DEC-55: reasons ∪ and ≥ 21 days left in the Objective period. */
-export function atRisk(o: { progress: number; previousProgress: number | null; confidence: string | null; periodKey: string; today: string }): { at_risk: boolean; reasons: AtRiskReason[] } {
+export function atRisk(o: { progress: number; previousProgress: number | null; confidence: string | null; periodKey: string; today: string }): { at_risk: boolean; reasons: AtRiskReason[]; expected_pct: number } {
   const reasons: AtRiskReason[] = [];
   if (o.previousProgress !== null && o.progress < o.previousProgress) reasons.push("declining");
   if (o.confidence === "LOW") reasons.push("low_confidence");
   const b = periodBounds(o.periodKey);
-  if (!b) return { at_risk: false, reasons };
+  if (!b) return { at_risk: false, reasons, expected_pct: 0 };
   const span = daysBetween(b[0], b[1]);
   const elapsed = Math.min(1, Math.max(0, daysBetween(b[0], o.today) / span));
   if (o.progress < KR_BEHIND_RATIO * elapsed * 100) reasons.push("behind_plan");
-  return { at_risk: reasons.length > 0 && daysBetween(o.today, b[1]) >= AT_RISK_MIN_DAYS, reasons };
+  return { at_risk: reasons.length > 0 && daysBetween(o.today, b[1]) >= AT_RISK_MIN_DAYS, reasons, expected_pct: r4(elapsed * 100) };
 }
 
 /** SEI rule (DEC-226) behind `on_track`: progress ≥ 0,9 × linear plan. */

@@ -42,6 +42,7 @@ async def test_objective_key_results(api: ApiClient, db_session: AsyncSession) -
     krs = "/key-results"
     early = await patch(api, base, 1, status="active")
     assert early.status_code == 422 and early.json()["error"]["details"]["key_results"] == 0
+    assert early.json()["error"]["details"]["reason"] == "kr_count"
     k1 = await make(api, f"{base}/key-results", kr(owner, weight_pct=75))
     k2 = await make(api, f"{base}/key-results", kr(owner, weight_pct=25, current_value=100))
     assert k2["progress_pct"] == 100
@@ -55,7 +56,7 @@ async def test_objective_key_results(api: ApiClient, db_session: AsyncSession) -
     for _ in range(3):
         await make(api, f"{base}/key-results", kr(owner))
     sixth = await api.call("POST", f"{base}/key-results", "CEO", json=kr(owner))
-    assert sixth.status_code == 422
+    assert sixth.status_code == 422 and sixth.json()["error"]["details"]["reason"] == "kr_count"
     lst = await api.call("GET", f"{base}/key-results", "CEO", params={"limit": 10})
     assert lst.json()["meta"]["pagination"]["total"] == 5
     one = await api.call("GET", f"{krs}/{k1['id']}", "CEO")
@@ -157,6 +158,7 @@ async def test_check_ins(api: ApiClient, db_session: AsyncSession) -> None:
     draft = await api.call("POST", f"/key-results/{k['id']}/check-ins", "CEO",
                            json={"value": 1, "confidence": "HIGH"})  # fmt: skip
     assert draft.status_code == 409  # EP-PRF-02: objective not active
+    assert draft.json()["error"]["details"]["reason"] == "objective_not_active"
     assert draft.json()["error"]["details"]["reason"] == "objective_not_active"
     await make(api, f"/objectives/{o['id']}/key-results", kr(owner, weight_pct=0))
     assert (await patch(api, f"/objectives/{o['id']}", 1, status="active")).status_code == 200

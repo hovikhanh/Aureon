@@ -72,13 +72,15 @@ class _Forest[R: BusinessModel]:
     """Parent → children index over rows with `id`; prunes subtrees with no visible node."""
 
     def __init__(self, rows: Sequence[R], parent: Callable[[R], uuid.UUID | None],
-                 visible: Callable[[R], bool]) -> None:  # fmt: skip
+                 visible: Callable[[R], bool],
+                 anchor: Callable[[R], bool] | None = None) -> None:  # fmt: skip
         self.ids = {r.id for r in rows}
         self.kids: dict[uuid.UUID | None, list[R]] = defaultdict(list)
         for r in rows:
             p = parent(r)
             self.kids[p if p in self.ids else None].append(r)  # orphan of the period → root
         self.visible = visible
+        self.anchor = anchor or (lambda _r: False)  # e.g. objective with a KR of the caller
 
     def roots(self) -> list[R]:
         return self.kids[None]
@@ -87,7 +89,8 @@ class _Forest[R: BusinessModel]:
         """Visible itself, or an ancestor (≤ MAX_DEPTH) of a visible node."""
         if depth > MAX_DEPTH:
             return False
-        return self.visible(r) or any(self.keep(c, depth + 1) for c in self.kids.get(r.id, []))
+        return (self.visible(r) or self.anchor(r)
+                or any(self.keep(c, depth + 1) for c in self.kids.get(r.id, [])))  # fmt: skip
 
     def children(self, r: R, depth: int) -> list[R]:
         if depth >= MAX_DEPTH:
@@ -165,8 +168,14 @@ class GoalTreeService:
 
         kf = _Forest(kpis, lambda k: k.parent_kpi_id,
                      lambda k: visible(k.department_id, k.owner_id, k.pillar))  # fmt: skip
+
+        def kr_visible(o: Objective, k: KeyResult) -> bool:
+            """KR owner sees it under an out-of-scope objective (EMP own KR, R-DEC-57)."""
+            return visible(o.department_id, k.owner_id, o.pillar)
+
         of = _Forest(objs, lambda o: o.parent_id,
-                     lambda o: visible(o.department_id, o.owner_id, o.pillar))  # fmt: skip
+                     lambda o: visible(o.department_id, o.owner_id, o.pillar),
+                     lambda o: any(kr_visible(o, k) for k in krs_by.get(o.id, [])))  # fmt: skip
 
         def kpi_node(k: Kpi, depth: int) -> KpiNode:
             kids = [kpi_node(c, depth + 1) for c in kf.children(k, depth)]
@@ -181,9 +190,15 @@ class GoalTreeService:
 
         def obj_node(o: Objective, depth: int) -> ObjNode:
             kids = [obj_node(c, depth + 1) for c in of.children(o, depth)]
-            if not of.visible(o):
-                return ObjNode(id=o.id, title=o.title, restricted=True, children=kids)
             krs = krs_by.get(o.id, [])
+            if not of.visible(o):
+                return ObjNode(
+                    id=o.id,
+                    title=o.title,
+                    restricted=True,
+                    children=kids,
+                    key_results=[kr_node(k) for k in krs if kr_visible(o, k)],
+                )
             return ObjNode(
                 id=o.id, title=o.title, period_key=o.period_key, level=o.level, status=o.status,
                 progress_pct=float(o.progress_pct), owner_id=o.owner_id,

@@ -203,8 +203,9 @@ function patchIni(req: MockRequest) {
 }
 function deleteIni(req: MockRequest) {
   const i = getIni(req, "write");
-  if (iniProjects(i).length) throw err(409, "CONFLICT_STATE", "initiative has linked projects", { reason: "has_projects" });
-  if (workStore().tasks.some((t) => !t.deleted && t.initiative_id === i.id)) throw err(409, "CONFLICT_STATE", "initiative has tasks", { reason: "has_tasks" });
+  if (iniProjects(i).length || workStore().tasks.some((t) => !t.deleted && t.initiative_id === i.id)) {
+    throw err(409, "CONFLICT_STATE", "initiative still has milestones, tasks, decisions, KPIs or projects", { initiative_id: i.id });
+  }
   i.deleted = true;
   const so = liveSos().find((x) => x.id === i.strategic_objective_id);
   if (so) recomputeSo(goalStore(), so);

@@ -131,6 +131,7 @@ async def test_target_effective_dated(
     locked = await api.call("POST", turl, "CEO", json={
         "period_key": "2037-03", "target": 90, "valid_from": "2037-03-25"})  # fmt: skip
     assert locked.status_code == 409
+    assert locked.json()["error"]["details"]["reason"] == "period_locked"
     assert (await _measure(api, kid, "2037-03", 1)).status_code == 409
     assert (await patch(api, f"/kpis/{kid}", 1, name="x")).status_code == 200  # KPI not locked
 

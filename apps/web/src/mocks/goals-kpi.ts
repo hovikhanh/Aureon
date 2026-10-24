@@ -2,11 +2,11 @@
 import { recordAudit } from "./audit";
 import { ok, paginate, parsePage } from "./http";
 import type { MockRequest, Route } from "./router";
-import { canCheckIn, canRead, canWrite, forbiddenRole, forbiddenScope, pinDepartment, requireManager } from "./goal-scope";
+import { canCheckIn, canRead, canWrite, forbiddenScope, pinDepartment, requireManager } from "./goal-scope";
 import { periodBounds, periodKeyFor, periodMatchesType } from "./goals-rules";
 import { base, currentTarget, goalStore, latestEvaluation, measure, newGoalId, type MKpi, type MKpiTarget, type Pillar } from "./goals-store";
 import { evaluationBrief } from "./goals-tree";
-import { notifyGoalAlert } from "./goals-notify";
+import { notifyKpiAlert } from "./goals-notify";
 import { biz, body, CONFIDENCES, err, expectVersion, invalid, isDate, notFound, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
 import { workStore, workToday } from "./work-store";
 
@@ -77,8 +77,9 @@ function patchKpi(req: MockRequest) {
 
 function deleteKpi(req: MockRequest) {
   const k = getKpi(req, "write");
-  if (liveKpis().some((x) => x.parent_kpi_id === k.id)) throw err(409, "CONFLICT_STATE", "kpi has children", { reason: "has_children" });
-  if (workStore().tasks.some((t) => !t.deleted && t.kpi_id === k.id)) throw err(409, "CONFLICT_STATE", "kpi has tasks", { reason: "has_tasks" });
+  if (liveKpis().some((x) => x.parent_kpi_id === k.id) || workStore().tasks.some((t) => !t.deleted && t.kpi_id === k.id)) {
+    throw err(409, "CONFLICT_STATE", "KPI still has child KPIs or tasks", { kpi_id: k.id });
+  }
   k.deleted = true;
   recordAudit(req.claims, "execution.kpi_delete", "kpis", k.id);
   return ok(null, 204);
@@ -117,7 +118,7 @@ export function recordMeasurement(req: MockRequest, k: MKpi, o: { period: string
   recordAudit(req.claims, "execution.kpi_measure", "kpi_measurements", m.id);
   // execution.kpi_below_threshold: only when the band moves into BELOW/CRITICAL
   if (LOW_BANDS.has(m.evaluation_band) && !(prevBand && LOW_BANDS.has(prevBand))) {
-    notifyGoalAlert({ ownerId: k.owner_id, departmentId: k.department_id, title: `${k.code} — ${k.name}`, link: `/goals/kpis/${k.id}`, refTable: "kpis", refId: k.id, actorId: req.claims.sub });
+    notifyKpiAlert(k, { period_key: m.period_key, band: m.evaluation_band, achievement_pct: m.achievement_pct });
   }
   return m;
 }
@@ -146,8 +147,7 @@ function listTargets(req: MockRequest) {
 /** EP-KPI-09: close the current target of the period + open a new one (R-DEC-52), then re-evaluate. */
 function createTarget(req: MockRequest) {
   requireIdem(req);
-  if (req.claims.role === "EMP") throw forbiddenRole("set kpi targets");
-  const k = getKpi(req, "write");
+  const k = getKpi(req, "write"); // BE: out of scope → FORBIDDEN_SCOPE, else EMP → FORBIDDEN_ROLE
   const b = body(req);
   const period = str(b, "period_key", true, 10)!;
   if (!periodMatchesType(period, k.period_type)) throw biz("period_key does not match period_type", { field: "period_key" });

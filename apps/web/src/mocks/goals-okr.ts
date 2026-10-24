@@ -5,7 +5,7 @@ import type { MockRequest, Route } from "./router";
 import { canCheckIn, canRead, canWrite, forbiddenScope, pinDepartment, requireManager, type Scoped } from "./goal-scope";
 import { daysBetween, krProgressPct, periodBounds, periodKeyFor, KR_CHECKIN_MAX_AGE_DAYS } from "./goals-rules";
 import { base, checkInKr, goalStore, newGoalId, recomputeObjective, type MCheckIn, type MKr, type MObjective, type Pillar } from "./goals-store";
-import { notifyGoalAlert } from "./goals-notify";
+import { notifyKrAlert } from "./goals-notify";
 import { parseCheckIn } from "./goals-kpi";
 import { biz, body, err, expectVersion, invalid, notFound, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
 import { workToday } from "./work-store";
@@ -100,9 +100,8 @@ function patchObj(req: MockRequest) {
 
 function deleteObj(req: MockRequest) {
   const o = getObj(req, "write");
-  if (liveObjs().some((x) => x.parent_id === o.id)) throw err(409, "CONFLICT_STATE", "objective has children", { reason: "has_children" });
+  if (liveObjs().some((x) => x.parent_id === o.id) || krsOf(o.id).length) throw err(409, "CONFLICT_STATE", "objective still has key results or children", { objective_id: o.id });
   o.deleted = true;
-  for (const k of krsOf(o.id)) k.deleted = true;
   recordAudit(req.claims, "execution.objective_delete", "objectives", o.id);
   return ok(null, 204);
 }
@@ -184,10 +183,10 @@ function createKrCheckIn(req: MockRequest) {
   const s = goalStore();
   const o = s.objectives.find((x) => x.id === k.objective_id)!;
   if (o.status !== "active") throw err(409, "CONFLICT_STATE", "objective is not active", { reason: "objective_not_active" });
-  const { checkIn, becameAtRisk } = checkInKr(s, k, b, req.claims.sub, nowIso());
+  const { checkIn, becameAtRisk, expectedPct } = checkInKr(s, k, b, req.claims.sub, nowIso());
   recordAudit(req.claims, "execution.check_in_create", "check_ins", checkIn.id);
   if (becameAtRisk) {
-    notifyGoalAlert({ ownerId: k.owner_id, departmentId: o.department_id, title: k.title, link: `/goals/objectives/${o.id}?kr=${k.id}`, refTable: "key_results", refId: k.id, actorId: req.claims.sub });
+    notifyKrAlert(k, o, { progress: k.progress_pct, expected: expectedPct });
   }
   return ok(checkInOut(checkIn), 201);
 }

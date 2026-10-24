@@ -127,7 +127,9 @@ class KpiTargetService(ExecBase):
     @staticmethod
     def require_open(versions: list[KpiTarget], period_key: str) -> None:
         if any(t.locked_at is not None for t in versions):
-            raise ConflictStateError("KPI period is locked", details={"period_key": period_key})
+            raise ConflictStateError("KPI period is locked",
+                                     details={"reason": "period_locked",
+                                              "period_key": period_key})  # fmt: skip
 
     async def target_for(
         self, k: Kpi, period_key: str, day: date, user_id: uuid.UUID | None

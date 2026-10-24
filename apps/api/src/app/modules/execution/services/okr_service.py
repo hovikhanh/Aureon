@@ -125,7 +125,7 @@ class OkrService(ExecBase):
         if not MIN_KR_ACTIVE <= n <= MAX_KR:
             raise BusinessRuleError(
                 f"an active objective needs {MIN_KR_ACTIVE}..{MAX_KR} key results",
-                details={"field": "status", "rule": RULE, "key_results": n},
+                details={"field": "status", "reason": "kr_count", "rule": RULE, "key_results": n},
             )
 
     async def _krs_of(self, objective_id: uuid.UUID) -> list[KeyResult]:
@@ -235,7 +235,8 @@ class OkrService(ExecBase):
         data = body.model_dump()
         if len(await self._krs_of(o.id)) >= MAX_KR:
             raise BusinessRuleError(f"at most {MAX_KR} key results per objective",
-                                    details={"field": "objective_id", "rule": RULE})  # fmt: skip
+                                    details={"field": "objective_id", "reason": "kr_count",
+                                             "rule": RULE})  # fmt: skip
         k = await self.krs.create(**data, objective_id=o.id, source="MANUAL",
                                   created_by=user.user_id)  # fmt: skip
         await self.recompute_progress(o.id)

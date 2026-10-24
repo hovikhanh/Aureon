@@ -193,6 +193,33 @@ async def test_tree_restricted_ancestors(api: ApiClient) -> None:
     assert so["objectives"] == [] and so["initiatives"] == []  # nothing visible below
 
 
+async def test_tree_own_kr_under_restricted_objective(api: ApiClient) -> None:
+    """T-633 review: EMP owns only a KR → its objective is a restricted node carrying that KR
+    (and only that KR); the SO above is restricted too (R-DEC-57, seed OKR-SVC #1)."""
+    year = 2300 + uuid.uuid4().int % 600
+    w = await _world(api, year, uuid.uuid4())
+    me = uuid.uuid4()
+    mine = await make(api, f"/objectives/{w['o']['id']}/key-results", {
+        "title": "KR của tôi", "baseline": 0, "target": 10, "unit": "x",
+        "owner_id": str(me)})  # fmt: skip
+    r = await as_user(
+        api,
+        "GET",
+        "/goals/tree",
+        "EMPLOYEE",
+        me,
+        params={"strategy_id": w["s"]["id"], "period_key": f"{year}-Q1"},
+    )
+    assert r.status_code == 200, r.text
+    so = _so_of(r.json()["data"], w["s"]["id"])
+    assert so["restricted"] is True and so["kpis"] == [] and so["initiatives"] == []
+    [obj] = so["objectives"]
+    assert obj["id"] == w["o"]["id"] and obj["restricted"] is True
+    assert obj["progress_pct"] is None and obj["at_risk_kr_count"] is None
+    assert [k["id"] for k in obj["key_results"]] == [mine["id"]]
+    assert obj["children"] == []  # sub-objective has nothing of mine
+
+
 async def test_initiative_projects(api: ApiClient) -> None:
     """TC-M14-06: EP-STR-22 + 409 deleting an initiative that still has projects."""
     w = await _world(api, 2300 + uuid.uuid4().int % 600, uuid.uuid4())

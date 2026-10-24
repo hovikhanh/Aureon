@@ -331,7 +331,9 @@ class KpiService(ExecBase):
         self.target_svc.require_open(list(await self.targets.versions(k.id, m.period_key)),
                                      m.period_key)  # fmt: skip
         if m.locked_at is not None:
-            raise ConflictStateError("measurement is locked", details={"period_key": m.period_key})
+            raise ConflictStateError("measurement is locked",
+                                     details={"reason": "period_locked",
+                                              "period_key": m.period_key})  # fmt: skip
         before = measurement_out(m)
         await self.target_svc.evaluate(k, m.period_key, exclude=m.id)  # re-point first (FK)
         await self.measurements.remove(m)
