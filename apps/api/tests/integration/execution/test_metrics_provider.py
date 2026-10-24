@@ -36,7 +36,7 @@ async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSessio
         "weight_pct": 10})  # fmt: skip
     got = {r.code: r for r in await compute(db_session, AS_OF)}
     assert set(got) == {"METRIC-OPS-01", "METRIC-OPS-02", "METRIC-OPS-03", "METRIC-HR-03",
-                        "METRIC-RSK-06"}  # fmt: skip
+                        "METRIC-RSK-06", "METRIC-STR-01"}  # fmt: skip
     assert all(r.period_key == "2041-03" and r.scope_type == "company" for r in got.values())
     ops1 = got["METRIC-OPS-01"]
     assert ops1.value == 0.0 and late["id"] in {x.id for x in ops1.records}
