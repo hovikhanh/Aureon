@@ -261,6 +261,14 @@ async def test_tc_m13_11_seed_links_milestones_reassign(seeded: AsyncSession) ->
     reqs = (await seeded.execute(select(ApprovalRequest))).scalars().all()
     assert [(r.target_kind, r.status) for r in reqs] == [("task_reassign", "PENDING")]
     assert reqs[0].department_id == seed_uuid("department", "SVC")
+    from app.core.events.envelope import OUTBOX
+    from app.modules.platform.models import Notification
+
+    # R-DEC-47: seeding emits no outbox event / notification for the request
+    ev = await seeded.execute(select(OUTBOX.c.id).where(OUTBOX.c.aggregate_id == reqs[0].id))
+    assert ev.first() is None
+    note = await seeded.execute(select(Notification.id).where(Notification.ref_id == reqs[0].id))
+    assert note.first() is None
     mgr = (await seeded.execute(select(User).where(User.email == "manager@abc.demo"))).scalar_one()
     assert mgr.department_id == reqs[0].department_id  # → in the SVC MGR's EP-WF-01 inbox
     from app.core.deps import Principal

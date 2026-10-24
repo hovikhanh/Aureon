@@ -175,7 +175,7 @@ class ActionService:
         if act is None:
             raise NotFoundError(f"unknown action {action.action_name}")
         try:
-            outcome = await act.run(self.db, user, dict(action.input))
+            outcome = await act.run(self.db, user, dict(action.input), action.id)
         except AppError:
             raise
         except Exception as exc:  # pragma: no cover - defensive

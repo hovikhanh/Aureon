@@ -5,13 +5,14 @@ seed twice, rolled back), reference date 20/10/2026 = ISO week 2026-W43 (08 §5)
 """
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
+from app.modules.execution.models import Task
 from app.modules.execution.services.project_rules import (
     is_late,
     milestone_late,
@@ -143,3 +144,35 @@ async def test_project_milestones_and_detail(api: ApiClient, db_session: AsyncSe
     assert sorted(await audit_actions(db_session, m_late["id"])) == [
         "execution.milestone_create", "execution.milestone_delete", "execution.milestone_update",
     ]  # fmt: skip
+
+
+@pytest.mark.parametrize("as_of", [date(2026, 10, 20), date(2026, 10, 14), date(2026, 10, 8)])
+async def test_workload_summary_matches_hr03(
+    api: ApiClient, seeded: AsyncSession, monkeypatch: pytest.MonkeyPatch, as_of: date
+) -> None:
+    """R-DEC-44: `summary.overloaded_pct` of the current (unfinished) week = stored METRIC-HR-03
+    recomputed at the same mid-week day (the week is measured up to `min(week_end, today)`)."""
+    from app.core.config import get_config
+    from app.modules.platform.models import Metric, MetricValue
+    from app.modules.platform.services.metric_store import MetricStore, seed_catalog
+    from app.workers.consumers import load_metric_providers
+
+    monkeypatch.setattr(get_config(), "demo_reference_date", as_of.isoformat())
+    # a task created later in the same ISO week: counted by a full-week window, not by HR-03
+    late = await make_task(api, assignee_id=str(uuid.uuid4()), estimate_hours=60)
+    when = datetime.combine(as_of + timedelta(days=1), time(9), tzinfo=UTC)
+    if iso_week(when.date()) == iso_week(as_of):
+        await seeded.execute(update(Task).where(Task.id == uuid.UUID(late["id"]))
+                             .values(created_at=when))  # fmt: skip
+    await seed_catalog(seeded)
+    load_metric_providers()
+    assert (await MetricStore(seeded).recompute(as_of))["failed_providers"] == 0
+    hr03 = (await seeded.execute(
+        select(MetricValue.value).join(Metric, MetricValue.metric_id == Metric.id)
+        .where(Metric.code == "METRIC-HR-03", MetricValue.is_current.is_(True),
+               MetricValue.scope_type == "company")
+    )).scalar_one()  # fmt: skip
+    for params in ({}, {"week": iso_week(as_of)}):
+        r = await api.call("GET", "/work/workload", "CEO", params=params)
+        assert r.status_code == 200, r.text
+        assert r.json()["data"]["summary"]["overloaded_pct"] == float(hr03 or 0)

@@ -138,7 +138,8 @@ def _links(_owner: uuid.UUID) -> list[Any]:
 
 async def _reassign_request(db: AsyncSession) -> int:
     """1 PENDING `task_reassign` in SVC (EP-TASK-19 → EP-WF-01 MGR inbox) via the public
-    service, so rule / audit / outbox / notification are the real ones. Needs the auth seed."""
+    service (real rule + audit) with `emit=False`: no outbox / notification when seeding
+    (R-DEC-47). Needs the auth seed."""
     from app.modules.auth.services.auth_service import AuthService
     from app.modules.platform.services.approval_service import ApprovalService
 
@@ -152,6 +153,7 @@ async def _reassign_request(db: AsyncSession) -> int:
         payload={"task_id": str(seed_uuid("task", key)),
                  "from_assignee_id": str(emp_id(requester.code)),
                  "to_assignee_id": str(emp_id(to.code)), "reason": reason, "task_version": 1},
+        emit=False,
     )  # fmt: skip
     return 1
 

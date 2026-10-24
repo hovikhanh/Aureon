@@ -51,7 +51,7 @@ from app.modules.execution.services.workload import (
     iso_week,
     parse_iso_week,
     week_ends,
-    weekly_grid,
+    weekly_view,
 )
 from app.modules.platform.schemas import ApprovalRequestOut
 
@@ -77,8 +77,7 @@ async def get_workload(
             week_end = parse_iso_week(week)
         except ValueError as exc:
             raise BadRequestError("week must be ISO YYYY-Www", details={"param": "week"}) from exc
-    rows = await weekly_grid(db, dept, week_end, weeks)
-    over = sum(r.overloaded for r in rows)
+    rows, summ = await weekly_view(db, dept, week_end, weeks, today())
     response.headers["Cache-Control"] = "private, max-age=60"
     response.headers["Vary"] = "Authorization"
     return WorkloadOut(
@@ -88,8 +87,10 @@ async def get_workload(
         rows=[WorkloadRowOut(employee_id=r.employee_id, department_id=r.department_id,
                              cells=[WorkloadCellOut(**vars(c)) for c in r.cells],
                              overloaded=r.overloaded) for r in rows],
-        summary=WorkloadSummaryOut(people=len(rows), overloaded_count=over,
-                                   overloaded_pct=pct(over, len(rows)) or 0.0),
+        summary=WorkloadSummaryOut(
+            people=summ.people, overloaded_count=summ.overloaded_count,
+            overloaded_pct=pct(summ.overloaded_count, summ.people) or 0.0,
+        ),
     )  # fmt: skip
 
 

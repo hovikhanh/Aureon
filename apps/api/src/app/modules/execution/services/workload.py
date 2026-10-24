@@ -134,14 +134,34 @@ def grid_from(tasks: Sequence[Task], week_end: date, weeks: int) -> list[GridRow
     return sorted(rows, key=lambda r: (-r.cells[-1].load_pct, str(r.employee_id)))
 
 
+@dataclass(frozen=True)
+class GridSummary:
+    """Population + overloaded count of METRIC-HR-03 (`rows_from` at the effective as-of)."""
+
+    people: int
+    overloaded_count: int
+
+
+async def weekly_view(
+    db: AsyncSession, dept: uuid.UUID | None, week_end: date, weeks: int, as_of: date
+) -> tuple[list[GridRow], GridSummary]:
+    """EP-TASK-18: grid + summary. A week that has not ended yet is measured up to `as_of`
+    (`min(week_end, as_of)`), exactly like METRIC-HR-03 (`metrics.hr03` → `rows_from(tasks,
+    as_of)`), so `summary.overloaded_pct` equals the stored HR-03 value (R-DEC-44)."""
+    end = min(week_end, as_of)
+    span = max(weeks, OVERLOAD_WEEKS)
+    since = end - timedelta(days=7 * span - 1)
+    tasks = await TaskRepository(db).assigned_active(since, end + timedelta(days=1), dept)
+    hr03 = rows_from(tasks, end)
+    summary = GridSummary(people=len(hr03), overloaded_count=sum(r.overloaded for r in hr03))
+    return grid_from(tasks, end, weeks), summary
+
+
 async def weekly_grid(
     db: AsyncSession, dept: uuid.UUID | None, week_end: date, weeks: int
 ) -> list[GridRow]:
     """Shared by EP-TASK-18 and the EP-49 heatmap (05 §2.5). Read-only."""
-    span = max(weeks, OVERLOAD_WEEKS)
-    since = week_end - timedelta(days=7 * span - 1)
-    tasks = await TaskRepository(db).assigned_active(since, week_end + timedelta(days=1), dept)
-    return grid_from(tasks, week_end, weeks)
+    return (await weekly_view(db, dept, week_end, weeks, week_end))[0]
 
 
 def parse_iso_week(week: str) -> date:

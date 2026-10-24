@@ -15,6 +15,12 @@ Create Date: 2026-10-24
 - `execution.projects.initiative_id` (FK SET NULL) + index `(tenant_id, initiative_id)`.
 
 Reversible: downgrade restores assignees, drops the new table/enum/columns, renames back.
+
+Downgrade limits: only assignees rewritten **by this upgrade** (rows in
+`execution._m13_assignee_backfill`) are restored — tasks created/reassigned after the upgrade
+keep their `hr.employees.id`. `source_ref`, `task_dependencies` and `projects.initiative_id`
+data written after the upgrade is dropped. `_m13_assignee_backfill` has no model and is
+excluded from autogenerate (`alembic/env.py` `MIGRATION_ONLY_TABLES`).
 """
 
 from collections.abc import Sequence

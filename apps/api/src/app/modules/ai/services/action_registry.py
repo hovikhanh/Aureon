@@ -12,6 +12,7 @@ v2.0 wires the internal, fully-reversible actions needed by the AI assistant; th
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -36,18 +37,23 @@ class ActionDef:
     module: str
     reversible: bool
     is_finance: bool
-    run: Callable[[AsyncSession, Principal, dict[str, Any]], Awaitable[ActionOutcome]]
+    # (db, user, input, ai_action_id) — the id lets a target record its provenance (source_ref)
+    run: Callable[[AsyncSession, Principal, dict[str, Any], uuid.UUID], Awaitable[ActionOutcome]]
 
 
 async def _run_create_task(
-    db: AsyncSession, user: Principal, data: dict[str, Any]
+    db: AsyncSession, user: Principal, data: dict[str, Any], action_id: uuid.UUID
 ) -> ActionOutcome:
-    """ACT-create_task → execution.tasks (reversible: soft delete)."""
+    """ACT-create_task → execution.tasks (reversible: soft delete). Provenance per 05 §2.5:
+    `task_source="ai"`, `source_ref={kind: "ai_action", id: <ENT-AIAction id>}` (overrides any
+    model-supplied value — the AI cannot claim another origin)."""
     from app.modules.execution.schemas.tasks import TaskCreate
     from app.modules.execution.services.task_service import TaskService
 
     svc = TaskService(db)
-    body = TaskCreate.model_validate(data)
+    body = TaskCreate.model_validate(
+        {**data, "task_source": "ai", "source_ref": {"kind": "ai_action", "id": str(action_id)}}
+    )
     created = await svc.create(user, body)
     task_id = created.id
 
