@@ -336,7 +336,7 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 | T-649 | Rà seed sau M1 (agent, policy rỗng, `onboarding.state=completed` ABC, số liệu M1.2–M1.5 nhất quán 08); file mẫu UC-07 (`gen_demo_docs.py`); `seed_snapshot.json` cho mock; `demo_reset.sh -y` | `seed/**`, `scripts/gen_demo_docs.py`, `scripts/demo_reset.sh` | 08 §4.6, R-DEC-79 | TC-M16-22 | ☑ `78bb141` |
 | T-650 | E2E **UC-07** project `real` + kill switch banner chéo phiên; `e2e/support/onboarding_e2e.py --cleanup` | `apps/web/e2e/real/onboarding.spec.ts`, `e2e/support/*` | UC-07 | TC-M16-23 | ☑ `459ad2e` |
 | T-651 | Review toàn M1 (`/code-review` diff M1.1→M1.6), coverage 14 §1.3, dọn nợ (TODO, path v2.1 còn sót, `assistant` hard-code) | toàn repo | 09 §6.0bis | TC-M16-24 | ☑ `4a90190`, `602de41` |
-| T-652 | Đóng mốc M1: full test chuỗi (§6.0bis), 14 `Implemented → Passed`, STATE.md, PR chuỗi M1.3→M1.6; push `ai-eos` khi human đồng ý | STATE.md, 14 | — | TC-M16-24 | ☐ |
+| T-652 | Đóng mốc M1: full test chuỗi (§6.0bis), 14 `Implemented → Passed`, STATE.md, PR chuỗi M1.3→M1.6; push `ai-eos` khi human đồng ý | STATE.md, 14 | — | TC-M16-24 | ☑ (2026-10-25) |
 
 **Thứ tự:** T-644S → **C** (schema Pydantic `ToolOut`/`AIAgentOut`/`AutonomyPolicyOut`/`ToolCallLogOut`/`ModelCallLogOut`/`OnboardingStateOut` + stub `501` EP-AI-16..23, EP-ADM-13/14; sinh shared-types) → song song **F** (T-644F → T-646F → T-647F → T-645F → T-648F) ‖ **B** (T-644 → T-646 (migration `0021`) → T-647 → T-645 → T-645b → T-648) → T-649 → **N** T-650 → **R** T-651 → T-652.
 

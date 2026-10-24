@@ -1,14 +1,31 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: M1.1 DONE (nền build v3) — chờ human review/PR
+## Status: M1.3→M1.6 DONE — full test chuỗi XANH (T-652, 2026-10-25) — 4 PR xếp chồng chờ human review
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-23 (Asia/Saigon) |
+| Last updated | 2026-10-25 (Asia/Saigon) |
 | Dòng sản phẩm | **Aureon v3 — AI-EOS** (chính thức duy nhất). v2.1 archived (`docs/_archive/v2.1/`) |
 | Branch | `v3/m1.1-foundation` (local, **chưa push**) ← `ai-eos`; `main` giữ nền v2.1 demo |
 | Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
+
+## T-652 — Đóng mốc M1: full test chuỗi M1.3→M1.6 — PASSED (2026-10-25)
+Chạy trên đỉnh chuỗi `v3/m1.6-ai-onboarding` (chứa M1.3→M1.6), DB riêng (không đụng demo `aureon`).
+| Bước | Kết quả |
+|---|---|
+| Gate DoD `pnpm lint && pnpm typecheck && pnpm test && ruff && mypy && pytest && contract:validate` | ✅ exit 0 — Vitest 321 · mypy 348 file · pytest 1213 passed · contract 34 |
+| `pytest --cov=app` | TOTAL 96% · service mọi module ≥ 90% · nhóm bảo mật ≥ 93% (14 §1.3 đạt) · FE coverage chưa đo (cần DEC `@vitest/coverage-v8`) |
+| Alembic | DB mới `aureon_final`: `upgrade head` → `downgrade -1` ×8 (0021→0013) → `upgrade head` sạch |
+| Playwright real | **75/75** — stack riêng API :4500 + Celery worker (`-Q default,idp,events`)/beat Redis db 5–7 + `next start` :3600 trên `aureon_final` (seed sạch + `seed_review_doc.py`) |
+| Playwright mock | **60/60** (`E2E_MOCK_PORT=3170`) |
+| 14 | TC-M13-* … TC-M16-* (74 dòng) → **Passed 2026-10-25** · 09 T-652 ☑ |
+
+**Ghi chú môi trường (rút ra khi chạy T-652):**
+- Shell của harness kế thừa `DATABASE_URL=…/aureon` (+ REDIS/CELERY, `MODEL_GATEWAY_MODE=live`) ghi đè `.env` → mọi lệnh phải `set -a; . ./.env; set +a` (sự cố M1.5: migration 0018–0020 + seed lỡ chạy vào DB demo — đã `downgrade 0013` + `demo_reset.sh -y` từ `main`, verify 7 phòng/154 NV, API :4000 health 200).
+- Script support e2e (`seed_review_doc.py`, `goals_e2e.py`…) đọc `.env` gốc → stack riêng đặt `E2E_ENV_FILE=var/<x>.env` (thêm ở T-652, `support/seed.ts`); `E2E_API_URL` phải có hậu tố `/api/v1`; web `API_URL` thì **không** có `/api/v1`.
+- Lần real đầu fail 6–7 spec IDP/goals do script support ghi nhầm DB worktree (chưa có `E2E_ENV_FILE`) + dữ liệu bẩn từ lượt trước → reseed sạch rồi chạy lại 75/75.
+- Sau reboot WSL, port-forward Docker Desktop có thể reset kết nối → `docker restart` container (dữ liệu giữ).
 
 ## M1.6 — D26 AI Platform + UC-07 (chuỗi auto) — DONE `[full-test pending]` (2026-10-25, nhánh `v3/m1.6-ai-onboarding`)
 | Task | Commit | Nội dung |
