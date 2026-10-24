@@ -46,8 +46,12 @@ export const parseMoney = (text: string): number | null => {
   return digits ? Number(digits) : null;
 };
 
-export const agentName = (a: Pick<Agent, "name_vi" | "name_en"> | undefined, code: string, locale: string) =>
-  a ? (locale === "en" ? a.name_en : a.name_vi) : code === "assistant" ? (locale === "en" ? "Assistant (v2.1)" : "Trợ lý (v2.1)") : code;
+/** v2.1 chat agent code kept on old `ai_actions` / log rows (R-DEC-71) — not in the agent catalog. */
+export const LEGACY_AGENT_CODE = "assistant";
+
+/** Agent display name; an unknown code falls back to `legacyLabel` (i18n) for the v2.1 code, else the code. */
+export const agentName = (a: Pick<Agent, "name_vi" | "name_en"> | undefined, code: string, locale: string, legacyLabel?: string) =>
+  a ? (locale === "en" ? a.name_en : a.name_vi) : code === LEGACY_AGENT_CODE && legacyLabel ? legacyLabel : code;
 
 /** Error → i18n key: 422 `details.reason` (aiAdmin.reason.*), else code. */
 export function errorKey(code: string, details: Record<string, unknown> | undefined): string {

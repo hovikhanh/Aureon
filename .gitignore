@@ -57,3 +57,6 @@ _reference/
 
 # IDP local object store (dev/demo runtime storage — DEC-138 quarantine bucket)
 var/
+
+# Celery beat local schedule (T-651)
+celerybeat-schedule*

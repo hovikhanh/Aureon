@@ -1697,7 +1697,8 @@
       "filterAgent": "Lọc theo agent",
       "allAgents": "Mọi agent",
       "mine": "Của bạn",
-      "forOther": "Phục vụ người khác (chỉ xem)"
+      "forOther": "Phục vụ người khác (chỉ xem)",
+      "legacyAgent": "Trợ lý (v2.1)"
     },
     "cost": {
       "title": "Chi phí AI tháng này",

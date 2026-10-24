@@ -34,7 +34,7 @@ export function ActionQueue({ viewer }: { viewer: Viewer }) {
         {(q.data ?? []).map((a) => (
           <ActionCard key={a.id} action={a} viewerId={viewer.id} permissions={viewer.permissions} errorText={flow.errorText}
             onConfirm={(edited) => flow.confirm(a.id, edited)} onReject={(reason) => flow.reject(a.id, reason)}
-            meta={<p className="text-xs text-muted-foreground">{a.on_behalf_of === viewer.id ? t("mine") : t("forOther")} · {agentName(agents.data?.find((x) => x.code === a.agent_profile_code), a.agent_profile_code ?? "", locale)}</p>} />
+            meta={<p className="text-xs text-muted-foreground">{a.on_behalf_of === viewer.id ? t("mine") : t("forOther")} · {agentName(agents.data?.find((x) => x.code === a.agent_profile_code), a.agent_profile_code ?? "", locale, t("legacyAgent"))}</p>} />
         ))}
       </div>
       {flow.toastEl}

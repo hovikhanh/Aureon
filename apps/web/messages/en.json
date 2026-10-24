@@ -1697,7 +1697,8 @@
       "filterAgent": "Filter by agent",
       "allAgents": "All agents",
       "mine": "Yours",
-      "forOther": "For another user (view only)"
+      "forOther": "For another user (view only)",
+      "legacyAgent": "Assistant (v2.1)"
     },
     "cost": {
       "title": "AI cost this month",

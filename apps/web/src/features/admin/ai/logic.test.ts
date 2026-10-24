@@ -1,7 +1,7 @@
 /** TC-M16-16/20 (unit) — SCR-64 pure rules + KillSwitchBanner state (T-644F/T-646F). */
 import { describe, expect, it } from "vitest";
 import type { KillSwitch, Tool } from "./types";
-import { bannerHasAdminLink, bannerState, cappedDefault, costTone, filterTools, levelKey, levelOptions, matrixTools, parseMoney } from "./logic";
+import { agentName, bannerHasAdminLink, bannerState, cappedDefault, costTone, filterTools, levelKey, levelOptions, matrixTools, parseMoney } from "./logic";
 
 const ks = (p: Partial<KillSwitch>) => ({ enabled: false, mode: "WRITE_OFF", agents: [], reason: null, changed_by: null, changed_at: null, ...p }) as KillSwitch;
 
@@ -41,5 +41,18 @@ describe("autonomy helpers", () => {
     const tools = [{ name: "a", kind: "READ" }, { name: "b", kind: "WRITE" }, { name: "c", kind: "EXECUTION" }, { name: "d", kind: "APPROVAL" }] as Tool[];
     expect(matrixTools(tools).map((t) => t.name)).toEqual(["b", "c"]);
     expect(filterTools(tools, { kind: "READ", domain: "", agent: "", mine: false }).map((t) => t.name)).toEqual(["a"]);
+  });
+});
+
+describe("agentName (T-651: no hard-coded legacy label)", () => {
+  const a = { name_vi: "CEO Agent VI", name_en: "CEO Agent" };
+  it("uses the catalog name per locale", () => {
+    expect(agentName(a, "ceo", "vi")).toBe("CEO Agent VI");
+    expect(agentName(a, "ceo", "en")).toBe("CEO Agent");
+  });
+  it("v2.1 `assistant` → i18n label when given, else the raw code", () => {
+    expect(agentName(undefined, "assistant", "vi", "Trợ lý (v2.1)")).toBe("Trợ lý (v2.1)");
+    expect(agentName(undefined, "assistant", "vi")).toBe("assistant");
+    expect(agentName(undefined, "other", "en", "x")).toBe("other");
   });
 });
