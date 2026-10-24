@@ -1,4 +1,4 @@
-"""Action Registry v2 (R-DEC-60). Importing the package registers all 12 `ACT-*`."""
+"""Action Registry v2 (R-DEC-60). Importing the package registers all 14 `ACT-*`."""
 
 from app.modules.idp.services.actions import finance, goals, org, work
 from app.modules.idp.services.actions.registry import (
