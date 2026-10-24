@@ -118,7 +118,7 @@ async def test_mapping_update_and_level4_drop(api: ApiClient, db_session, idp_st
     assert miss.status_code == 422
     assert miss.json()["error"]["details"]["unmapped_required"] == ["employee_code"]
     other = await api.http.patch(url, headers=api.headers("ADMIN"), json={**body, "mapping": {}})
-    assert other.status_code == 403  # submitter only
+    assert other.status_code == 404  # another ADM: outside scope `s` (own #4 only) → 404
     ok = await api.http.patch(
         url, headers=h, json={**body, "mapping": {"Lương": "salary", "Chức danh": None}}
     )

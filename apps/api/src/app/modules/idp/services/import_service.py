@@ -452,14 +452,13 @@ class ImportService:
 
         from app.core.errors import NotFoundError
         from app.modules.idp.repositories import SourceDocumentRepository
-        from app.modules.idp.services.scope import document_visible, type_in_scope
+        from app.modules.idp.services.scope import capture_visible
 
         batch = await ImportRepository(self.db).excel_batch(batch_id)
         doc = None
         if batch is not None and batch.source_document_id is not None:
             doc = await SourceDocumentRepository(self.db).by_id(batch.source_document_id)
-        if (doc is None or not document_visible(user, doc)
-                or not await type_in_scope(self.db, user, doc)):  # fmt: skip
+        if doc is None or not await capture_visible(self.db, user, doc):
             raise NotFoundError("import batch not found")
         return batch, doc
 

@@ -23,7 +23,7 @@ from app.core.storage import PRESIGN_TTL_SECONDS, presign_get
 from app.modules.idp.models import DocumentType, SourceDocument
 from app.modules.idp.schemas.capture import InboxItemOut, SourceViewOut
 from app.modules.idp.services.capture_common import can_undo, document_out
-from app.modules.idp.services.scope import document_visible, inbox_filter, type_in_scope
+from app.modules.idp.services.scope import capture_visible, inbox_filter
 
 GROUPS: dict[str, tuple[str, ...]] = {
     "processing": ("UPLOADED", "PREPROCESSING", "CLASSIFYING", "EXTRACTING", "VALIDATING"),
@@ -161,13 +161,4 @@ class InboxService:
 
     async def _may_view(self, user: Principal, doc: SourceDocument) -> bool:
         """Same visibility as the inbox (scope row filter) + review/type scope."""
-        if not await type_in_scope(self.db, user, doc):
-            return False
-        if document_visible(user, doc):
-            return True
-        scope = await inbox_filter(self.db, user)
-        if scope is None:
-            return True
-        from app.modules.idp.repositories import SourceDocumentRepository
-
-        return await SourceDocumentRepository(self.db).matches(doc.id, scope)
+        return await capture_visible(self.db, user, doc)

@@ -382,6 +382,6 @@ async def list_incidents(
     page: Annotated[PageParams, Depends(page_params("reported_at"))],
     period: str | None = None, undetected_only: bool = False,
 ) -> Any:  # fmt: skip
-    items, total = await IncidentService(db).list(page, period=period,
+    items, total = await IncidentService(db).list(user, page, period=period,
                                                   undetected_only=undetected_only)  # fmt: skip
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)

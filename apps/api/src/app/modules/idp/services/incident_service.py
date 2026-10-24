@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, time
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
@@ -26,7 +26,7 @@ from app.modules.idp.repositories import (
 )
 from app.modules.idp.schemas.capture import IncidentCreate, IncidentOut
 from app.modules.idp.services.critical import CRITICAL_FIELD_NAMES
-from app.modules.idp.services.scope import document_visible, lineage_visible
+from app.modules.idp.services.scope import capture_visible, inbox_filter, review_visible
 
 
 class IncidentService:
@@ -37,8 +37,8 @@ class IncidentService:
     async def report(self, user: Principal, body: IncidentCreate) -> IncidentOut:
         """EP-DC-36 — reviewer/DIR reports a wrong value found after commit."""
         doc = await SourceDocumentRepository(self.db).by_id(body.source_document_id)
-        if doc is None or not (document_visible(user, doc)
-                               or await lineage_visible(self.db, user, doc)):  # fmt: skip
+        if doc is None or not (await review_visible(self.db, user, doc)
+                               or await capture_visible(self.db, user, doc)):  # fmt: skip
             raise NotFoundError("document not found")
         critical = body.field_name in CRITICAL_FIELD_NAMES
         if body.extracted_field_id is not None:
@@ -76,10 +76,17 @@ class IncidentService:
         return inc
 
     async def list(
-        self, page: PageParams, *, period: str | None, undetected_only: bool
+        self, user: Principal, page: PageParams, *, period: str | None, undetected_only: bool
     ) -> tuple[list[IncidentOut], int]:
-        """EP-DC-37 — `period` (10 §1.5 values) on `reported_at`; G4 view = undetected_only."""
+        """EP-DC-37 — `period` (10 §1.5 values) on `reported_at`; G4 view = undetected_only.
+
+        Row scope = incidents of documents in the caller's capture scope (inbox filter, 10
+        §7.2.4) or reported by the caller."""
         where: list[ColumnElement[bool]] = []
+        if (scope := await inbox_filter(self.db, user)) is not None:
+            docs = SourceDocumentRepository.ids_where(scope)
+            where.append(or_(CaptureIncident.source_document_id.in_(docs),
+                             CaptureIncident.reported_by == user.user_id))  # fmt: skip
         if period is not None:
             try:
                 p = resolve_period(period, datetime.now(UTC).date())

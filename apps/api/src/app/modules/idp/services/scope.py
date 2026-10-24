@@ -128,6 +128,21 @@ async def review_visible(db: AsyncSession, user: Principal, doc: SourceDocument)
     return document_visible(user, doc) or await in_review_session(db, user, doc)
 
 
+async def capture_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
+    """GET-by-id side of the `/data-capture/*` endpoints (EP-DC-14, 18..21, 24, 25): the same
+    row scope as the inbox (10 §7.2.4 scope table — EMP own only, MGR department subtree, DIR
+    khối, REV assigned + own, ADM own #4) plus the caller's own submissions and current review
+    sessions. Wider v2.1 `document_visible` (same department) is not used here."""
+    if not await type_in_scope(db, user, doc):
+        return False
+    if doc.submitted_by == user.user_id or await in_review_session(db, user, doc):
+        return True
+    from app.modules.idp.repositories import SourceDocumentRepository
+
+    scope = await inbox_filter(db, user)
+    return scope is None or await SourceDocumentRepository(db).matches(doc.id, scope)
+
+
 async def lineage_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
     """Source side of EP-DC-26 (R-DEC-64): the document is in the caller's capture scope — the
     same row filter as the inbox (REV: only assigned review sessions; EMP: own submissions)."""

@@ -86,7 +86,12 @@ async def test_incidents_report_and_list(api, db_session, idp_store) -> None:
     body = {"source_document_id": str(doc_id), "extracted_field_id": str(fid),
             "field_name": "vat_amount", "target_table": "finance.invoices",
             "description": "VAT sai 1 chữ số"}  # fmt: skip
-    r = await api.call("POST", "/data-capture/incidents", "HR_MANAGER", json=body)
+    reporter = uuid.uuid4()  # EP-DC-37 is row-scoped: the reporter lists its own incidents
+    r = await api.http.post(
+        "/api/v1/data-capture/incidents",
+        json=body,
+        headers=api.headers("HR_MANAGER", idem=True, user_id=reporter),
+    )
     assert r.status_code == 201, r.text
     inc = r.json()["data"]
     assert inc["is_critical"] and inc["undetected"] and inc["detected_by"] == "post_commit"
@@ -96,10 +101,9 @@ async def test_incidents_report_and_list(api, db_session, idp_store) -> None:
     minor = {**body, "extracted_field_id": None, "field_name": "invoice_number"}
     m = await api.call("POST", "/data-capture/incidents", "HR_MANAGER", json=minor)
     assert m.json()["data"]["is_critical"] is False
-    lst = await api.call(
-        "GET",
-        "/data-capture/incidents",
-        "HR_MANAGER",
+    lst = await api.http.get(
+        "/api/v1/data-capture/incidents",
+        headers=api.headers("HR_MANAGER", user_id=reporter),
         params={"undetected_only": "true", "period": "current_month"},
     )
     assert lst.status_code == 200, lst.text

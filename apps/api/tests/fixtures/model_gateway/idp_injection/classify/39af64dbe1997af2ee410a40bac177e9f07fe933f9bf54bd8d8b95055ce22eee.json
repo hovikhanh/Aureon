@@ -1,0 +1,13 @@
+{
+  "content": "",
+  "model": "fixture",
+  "usage": {
+    "tokens_in": 0,
+    "tokens_out": 0
+  },
+  "tool_calls": [],
+  "data": {
+    "code": "HR_ROSTER",
+    "confidence": 0.9
+  }
+}

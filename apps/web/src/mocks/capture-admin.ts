@@ -133,7 +133,7 @@ function createIncident(req: MockRequest): Response {
   requireIdem(req);
   const b = body(req);
   const d = captureStore().docs.find((x) => x.id === b.source_document_id);
-  if (!d || !docVisible(req.claims, d)) throw err(422, "VALIDATION_ERROR", "unknown source document", { field: "source_document_id" });
+  if (!d || !docVisible(req.claims, d)) throw err(404, "NOT_FOUND", "document not found");
   if (!String(b.field_name ?? "").trim() || !String(b.description ?? "").trim()) throw err(422, "VALIDATION_ERROR", "field_name and description are required", { field: !String(b.field_name ?? "").trim() ? "field_name" : "description" });
   const f = d.fields.find((x) => x.id === b.extracted_field_id || x.field_name === b.field_name);
   const row = { id: newCaptureId("incident"), source_document_id: d.id, extracted_field_id: f?.id ?? null, field_name: String(b.field_name), is_critical: f?.is_critical ?? false,
@@ -147,7 +147,12 @@ function createIncident(req: MockRequest): Response {
 function listIncidents(req: MockRequest): Response {
   const period = req.query.get("period");
   const und = req.query.get("undetected_only") === "true";
-  const rows = captureStore().incidents.filter((i) => (!period || i.reported_at.startsWith(period)) && (!und || i.undetected)).sort((a, b) => b.reported_at.localeCompare(a.reported_at));
+  const docs = new Map(captureStore().docs.map((d) => [d.id, d]));
+  const inScope = (i: { source_document_id: string; reported_by: string }) => {
+    const d = docs.get(i.source_document_id);
+    return i.reported_by === req.claims.sub || (d !== undefined && docVisible(req.claims, d)); // BE: inbox scope ∪ own reports
+  };
+  const rows = captureStore().incidents.filter((i) => inScope(i) && (!period || i.reported_at.startsWith(period)) && (!und || i.undetected)).sort((a, b) => b.reported_at.localeCompare(a.reported_at));
   const limit = Math.min(Number(req.query.get("limit") ?? 20) || 20, 100);
   const offset = Number(req.query.get("offset") ?? 0) || 0;
   return ok(rows.slice(offset, offset + limit), 200, { pagination: { total: rows.length, limit, offset, has_next: offset + limit < rows.length } });

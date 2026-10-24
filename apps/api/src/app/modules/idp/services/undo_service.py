@@ -36,7 +36,7 @@ from app.modules.idp.schemas.capture import DocumentActionOut, UndoIn, UndoOut
 from app.modules.idp.services.actions import get_action
 from app.modules.idp.services.actions.executor import outcome_of
 from app.modules.idp.services.capture_common import document_out, type_code
-from app.modules.idp.services.scope import document_visible, sees_all_departments
+from app.modules.idp.services.scope import capture_visible, sees_all_departments
 from app.modules.idp.services.undo_versions import current_version
 from app.modules.platform.services.lineage_service import LineageService
 
@@ -58,7 +58,7 @@ class UndoService:
 
     async def _doc(self, user: Principal, document_id: uuid.UUID) -> SourceDocument:
         doc = await SourceDocumentRepository(self.db).by_id(document_id)
-        if doc is None or not document_visible(user, doc):
+        if doc is None or not await capture_visible(self.db, user, doc):
             raise NotFoundError("document not found")
         return doc
 

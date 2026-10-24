@@ -49,6 +49,7 @@ from app.modules.idp.services.capture_common import document_out
 from app.modules.idp.services.critical import unconfirmed
 from app.modules.idp.services.lineage import record_commit_lineage
 from app.modules.idp.services.scope import (
+    capture_visible,
     ensure_doc_type_scope,
     review_visible,
     type_in_scope,
@@ -220,9 +221,11 @@ class CommitService:
         expected_version: int | None,
     ) -> SourceDocument:  # fmt: skip
         doc = await self._doc(document_id)
-        if not await review_visible(self.db, user, doc) or not await type_in_scope(
-            self.db, user, doc
-        ):
+        # A committer without `idp:approve` (EMP/CEO/ADM, EP-DC-23) sees only its capture scope
+        # (EMP: own documents) — not the v2.1 same-department review visibility.
+        visible = (await review_visible(self.db, user, doc) if user.has("idp:approve")
+                   else await capture_visible(self.db, user, doc))  # fmt: skip
+        if not visible or not await type_in_scope(self.db, user, doc):
             raise NotFoundError("document not found")
         if doc.status not in states:
             raise ConflictStateError(f"cannot commit a {doc.status} document",
