@@ -1,0 +1,4577 @@
+[
+{
+"name": "TOOL-get_finance_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_finance_dashboard",
+"brd_name": "get_financial_summary",
+"description": "5-metric Finance pillar card (FIN-01..07 summary).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-60"
+},
+{
+"name": "TOOL-get_finance_forecast",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_finance_forecast",
+"brd_name": "get_financial_summary",
+"description": "Finance revenue / expense forecast.",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:read"
+],
+"risk_level": "medium",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-66.L"
+},
+{
+"name": "TOOL-list_expenses",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_expenses",
+"brd_name": "get_financial_summary",
+"description": "List expense records (filtered, paginated).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-62.L"
+},
+{
+"name": "TOOL-get_budget_status",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_budget_status",
+"brd_name": "get_financial_summary",
+"description": "Budget vs actual utilisation by department.",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-64"
+},
+{
+"name": "TOOL-list_invoices",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_invoices",
+"brd_name": "get_financial_summary",
+"description": "List invoices (filtered, paginated).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-67.L"
+},
+{
+"name": "TOOL-get_runway_what_if",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-get_runway_what_if",
+"brd_name": "get_financial_summary",
+"description": "Runway what-if (no new revenue).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"monthly_burn_change_pct": {
+"type": "number"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": true,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-69"
+},
+{
+"name": "TOOL-get_sales_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "sales:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_sales_dashboard",
+"brd_name": "get_sales_pipeline",
+"description": "Sales pillar card (pipeline, NRR, concentration).",
+"domain": "sales",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"sales:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:C",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-70"
+},
+{
+"name": "TOOL-list_deals",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "sales:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_deals",
+"brd_name": "get_sales_pipeline",
+"description": "List deals (filtered).",
+"domain": "sales",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"sales:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:C",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-72.L"
+},
+{
+"name": "TOOL-get_sales_pipeline",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "sales:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_sales_pipeline",
+"brd_name": "get_sales_pipeline",
+"description": "Sales pipeline coverage by stage.",
+"domain": "sales",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"sales:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:C",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-75"
+},
+{
+"name": "TOOL-get_hr_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "hr:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_hr_dashboard",
+"brd_name": "get_health_metrics",
+"description": "HR / Operations pillar card (turnover, hiring).",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"hr:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-80"
+},
+{
+"name": "TOOL-list_hiring_plans",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "hr:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_hiring_plans",
+"brd_name": null,
+"description": "List hiring plans (names pseudonymised EMP-xxxx).",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"hr:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-84.L"
+},
+{
+"name": "TOOL-get_workload",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "hr:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-get_workload",
+"brd_name": "get_employee_workload",
+"description": "Team workload summary.",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"department_code": {
+"type": "string"
+},
+"team_code": {
+"type": "string"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"hr:query"
+],
+"risk_level": "low",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-87"
+},
+{
+"name": "TOOL-get_product_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "product:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_product_dashboard",
+"brd_name": null,
+"description": "Product / Innovation pillar card.",
+"domain": "product",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"product:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:U",
+"compute": false,
+"p1_frozen": true,
+"action_name": null,
+"endpoint_ref": "EP-90"
+},
+{
+"name": "TOOL-get_product_metrics",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "product:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_product_metrics",
+"brd_name": null,
+"description": "Product metric history (churn, retention, NPS).",
+"domain": "product",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"product:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:U",
+"compute": false,
+"p1_frozen": true,
+"action_name": null,
+"endpoint_ref": "EP-95.L"
+},
+{
+"name": "TOOL-get_risk_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "risk:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_risk_dashboard",
+"brd_name": null,
+"description": "Strategy / Risk pillar card.",
+"domain": "risk",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"risk:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:S",
+"compute": false,
+"p1_frozen": true,
+"action_name": null,
+"endpoint_ref": "EP-100"
+},
+{
+"name": "TOOL-list_risks",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "risk:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_risks",
+"brd_name": null,
+"description": "List risks in the register.",
+"domain": "risk",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"risk:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:S",
+"compute": false,
+"p1_frozen": true,
+"action_name": null,
+"endpoint_ref": "EP-101.L"
+},
+{
+"name": "TOOL-run_risk_scenario",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "risk:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "high",
+"tool_id": "TOOL-run_risk_scenario",
+"brd_name": null,
+"description": "Run a risk scenario (saves ENT-Scenario, no business write).",
+"domain": "risk",
+"input_schema": {
+"type": "object",
+"properties": {
+"scenario_code": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"scenario_code"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"risk:query"
+],
+"risk_level": "medium",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:S",
+"compute": true,
+"p1_frozen": true,
+"action_name": null,
+"endpoint_ref": "EP-105"
+},
+{
+"name": "TOOL-get_execution_dashboard",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_execution_dashboard",
+"brd_name": "get_department_performance",
+"description": "Execution pillar / FOCUS dashboard snapshot.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:query"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-49"
+},
+{
+"name": "TOOL-list_tasks",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_tasks",
+"brd_name": null,
+"description": "List execution tasks (filtered).",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"assignee_code": {
+"type": "string"
+},
+"department_code": {
+"type": "string"
+},
+"project_code": {
+"type": "string"
+},
+"status": {
+"type": "string",
+"enum": [
+"todo",
+"in_progress",
+"blocked",
+"done",
+"cancelled"
+]
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-TASK-01"
+},
+{
+"name": "TOOL-list_objectives",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-list_objectives",
+"brd_name": "get_okr_status",
+"description": "List OKR objectives.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-OKR-01"
+},
+{
+"name": "TOOL-get_metric",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "dashboard:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_metric",
+"brd_name": "get_health_metrics",
+"description": "One metric value + threshold + lineage url.",
+"domain": "dashboard",
+"input_schema": {
+"type": "object",
+"properties": {
+"metric_code": {
+"type": "string"
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false,
+"required": [
+"metric_code"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"dashboard:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-12"
+},
+{
+"name": "TOOL-list_alerts",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "dashboard:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-list_alerts",
+"brd_name": "get_health_metrics",
+"description": "Open alerts across visible pillars.",
+"domain": "dashboard",
+"input_schema": {
+"type": "object",
+"properties": {},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"dashboard:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-15"
+},
+{
+"name": "TOOL-get_lineage",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "dashboard:record",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-get_lineage",
+"brd_name": "get_source_document",
+"description": "Metric / record lineage (source documents, computation).",
+"domain": "dashboard",
+"input_schema": {
+"type": "object",
+"properties": {
+"ref": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"ref"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"dashboard:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-14"
+},
+{
+"name": "TOOL-search_documents",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "idp:document",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-search_documents",
+"brd_name": "search_documents",
+"description": "Search source documents (+ RAG SOP/policy).",
+"domain": "idp",
+"input_schema": {
+"type": "object",
+"properties": {
+"query": {
+"type": "string"
+},
+"limit": {
+"type": "integer",
+"minimum": 1,
+"maximum": 50
+}
+},
+"additionalProperties": false,
+"required": [
+"query"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"idp:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-ADM",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-24"
+},
+{
+"name": "TOOL-get_source_document",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "idp:document",
+"classification": "CONFIDENTIAL",
+"reversible": "n/a",
+"cost_estimate": "medium",
+"tool_id": "TOOL-get_source_document",
+"brd_name": "get_source_document",
+"description": "Get a source document (page + bbox, no raw url to LLM).",
+"domain": "idp",
+"input_schema": {
+"type": "object",
+"properties": {
+"document_id": {
+"type": "string",
+"format": "uuid"
+},
+"page": {
+"type": "integer"
+}
+},
+"additionalProperties": false,
+"required": [
+"document_id"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"idp:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-ADM",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-DC-02"
+},
+{
+"name": "TOOL-get_kpi_status",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_kpi_status",
+"brd_name": "get_kpi_status",
+"description": "KPI status + evaluation band + last check-in.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"kpi_code": {
+"type": "string"
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-KPI-01"
+},
+{
+"name": "TOOL-get_cash_flow_forecast",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "finance:aggregate",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_cash_flow_forecast",
+"brd_name": "get_financial_summary",
+"description": "13-week cash-flow forecast (GET).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"type": {
+"type": "string",
+"enum": [
+"metric_value",
+"record",
+"document_page",
+"tool_result"
+]
+},
+"id": {
+"type": "string"
+},
+"label": {
+"type": "string"
+},
+"period_key": {
+"type": "string"
+},
+"value": {
+"type": [
+"number",
+"integer",
+"null"
+]
+},
+"lineage_url": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"type",
+"id",
+"label"
+]
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"finance:read"
+],
+"risk_level": "medium",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-128"
+},
+{
+"name": "TOOL-create_task",
+"kind": "WRITE",
+"autonomy_default": "L3",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_task",
+"brd_name": "create_task",
+"description": "Create an execution task.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"title": {
+"type": "string"
+},
+"assignee_code": {
+"type": "string"
+},
+"due_date": {
+"type": "string",
+"format": "date"
+},
+"project_code": {
+"type": "string"
+},
+"priority": {
+"type": "string",
+"enum": [
+"low",
+"medium",
+"high",
+"urgent"
+]
+},
+"description": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"title"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-create_task",
+"endpoint_ref": "EP-TASK-02"
+},
+{
+"name": "TOOL-record_decision",
+"kind": "WRITE",
+"autonomy_default": "L3",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-record_decision",
+"brd_name": "log_decision",
+"description": "Record a decision.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"title": {
+"type": "string"
+},
+"meeting_id": {
+"type": "string",
+"format": "uuid"
+},
+"rationale": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"title"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-record_decision",
+"endpoint_ref": "EP-43.C"
+},
+{
+"name": "TOOL-create_meeting",
+"kind": "WRITE",
+"autonomy_default": "L3",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_meeting",
+"brd_name": "create_calendar_event",
+"description": "Create an internal meeting.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"title": {
+"type": "string"
+},
+"starts_at": {
+"type": "string",
+"format": "date-time"
+}
+},
+"additionalProperties": false,
+"required": [
+"title",
+"starts_at"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-create_meeting",
+"endpoint_ref": "EP-42.C"
+},
+{
+"name": "TOOL-record_kpi_measurement",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-record_kpi_measurement",
+"brd_name": "record_kpi_measurement",
+"description": "Record a KPI measurement / check-in.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"kpi_code": {
+"type": "string"
+},
+"period_key": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+},
+"actual_value": {
+"type": "number"
+}
+},
+"additionalProperties": false,
+"required": [
+"kpi_code",
+"period_key",
+"actual_value"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-record_kpi_measurement",
+"endpoint_ref": "EP-KPI-07"
+},
+{
+"name": "TOOL-record_expense",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "finance:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-record_expense",
+"brd_name": null,
+"description": "Record an expense (<5M VND may be L3).",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"amount": {
+"type": "integer"
+},
+"currency": {
+"type": "string"
+},
+"category": {
+"type": "string"
+},
+"spent_on": {
+"type": "string",
+"format": "date"
+}
+},
+"additionalProperties": false,
+"required": [
+"amount",
+"category"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"finance:write"
+],
+"risk_level": "high",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "threshold",
+"audit_required": true,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-record_expense",
+"endpoint_ref": "EP-62.C"
+},
+{
+"name": "TOOL-create_invoice",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "finance:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_invoice",
+"brd_name": null,
+"description": "Create an invoice.",
+"domain": "finance",
+"input_schema": {
+"type": "object",
+"properties": {
+"invoice_number": {
+"type": "string"
+},
+"total_amount": {
+"type": "integer"
+},
+"currency": {
+"type": "string"
+},
+"issue_date": {
+"type": "string",
+"format": "date"
+}
+},
+"additionalProperties": false,
+"required": [
+"invoice_number",
+"total_amount"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"finance:write"
+],
+"risk_level": "high",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "threshold",
+"audit_required": true,
+"owner": "ROLE-DIR:F",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-create_invoice",
+"endpoint_ref": "EP-67.C"
+},
+{
+"name": "TOOL-upsert_deal",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "sales:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-upsert_deal",
+"brd_name": null,
+"description": "Create or update a deal.",
+"domain": "sales",
+"input_schema": {
+"type": "object",
+"properties": {
+"name": {
+"type": "string"
+},
+"stage": {
+"type": "string"
+},
+"amount": {
+"type": "integer"
+},
+"currency": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"name"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"sales:write"
+],
+"risk_level": "high",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-DIR:C",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-upsert_deal",
+"endpoint_ref": "EP-72"
+},
+{
+"name": "TOOL-upsert_risk",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "risk:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-upsert_risk",
+"brd_name": null,
+"description": "Create or update a risk.",
+"domain": "risk",
+"input_schema": {
+"type": "object",
+"properties": {
+"title": {
+"type": "string"
+},
+"likelihood": {
+"type": "integer"
+},
+"impact": {
+"type": "integer"
+}
+},
+"additionalProperties": false,
+"required": [
+"title"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"risk:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-DIR:S",
+"compute": false,
+"p1_frozen": true,
+"action_name": "ACT-upsert_risk",
+"endpoint_ref": "EP-101"
+},
+{
+"name": "TOOL-create_mitigation",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "risk:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_mitigation",
+"brd_name": null,
+"description": "Create a risk mitigation.",
+"domain": "risk",
+"input_schema": {
+"type": "object",
+"properties": {
+"risk_id": {
+"type": "string",
+"format": "uuid"
+},
+"title": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"risk_id",
+"title"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"risk:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-DIR:S",
+"compute": false,
+"p1_frozen": true,
+"action_name": "ACT-create_mitigation",
+"endpoint_ref": "EP-103.C"
+},
+{
+"name": "TOOL-submit_document",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "idp:document",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "medium",
+"tool_id": "TOOL-submit_document",
+"brd_name": "upload_document",
+"description": "Submit a document (C2 voice / attachment; always an action card).",
+"domain": "idp",
+"input_schema": {
+"type": "object",
+"properties": {
+"document_type": {
+"type": "string"
+},
+"note": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"document_type"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"idp:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-ADM",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-submit_document",
+"endpoint_ref": "EP-DC-01"
+},
+{
+"name": "TOOL-assign_task",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-assign_task",
+"brd_name": "assign_task",
+"description": "Assign / reassign a task (undo via before-snapshot).",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"task_id": {
+"type": "string",
+"format": "uuid"
+},
+"assignee_code": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"task_id",
+"assignee_code"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-assign_task",
+"endpoint_ref": "EP-TASK-04"
+},
+{
+"name": "TOOL-generate_report",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "dashboard:aggregate",
+"classification": "INTERNAL",
+"reversible": "false",
+"cost_estimate": "high",
+"tool_id": "TOOL-generate_report",
+"brd_name": "generate_report",
+"description": "Generate a report (weekly / monthly / board).",
+"domain": "dashboard",
+"input_schema": {
+"type": "object",
+"properties": {
+"kind": {
+"type": "string",
+"enum": [
+"weekly",
+"monthly",
+"board"
+]
+},
+"period": {
+"type": "string",
+"description": "YYYY-MM | YYYY-Qn | YYYY"
+}
+},
+"additionalProperties": false,
+"required": [
+"kind"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"dashboard:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-generate_report",
+"endpoint_ref": "EP-121"
+},
+{
+"name": "TOOL-request_approval",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "platform:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-request_approval",
+"brd_name": "request_approval",
+"description": "Open an approval request.",
+"domain": "dashboard",
+"input_schema": {
+"type": "object",
+"properties": {
+"subject": {
+"type": "string"
+},
+"reason": {
+"type": "string"
+},
+"amount": {
+"type": "integer"
+},
+"currency": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"subject",
+"reason"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"dashboard:read"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-request_approval",
+"endpoint_ref": "EP-123.C"
+},
+{
+"name": "TOOL-send_notification",
+"kind": "EXECUTION",
+"autonomy_default": "L3",
+"data_scope": "platform:record",
+"classification": "INTERNAL",
+"reversible": "false",
+"cost_estimate": "low",
+"tool_id": "TOOL-send_notification",
+"brd_name": "send_notification",
+"description": "Send a notification (in-app L3 / email channel EXECUTION L2).",
+"domain": "platform",
+"input_schema": {
+"type": "object",
+"properties": {
+"recipient_code": {
+"type": "string"
+},
+"message": {
+"type": "string"
+},
+"channel": {
+"type": "string",
+"enum": [
+"in_app",
+"email"
+]
+}
+},
+"additionalProperties": false,
+"required": [
+"recipient_code",
+"message"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string",
+"enum": [
+"proposed",
+"confirmed",
+"executed",
+"rejected",
+"undone",
+"failed"
+]
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-send_notification",
+"endpoint_ref": "EP-NTF-01"
+},
+{
+"name": "TOOL-approve_request",
+"kind": "APPROVAL",
+"autonomy_default": "L0",
+"data_scope": "platform:record",
+"classification": "CONFIDENTIAL",
+"reversible": "false",
+"cost_estimate": "low",
+"tool_id": "TOOL-approve_request",
+"brd_name": null,
+"description": "Approve an approval request (server-only).",
+"domain": "platform",
+"input_schema": {
+"type": "object",
+"properties": {
+"request_id": {
+"type": "string",
+"format": "uuid"
+},
+"comment": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"request_id"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"request_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"request_id",
+"status"
+]
+},
+"permission": [
+"platform:approve"
+],
+"risk_level": "high",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "always",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-WF-03 decision=approve"
+},
+{
+"name": "TOOL-reject_request",
+"kind": "APPROVAL",
+"autonomy_default": "L0",
+"data_scope": "platform:record",
+"classification": "CONFIDENTIAL",
+"reversible": "false",
+"cost_estimate": "low",
+"tool_id": "TOOL-reject_request",
+"brd_name": null,
+"description": "Reject an approval request (server-only).",
+"domain": "platform",
+"input_schema": {
+"type": "object",
+"properties": {
+"request_id": {
+"type": "string",
+"format": "uuid"
+},
+"comment": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"request_id"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"request_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"request_id",
+"status"
+]
+},
+"permission": [
+"platform:approve"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L0",
+"approval_required": "always",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-WF-03 decision=reject"
+},
+{
+"name": "TOOL-get_org_tree",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "hr:structure",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_org_tree",
+"brd_name": null,
+"description": "Organization tree (departments, teams, members) as of a date.",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"as_of": {
+"type": "string"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"hr:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-ORG-24"
+},
+{
+"name": "TOOL-get_okr_status",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:record",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_okr_status",
+"brd_name": "get_okr_status",
+"description": "Objective / key result progress and confidence.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"objective_id": {
+"type": "string"
+},
+"period": {
+"type": "string"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-OKR-01"
+},
+{
+"name": "TOOL-get_overdue_tasks",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:record",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_overdue_tasks",
+"brd_name": "get_overdue_tasks",
+"description": "Overdue tasks in the caller's scope.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"department_id": {
+"type": "string"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-TASK-01"
+},
+{
+"name": "TOOL-get_project_status",
+"kind": "READ",
+"autonomy_default": "L0",
+"data_scope": "execution:record",
+"classification": "INTERNAL",
+"reversible": "n/a",
+"cost_estimate": "low",
+"tool_id": "TOOL-get_project_status",
+"brd_name": "get_project_status",
+"description": "Project progress, milestones and late tasks.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"project_id": {
+"type": "string"
+}
+},
+"additionalProperties": false
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"data": {
+"type": "object"
+},
+"sources": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"data",
+"sources"
+]
+},
+"permission": [
+"execution:read"
+],
+"risk_level": "low",
+"data_classification": "INTERNAL",
+"autonomy_max": "L0",
+"approval_required": "never",
+"audit_required": false,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": null,
+"endpoint_ref": "EP-TASK-11"
+},
+{
+"name": "TOOL-update_task",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-update_task",
+"brd_name": "update_task",
+"description": "Update a task (status, due date, assignee).",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"task_id": {
+"type": "string"
+},
+"status": {
+"type": "string"
+},
+"due_date": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"task_id"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-update_task",
+"endpoint_ref": "ACT-update_task"
+},
+{
+"name": "TOOL-record_kr_checkin",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:self",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-record_kr_checkin",
+"brd_name": null,
+"description": "Record a key-result check-in.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"key_result_id": {
+"type": "string"
+},
+"value": {
+"type": "number"
+},
+"confidence": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"key_result_id",
+"value"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L3",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-record_kr_checkin",
+"endpoint_ref": "ACT-record_kr_checkin"
+},
+{
+"name": "TOOL-upsert_kpi",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-upsert_kpi",
+"brd_name": null,
+"description": "Create or update a KPI definition.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"kpi_code": {
+"type": "string"
+},
+"name": {
+"type": "string"
+},
+"target": {
+"type": "number"
+}
+},
+"additionalProperties": false,
+"required": [
+"kpi_code"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-upsert_kpi",
+"endpoint_ref": "ACT-upsert_kpi"
+},
+{
+"name": "TOOL-upsert_objective",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "execution:record",
+"classification": "CONFIDENTIAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-upsert_objective",
+"brd_name": null,
+"description": "Create or update an objective.",
+"domain": "execution",
+"input_schema": {
+"type": "object",
+"properties": {
+"code": {
+"type": "string"
+},
+"title": {
+"type": "string"
+},
+"period": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"title"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"execution:write"
+],
+"risk_level": "medium",
+"data_classification": "CONFIDENTIAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-CEO",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-upsert_objective",
+"endpoint_ref": "ACT-upsert_objective"
+},
+{
+"name": "TOOL-create_department",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "hr:structure",
+"classification": "INTERNAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_department",
+"brd_name": null,
+"description": "Create a department.",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"code": {
+"type": "string"
+},
+"name": {
+"type": "string"
+},
+"parent_code": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"code",
+"name"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"hr:admin"
+],
+"risk_level": "medium",
+"data_classification": "INTERNAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-create_department",
+"endpoint_ref": "ACT-create_department"
+},
+{
+"name": "TOOL-create_team",
+"kind": "WRITE",
+"autonomy_default": "L2",
+"data_scope": "hr:structure",
+"classification": "INTERNAL",
+"reversible": "true",
+"cost_estimate": "low",
+"tool_id": "TOOL-create_team",
+"brd_name": null,
+"description": "Create a team in a department.",
+"domain": "hr",
+"input_schema": {
+"type": "object",
+"properties": {
+"code": {
+"type": "string"
+},
+"name": {
+"type": "string"
+},
+"department_code": {
+"type": "string"
+}
+},
+"additionalProperties": false,
+"required": [
+"code",
+"name",
+"department_code"
+]
+},
+"output_schema": {
+"type": "object",
+"properties": {
+"action_id": {
+"type": "string",
+"format": "uuid"
+},
+"status": {
+"type": "string"
+},
+"autonomy_level": {
+"type": "string",
+"enum": [
+"L0",
+"L1",
+"L2",
+"L3"
+]
+},
+"result_refs": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+},
+"additionalProperties": false,
+"required": [
+"action_id",
+"status",
+"autonomy_level"
+]
+},
+"permission": [
+"ai:write",
+"hr:admin"
+],
+"risk_level": "medium",
+"data_classification": "INTERNAL",
+"autonomy_max": "L2",
+"approval_required": "never",
+"audit_required": true,
+"owner": "ROLE-DIR:O",
+"compute": false,
+"p1_frozen": false,
+"action_name": "ACT-create_team",
+"endpoint_ref": "ACT-create_team"
+}
+]

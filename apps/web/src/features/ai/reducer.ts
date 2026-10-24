@@ -1,5 +1,5 @@
 import type { SseEvent } from "@/lib/sse";
-import type { ChatMessage, SourceRef, ToolCall } from "./types";
+import type { ChatMessage, SourceRef, SuggestedAction, ToolCall } from "./types";
 
 type Data = Record<string, unknown>;
 
@@ -29,6 +29,7 @@ export function applyEvent(msg: ChatMessage, e: SseEvent): { msg: ChatMessage; c
           sources: mergeSources(msg.sources, (d.sources as SourceRef[]) ?? []),
           warnings: (d.warnings as string[]) ?? [],
           truncated: Boolean(d.truncated),
+          actions: (d.suggested_actions as SuggestedAction[] | undefined) ?? [],
           streaming: false,
         },
       };

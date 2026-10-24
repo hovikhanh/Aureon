@@ -2,6 +2,7 @@
 import * as React from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { KillSwitchBanner } from "./KillSwitchBanner";
 
 export interface ShellUser {
   id: string;
@@ -27,6 +28,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
         onToggleCollapsed={() => setCollapsed((c) => !c)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
+        <KillSwitchBanner role={user.role} permissions={user.permissions} />
         <Header user={user} onOpenMenu={() => setMobileOpen(true)} />
         <main id="main" className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>

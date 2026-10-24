@@ -7,16 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SourceChip } from "@/components/ai/SourceChip";
 import { ThinkingState, WaitHint } from "@/components/ai/ThinkingState";
+import { ActionCard } from "@/components/ai/ActionCard";
 import { api } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { segmentCitations } from "./reducer";
-import type { ChatMessage, ConversationOut, MessageOut } from "./types";
+import type { ChatMessage, ConversationOut, MessageOut, SuggestedAction } from "./types";
 import { fromHistory, useChat } from "./use-chat";
+import { useActionFlow } from "./use-action-flow";
+
+export interface ChatViewer { id: string; permissions: string[] }
+type Flow = ReturnType<typeof useActionFlow> & { patched: Record<string, SuggestedAction> };
 
 const KNOWN = ["AI_STREAM_TIMEOUT", "AI_PROVIDER_TIMEOUT", "AI_DISABLED", "AI_QUOTA_EXCEEDED", "RATE_LIMIT_EXCEEDED", "UNAUTHENTICATED", "FORBIDDEN_ROLE"];
 
-function AssistantMessage({ m }: { m: ChatMessage }) {
+function AssistantMessage({ m, viewer, flow }: { m: ChatMessage; viewer: ChatViewer; flow: Flow }) {
   const t = useTranslations();
   return (
     <div className="flex flex-col gap-2" data-testid="assistant-message" data-streaming={m.streaming}>
@@ -39,8 +44,17 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           {m.sources.map((s, i) => <SourceChip key={`${s.id}-${i}`} n={i + 1} source={s} />)}
         </div>
       )}
+      {(m.actions ?? []).length > 0 && (
+        <div className="flex flex-col gap-2" data-testid="suggested-actions">
+          {(m.actions ?? []).map((a, i) => {
+            const cur = (a.id && flow.patched[a.id]) || a;
+            return <ActionCard key={a.id ?? `${a.action_name}-${i}`} action={cur} viewerId={viewer.id} permissions={viewer.permissions} errorText={flow.errorText}
+              onConfirm={(edited) => flow.confirm(a.id!, edited)} onReject={(reason) => flow.reject(a.id!, reason)} />;
+          })}
+        </div>
+      )}
       {m.warnings.map((w) => (
-        <p key={w} className="text-xs text-warning">{w === "AI_NO_DATA_AVAILABLE" ? t("ai.warning.AI_NO_DATA_AVAILABLE") : t("ai.warning.default", { code: w })}</p>
+        <p key={w} className="text-xs text-warning" data-testid="chat-warning">{w === "AI_NO_DATA_AVAILABLE" ? t("ai.warning.AI_NO_DATA_AVAILABLE") : w === "ai.warn.kill_switch" ? t("ai.warning.kill_switch") : t("ai.warning.default", { code: w })}</p>
       ))}
       {m.truncated && <p className="text-xs text-muted-foreground">{t("ai.truncated")}</p>}
       {m.error && <p role="alert" className="text-sm text-danger" data-testid="chat-error">{KNOWN.includes(m.error) ? t(`errors.${m.error}` as "errors.generic") : t("errors.generic")}</p>}
@@ -48,8 +62,11 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
   );
 }
 
-export function ChatView() {
+export function ChatView({ viewer }: { viewer: ChatViewer }) {
   const t = useTranslations();
+  const [patched, setPatched] = React.useState<Record<string, SuggestedAction>>({});
+  const actionFlow = useActionFlow((a) => setPatched((p) => ({ ...p, [a.id]: a })));
+  const flow: Flow = { ...actionFlow, patched };
   const { messages, conversationId, busy, send, reset } = useChat();
   const [input, setInput] = React.useState("");
   const endRef = React.useRef<HTMLDivElement>(null);
@@ -109,7 +126,7 @@ export function ChatView() {
                 <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2 text-sm text-primary-foreground">{m.content}</div>
               </div>
             ) : (
-              <AssistantMessage key={m.id} m={m} />
+              <AssistantMessage key={m.id} m={m} viewer={viewer} flow={flow} />
             ),
           )}
           <div ref={endRef} />
@@ -131,6 +148,7 @@ export function ChatView() {
           </Button>
         </form>
       </section>
+      {flow.toastEl}
     </div>
   );
 }

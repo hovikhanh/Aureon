@@ -24,6 +24,21 @@ export interface ChatMessage {
   streaming: boolean;
   truncated?: boolean;
   error?: string;
+  /** EP-AI-02 `done.suggested_actions[]` (T-645F): `AIActionOut` (L2 stored) or L1 suggestion (no id). */
+  actions?: SuggestedAction[];
+}
+
+export interface SuggestedAction {
+  id?: string;
+  action_name: string;
+  tool_name?: string | null;
+  autonomy_level: "L0" | "L1" | "L2" | "L3";
+  status?: "proposed" | "confirmed" | "executed" | "rejected" | "undone" | "failed";
+  input_preview?: Record<string, unknown>;
+  on_behalf_of?: string;
+  can_undo?: boolean;
+  created_at?: string | null;
+  agent_profile_code?: string | null;
 }
 
 export interface ConversationOut {

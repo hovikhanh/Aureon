@@ -152,3 +152,11 @@ describe("default deny + safe callback (review M1.1)", () => {
     }
   });
 });
+
+describe("M1.6 /admin/ai* + /admin/onboarding (TC-M16-16, T-644F/T-648F)", () => {
+  it.each(["/admin/ai", "/admin/ai/logs", "/admin/onboarding"])("%s only ADM/CEO", (p) => {
+    expect(canAccess(p, "ADM", perms("ADM"))).toBe(true);
+    expect(canAccess(p, "CEO", perms("CEO"))).toBe(true);
+    for (const r of ["DIR", "MGR", "EMP", "REV", "AI"] as const) expect(canAccess(p, r, perms(r), ["O"])).toBe(false);
+  });
+});
