@@ -9,6 +9,7 @@ FR-HR-02). The route commits.
 import re
 import unicodedata
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit
 from app.core.base_model import Base
 from app.core.deps import Principal
+from app.core.directory import register_employee_lookup
 from app.core.errors import (
     BusinessRuleError,
     DuplicateResourceError,
@@ -153,6 +155,11 @@ class HrService:
             aggregate_table=table, aggregate_id=aggregate,
             payload={k: str(v) if isinstance(v, uuid.UUID | date) else v for k, v in p.items()},
         )  # fmt: skip
+
+    async def live_employee_ids(self, ids: Sequence[uuid.UUID]) -> set[uuid.UUID]:
+        """Public: which `ids` are live, non-terminated employees (soft-ref check, 05 C7) —
+        registered in `core.directory` for modules that may not import `hr` (EP-TASK-19)."""
+        return await self.employees.live_ids(ids)
 
     async def department_exists(self, department_id: uuid.UUID) -> bool:
         """Public: soft-ref integrity check for `department_id` in other modules (05 C7)."""
@@ -505,3 +512,10 @@ class HrService:
                             department_id=emp.department_id,
                             effective_date=body.effective_date)  # fmt: skip
         return out
+
+
+async def _live_employee_ids(db: AsyncSession, ids: Sequence[uuid.UUID]) -> set[uuid.UUID]:
+    return await HrService(db).live_employee_ids(ids)
+
+
+register_employee_lookup(_live_employee_ids)

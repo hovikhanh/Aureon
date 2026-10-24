@@ -181,6 +181,13 @@ class ApprovalRuleRepository(BaseRepository[ApprovalRule]):
         rows = await self.db.execute(select(ApprovalRule).where(ApprovalRule.id.in_(ids)))
         return {r.id: r for r in rows.scalars()}
 
+    async def insert_if_absent(self, **values: Any) -> None:
+        """`INSERT … ON CONFLICT (code) DO NOTHING` — lazy default rules (05 §2.5)."""
+        from sqlalchemy.dialects.postgresql import insert
+
+        stmt = insert(ApprovalRule).values(id=uuid.uuid4(), **values)
+        await self.db.execute(stmt.on_conflict_do_nothing(index_elements=["code"]))
+
     async def all_rules(self) -> Sequence[ApprovalRule]:
         return (await self.db.execute(select(ApprovalRule))).scalars().all()
 

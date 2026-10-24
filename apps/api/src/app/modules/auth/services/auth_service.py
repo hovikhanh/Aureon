@@ -35,6 +35,16 @@ class ClientInfo:
     ip_address: str | None = None
 
 
+@dataclass(frozen=True)
+class ApproverRef:
+    """Public DTO — who may be routed an approval (no PII beyond ids)."""
+
+    user_id: uuid.UUID
+    role: str
+    department_id: uuid.UUID | None
+    scope_pillars: frozenset[str]
+
+
 class AuthService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -243,6 +253,24 @@ class AuthService:
         roles = (await self.db.execute(select(Role.id).where(Role.code.in_(role_codes)))).scalars()
         users = await self.users.active_by_roles(list(roles), department_id)
         return [u.id for u in users]
+
+    async def approver_candidates(self, role_codes: Sequence[str]) -> list[ApproverRef]:
+        """Public: active (non-service) users holding one of `role_codes` with their role,
+        department and `scope_pillars` — filtered by `approval_service.can_decide` (R-DEC-45)."""
+        from sqlalchemy import select
+
+        rows = await self.db.execute(select(Role.id, Role.code).where(Role.code.in_(role_codes)))
+        codes = {rid: code for rid, code in rows.all()}
+        users = await self.users.active_by_roles(list(codes), None)
+        return [ApproverRef(user_id=u.id, role=codes[u.role_id], department_id=u.department_id,
+                            scope_pillars=frozenset(u.scope_pillars or ()))
+                for u in users]  # fmt: skip
+
+    async def departments_with_role(self, role_code: str) -> set[uuid.UUID]:
+        """Public: departments having at least one active user of `role_code` (R-DEC-45 — a
+        department without MGR falls back to the rule's `escalate_to_role_code`)."""
+        return {r.department_id for r in await self.approver_candidates([role_code])
+                if r.department_id is not None}  # fmt: skip
 
     async def find_user_by_role(
         self, role_code: str, *, department_id: uuid.UUID | None = None

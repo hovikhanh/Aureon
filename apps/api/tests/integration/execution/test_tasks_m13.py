@@ -118,6 +118,21 @@ async def test_subtask_one_level_and_source_ref(api: ApiClient) -> None:
     assert nest.status_code == 422  # parent with sub-tasks cannot become a sub-task
     gone = await api.call("DELETE", f"/work/tasks/{parent['id']}", "CEO")
     assert gone.status_code == 422
+    assert gone.json()["error"]["details"] == {"reason": "has_subtasks", "rule": "R-DEC-42"}
+    assert grand.json()["error"]["details"] == {"field": "parent_task_id", "rule": "R-DEC-42"}
+    # parent outside the caller's read scope → 404 (like EP-TASK-03); missing → 404
+    emp, dept = uuid.uuid4(), uuid.uuid4()
+    foreign = await make_task(api, department_id=str(uuid.uuid4()))
+    hidden = await as_user(api, "POST", "/work/tasks", "MGR", emp, department_id=dept,
+                           json={"title": "c", "parent_task_id": foreign["id"]})  # fmt: skip
+    assert hidden.status_code == 404 and hidden.json()["error"]["code"] == "NOT_FOUND"
+    nope = await api.call("POST", "/work/tasks", "CEO",
+                          json={"title": "c", "parent_task_id": str(uuid.uuid4())})  # fmt: skip
+    assert nope.status_code == 404
+    ok_parent = await make_task(api, department_id=str(dept))
+    sub = await as_user(api, "POST", "/work/tasks", "MGR", emp, department_id=dept,
+                        json={"title": "c", "parent_task_id": ok_parent["id"]})  # fmt: skip
+    assert sub.status_code == 201, sub.text
     filt = await api.call("GET", "/work/tasks", "CEO", params={"parent_task_id": parent["id"]})
     assert [x["id"] for x in filt.json()["data"]] == [child["id"]]
 
@@ -174,7 +189,18 @@ async def test_dependencies(api: ApiClient, db_session: AsyncSession) -> None:
     assert (await patch(api, f"/work/tasks/{ta['id']}", 1, status="in_progress")).status_code == 200
     blocked = await patch(api, f"/work/tasks/{ta['id']}", 2, status="done")
     assert blocked.status_code == 422
-    assert blocked.json()["error"]["details"]["rule"] == "FR-TASK-02"
+    assert blocked.json()["error"]["details"] == {
+        "rule": "FR-TASK-02",
+        "blocking": [{"task_id": tb["id"], "title": tb["title"], "status": "todo"}],
+    }
+    # blockers outside the caller's read scope still block but are not disclosed
+    await api.call("POST", url.format(mine["id"]), "CEO", json={"depends_on_task_id": tb["id"]})
+    await as_user(api, "PATCH", f"/work/tasks/{mine['id']}", "EMP", uuid.uuid4(),
+                  employee_id=emp, json={"status": "in_progress", "version": 1})  # fmt: skip
+    emp_done = await as_user(api, "PATCH", f"/work/tasks/{mine['id']}", "EMP", uuid.uuid4(),
+                             employee_id=emp, json={"status": "done", "version": 2})  # fmt: skip
+    assert emp_done.status_code == 422, emp_done.text
+    assert emp_done.json()["error"]["details"] == {"rule": "FR-TASK-02", "blocking": []}
     assert (await patch(api, f"/work/tasks/{tb['id']}", 1, status="cancelled")).status_code == 200
     assert (await patch(api, f"/work/tasks/{ta['id']}", 2, status="done")).status_code == 200
     wrong = await patch(api, f"/work/tasks/{ta['id']}", 3, status="blocked", blocked_reason="x")

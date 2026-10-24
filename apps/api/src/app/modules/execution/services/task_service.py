@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.approval_hooks import register_approval_hook
 from app.core.audit import Actor, record_audit
 from app.core.deps import Principal
+from app.core.directory import live_employee_ids
 from app.core.errors import BusinessRuleError, ConflictStateError, DuplicateResourceError
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
@@ -164,16 +165,18 @@ class TaskService(ExecBase):
         scope.check(user, action, dept=t.department_id, owners=owners, what="task")
         return t
 
-    async def _check_parent(self, parent_id: uuid.UUID | None, child: Task | None) -> None:
-        """R-DEC-42: one level — the parent has no parent; a task with sub-tasks has no parent."""
+    async def _check_parent(
+        self, user: Principal, parent_id: uuid.UUID | None, child: Task | None
+    ) -> None:
+        """R-DEC-42: one level — the parent has no parent; a task with sub-tasks has no parent.
+        The parent must be readable by the caller: missing / outside read scope → 404 (10 §7.2.2,
+        same as EP-TASK-03); the one-level rules stay 422."""
         if parent_id is None:
             return
         rule = {"field": "parent_task_id", "rule": "R-DEC-42"}
         if child is not None and parent_id == child.id:
             raise BusinessRuleError("task cannot be its own parent", details=rule)
-        parent = await self.tasks.get(parent_id)
-        if parent is None:
-            raise BusinessRuleError("parent_task_id does not exist", details=rule)
+        parent = await self.get(user, parent_id)  # 404 if missing / not readable
         if parent.parent_task_id is not None:
             raise BusinessRuleError("parent task is already a sub-task", details=rule)
         if child is not None and (await self.tasks.count_by(Task.parent_task_id, [child.id])):
@@ -190,7 +193,7 @@ class TaskService(ExecBase):
         _check_source(data["source_ref"], data["task_source"])
         self._status_fields(data, None, data["status"])
         await self.require_refs(data, RULE)
-        await self._check_parent(data["parent_task_id"], None)
+        await self._check_parent(user, data["parent_task_id"], None)
         if data["evidence"] is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
         if data["source_ref"] is not None:
@@ -243,9 +246,13 @@ class TaskService(ExecBase):
             data["done_at"] = None
 
     async def update(
-        self, user: Principal, id_: uuid.UUID, body: TaskUpdate, expected: int
-    ) -> TaskOut:
-        t = await self.get(user, id_, "write")
+        self, user: Principal, id_: uuid.UUID, body: TaskUpdate, expected: int, *,
+        approved: bool = False,
+    ) -> TaskOut:  # fmt: skip
+        """`approved=True` only from an approval hook: the decider already passed
+        `approval_service.can_decide` (e.g. DIR fallback outside the task's department), so the
+        row write scope is not re-checked — the approval is the authority (R-DEC-45)."""
+        t = await self._approved_target(id_) if approved else await self.get(user, id_, "write")
         before = await self.out(t)
         data = body.model_dump(mode="python", exclude_unset=True, exclude={"version"})
         scope.require_self(user, data.get("owner_id"), data.get("assignee_id"), field="assignee_id")
@@ -257,9 +264,9 @@ class TaskService(ExecBase):
         if "status" in data or "blocked_reason" in data:
             self._status_fields(data, t, data.get("status") or t.status)
         if data.get("status") == "done" and t.status != "done":
-            await self._require_unblocked(t)
+            await self._require_unblocked(user, t)
         if "parent_task_id" in data:
-            await self._check_parent(data["parent_task_id"], t)
+            await self._check_parent(user, data["parent_task_id"], t)
         await self.require_refs(data, RULE)
         if data.get("evidence") is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
@@ -284,6 +291,12 @@ class TaskService(ExecBase):
                               to=(t.owner_id,), actor=user.user_id)  # fmt: skip
         return out
 
+    async def _approved_target(self, id_: uuid.UUID) -> Task:
+        t = await self.tasks.get(id_)
+        if t is None:
+            raise ConflictStateError("task no longer exists", details={"task_id": str(id_)})
+        return t
+
     async def _completed(self, t: Task) -> None:
         """`execution.task_completed` (R-DEC-47); `on_time` = same rule as METRIC-OPS-01."""
         done_at = t.done_at or now_utc()
@@ -291,20 +304,28 @@ class TaskService(ExecBase):
         await self._emit("execution.task_completed", t,
                          {"done_at": done_at.isoformat(), "on_time": on_time})  # fmt: skip
 
-    async def _require_unblocked(self, t: Task) -> None:
-        """R-DEC-43: `done` only when every `depends_on` task is `done`/`cancelled` → else 422."""
-        n = (await self.deps.open_blockers([t.id])).get(t.id, 0)
-        if n:
-            raise BusinessRuleError(
-                "task still blocked by open dependencies",
-                details={"rule": "FR-TASK-02", "open_dependencies": n},
-            )
+    async def _require_unblocked(self, user: Principal, t: Task) -> None:
+        """R-DEC-43: `done` only when every `depends_on` task is `done`/`cancelled` → else 422
+        `details.blocking=[{task_id, title, status}]`, filtered to blockers the caller may read
+        (an unreadable blocker still blocks, it is just not disclosed)."""
+        open_ids = await self.deps.open_blocker_ids(t.id)
+        if not open_ids:
+            return
+        found = {x.id: x for x in await self.tasks.by_ids(open_ids)}
+        blocking = [{"task_id": str(b.id), "title": b.title, "status": b.status}
+                    for bid in open_ids if (b := found.get(bid)) is not None
+                    and scope.allowed(user, "read", dept=b.department_id,
+                                      owners=(b.owner_id, b.assignee_id))]  # fmt: skip
+        raise BusinessRuleError(
+            "task still blocked by open dependencies",
+            details={"rule": "FR-TASK-02", "blocking": blocking},
+        )
 
     async def delete(self, user: Principal, id_: uuid.UUID) -> None:
         t = await self.get(user, id_, "write")
         if await self.tasks.count_by(Task.parent_task_id, [t.id]):
             raise BusinessRuleError(
-                "task still has sub-tasks", details={"field": "parent_task_id", "rule": "R-DEC-42"}
+                "task still has sub-tasks", details={"reason": "has_subtasks", "rule": "R-DEC-42"}
             )
         before = await self.out(t)
         for dep in await self.deps.touching(t.id):  # soft-delete the task's edges (EP-TASK-05)
@@ -316,8 +337,10 @@ class TaskService(ExecBase):
         await self.audit("task_delete", "tasks", t.id, before=before)
 
     # ---------- EP-TASK-06..08 dependencies (FR-TASK-02, R-DEC-43) ----------
-    async def _brief(self, user: Principal, dep: TaskDependency, other: uuid.UUID) -> TaskBriefOut:
-        t = await self.tasks.get(other)
+    def _brief(
+        self, user: Principal, dep: TaskDependency, other: uuid.UUID, found: dict[uuid.UUID, Task]
+    ) -> TaskBriefOut:
+        t = found.get(other)
         if t is None or not scope.allowed(user, "read", dept=t.department_id,
                                           owners=(t.owner_id, t.assignee_id)):  # fmt: skip
             return TaskBriefOut(dependency_id=dep.id, task_id=other, restricted=True)
@@ -329,13 +352,15 @@ class TaskService(ExecBase):
 
     async def list_dependencies(self, user: Principal, id_: uuid.UUID) -> TaskDependenciesOut:
         t = await self.get(user, id_)
+        edges = await self.deps.touching(t.id)
+        others = [d.depends_on_task_id if d.task_id == t.id else d.task_id for d in edges]
+        found = {x.id: x for x in await self.tasks.by_ids(others)}  # one query (no N+1)
         depends_on: list[TaskBriefOut] = []
         blocks: list[TaskBriefOut] = []
-        for dep in await self.deps.touching(t.id):
-            if dep.task_id == t.id:
-                depends_on.append(await self._brief(user, dep, dep.depends_on_task_id))
-            else:
-                blocks.append(await self._brief(user, dep, dep.task_id))
+        for dep, other in zip(edges, others, strict=True):
+            (depends_on if dep.task_id == t.id else blocks).append(
+                self._brief(user, dep, other, found)
+            )
         return TaskDependenciesOut(depends_on=depends_on, blocks=blocks)
 
     async def add_dependency(
@@ -452,8 +477,11 @@ class TaskService(ExecBase):
             raise BusinessRuleError("direct reassign allowed for this role",
                                     details={"reason": "direct_reassign_allowed"})  # fmt: skip
         t = await self.get(user, id_)
+        await self.tasks.lock(t.id)  # serialise concurrent requests → the 2nd one sees PENDING
+        await self.db.refresh(t)
         if t.status in CLOSED:
             raise ConflictStateError(f"task is {t.status}", details={"status": t.status})
+        await self._check_reassignee(t, body.to_assignee_id)
         payload = {
             "task_id": str(t.id), "from_assignee_id": _s(t.assignee_id),
             "to_assignee_id": str(body.to_assignee_id), "reason": body.reason,
@@ -464,6 +492,20 @@ class TaskService(ExecBase):
             payload=payload,
         )  # fmt: skip
 
+    async def _check_reassignee(self, t: Task, to: uuid.UUID) -> None:
+        """`to_assignee_id` = a live employee (hr public lookup, `core.directory`) other than the
+        current assignee → else 422 `field=to_assignee_id`."""
+        if to == t.assignee_id:
+            raise BusinessRuleError(
+                "to_assignee_id is already the assignee",
+                details={"field": "to_assignee_id", "reason": "same_assignee"},
+            )
+        if to not in await live_employee_ids(self.db, [to]):
+            raise BusinessRuleError(
+                "to_assignee_id is not an employee",
+                details={"field": "to_assignee_id", "reason": "not_found"},
+            )
+
 
 async def _apply_approved_reassign(
     db: Any, approver: Any, task_id: uuid.UUID, payload: dict[str, Any]
@@ -473,7 +515,7 @@ async def _apply_approved_reassign(
     rolls back (request stays PENDING)."""
     version = int(payload["task_version"])
     body = TaskUpdate(assignee_id=uuid.UUID(str(payload["to_assignee_id"])), version=version)
-    await TaskService(db).update(approver, task_id, body, version)
+    await TaskService(db).update(approver, task_id, body, version, approved=True)
 
 
 register_approval_hook("task_reassign", _apply_approved_reassign)

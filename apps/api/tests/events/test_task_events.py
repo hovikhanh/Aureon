@@ -83,9 +83,12 @@ async def test_rollback_leaves_no_event(api: ApiClient, db_session: AsyncSession
         .select_from(OUTBOX)
         .where(OUTBOX.c.event_type == "execution.task_created")
     )
+    parent = await make_task(api)
+    child = await make_task(api, parent_task_id=parent["id"])
     before = (await db_session.execute(q)).scalar_one()
+    # R-DEC-42: a sub-task cannot be a parent → 422 after the row was flushed → no event left
     bad = await api.call("POST", "/work/tasks", "CEO",
-                         json={"title": "x", "parent_task_id": str(uuid.uuid4())})  # fmt: skip
+                         json={"title": "x", "parent_task_id": child["id"]})  # fmt: skip
     assert bad.status_code == 422
     assert (await db_session.execute(q)).scalar_one() == before
 

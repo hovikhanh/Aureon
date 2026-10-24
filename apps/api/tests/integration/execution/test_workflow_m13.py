@@ -9,10 +9,14 @@ import uuid
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
+from app.core.errors import AppError
+from app.modules.auth.models import Role, User
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+from app.modules.platform.models import Notification
 from app.modules.platform.services.approval_service import (
     RULE_SINGLE,
     RULE_TASK_REASSIGN,
@@ -33,10 +37,28 @@ async def _emp_task(api: ApiClient, dept: uuid.UUID) -> tuple[dict[str, Any], uu
     return t, emp
 
 
+@pytest.fixture
+async def peers(db_session: AsyncSession) -> list[uuid.UUID]:
+    """Live employees (dev seed) — EP-TASK-19 validates `to_assignee_id` (finding 6)."""
+    from app.modules.hr.models import Employee
+
+    rows = await db_session.execute(
+        select(Employee.id).where(Employee.deleted_at.is_(None),
+                                  Employee.status != "terminated").limit(3)
+    )  # fmt: skip
+    ids = list(rows.scalars())
+    assert len(ids) == 3, "dev seed required (uv run python -m app.seed)"
+    _PEERS[:] = ids
+    return ids
+
+
+_PEERS: list[uuid.UUID] = []
+
+
 async def _reassign(
     api: ApiClient, t: dict[str, Any], emp: uuid.UUID, dept: uuid.UUID, to: uuid.UUID | None = None
 ) -> Any:
-    body = {"to_assignee_id": str(to or uuid.uuid4()), "reason": "quá tải"}
+    body = {"to_assignee_id": str(to or _PEERS[0]), "reason": "quá tải"}
     return await as_user(api, "POST", f"/work/tasks/{t['id']}/reassign-requests", "EMP", emp,
                          department_id=dept, employee_id=emp, json=body)  # fmt: skip
 
@@ -50,10 +72,24 @@ def _ids(r: Any) -> set[str]:
     return {x["id"] for x in r.json()["data"]}
 
 
-async def test_reassign_flow_approve(api: ApiClient, db_session: AsyncSession) -> None:
+async def _staff(db: AsyncSession, role: str, dept: uuid.UUID | None = None) -> User:
+    """A real active user of `role` in `dept` — `RULE-task_reassign` falls back to DIR only
+    when the request's department has no MGR (R-DEC-45)."""
+    rid = (await db.execute(select(Role.id).where(Role.code == role))).scalar_one()
+    u = User(email=f"s{uuid.uuid4().hex[:10]}@abc.test", password_hash="x", full_name="Duyệt",
+             role_id=rid, department_id=dept)  # fmt: skip
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def test_reassign_flow_approve(
+    api: ApiClient, db_session: AsyncSession, peers: list[uuid.UUID]
+) -> None:
     dept = uuid.uuid4()
+    await _staff(db_session, "MGR", dept)  # the department has a manager → no DIR fallback
     t, emp = await _emp_task(api, dept)
-    to = uuid.uuid4()
+    to = peers[1]
     r = await _reassign(api, t, emp, dept, to)
     assert r.status_code == 201, r.text
     req = r.json()["data"]
@@ -65,6 +101,10 @@ async def test_reassign_flow_approve(api: ApiClient, db_session: AsyncSession) -
     ev = [p for e, p in await outbox_for(db_session, req["id"])]
     assert ev[0]["rule_code"] == RULE_TASK_REASSIGN and ev[0]["department_id"] == str(dept)
 
+    for bad, why in ((uuid.uuid4(), "not_found"), (emp, "same_assignee")):
+        r_bad = await _reassign(api, t, emp, dept, bad)
+        assert r_bad.status_code == 422, r_bad.text
+        assert r_bad.json()["error"]["details"] == {"field": "to_assignee_id", "reason": why}
     dup = await _reassign(api, t, emp, dept)
     assert dup.status_code == 409 and dup.json()["error"]["code"] == "CONFLICT_STATE"
     auth = {"Authorization": api.headers("EMP")["Authorization"]}
@@ -78,8 +118,17 @@ async def test_reassign_flow_approve(api: ApiClient, db_session: AsyncSession) -
     mine = await _inbox(api, "MGR", mgr, dept)
     assert req["id"] in _ids(mine) and mine.json()["meta"]["pending_count"] >= 1
     assert req["id"] not in _ids(await _inbox(api, "MGR", uuid.uuid4(), uuid.uuid4()))
-    assert req["id"] in _ids(await _inbox(api, "CEO", uuid.uuid4()))
-    assert req["id"] not in _ids(await _inbox(api, "DIR", uuid.uuid4()))  # rule = MGR only
+    # CEO is exempt from scope, not from the role: the step is MGR-only (R-DEC-45 §3)
+    assert req["id"] not in _ids(await _inbox(api, "CEO", uuid.uuid4()))
+    assert req["id"] not in _ids(await _inbox(api, "DIR", uuid.uuid4()))  # dept has a MGR
+    ceo_det = await as_user(api, "GET", f"{WF}/{req['id']}", "CEO", uuid.uuid4())
+    assert ceo_det.status_code == 404
+    ceo_dec = await as_user(api, "POST", f"{WF}/{req['id']}/decide", "CEO", uuid.uuid4(),
+                            json={"decision": "approve"})  # fmt: skip
+    assert ceo_dec.status_code == 403 and ceo_dec.json()["error"]["code"] == "FORBIDDEN_ROLE"
+    dir_dec = await as_user(api, "POST", f"{WF}/{req['id']}/decide", "DIR", uuid.uuid4(),
+                            json={"decision": "approve"})  # fmt: skip
+    assert dir_dec.status_code == 403 and dir_dec.json()["error"]["code"] == "FORBIDDEN_ROLE"
     emp_inbox = await _inbox(api, "EMP", emp, dept)
     assert emp_inbox.status_code == 403 and emp_inbox.json()["error"]["code"] == "FORBIDDEN_ROLE"
     for role in ("REV", "ADM"):
@@ -115,7 +164,9 @@ async def test_reassign_flow_approve(api: ApiClient, db_session: AsyncSession) -
     assert again.status_code == 409
 
 
-async def test_reassign_version_conflict_reject_and_rules(api: ApiClient) -> None:
+async def test_reassign_version_conflict_reject_and_rules(
+    api: ApiClient, peers: list[uuid.UUID]
+) -> None:
     dept = uuid.uuid4()
     t, emp = await _emp_task(api, dept)
     req = (await _reassign(api, t, emp, dept)).json()["data"]
@@ -197,3 +248,98 @@ async def test_ai_action_requests_on_new_path(api: ApiClient, db_session: AsyncS
     assert det_r.status_code == 200, det_r.text
     det = det_r.json()["data"]
     assert [s["decision"] for s in det["timeline"]] == ["requested", "approve", "approve"]
+
+
+async def _visible(api: ApiClient, rid: str, role: str, user: uuid.UUID, dept: Any = None) -> bool:
+    """Inbox membership; asserts detail agrees (200 iff listed, else 404)."""
+    listed = rid in _ids(await _inbox(api, role, user, dept))
+    det = await as_user(api, "GET", f"{WF}/{rid}", role, user, department_id=dept)
+    assert det.status_code == (200 if listed else 404), (role, det.text)
+    return listed
+
+
+async def _denied(api: ApiClient, rid: str, role: str, user: uuid.UUID, dept: Any = None) -> str:
+    r = await as_user(api, "POST", f"{WF}/{rid}/decide", role, user, department_id=dept,
+                      json={"decision": "approve"})  # fmt: skip
+    assert r.status_code == 403, r.text
+    return str(r.json()["error"]["code"])
+
+
+@pytest.mark.parametrize("with_dept", [True, False])
+async def test_reassign_dir_fallback_without_mgr(
+    api: ApiClient, db_session: AsyncSession, with_dept: bool, peers: list[uuid.UUID]
+) -> None:
+    """R-DEC-45: no MGR in the request's department (or `department_id` NULL) → the rule's
+    `escalate_to_role_code` (DIR, any pillar) sees, is notified and decides; CEO still not."""
+    dept = uuid.uuid4() if with_dept else None
+    emp = uuid.uuid4()
+    t = await make_task(api, department_id=str(dept) if dept else None, assignee_id=str(emp))
+    d = await _staff(db_session, "DIR")
+    r = await _reassign(api, t, emp, dept or uuid.uuid4())
+    assert r.status_code == 201, r.text
+    rid = r.json()["data"]["id"]
+    assert r.json()["data"]["department_id"] == (str(dept) if dept else None)
+    notified = {
+        n
+        for (n,) in (
+            await db_session.execute(
+                select(Notification.recipient_id).where(Notification.ref_id == uuid.UUID(rid))
+            )
+        )
+    }
+    assert d.id in notified  # notification approvers = can_decide
+
+    assert await _visible(api, rid, "DIR", d.id)
+    assert await _visible(api, rid, "VP_SALES", uuid.uuid4())  # DIR khối C — fallback: mọi khối
+    assert not await _visible(api, rid, "CEO", uuid.uuid4())
+    assert await _denied(api, rid, "CEO", uuid.uuid4()) == "FORBIDDEN_ROLE"
+    assert not await _visible(api, rid, "MGR", uuid.uuid4(), uuid.uuid4())
+    ok = await as_user(api, "POST", f"{WF}/{rid}/decide", "DIR", d.id,
+                       json={"decision": "approve"})  # fmt: skip
+    assert ok.status_code == 200 and ok.json()["data"]["status"] == "APPROVED", ok.text
+
+
+async def test_ai_action_dir_pillar_and_consistency(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    """DIR `platform:approve` = rule pillar (ai_action → F); inbox ↔ detail ↔ decide agree."""
+    svc = ApprovalService(db_session)
+    req = await svc.create_for_ai_action(
+        ai_action_id=uuid.uuid4(), requested_by=uuid.uuid4(), amount=10_000_000,
+        currency="VND", payload={"kind": "expense"}, is_finance=True,
+    )  # fmt: skip
+    rid = str(req.id)
+    assert not await _visible(api, rid, "VP_SALES", uuid.uuid4())  # DIR khối C
+    assert await _denied(api, rid, "VP_SALES", uuid.uuid4()) == "FORBIDDEN_SCOPE"
+    assert not await _visible(api, rid, "MGR", uuid.uuid4(), uuid.uuid4())
+    assert await _denied(api, rid, "MGR", uuid.uuid4(), uuid.uuid4()) == "FORBIDDEN_ROLE"
+    assert await _visible(api, rid, "DIR", uuid.uuid4())  # scope_pillars rỗng = mọi khối
+    assert await _visible(api, rid, "CEO", uuid.uuid4())
+    cfo = uuid.uuid4()
+    assert await _visible(api, rid, "CFO", cfo)  # DIR khối F
+    # no AI hook here (synthetic ai_action id) — decide through the service
+    cfo_p = Principal(user_id=cfo, role="DIR", permissions=frozenset(ROLE_PERMISSIONS["DIR"]),
+                      scope_pillars=frozenset({"F"}))  # fmt: skip
+    assert (await svc.decide(cfo_p, req.id, decision="approve", reason=None)).status == "APPROVED"
+
+
+async def test_decide_error_details(api: ApiClient, db_session: AsyncSession) -> None:
+    """Finding 5: `_biz` errors carry `details.reason` / `details.field` (FE work.errors.*)."""
+    svc = ApprovalService(db_session)
+    me = uuid.uuid4()
+    req = await svc.create_for_ai_action(
+        ai_action_id=uuid.uuid4(), requested_by=me, amount=600_000_000,
+        currency="VND", payload={"kind": "expense"}, is_finance=True,
+    )  # fmt: skip
+    own = await as_user(api, "POST", f"{WF}/{req.id}/decide", "CEO", me,
+                        json={"decision": "approve"})  # fmt: skip
+    assert own.status_code == 422 and own.json()["error"]["details"] == {"reason": "self_approval"}
+    no_reason = await as_user(api, "POST", f"{WF}/{req.id}/decide", "CEO", uuid.uuid4(),
+                              json={"decision": "reject"})  # fmt: skip
+    assert no_reason.json()["error"]["details"] == {"field": "reason"}
+    ceo = uuid.uuid4()
+    await as_user(api, "POST", f"{WF}/{req.id}/decide", "CEO", ceo, json={"decision": "approve"})
+    dir_p = Principal(user_id=ceo, role="DIR", permissions=frozenset(ROLE_PERMISSIONS["DIR"]))
+    with pytest.raises(AppError) as exc:
+        await svc.decide(dir_p, req.id, decision="approve", reason=None)
+    assert exc.value.details == {"reason": "distinct_approvers"}

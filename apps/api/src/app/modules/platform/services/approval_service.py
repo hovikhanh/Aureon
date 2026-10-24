@@ -20,9 +20,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal, Protocol
 
-from sqlalchemy import ColumnElement, and_, false, or_
+from sqlalchemy import ColumnElement, and_, false, or_, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
@@ -53,12 +53,109 @@ RULE_DEFAULTS: dict[str, tuple[str, dict[str, Any], list[str], list[str] | None,
 }
 _DEPT_SCOPED = frozenset({"MGR"})  # `platform:approve` = `d` (02 §5.6, R-DEC-45 §3)
 
+# Pillar of a rule's target (DIR `platform:approve` = `p`, R-DEC-45 §3): the AI-action rules are
+# the finance (VND amount) gate → F; `task_reassign` is a people move → O (02 §7).
+RULE_PILLAR: dict[str, str] = {"ai_action": "F", "task_reassign": "O"}
+
 OnApproved = Callable[[ApprovalRequest], Awaitable[None]]
+Verdict = Literal["ok", "role", "scope"]
+
+
+class ApproverLike(Protocol):
+    """`Principal` (request) or `auth.ApproverRef` (notification routing)."""
+
+    @property
+    def role(self) -> str: ...
+    @property
+    def department_id(self) -> uuid.UUID | None: ...
+    @property
+    def scope_pillars(self) -> frozenset[str]: ...
 
 
 def step_roles(rule: ApprovalRule, step: int) -> tuple[str, ...]:
     roles = rule.approver_role_codes if step == 1 else rule.second_approver_role_codes
     return tuple(roles or ())
+
+
+def _fallback_role(rule: ApprovalRule, step: int) -> str | None:
+    """`escalate_to_role_code` stands in for a department-scoped step role (MGR) — R-DEC-45."""
+    if rule.escalate_to_role_code and any(r in _DEPT_SCOPED for r in step_roles(rule, step)):
+        return rule.escalate_to_role_code
+    return None
+
+
+def eligible_roles(rule: ApprovalRule, step: int) -> tuple[str, ...]:
+    fb = _fallback_role(rule, step)
+    return step_roles(rule, step) + ((fb,) if fb else ())
+
+
+def _needs_fallback(req: ApprovalRequest, staffed: frozenset[uuid.UUID]) -> bool:
+    """The request's department has no MGR (or the request has no department)."""
+    return req.department_id is None or req.department_id not in staffed
+
+
+def _in_scope(who: ApproverLike, req: ApprovalRequest, rule: ApprovalRule) -> bool:
+    """Data scope of `platform:approve` (02 §5.6): CEO all · DIR pillar of the rule
+    (`scope_pillars` empty = every pillar) · MGR own department · others none."""
+    if who.role == "CEO":
+        return True
+    if who.role == "DIR":
+        pillar = RULE_PILLAR.get(rule.target_kind)
+        return not who.scope_pillars or pillar is None or pillar in who.scope_pillars
+    if who.role in _DEPT_SCOPED:
+        return who.department_id is not None and req.department_id == who.department_id
+    return False
+
+
+def decide_verdict(
+    who: ApproverLike, req: ApprovalRequest, rule: ApprovalRule, staffed: frozenset[uuid.UUID]
+) -> Verdict:
+    """THE approver rule (R-DEC-45 §3) shared by inbox, detail, decide and notifications.
+
+    1. role ∈ roles of the **current** step — CEO is exempt from scope, never from the role;
+       then the data scope (`_in_scope`).
+    2. else role = `escalate_to_role_code` of a department-scoped step (DIR for MGR): allowed
+       while the request's department has no MGR or `department_id` is NULL — "DIR mọi khối
+       thấy khi rule fallback" (no pillar filter on the fallback path).
+    `staffed` = departments having an active user of the step's department-scoped role.
+    """
+    if who.role in step_roles(rule, req.step):
+        return "ok" if _in_scope(who, req, rule) else "scope"
+    if who.role == _fallback_role(rule, req.step) and _needs_fallback(req, staffed):
+        return "ok"
+    return "role"
+
+
+def can_decide(
+    who: ApproverLike, req: ApprovalRequest, rule: ApprovalRule, staffed: frozenset[uuid.UUID]
+) -> bool:
+    return decide_verdict(who, req, rule, staffed) == "ok"
+
+
+def _grant_sql(
+    who: ApproverLike, rule: ApprovalRule, step: int, staffed: frozenset[uuid.UUID] | None
+) -> ColumnElement[bool] | None:
+    """SQL twin of `decide_verdict(...) == "ok"` for requests of (`rule`, `step`)."""
+    grants: list[ColumnElement[bool]] = []
+    if who.role in step_roles(rule, step):
+        if who.role in _DEPT_SCOPED:
+            if who.department_id is not None:
+                grants.append(ApprovalRequest.department_id == who.department_id)
+        elif who.role == "CEO" or (who.role == "DIR" and _dir_pillar_ok(who, rule)):
+            grants.append(true())
+    elif staffed is not None and who.role == _fallback_role(rule, step):
+        dept = ApprovalRequest.department_id
+        grants.append(or_(dept.is_(None), dept.not_in(staffed)) if staffed else true())
+    return or_(*grants) if grants else None
+
+
+def _dir_pillar_ok(who: ApproverLike, rule: ApprovalRule) -> bool:
+    pillar = RULE_PILLAR.get(rule.target_kind)
+    return not who.scope_pillars or pillar is None or pillar in who.scope_pillars
+
+
+def _uses_fallback(who: ApproverLike, rule: ApprovalRule, step: int) -> bool:
+    return who.role not in step_roles(rule, step) and who.role == _fallback_role(rule, step)
 
 
 class ApprovalConflictError(AppError):
@@ -88,9 +185,10 @@ class ApprovalService:
 
     async def create_for_task_reassign(
         self, *, task_id: uuid.UUID, department_id: uuid.UUID | None, requested_by: uuid.UUID,
-        payload: dict[str, Any],
+        payload: dict[str, Any], emit: bool = True,
     ) -> ApprovalRequestOut:  # fmt: skip
-        """EP-TASK-19 (R-DEC-45): one PENDING `task_reassign` request per task (else 409)."""
+        """EP-TASK-19 (R-DEC-45): one PENDING `task_reassign` request per task (else 409).
+        `emit=False` (seed only, R-DEC-47): no outbox event, no notification."""
         if await self.repo.pending_for("task_reassign", task_id) is not None:
             raise ApprovalConflictError(
                 "a reassign request is already pending for this task",
@@ -100,13 +198,14 @@ class ApprovalService:
         req = await self._open(
             rule, requested_by=requested_by, payload=payload, target_schema="execution",
             target_table="tasks", target_id=task_id, department_id=department_id,
-            source="MANUAL", metadata={"task_id": str(task_id)},
+            source="MANUAL", metadata={"task_id": str(task_id)}, emit=emit,
         )  # fmt: skip
         return (await self.outs([req]))[0]
 
     async def _open(
         self, rule: ApprovalRule, *, requested_by: uuid.UUID, payload: dict[str, Any],
-        source: str, metadata: dict[str, Any], currency: str = "VND", **cols: Any,
+        source: str, metadata: dict[str, Any], currency: str = "VND", emit: bool = True,
+        **cols: Any,
     ) -> ApprovalRequest:  # fmt: skip
         req = ApprovalRequest(
             rule_id=rule.id, target_kind=rule.target_kind, payload=payload, currency=currency,
@@ -119,6 +218,8 @@ class ApprovalService:
             self.db, action="platform.approval_requested", target_schema="platform",
             target_table="approval_requests", target_id=req.id, metadata=metadata,
         )  # fmt: skip
+        if not emit:
+            return req
         await self._publish("platform.approval_requested", req, rule, {
             "target_id": _s(req.target_id or req.ai_action_id),
             "department_id": _s(req.department_id), "due_at": req.due_at.isoformat(),
@@ -128,21 +229,27 @@ class ApprovalService:
         return req
 
     async def _approvers(self, req: ApprovalRequest, rule: ApprovalRule) -> list[uuid.UUID]:
-        """Users eligible for the current step in scope (R-DEC-45/46); a department rule with
-        no MGR there falls back to `escalate_to_role_code` (e.g. DIR)."""
+        """Users who `can_decide` the current step (R-DEC-45/46) — same rule as inbox/decide."""
         from app.modules.auth.services.auth_service import AuthService
 
+        roles = list(dict.fromkeys(eligible_roles(rule, req.step)))
+        candidates = await AuthService(self.db).approver_candidates(roles)
+        staffed = await self._staffed(rule, req.step)
+        return [c.user_id for c in candidates
+                if c.user_id != req.requested_by and can_decide(c, req, rule, staffed)]  # fmt: skip
+
+    async def _staffed(self, rule: ApprovalRule, step: int) -> frozenset[uuid.UUID]:
+        """Departments having an active user of each department-scoped step role (MGR)."""
+        from app.modules.auth.services.auth_service import AuthService
+
+        if not rule.escalate_to_role_code:
+            return frozenset()
         auth = AuthService(self.db)
-        roles = step_roles(rule, req.step)
-        users: list[uuid.UUID] = []
-        for role in roles:
-            dept = req.department_id if role in _DEPT_SCOPED else None
-            if role in _DEPT_SCOPED and dept is None:
-                continue
-            users += await auth.users_with_roles([role], department_id=dept)
-        if not users and rule.escalate_to_role_code:
-            users = await auth.users_with_roles([rule.escalate_to_role_code])
-        return [u for u in users if u != req.requested_by]
+        out: set[uuid.UUID] = set()
+        for role in step_roles(rule, step):
+            if role in _DEPT_SCOPED:
+                out |= await auth.departments_with_role(role)
+        return frozenset(out)
 
     async def _notify(
         self, users: Sequence[uuid.UUID], req: ApprovalRequest, kind: str, title: str
@@ -156,19 +263,21 @@ class ApprovalService:
         )  # fmt: skip
 
     async def rule(self, code: str) -> ApprovalRule:
-        """Rule by code; the known defaults (`RULE_DEFAULTS`) are created lazily (05 §2.5)."""
+        """Rule by code; the known defaults (`RULE_DEFAULTS`) are created lazily (05 §2.5) with
+        `INSERT … ON CONFLICT (code) DO NOTHING` then re-read (safe under concurrent requests)."""
         found = await self.rules.by_code(code)
         if found is not None:
             return found
         kind, cond, first, second, escalate = RULE_DEFAULTS[code]
-        rule = ApprovalRule(
+        await self.rules.insert_if_absent(
             code=code, target_kind=kind, condition=cond, approver_role_codes=first,
             second_approver_role_codes=second, escalate_to_role_code=escalate,
             sla_hours=DEFAULT_SLA_HOURS, is_active=True, priority=100,
         )  # fmt: skip
-        self.db.add(rule)
-        await self.db.flush()
-        return rule
+        created = await self.rules.by_code(code)
+        if created is None:  # pragma: no cover — inserted above or by a concurrent transaction
+            raise AppError(f"approval rule {code} unavailable")
+        return created
 
     async def approver_roles(self, code: str) -> tuple[tuple[str, ...], str | None]:
         """`(step-1 roles, escalate role)` of a rule — notification routing (R-DEC-46)."""
@@ -176,20 +285,21 @@ class ApprovalService:
         return step_roles(r, 1), r.escalate_to_role_code
 
     # ---------- EP-WF-01 / 02 inbox ----------
-    def _assigned(
+    async def _assigned(
         self, user: Principal, rules: Sequence[ApprovalRule], *, include_own: bool = False
     ) -> list[ColumnElement[bool]]:
-        """R-DEC-45 §3: role in the current step's approvers ∩ data scope; not my own request."""
+        """SQL form of `can_decide` (R-DEC-45 §3) per (rule, step); not my own request."""
         steps: list[ColumnElement[bool]] = []
         for r in rules:
             for step in (1, 2):
-                if user.role == "CEO" or user.role in step_roles(r, step):
+                if not step_roles(r, step):
+                    continue
+                staffed = await self._staffed(r, step) if _uses_fallback(user, r, step) else None
+                cond = _grant_sql(user, r, step, staffed)
+                if cond is not None:
                     steps.append(and_(ApprovalRequest.rule_id == r.id,
-                                      ApprovalRequest.step == step))  # fmt: skip
+                                      ApprovalRequest.step == step, cond))  # fmt: skip
         clauses: list[ColumnElement[bool]] = [or_(*steps) if steps else false()]
-        if user.role in _DEPT_SCOPED:
-            clauses.append(ApprovalRequest.department_id == user.department_id
-                           if user.department_id is not None else false())  # fmt: skip
         if not include_own:
             clauses.append(ApprovalRequest.requested_by != user.user_id)
         return clauses
@@ -199,7 +309,7 @@ class ApprovalService:
         target_kind: str | None,
     ) -> tuple[list[ApprovalRequestOut], int, int]:  # fmt: skip
         rules = await self.rules.all_rules()
-        mine = self._assigned(user, rules)
+        mine = await self._assigned(user, rules)
         where = list(mine)
         if rule_code is not None:
             ids = [r.id for r in rules if r.code == rule_code]
@@ -217,7 +327,7 @@ class ApprovalService:
     async def detail(self, user: Principal, request_id: uuid.UUID) -> ApprovalDetailOut:
         """EP-WF-02 — outside the caller's approver scope → 404 (10 §7.2.2)."""
         rules = await self.rules.all_rules()
-        visible = or_(and_(*self._assigned(user, rules, include_own=True)),
+        visible = or_(and_(*await self._assigned(user, rules, include_own=True)),
                       ApprovalRequest.requested_by == user.user_id)  # fmt: skip
         found = await self.repo.where_one(ApprovalRequest.id == request_id, visible)
         if found is None:
@@ -251,7 +361,7 @@ class ApprovalService:
             await self.db.flush()
             raise ApprovalConflictError("request expired")
         rule = (await self.rules.by_ids([req.rule_id]))[req.rule_id]  # FK → always present
-        self._check_step_role(req, approver, rule)
+        await self._check_can_decide(req, approver, rule)
         # Savepoint: a failing hook (e.g. task version moved → 409) undoes the decision too,
         # so the request stays PENDING even if the caller handles the error (TC-M13-08).
         async with self.db.begin_nested():
@@ -277,7 +387,7 @@ class ApprovalService:
         now = datetime.now(UTC)
         if req.step == 1:
             if req.requested_by == approver.user_id:
-                raise self._biz("approver must differ from requester")
+                raise self._biz("approver must differ from requester", reason="self_approval")
             req.first_decided_by = approver.user_id
             req.first_decided_at = now
             if step_roles(rule, 2):
@@ -287,7 +397,8 @@ class ApprovalService:
                 return
         else:  # step 2
             if approver.user_id in (req.requested_by, req.first_decided_by):
-                raise self._biz("second approver must be distinct (DEC-155)")
+                raise self._biz("second approver must be distinct (DEC-155)",
+                                reason="distinct_approvers")  # fmt: skip
             req.second_decided_by = approver.user_id
             req.second_decided_at = now
         req.status = "APPROVED"
@@ -298,9 +409,9 @@ class ApprovalService:
 
     async def _reject(self, req: ApprovalRequest, approver: Principal, reason: str | None) -> None:
         if not reason:
-            raise self._biz("reason required to reject")
+            raise self._biz("reason required to reject", field="reason")
         if req.requested_by == approver.user_id:
-            raise self._biz("approver must differ from requester")
+            raise self._biz("approver must differ from requester", reason="self_approval")
         req.status = "REJECTED"
         req.decision_reason = reason
         if req.step == 1:
@@ -312,15 +423,16 @@ class ApprovalService:
         await self.db.flush()
         await self._audit_decision(req, approver, "reject", step=req.step)
 
-    def _check_step_role(
+    async def _check_can_decide(
         self, req: ApprovalRequest, approver: Principal, rule: ApprovalRule
     ) -> None:
-        if approver.role not in step_roles(rule, req.step):
+        """EP-WF-03: role not in the step (nor fallback) → 403 ROLE; outside scope → 403 SCOPE."""
+        staffed = await self._staffed(rule, req.step)
+        verdict = decide_verdict(approver, req, rule, staffed)
+        if verdict == "role":
             raise PermissionDeniedError(f"role {approver.role} not an approver for step {req.step}")
-        if approver.role in _DEPT_SCOPED and (
-            approver.department_id is None or req.department_id != approver.department_id
-        ):
-            raise ScopeDeniedError("request outside the approver's department",
+        if verdict == "scope":
+            raise ScopeDeniedError("request outside the approver's scope",
                                    details={"department_id": _s(req.department_id)})  # fmt: skip
 
     async def _locked(self, request_id: uuid.UUID) -> ApprovalRequest:
@@ -349,8 +461,9 @@ class ApprovalService:
             aggregate_table="approval_requests", aggregate_id=req.id, payload=payload,
         )  # fmt: skip
 
-    def _biz(self, msg: str) -> AppError:
-        return AppError(msg, code="BUSINESS_RULE_VIOLATION", status_code=422)
+    def _biz(self, msg: str, **details: str) -> AppError:
+        """422 with `details.reason` (self_approval / distinct_approvers) or `details.field`."""
+        return AppError(msg, code="BUSINESS_RULE_VIOLATION", status_code=422, details=details)
 
     def _to_out(
         self, req: ApprovalRequest, rule: ApprovalRule | None, name: str | None

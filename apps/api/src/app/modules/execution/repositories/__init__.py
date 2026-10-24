@@ -82,6 +82,14 @@ class TaskRepository(Repo[Task]):
             clauses.append(Task.department_id == department_id)
         return await self.where(*clauses, order=Task.id)
 
+    async def by_ids(self, ids: Sequence[uuid.UUID]) -> Sequence[Task]:
+        """Live tasks with these ids in one query (EP-TASK-06 briefs, FR-TASK-02 blockers)."""
+        if not ids:
+            return []
+        return (
+            (await self.db.execute(self._live().where(Task.id.in_(list(set(ids)))))).scalars().all()
+        )
+
     async def lock(self, *ids: uuid.UUID) -> Sequence[Task]:
         """`SELECT … FOR UPDATE` live tasks in ascending id order (deadlock-free, 05 §2.5)."""
         stmt = self._live().where(Task.id.in_(ids)).order_by(Task.id).with_for_update()
@@ -136,6 +144,19 @@ class TaskDependencyRepository(Repo[TaskDependency]):
             (TaskDependency.task_id == task_id) | (TaskDependency.depends_on_task_id == task_id),
             order=TaskDependency.created_at,
         )
+
+    async def open_blocker_ids(self, task_id: uuid.UUID) -> list[uuid.UUID]:
+        """Live `depends_on` task ids of `task_id` not yet `done`/`cancelled` (R-DEC-43)."""
+        stmt = self._scoped(
+            select(TaskDependency.depends_on_task_id)
+            .join(Task, Task.id == TaskDependency.depends_on_task_id)
+            .where(
+                TaskDependency.task_id == task_id, TaskDependency.deleted_at.is_(None),
+                Task.deleted_at.is_(None), Task.status.in_(OPEN_TASK_STATUSES),
+            )
+            .order_by(TaskDependency.depends_on_task_id)
+        )  # fmt: skip
+        return list((await self.db.execute(stmt)).scalars())
 
     async def open_blockers(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
         """Per blocked task: number of live `depends_on` tasks not `done`/`cancelled`."""
