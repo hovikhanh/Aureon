@@ -122,6 +122,11 @@ class AssignmentRepository(BaseRepository[EmployeeAssignment]):
 class EmployeeRepository(BaseRepository[Employee]):
     model = Employee
 
+    async def by_code(self, code: str) -> Employee | None:
+        """Live employee with `employee_code` (ACT-* `*_code` references, T-636)."""
+        stmt = self._live().where(Employee.employee_code == code)
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
     async def lock(self, employee_id: uuid.UUID) -> Employee | None:
         """`SELECT … FOR UPDATE` on the live employee — serialises assignment writes (T-612)."""
         stmt = self._live().where(Employee.id == employee_id).with_for_update()

@@ -46,6 +46,7 @@ from app.modules.idp.schemas.capture import (
     ValidationRulePatch,
     VersionIn,
 )
+from app.modules.idp.services.commit_service import CommitService
 
 router = EnvelopeRouter(prefix="/data-capture", tags=["data-capture"])
 
@@ -155,8 +156,15 @@ async def document_source(
     "/documents/{document_id}/commit", response_model=ApproveOut,
     summary="EP-DC-23 Commit an APPROVED document (domain write permission)",
 )  # fmt: skip
-async def document_commit(document_id: uuid.UUID, body: VersionIn, user: Writer, idem: Idem) -> Any:
-    not_implemented("EP-DC-23", "T-636")
+async def document_commit(
+    document_id: uuid.UUID, body: VersionIn, user: Writer, db: Db, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ApproveOut.model_validate(hit)
+    out = await CommitService(db).commit(user, document_id, expected_version=body.version)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.post(

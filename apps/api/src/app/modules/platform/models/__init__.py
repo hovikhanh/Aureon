@@ -244,10 +244,20 @@ class Report(BusinessModel):
 
 
 # ---------- append-only / technical ----------
-class DataLineage(LogModel):
+class DataLineage(LogModel, TenantMixin):
+    """ENT-DataLineage — append-only; M1.5 (05 §2.7, R-DEC-64): `tenant_id`, the
+    `idp.document_actions` row that wrote it (logical ref, no cross-schema FK) and `row_index`."""
+
     __tablename__ = "data_lineage"
     __table_args__ = (
         Index("ix_data_lineage_target", "target_schema", "target_table", "target_id"),
+        Index(
+            "ix_data_lineage_target_live",
+            "target_schema",
+            "target_table",
+            "target_id",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
         {"schema": S},
     )
 
@@ -263,6 +273,8 @@ class DataLineage(LogModel):
     contribution: Mapped[Any] = measure()
     action_name: Mapped[str | None] = txt(nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    document_action_id: Mapped[uuid.UUID | None] = sr(index=False)
+    row_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class AuditLog(LogModel):

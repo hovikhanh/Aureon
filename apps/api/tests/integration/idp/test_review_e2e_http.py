@@ -121,7 +121,22 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
         headers=api.headers("REVIEWER", user_id=reviewer, idem=True),
     )
     assert ap.status_code == 200, ap.text
-    body = ap.json()["data"]
+    # R-DEC-61: REV approves but lacks `finance:write` → APPROVED + pending permission
+    assert ap.json()["data"]["document"]["status"] == "APPROVED"
+    assert ap.json()["data"]["actions"] == []
+    assert ap.json()["meta"]["pending_permissions"] == ["finance:write"]
+
+    # --- step 6b: EP-DC-23 — a finance writer (CFO) commits the APPROVED document ---
+    approved = (
+        await db_session.execute(select(SourceDocument).where(SourceDocument.id == doc_id))
+    ).scalar_one()
+    cm = await api.http.request(
+        "POST", f"/api/v1/data-capture/documents/{doc_id}/commit",
+        json={"version": approved.version},
+        headers=api.headers("CFO", idem=True),
+    )  # fmt: skip
+    assert cm.status_code == 200, cm.text
+    body = cm.json()["data"]
     assert body["document"]["status"] == "COMMITTED"
     assert body["actions"][0]["action_name"] == "ACT-create_invoice"
     inv_id = body["actions"][0]["ids"][0]

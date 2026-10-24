@@ -22,6 +22,7 @@ APPEND_ONLY = {
     "idp.review_assignments", "hr.salary_history", "sales.deal_stage_history",
     "risk.risk_assessments", "execution.kpi_measurements", "product.product_metrics",
     "execution.check_ins", "execution.kr_measurements",
+    "idp.import_rows", "idp.document_actions",  # M1.5 log tables (05 §2.7)
 }  # fmt: skip
 
 
@@ -57,6 +58,8 @@ def test_db_tables_match_metadata(engine: Engine) -> None:
 
 # Columns named like C19 but with a different meaning in 05 (not optimistic locking).
 NON_C19_VERSION = {"platform.outbox_events"}  # 05 §5.1: payload schema version
+# Log tables with an optimistic-lock `version` but no other C19 (05 §2.7: EP-DC-19/22 lock).
+LOG_WITH_VERSION = {"idp.import_batches"}
 # Log tables that 05 explicitly soft-deletes (05 §4.8: "xóa hội thoại = xóa mềm ở conversations").
 SOFT_DELETED_LOGS = {"ai.conversations"}
 
@@ -66,7 +69,7 @@ def test_c19_columns_by_group() -> None:
         cols = set(table.c.keys())
         if name in APPEND_ONLY:
             forbidden = {"source"} | (set() if name in SOFT_DELETED_LOGS else {"deleted_at"})
-            if name not in NON_C19_VERSION:
+            if name not in NON_C19_VERSION | LOG_WITH_VERSION:
                 forbidden.add("version")
             assert not forbidden & cols, name
         else:

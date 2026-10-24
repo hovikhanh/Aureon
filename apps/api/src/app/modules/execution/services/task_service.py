@@ -182,7 +182,7 @@ class TaskService(ExecBase):
         if child is not None and (await self.tasks.count_by(Task.parent_task_id, [child.id])):
             raise BusinessRuleError("task with sub-tasks cannot become a sub-task", details=rule)
 
-    async def create(self, user: Principal, body: TaskCreate) -> TaskOut:
+    async def create(self, user: Principal, body: TaskCreate, *, source: str = "MANUAL") -> TaskOut:
         data = body.model_dump(mode="python")
         data["owner_id"] = data["owner_id"] or user.user_id
         if scope.level(user, "write") == "o" and data["assignee_id"] is None:
@@ -198,7 +198,7 @@ class TaskService(ExecBase):
             data["evidence"] = [dict(e) for e in data["evidence"]]
         if data["source_ref"] is not None:
             data["source_ref"] = body.source_ref.model_dump(mode="json", exclude_none=True)  # type: ignore[union-attr]
-        t = await self.tasks.create(**data, source="MANUAL", created_by=user.user_id)
+        t = await self.tasks.create(**data, source=source, created_by=user.user_id)
         await self._progress(t.initiative_id)
         await self.db.refresh(t)
         out = await self.out(t)
