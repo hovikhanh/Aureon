@@ -41,14 +41,9 @@ from app.modules.idp.schemas.capture import (
     ValidationRulePatch,
 )
 from app.modules.idp.services.actions import get_action
+from app.modules.idp.services.critical import forced_critical
 
 MIN_CLASSIFICATION, MIN_REQUIRED_FIELD = 0.95, 0.90  # DEC-133 — may only be raised
-CRITICAL_VALUE_TYPES = frozenset({"money", "tax_code"})
-# FR-DC-16 trường trọng yếu: số tiền, số tài khoản, MST, lương, giá trị hợp đồng (+ CCCD).
-CRITICAL_FIELD_NAMES = frozenset({
-    "amount", "subtotal", "vat_amount", "total_amount", "bank_account", "tax_code",
-    "seller_tax_code", "buyer_tax_code", "salary", "contract_value", "national_id",
-})  # fmt: skip
 VALUE_TYPES = frozenset(FIELD_VALUE_TYPE.enums)  # idp.field_value_type (05 §2.7)
 # Validator ops (validator.py) — anything else is rejected on EP-DC-34.
 VALIDATOR_OPS = frozenset({"required", "date_not_future", "in", "gt", "gte", "lt", "lte",
@@ -72,10 +67,7 @@ def check_schema_body(fields: list[dict[str, Any]], thresholds: dict[str, Any],
     for f in fields:
         if f["value_type"] not in VALUE_TYPES:
             raise _bad("unknown value_type", field=f["name"], value_type=f["value_type"])
-        level4_money = f.get("sensitivity_level") == 4 and f["value_type"] == "money"
-        critical = (f["value_type"] in CRITICAL_VALUE_TYPES
-                    or f["name"] in CRITICAL_FIELD_NAMES or level4_money)  # fmt: skip
-        if critical and not f.get("is_critical"):
+        if forced_critical(f) and not f.get("is_critical"):  # R-DEC-69: Admin cannot clear it
             raise _bad("critical field must stay is_critical", field=f["name"], reason="FR-DC-16")
         target = f.get("target")
         if target:

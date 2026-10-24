@@ -9,6 +9,7 @@
 """
 
 import re
+import uuid
 from pathlib import Path
 
 import pytest
@@ -57,7 +58,7 @@ def test_no_unspecified_capture_route(routes: dict[tuple[str, str], APIRoute]) -
 
 
 async def test_stub_answers_501_envelope(api: ApiClient) -> None:
-    r = await api.call("GET", "/data-capture/incidents", "HR_MANAGER")
+    r = await api.call("GET", f"/data-capture/documents/{uuid.uuid4()}/actions", "CEO")
     assert r.status_code == 501
     assert r.json()["error"]["code"] == "INTERNAL_ERROR"
     assert (await api.call("GET", "/data-capture/inbox", "AI")).status_code == 403

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit
 from app.core.deps import Principal
 from app.core.errors import (
+    ActionRejectedError,
     ConflictStateError,
     NotFoundError,
     PermissionDeniedError,
@@ -45,6 +46,7 @@ from app.modules.idp.services.actions.executor import (
     run_all,
 )
 from app.modules.idp.services.capture_common import document_out
+from app.modules.idp.services.critical import unconfirmed
 from app.modules.idp.services.lineage import record_commit_lineage
 from app.modules.idp.services.scope import (
     document_visible,
@@ -106,6 +108,9 @@ class CommitService:
             )
         loaded = await self._load(doc)
         stp = doc.status == "AUTO_APPROVED"
+        if not stp and (pending_critical := unconfirmed(loaded.fields)):  # FR-DC-16, R-DEC-69
+            raise ActionRejectedError("critical fields not confirmed", details={
+                "reason": "critical_unconfirmed", "fields": pending_critical})  # fmt: skip
         self._add_review(doc, loaded, user, comment)
         doc.status = "APPROVED"
         doc.locked_by = None

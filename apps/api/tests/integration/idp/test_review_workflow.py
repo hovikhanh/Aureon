@@ -27,6 +27,7 @@ from app.modules.idp.services.review_service import QueueFilters, ReviewService
 from app.modules.idp.services.sla_service import SlaService
 from app.modules.idp.services.upload_service import UploadFile, UploadService
 from tests.integration.idp import sample_docs as s
+from tests.integration.idp.critical_helpers import confirm_critical
 
 pytestmark = pytest.mark.integration
 
@@ -90,7 +91,7 @@ async def test_queue_returns_needs_review_documents(db_session, idp_store) -> No
     assert {i.document_id for i in items} == set(ids)
     first = items[0]
     assert first.status == "NEEDS_REVIEW"
-    assert first.critical_fields_count == 3  # subtotal, vat_amount, total_amount
+    assert first.critical_fields_count == 4  # subtotal, vat, total + seller_tax_code (R-DEC-69)
     assert first.confidence_avg is not None
     assert first.age_hours >= 0
     assert first.due_at is not None  # pipeline created the ASSIGN row with an SLA clock
@@ -148,7 +149,12 @@ async def test_detail_shows_fields_validation_lineage(db_session, idp_store) -> 
     detail = await ReviewService(db_session).detail(user, doc_id)
     assert len(detail.fields) == 8
     critical = [f for f in detail.fields if f.is_critical]
-    assert {f.field_name for f in critical} == {"subtotal", "vat_amount", "total_amount"}
+    assert {f.field_name for f in critical} == {
+        "subtotal",
+        "vat_amount",
+        "total_amount",
+        "seller_tax_code",
+    }
     # every field carries lineage (source_location with page)
     for f in detail.fields:
         assert "page" in f.source_location or "kind" in f.source_location
@@ -236,7 +242,7 @@ async def test_approve_commits_finance_invoice(db_session, idp_store) -> None:
 
     user = _committer()
     doc_id = await _ingest_invoice(db_session, user)
-    await ReviewService(db_session).open(user, doc_id)
+    await confirm_critical(db_session, user, doc_id)
     out = (await CommitService(db_session).approve(user, doc_id, comment="looks good")).out
     assert out.document.status == "COMMITTED"
     assert out.undo_deadline is not None
@@ -264,6 +270,7 @@ async def test_approve_uses_corrected_value(db_session, idp_store) -> None:
         doc_id,
         FieldPatchIn(fields=[FieldCorrectionIn(field_id=num.id, value="0009999")]),
     )
+    await confirm_critical(db_session, user, doc_id, opened=True)
     out = (await CommitService(db_session).approve(user, doc_id)).out
     inv = (
         await db_session.execute(
@@ -468,8 +475,10 @@ async def test_commit_invoice_duplicate_number_rejected(db_session, idp_store) -
 
     user = _committer()
     a = await _ingest_invoice(db_session, user)
+    await confirm_critical(db_session, user, a)
     await CommitService(db_session).approve(user, a)  # first commit wins the number UQ
     b = await _ingest_invoice(db_session, user)  # same fixture → same invoice_number
+    await confirm_critical(db_session, user, b)
     with pytest.raises(ActionRejectedError):
         await CommitService(db_session).approve(user, b)
     doc_b = (

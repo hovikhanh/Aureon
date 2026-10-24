@@ -23,6 +23,7 @@ from typing import Any
 from app.core.field_policy import Masked
 from app.modules.idp.repositories import ImportRepository
 from app.modules.idp.services.classifier import fold
+from app.modules.idp.services.critical import is_critical
 from app.modules.idp.services.import_parse import Sheet, too_large
 
 WARN_LEVEL4 = "idp.warn.level4_dropped"
@@ -600,7 +601,7 @@ class ImportService:
                     value=value, raw_text=None if level >= 4 else str((r.raw or {}).get(
                         col["key"], value)),
                     confidence=conf, confidence_band=confidence_band(conf),
-                    is_critical=bool(spec.get("is_critical")), sensitivity_level=level,
+                    is_critical=is_critical(spec), sensitivity_level=level,
                     source_location={"kind": "cell", "sheet": batch.sheet_name,
                                      "row": r.row_number, "column": col["index"],
                                      "header": col["header"]},

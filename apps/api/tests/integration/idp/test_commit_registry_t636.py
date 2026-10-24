@@ -13,7 +13,7 @@ from app.core.errors import ConflictStateError, PermissionDeniedError
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 from app.modules.idp.models import DocumentAction, SourceDocument
 from app.modules.idp.services.commit_service import CommitService
-from app.modules.idp.services.review_service import ReviewService
+from tests.integration.idp.critical_helpers import confirm_critical
 from tests.integration.idp.test_review_workflow import _ingest_invoice
 
 pytestmark = pytest.mark.integration
@@ -27,7 +27,7 @@ def _p(role: str, pillars: tuple[str, ...] = ()) -> Principal:
 async def _approved(db) -> tuple[uuid.UUID, int]:
     rev = _p("REV")
     doc_id = await _ingest_invoice(db, rev)
-    await ReviewService(db).open(rev, doc_id)
+    await confirm_critical(db, rev, doc_id)
     res = await CommitService(db).approve(rev, doc_id)
     assert res.out.document.status == "APPROVED"
     assert res.out.actions == [] and res.pending_permissions == ["finance:write"]

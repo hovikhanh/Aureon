@@ -15,6 +15,7 @@ from sqlalchemy import select, update
 
 from app.modules.idp.models import ExtractedField, ImportBatch, ReviewAssignment, SourceDocument
 from tests.conftest import ApiClient
+from tests.integration.idp.critical_helpers import approve_http
 
 pytestmark = pytest.mark.integration
 
@@ -192,7 +193,7 @@ async def test_submit_valid_rows_then_dir_o_commits(api: ApiClient, db_session, 
     again = await api.http.post(url, headers=api.headers("CEO", idem=True, user_id=uid),
                                 json={"version": p["version"] + 1})  # fmt: skip
     assert again.status_code == 409  # no longer VALIDATING
-    dir_o = await api.call("POST", f"/idp/documents/{doc_id}/review/approve", "HR_MANAGER", json={})
+    dir_o = await approve_http(api, db_session, "HR_MANAGER", doc_id)
     assert dir_o.status_code == 200, dir_o.text
     assert dir_o.json()["data"]["document"]["status"] == "COMMITTED"
     hr = HrService(db_session)

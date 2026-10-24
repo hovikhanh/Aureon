@@ -36,6 +36,7 @@ from app.modules.idp.services.capture_common import (
     required_errors,
     row_error,
 )
+from app.modules.idp.services.critical import is_critical
 from app.modules.idp.services.scope import ensure_doc_type_scope, sees_all_departments
 from app.modules.idp.services.validator import Validator
 
@@ -71,7 +72,7 @@ class ManualService:
             FormFieldOut(
                 name=f["name"], label_key=f.get("label_key") or f"idp.field.{f['name']}",
                 value_type=f.get("value_type", "text"), required=bool(f.get("required")),
-                is_critical=bool(f.get("is_critical")),
+                is_critical=is_critical(f),
                 sensitivity_level=int(f.get("sensitivity_level", 2)), enum=f.get("enum"),
                 master_ref=f.get("master_ref"),
                 repeatable_group="rows" if f.get("group") == "row" else None,
@@ -195,7 +196,7 @@ class ManualService:
                     extraction_job_id=job.id, document_page_id=None, field_name=name,
                     row_index=idx, value_type=spec.get("value_type", "text"), value=value,
                     raw_text=None if level >= 4 else str(value), confidence=1,
-                    confidence_band="HIGH", is_critical=bool(spec.get("is_critical")),
+                    confidence_band="HIGH", is_critical=is_critical(spec),
                     sensitivity_level=level,
                     source_location={"kind": "manual", "row_index": idx},
                     validation=[], source="MANUAL",

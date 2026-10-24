@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from app.modules.idp.services.critical import is_critical
+
 THRESHOLDS = {"classification_confidence_min": 0.95, "required_field_min": 0.90}
 
 
@@ -17,6 +19,7 @@ def f(
         "group": "row", "target": {"action": action, "param": param or name},
         "header_aliases": list(aliases),
     }  # fmt: skip
+    out["is_critical"] = is_critical(out)  # R-DEC-69: money/tax/level 4 always critical
     if master_ref:
         out["master_ref"] = master_ref
     if enum:

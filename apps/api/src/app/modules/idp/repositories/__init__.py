@@ -13,6 +13,7 @@ from sqlalchemy import ColumnElement, func, select
 from app.core.base_repository import BaseRepository
 from app.core.tenant import require_tenant
 from app.modules.idp.models import (
+    CaptureIncident,
     DocumentAction,
     ExtractedField,
     ImportBatch,
@@ -152,3 +153,18 @@ class ImportRepository(BaseRepository[ImportBatch]):
             ImportRow.import_batch_id == batch_id, ImportRow.tenant_id == require_tenant()
         ))  # fmt: skip
         self.db.add_all(rows)
+
+
+class IncidentRepository(BaseRepository[CaptureIncident]):
+    """`idp.capture_incidents` — G4 wrong critical fields after commit (R-DEC-69)."""
+
+    model = CaptureIncident
+
+    async def page_where(
+        self, where: Sequence[ColumnElement[bool]], *, limit: int, offset: int, desc: bool
+    ) -> tuple[list[CaptureIncident], int]:
+        base = self._live().where(*where)
+        total = await self.db.execute(select(func.count()).select_from(base.subquery()))
+        key = CaptureIncident.reported_at.desc() if desc else CaptureIncident.reported_at.asc()
+        rows = await self.db.execute(base.order_by(key).limit(limit).offset(offset))
+        return list(rows.scalars()), int(total.scalar_one())

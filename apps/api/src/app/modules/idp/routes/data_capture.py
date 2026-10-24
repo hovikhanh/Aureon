@@ -54,6 +54,7 @@ from app.modules.idp.services.commit_service import CommitService
 from app.modules.idp.services.import_parse import XLSX
 from app.modules.idp.services.import_service import ImportService
 from app.modules.idp.services.inbox_service import InboxFilters, InboxService
+from app.modules.idp.services.incident_service import IncidentService
 from app.modules.idp.services.manual_service import ManualService
 from app.modules.idp.services.scope import ensure_doc_type_scope
 from app.modules.idp.services.upload_service import UploadFile as SvcUploadFile
@@ -357,16 +358,23 @@ async def patch_rule(rule_id: uuid.UUID, body: ValidationRulePatch, user: Admin,
     "/incidents", response_model=IncidentOut, status_code=201,
     summary="EP-DC-36 Report capture incident",
 )  # fmt: skip
-async def create_incident(body: IncidentCreate, user: Approver, idem: Idem) -> Any:
-    not_implemented("EP-DC-36", "T-640")
+async def create_incident(body: IncidentCreate, db: Db, user: Approver, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return IncidentOut.model_validate(hit)
+    out = await IncidentService(db).report(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get(
     "/incidents", response_model=list[IncidentOut], summary="EP-DC-37 List capture incidents"
 )
 async def list_incidents(
-    user: Approver,
+    db: Db, user: Approver,
     page: Annotated[PageParams, Depends(page_params("reported_at"))],
     period: str | None = None, undetected_only: bool = False,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-DC-37", "T-640")
+    items, total = await IncidentService(db).list(page, period=period,
+                                                  undetected_only=undetected_only)  # fmt: skip
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)

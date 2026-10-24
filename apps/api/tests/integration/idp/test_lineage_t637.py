@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.modules.platform.models import DataLineage
 from tests.conftest import ApiClient
+from tests.integration.idp.critical_helpers import approve_http
 from tests.integration.idp.test_import_c5_t635 import _upload, _xlsx
 
 pytestmark = pytest.mark.integration
@@ -19,21 +20,21 @@ ROWS = [  # data starts on Excel row 4 (title, blank, header) → row 7 = 4th ro
 ]  # fmt: skip
 
 
-async def _committed(api: ApiClient) -> tuple[uuid.UUID, dict[str, Any]]:
+async def _committed(api: ApiClient, db) -> tuple[uuid.UUID, dict[str, Any]]:
     uid = uuid.uuid4()
     p = (await _upload(api, "CEO", _xlsx(ROWS, tag=uuid.uuid4().hex), user_id=uid)).json()["data"]
     sub = await api.http.post(f"/api/v1/data-capture/imports/{p['batch_id']}/submit",
                               headers=api.headers("CEO", idem=True, user_id=uid),
                               json={"version": p["version"]})  # fmt: skip
     doc_id = sub.json()["data"]["document"]["id"]
-    ok = await api.call("POST", f"/idp/documents/{doc_id}/review/approve", "HR_MANAGER", json={})
+    ok = await approve_http(api, db, "HR_MANAGER", doc_id)
     assert ok.status_code == 200, ok.text
     acts = ok.json()["data"]["actions"]
     return uuid.UUID(doc_id), {a["table"]: a["ids"] for a in acts}
 
 
 async def test_commit_writes_one_link_per_column(api: ApiClient, db_session, idp_store) -> None:
-    doc_id, refs = await _committed(api)
+    doc_id, refs = await _committed(api, db_session)
     emp_id = uuid.UUID(refs["hr.employees"][3])  # 4th data row
     links = (await db_session.execute(select(DataLineage).where(
         DataLineage.target_id == emp_id))).scalars().all()  # fmt: skip
@@ -64,7 +65,7 @@ async def test_commit_writes_one_link_per_column(api: ApiClient, db_session, idp
 async def test_scope_both_sides_and_masking(api: ApiClient, db_session, idp_store) -> None:
     from app.modules.hr.services.hr_service import HrService
 
-    _doc_id, refs = await _committed(api)
+    _doc_id, refs = await _committed(api, db_session)
     emp_id = uuid.UUID(refs["hr.employees"][0])
     emp = await HrService(db_session).employees.get(emp_id)
     url = f"/lineage/hr.employees/{emp_id}"
@@ -105,7 +106,7 @@ async def test_level4_raw_text_masked(api: ApiClient, db_session, idp_store) -> 
     from app.modules.hr.services.hr_service import HrService
     from app.modules.idp.models import ExtractedField, SourceDocument
 
-    doc_id, refs = await _committed(api)
+    doc_id, refs = await _committed(api, db_session)
     emp_id = uuid.UUID(refs["hr.employees"][0])
     emp = await HrService(db_session).employees.get(emp_id)
     await db_session.execute(update(SourceDocument).where(SourceDocument.id == doc_id)

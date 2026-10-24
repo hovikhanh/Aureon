@@ -82,7 +82,7 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
     detail = d.json()["data"]
     assert len(detail["fields"]) == 8
     critical = [f for f in detail["fields"] if f["is_critical"]]
-    assert len(critical) == 3
+    assert len(critical) == 4  # money ×3 + seller_tax_code (R-DEC-69)
 
     # open the review (soft lock) before editing
     o = await api.http.request(
@@ -104,7 +104,8 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
                     "action": "correct",
                     "value": "Cong ty ABC (da sua)",
                     "reason": "OCR mismatch",
-                }
+                },
+                *({"field_id": f["id"], "action": "confirm"} for f in critical),
             ]
         },
         headers=rev_headers,

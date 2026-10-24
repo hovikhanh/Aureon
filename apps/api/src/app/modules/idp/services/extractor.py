@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.model_gateway import ChatRequest, ChatResponse, Message
+from app.modules.idp.services.critical import is_critical
 
 # DEC-133 confidence bands.
 HIGH, MEDIUM, LOW = "HIGH", "MEDIUM", "LOW"
@@ -140,7 +141,7 @@ class Extractor:
                     raw_text=raw_text,
                     confidence=round(conf, 4),
                     confidence_band=confidence_band(conf),
-                    is_critical=bool(spec.get("is_critical", False)),
+                    is_critical=is_critical(spec),
                     sensitivity_level=int(spec.get("sensitivity_level", 2)),
                     source_location={"kind": "page", "page": 1},
                 )
