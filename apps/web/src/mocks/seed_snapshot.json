@@ -3666,6 +3666,8 @@
    "hr:admin",
    "hr:read",
    "idp:admin",
+   "idp:read",
+   "idp:write",
    "platform:admin",
    "platform:read"
   ],
@@ -3892,7 +3894,9 @@
    "pillars": [],
    "role_ref": "ROLE-ADM",
    "scope_rules": {
-    "hr:read": "s"
+    "hr:read": "s",
+    "idp:read": "s",
+    "idp:write": "s"
    }
   },
   {

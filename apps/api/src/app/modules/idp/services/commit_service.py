@@ -44,7 +44,11 @@ from app.modules.idp.services.actions.executor import (
     missing_permissions,
     run_all,
 )
-from app.modules.idp.services.scope import document_visible
+from app.modules.idp.services.scope import (
+    document_visible,
+    ensure_doc_type_scope,
+    type_in_scope,
+)
 
 UNDO_DAYS = 7
 EVT_COMMITTED = "idp.document_committed"
@@ -123,6 +127,7 @@ class CommitService:
         """EP-DC-23 — commit an `APPROVED` document (step 2, caller holds the target perms)."""
         doc = await self._guarded(user, document_id, ("APPROVED",), expected_version)
         loaded = await self._load(doc)
+        ensure_doc_type_scope(user, loaded.type_code)  # R-DEC-76
         missing = missing_permissions(user, loaded.steps)
         if missing:
             raise PermissionDeniedError("missing target permission", details={"missing": missing})
@@ -199,7 +204,7 @@ class CommitService:
         expected_version: int | None,
     ) -> SourceDocument:  # fmt: skip
         doc = await self._doc(document_id)
-        if not document_visible(user, doc):
+        if not document_visible(user, doc) or not await type_in_scope(self.db, user, doc):
             raise NotFoundError("document not found")
         if doc.status not in states:
             raise ConflictStateError(f"cannot commit a {doc.status} document",

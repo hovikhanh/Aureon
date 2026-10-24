@@ -35,6 +35,7 @@ from app.core.errors import (
     ReviewLockedError,
     ValidationError,
 )
+from app.core.field_policy import STRUCTURE_ONLY_ROLES
 from app.core.pagination import PageParams
 from app.modules.idp.models import (
     DocumentPage,
@@ -59,7 +60,12 @@ from app.modules.idp.schemas import (
     ReviewOpenOut,
     ReviewQueueItemOut,
 )
-from app.modules.idp.services.scope import document_visible, sees_all_departments
+from app.modules.idp.services.scope import (
+    document_visible,
+    sees_all_departments,
+    structure_type_ids,
+    type_in_scope,
+)
 from app.modules.idp.services.validator import Validator
 
 SOFT_LOCK_MINUTES = 15
@@ -102,6 +108,8 @@ class ReviewService:
         if filters.document_type:
             dt_id = await self._doc_type_id(filters.document_type)
             where.append(SourceDocument.document_type_id == dt_id)
+        if user.role in STRUCTURE_ONLY_ROLES:  # R-DEC-76 scope `s`: only #4 HR_ROSTER
+            where.append(SourceDocument.document_type_id.in_(await structure_type_ids(self.db)))
         if not sees_all_departments(user):
             where.append(
                 (SourceDocument.department_id == user.department_id)
@@ -554,7 +562,11 @@ class ReviewService:
 
     async def _visible_doc(self, user: Principal, document_id: uuid.UUID) -> SourceDocument:
         doc = await SourceDocumentRepository(self.db).by_id(document_id)
-        if doc is None or not self._visible(user, doc):
+        if (
+            doc is None
+            or not self._visible(user, doc)
+            or not await type_in_scope(self.db, user, doc)
+        ):
             raise NotFoundError("document not found")
         return doc
 

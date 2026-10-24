@@ -118,13 +118,20 @@ async def test_queue_department_scoping(db_session, idp_store) -> None:
         _reviewer(dept=dept_b), PageParams(), QueueFilters()
     )
     assert total_b == 0
-    # admin / no-department sees it
+    # a no-department reviewer sees it
+    no_dept = Principal(
+        user_id=uuid.uuid4(), role="REV",
+        permissions=frozenset(ROLE_PERMISSIONS["REV"]), department_id=None,
+    )  # fmt: skip
+    _, total_nd = await ReviewService(db_session).queue(no_dept, PageParams(), QueueFilters())
+    assert total_nd == 1
+    # ADM (R-DEC-76 scope `s`) sees only #4 HR_ROSTER documents — not this invoice
     admin = Principal(
         user_id=uuid.uuid4(), role="ADM",
         permissions=frozenset(ROLE_PERMISSIONS["ADM"]), department_id=None,
     )  # fmt: skip
     _, total_admin = await ReviewService(db_session).queue(admin, PageParams(), QueueFilters())
-    assert total_admin == 1
+    assert total_admin == 0
     # CEO seeded into another department still sees the whole company (02 §2)
     ceo = Principal(
         user_id=uuid.uuid4(), role="CEO",

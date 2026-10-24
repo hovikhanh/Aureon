@@ -48,6 +48,7 @@ from app.modules.idp.schemas.capture import (
 )
 from app.modules.idp.services.admin_service import CaptureAdminService
 from app.modules.idp.services.commit_service import CommitService
+from app.modules.idp.services.scope import ensure_doc_type_scope
 
 router = EnvelopeRouter(prefix="/data-capture", tags=["data-capture"])
 
@@ -73,6 +74,7 @@ async def inbox(
 # ---------- EP-DC-15/16 C1 manual ----------
 @router.get("/forms/{document_type}", response_model=FormOut, summary="EP-DC-15 C1 form schema")
 async def get_form(document_type: str, user: Writer) -> Any:
+    ensure_doc_type_scope(user, document_type)  # R-DEC-76
     not_implemented("EP-DC-15", "T-635")
 
 
@@ -81,6 +83,7 @@ async def get_form(document_type: str, user: Writer) -> Any:
     summary="EP-DC-16 C1 manual submit",
 )  # fmt: skip
 async def manual_submit(body: ManualSubmitIn, user: Writer, idem: Idem) -> Any:
+    ensure_doc_type_scope(user, body.document_type)  # R-DEC-76
     not_implemented("EP-DC-16", "T-635")
 
 
@@ -94,6 +97,7 @@ async def import_upload(
     file: Annotated[UploadFile, File(description="one .xlsx / .csv file")],
     document_type: Annotated[str | None, Form()] = None,
 ) -> Any:  # fmt: skip
+    ensure_doc_type_scope(user, document_type)  # R-DEC-76
     not_implemented("EP-DC-17", "T-635")
 
 
@@ -109,6 +113,7 @@ async def import_get(batch_id: uuid.UUID, user: Reader) -> Any:
     summary="EP-DC-19 C5 update column mapping",
 )  # fmt: skip
 async def import_mapping(batch_id: uuid.UUID, body: ImportMappingIn, user: Writer) -> Any:
+    ensure_doc_type_scope(user, body.document_type)  # R-DEC-76
     not_implemented("EP-DC-19", "T-635")
 
 
