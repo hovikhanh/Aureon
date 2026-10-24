@@ -15,7 +15,7 @@ CONSUMER_MODULES = (
 )
 # `modules/<m>/services/{metrics,metric_provider}.py` hold `@metric_provider`s (DEC-205).
 _MODULES_PKG = "app.modules"
-PROVIDER_LEAVES = ("metrics", "metric_provider")
+PROVIDER_LEAVES = ("metrics", "metric_provider", "capture_metrics")  # + METRIC-DQ-02 (M1.5)
 
 
 def load_consumers() -> None:

@@ -3137,6 +3137,14 @@
    "value": 89.2
   },
   {
+   "code": "METRIC-DQ-02",
+   "period_key": "2026-10",
+   "pillar": null,
+   "status": "critical",
+   "unit": "PCT",
+   "value": 0.0
+  },
+  {
    "code": "METRIC-FIN-01",
    "period_key": "2026-09",
    "pillar": "F",

@@ -14,7 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit
 from app.core.errors import ConflictStateError, NotFoundError
 from app.modules.platform.models import Alert, Metric, MetricValue
-from app.modules.platform.repositories import AlertRepository, MetricValueRepository
+from app.modules.platform.repositories import (
+    AlertRepository,
+    DqDomainScoreRepository,
+    MetricValueRepository,
+)
 
 STATUS_FROM_THRESHOLD = {"GREEN": "ok", "YELLOW": "warning", "RED": "critical"}
 UNIT_OUT = {"PERCENT": "PCT", "VND_PER_PERSON": "VND", "INDEX": "SCORE"}
@@ -147,6 +151,9 @@ class MetricQueryService:
         return [(k, _f(v)) for k, v in reversed(rows)]
 
     async def breakdown(self, code: str, period_key: str) -> list[tuple[str, str, float | None]]:
+        if code == "METRIC-DQ-01":  # R-DEC-68: per-domain scores
+            rows = await DqDomainScoreRepository(self.db).for_period(period_key)
+            return [("domain", r.domain, _f(r.score)) for r in rows]
         stmt = self.values.joined(
             MetricValue.scope_type, MetricValue.scope_id, MetricValue.value
         ).where(

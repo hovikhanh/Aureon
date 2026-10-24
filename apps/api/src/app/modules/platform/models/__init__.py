@@ -277,6 +277,30 @@ class DataLineage(LogModel, TenantMixin):
     row_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class DqDomainScore(LogModel, TenantMixin):
+    """ENT-DQDomainScore (05 §2.7, R-DEC-68) — METRIC-DQ-01 per-domain breakdown, one row per
+    (tenant, domain, month); upserted by the platform metric provider."""
+
+    __tablename__ = "dq_domain_scores"
+    __table_args__ = (
+        *[CheckConstraint(f"{c} BETWEEN 0 AND 100", name=f"{c}_range")
+          for c in ("completeness", "accuracy", "freshness", "score")],
+        CheckConstraint("rows >= 0", name="rows_nonneg"),
+        Index("uq_dq_domain_scores_tenant_domain_period", "tenant_id", "domain", "period_key",
+              unique=True),
+        {"schema": S},
+    )  # fmt: skip
+
+    domain: Mapped[str] = txt()
+    period_key: Mapped[str] = txt()
+    completeness: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    accuracy: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    freshness: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    score: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AuditLog(LogModel):
     __tablename__ = "audit_logs"
     __table_args__ = (

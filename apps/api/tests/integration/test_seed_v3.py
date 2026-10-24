@@ -143,7 +143,7 @@ async def test_tc_m11_07_uc_datasets_and_health_targets(seeded: AsyncSession) ->
     assert await _count(seeded, Project) == 10 and depts >= 5
 
     m = await _metrics(seeded)
-    assert all(v is not None for v, _ in m.values()) and len(m) == 33
+    assert all(v is not None for v, _ in m.values()) and len(m) == 34  # + METRIC-DQ-02 (M1.5)
     # 08 §5 — main alert runway 🔴, overload 🟠, coverage 🟠, revenue vs plan 🟠, budget 🟠
     # (FIN-06 ~8 %, human decision 2026-10-23: amber under the catalog thresholds warn 0 / crit 10).
     assert m["METRIC-FIN-03"] == (5.3, "RED")

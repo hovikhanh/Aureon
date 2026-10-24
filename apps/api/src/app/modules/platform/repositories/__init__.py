@@ -17,6 +17,7 @@ from app.modules.platform.models import (
     ApprovalRule,
     AuditLog,
     DataLineage,
+    DqDomainScore,
     Metric,
     MetricValue,
     Notification,
@@ -370,3 +371,31 @@ class LineageRepository(BaseRepository[DataLineage]):
         )
         res = await self.db.execute(stmt.values(revoked_at=at))
         return int(getattr(res, "rowcount", 0) or 0)
+
+
+class DqDomainScoreRepository:
+    """`platform.dq_domain_scores` — one row per (tenant, domain, month), upserted."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def upsert(self, domain: str, period_key: str, **values: Any) -> None:
+        from sqlalchemy.dialects.postgresql import insert
+
+        row = {"tenant_id": require_tenant(), "domain": domain, "period_key": period_key,
+               **values}  # fmt: skip
+        stmt = insert(DqDomainScore).values(id=uuid.uuid4(), **row)
+        await self.db.execute(stmt.on_conflict_do_update(
+            index_elements=["tenant_id", "domain", "period_key"],
+            set_={**values, "updated_at": func.now()},
+        ))  # fmt: skip
+
+    async def for_period(self, period_key: str) -> Sequence[DqDomainScore]:
+        stmt = (
+            select(DqDomainScore)
+            .where(
+                DqDomainScore.tenant_id == require_tenant(), DqDomainScore.period_key == period_key
+            )
+            .order_by(DqDomainScore.domain)
+        )
+        return (await self.db.execute(stmt)).scalars().all()

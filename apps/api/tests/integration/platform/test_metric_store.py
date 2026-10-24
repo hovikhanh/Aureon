@@ -57,9 +57,9 @@ async def _raised_events(db: AsyncSession) -> int:
 
 
 def test_catalog_has_32_metrics_and_threshold_rules() -> None:
-    # 32 base METRIC-* + METRIC-STR-01 (G2, M1.4 R-DEC-54)
-    assert len(CATALOG) == 33 and len({m.code for m in CATALOG}) == 33
-    assert sum(m.pillar is None for m in CATALOG) == 1  # DQ-01
+    # 32 base METRIC-* + METRIC-STR-01 (G2, M1.4 R-DEC-54) + METRIC-DQ-02 (G3, M1.5 R-DEC-68)
+    assert len(CATALOG) == 34 and len({m.code for m in CATALOG}) == 34
+    assert sum(m.pillar is None for m in CATALOG) == 2  # DQ-01, DQ-02
     assert evaluate("LOWER_IS_BAD", 8, 12, 6, False) == "warning"
     assert evaluate("LOWER_IS_BAD", 5, 12, 6, False) == "critical"
     assert evaluate("HIGHER_IS_BAD", 15, 15, 20, True) == "warning"
@@ -74,7 +74,7 @@ async def test_seed_catalog_idempotent_keeps_thresholds(db_session: AsyncSession
     ).scalar_one()
     m.warning_threshold = 9  # ADMIN-tuned threshold survives a re-seed (NFR-19)
     assert await seed_catalog(db_session) == 0
-    assert int((await db_session.execute(select(func.count(Metric.id)))).scalar_one()) == 33
+    assert int((await db_session.execute(select(func.count(Metric.id)))).scalar_one()) == 34
     await db_session.refresh(m)
     assert float(m.warning_threshold) == 9
 

@@ -10,12 +10,13 @@ from datetime import date, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.capture_share import CaptureSource, register_capture_source
 from app.core.clock import month_key, shift_month
 from app.core.config import get_config
 from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, metric_provider
 from app.modules.finance.services.revenue_query import revenue_total
-from app.modules.hr.models import Employee, HiringPlan
+from app.modules.hr.models import Department, Employee, HiringPlan, Position, Team
 from app.modules.hr.repositories import EmployeeRepository, HiringPlanRepository
 from app.modules.hr.services.metrics import (
     Tenure,
@@ -72,3 +73,6 @@ register_dq(
               lambda m: m.termination_date < m.hire_date)),
     DqSource(HiringPlan, ("requirements",)),
 )  # fmt: skip
+
+# METRIC-DQ-02 (R-DEC-68): lineage-whitelist tables of this module
+register_capture_source("hr", *(CaptureSource(m) for m in (Department, Team, Position, Employee)))
