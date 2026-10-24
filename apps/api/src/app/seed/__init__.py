@@ -20,6 +20,12 @@ from app.core.db import get_engine, get_sessionmaker
 from app.core.tenant import tenant_scope
 from app.modules.auth.models import User
 from app.modules.hr.services.hiring_service import detect_delayed_hiring_plans
+from app.modules.idp.services.catalog import SEED_TYPES
+from app.modules.idp.services.schema_registry import (
+    ensure_invoice_schema,
+    ensure_other_schema,
+    ensure_seed_type,
+)
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
 from app.seed.auth_seed import SeedReport, seed_auth
 from app.seed.execution_seed import seed_execution
@@ -39,10 +45,23 @@ async def _user(session: AsyncSession, email: str) -> uuid.UUID | None:
 __all__ = ["SeedReport", "main", "run"]
 
 
+async def _seed_capture_types(session: AsyncSession) -> int:
+    """Idempotent: existing types (Admin-managed, DB = source of truth) are left untouched."""
+    await ensure_invoice_schema(session)
+    await ensure_other_schema(session)
+    for t in SEED_TYPES:
+        await ensure_seed_type(session, t["code"])
+    await session.flush()
+    return 2 + len(SEED_TYPES)
+
+
 async def run() -> SeedReport:
     async with get_sessionmaker()() as session:
         report = await seed_auth(session)
         await session.flush()
+        # Capture catalog (05 §2.7): INVOICE/OTHER + #2/#3/#4 — migration 0019 seeds them once, a
+        # TRUNCATE reset (demo_reset.sh) would otherwise leave C5/C1 without HR_ROSTER & co.
+        logging.info("seed idp.document_types: %d", await _seed_capture_types(session))
         cfo = await _user(session, "cfo@abc.demo")
         hr, sales = await _user(session, "hr@abc.demo"), await _user(session, "sales@abc.demo")
         if cfo is not None:
