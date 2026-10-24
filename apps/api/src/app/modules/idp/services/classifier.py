@@ -136,6 +136,7 @@ class Classifier:
         user = f"Danh sách loại: {', '.join(codes)}\n<<<DATA\n{text[:_MAX_LLM_CHARS]}\nDATA>>>"
         req = ChatRequest(
             task="classify", caller_module="idp", source_document_id=document_id,
+            agent_profile_code="data_capture",  # M1.6 R-DEC-71 (AGT-DATA_CAPTURE)
             messages=(Message("system", system), Message("user", user)),
             classification=classification,  # type: ignore[arg-type]
             json_schema={"type": "object", "required": ["code", "confidence"], "properties": {

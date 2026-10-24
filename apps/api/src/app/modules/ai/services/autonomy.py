@@ -52,6 +52,12 @@ AUTONOMY_DEFAULTS: dict[str, tuple[Level, Level]] = {
     "ACT-upsert_kpi": ("L2", "L2"),
     "ACT-upsert_metric_value": ("L2", "L2"),
     "ACT-upsert_client": ("L2", "L2"),
+    # M1.6 (T-645, 10 §7.2.5) — ceiling L2 still applies in `resolve_level`
+    "ACT-update_task": ("L2", "L3"),
+    "ACT-assign_task": ("L2", "L3"),
+    "ACT-record_kr_checkin": ("L2", "L3"),
+    "ACT-create_department": ("L2", "L2"),
+    "ACT-create_team": ("L2", "L2"),
 }
 DEFAULT_LEVEL: tuple[Level, Level] = ("L2", "L2")  # unknown write action → safe L2
 

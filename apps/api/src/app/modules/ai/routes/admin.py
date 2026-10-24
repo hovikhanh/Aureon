@@ -18,7 +18,6 @@ from app.core.deps import DbSession, Principal, require_permission
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.ai.schemas.admin import (
     AgentPatchIn,
     AIAgentOut,
@@ -30,6 +29,7 @@ from app.modules.ai.schemas.admin import (
     ToolCallLogOut,
 )
 from app.modules.ai.services.agent_service import AgentService
+from app.modules.ai.services.call_log_service import CallLogService
 from app.modules.ai.services.policy_service import PolicyService
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai-admin"])
@@ -109,7 +109,7 @@ async def delete_policy(
 # ---------- EP-AI-22/23 logs ----------
 @router.get("/tool-calls", response_model=list[ToolCallLogOut], summary="EP-AI-22 Tool call log")
 async def list_tool_calls(
-    admin: AiAdmin,
+    admin: AiAdmin, db: DbSession,
     page: Annotated[PageParams, Depends(page_params())],
     date_from: From = None, date_to: To = None,
     tool_name: str | None = None,
@@ -119,12 +119,16 @@ async def list_tool_calls(
     user_id: uuid.UUID | None = None, request_id: str | None = None,
     ai_action_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-AI-22", "T-647")
+    return await CallLogService(db).tool_calls(
+        page, start=date_from, end=date_to, request_id=request_id, tool_name=tool_name,
+        tool_kind=tool_kind, agent_profile_code=agent_profile_code, status=status,
+        user_id=user_id, ai_action_id=ai_action_id,
+    )  # fmt: skip
 
 
 @router.get("/model-calls", response_model=list[ModelCallLogOut], summary="EP-AI-23 Model call log")
 async def list_model_calls(
-    admin: AiAdmin,
+    admin: AiAdmin, db: DbSession,
     page: Annotated[
         PageParams, Depends(page_params("estimated_cost_micro_usd", "latency_ms"))
     ],
@@ -134,4 +138,8 @@ async def list_model_calls(
     status: Literal["ok", "error", "forbidden", "timeout"] | None = None,
     request_id: str | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-AI-23", "T-647")
+    return await CallLogService(db).model_calls(
+        page, start=date_from, end=date_to, request_id=request_id, provider=provider,
+        model=model, task_kind=task_kind, caller_module=caller_module,
+        agent_profile_code=agent_profile_code, status=status,
+    )  # fmt: skip

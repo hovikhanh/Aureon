@@ -9,7 +9,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
-from app.modules.ai.models import AgentProfile, AIAction, AutonomyPolicy, Insight, ModelCallLog
+from app.core.tenant import current_tenant, require_tenant
+from app.modules.ai.models import (
+    AgentProfile,
+    AIAction,
+    AutonomyPolicy,
+    Insight,
+    ModelCallLog,
+    ToolCallLog,
+)
 
 
 class AIActionRepository(BaseRepository[AIAction]):
@@ -85,6 +93,9 @@ class ModelCallLogRepository:
         stmt = select(func.coalesce(func.sum(ModelCallLog.estimated_cost_micro_usd), 0)).where(
             ModelCallLog.created_at >= since
         )
+        tenant = current_tenant()
+        if tenant is not None:  # R-DEC-74; beat jobs without a tenant context see all rows
+            stmt = stmt.where(ModelCallLog.tenant_id == tenant)
         return int((await self.db.execute(stmt)).scalar_one())
 
 
@@ -160,5 +171,34 @@ class AutonomyPolicyRepository(BaseRepository[AutonomyPolicy]):
         total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar()
         col = getattr(AutonomyPolicy, sort_by)
         stmt = stmt.order_by(col.asc() if order == "asc" else col.desc(), AutonomyPolicy.id)
+        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
+        return rows, int(total or 0)
+
+
+class CallLogQueryRepository:
+    """EP-AI-22/23 reads over the append-only logs, always `WHERE tenant_id = current` (R-DEC-74).
+
+    Logs have their own `tenant_id` column (no `TenantMixin`, like the outbox) — the filter is
+    explicit here instead of the session guard.
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def page(
+        self, model: type[ToolCallLog] | type[ModelCallLog], *, filters: dict[str, Any],
+        start: datetime, end: datetime, sort_by: str, order: str, limit: int, offset: int,
+    ) -> tuple[Sequence[Any], int]:  # fmt: skip
+        stmt = select(model).where(
+            model.tenant_id == require_tenant(),
+            model.created_at >= start,
+            model.created_at <= end,
+        )
+        for name, val in filters.items():
+            if val is not None:
+                stmt = stmt.where(getattr(model, name) == val)
+        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar()
+        col = getattr(model, sort_by)
+        stmt = stmt.order_by(col.asc() if order == "asc" else col.desc(), model.id)
         rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
         return rows, int(total or 0)

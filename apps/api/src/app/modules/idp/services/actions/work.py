@@ -1,5 +1,9 @@
 """ACT-create_task → `execution` `TaskService.create` (10 §7.2.4; doc #1/#2 + AI L2/L3).
 
+M1.6 (T-645, 10 §7.2.5): `ACT-update_task` / `ACT-assign_task` → `TaskService.update` (AI only).
+`run` keeps the pre-write snapshot of the changed fields; `undo` writes them back at the version
+the action left (a later human edit → `409`, never silently overwritten).
+
 Two callers share the ACT: a document (`assignee_code`, `kr_ref`/`kpi_code`, provenance
 `task_source="document"`, `source_ref={kind: document, id}`) and an AI action (`TaskCreate`-shaped
 input; provenance forced to `task_source="ai"`, `source_ref={kind: ai_action, id}` — the AI
@@ -17,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
 from app.core.errors import NotFoundError
-from app.modules.execution.schemas.tasks import TaskCreate
+from app.modules.execution.schemas.tasks import TaskCreate, TaskUpdate
 from app.modules.execution.services.kpi_service import KpiService
 from app.modules.execution.services.task_service import TaskService
 from app.modules.hr.services.hr_service import HrService
@@ -106,4 +110,87 @@ register(ActionDef(
     name="ACT-create_task", module="execution", required_permission=("execution:write",),
     reversible=True, is_finance=False, params_model=TaskParams, validate=_validate, run=_run,
     undo=_undo,
+))  # fmt: skip
+
+
+# ---------------------------------------------------------------- M1.6 update / assign (T-645)
+class UpdateTaskParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: uuid.UUID
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    description: str | None = Field(default=None, max_length=10000)
+    due_date: date | None = None
+    priority: str | None = None
+    status: str | None = None
+
+
+class AssignTaskParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: uuid.UUID
+    assignee_code: str = Field(min_length=1, max_length=50)
+
+
+async def _no_errors(
+    db: AsyncSession, user: Principal, p: Any, ctx: ActionContext
+) -> list[RowError]:
+    return []
+
+
+async def _validate_assign(
+    db: AsyncSession, user: Principal, p: Any, ctx: ActionContext
+) -> list[RowError]:
+    if await HrService(db).employee_id_by_code(p.assignee_code):
+        return []
+    return [{"field": "assignee_code", "code": "not_found",
+             "message": f"employee {p.assignee_code} not found"}]  # fmt: skip
+
+
+async def _patch(
+    db: AsyncSession, user: Principal, task_id: uuid.UUID, changes: dict[str, Any]
+) -> ActionOutcome:
+    svc = TaskService(db)
+    current = await svc.out(await svc.get(user, task_id, "write"))
+    snapshot = {k: getattr(current, k) for k in changes}
+    body = TaskUpdate.model_validate({**changes, "version": current.version})
+    out = await svc.update(user, task_id, body, current.version)
+    return ActionOutcome([ref("execution", "tasks", out.id)],
+                         snapshot=TaskUpdate.model_validate(snapshot).model_dump(
+                             mode="json", exclude_unset=True, exclude={"version"}),
+                         target_version=out.version)  # fmt: skip
+
+
+async def _run_update(
+    db: AsyncSession, user: Principal, p: Any, ctx: ActionContext
+) -> ActionOutcome:
+    changes = p.model_dump(exclude_none=True, exclude={"task_id"})
+    return await _patch(db, user, p.task_id, changes)
+
+
+async def _run_assign(
+    db: AsyncSession, user: Principal, p: Any, ctx: ActionContext
+) -> ActionOutcome:
+    assignee = await HrService(db).employee_id_by_code(p.assignee_code)
+    if assignee is None:
+        raise NotFoundError("assignee not found", details={"field": "assignee_code"})
+    return await _patch(db, user, p.task_id, {"assignee_id": assignee})
+
+
+async def _undo_snapshot(db: AsyncSession, user: Principal, outcome: ActionOutcome) -> None:
+    task_id = uuid.UUID(outcome.result_refs[0]["id"])
+    version = int(outcome.target_version or 0)
+    body = TaskUpdate.model_validate({**(outcome.snapshot or {}), "version": version})
+    await TaskService(db).update(user, task_id, body, version)
+
+
+register(ActionDef(
+    name="ACT-update_task", module="execution", required_permission=("execution:write",),
+    reversible=True, is_finance=False, params_model=UpdateTaskParams, validate=_no_errors,
+    run=_run_update, undo=_undo_snapshot,
+))  # fmt: skip
+register(ActionDef(
+    name="ACT-assign_task", module="execution", required_permission=("execution:write",),
+    reversible=True, is_finance=False, params_model=AssignTaskParams, validate=_validate_assign,
+    run=_run_assign, undo=_undo_snapshot,
 ))  # fmt: skip

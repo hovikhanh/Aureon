@@ -117,6 +117,7 @@ class Extractor:
             classification=classification,  # type: ignore[arg-type]
             json_schema=json_schema,
             source_document_id=document_id,
+            agent_profile_code="data_capture",  # M1.6 R-DEC-71 (AGT-DATA_CAPTURE)
         )
 
     def _parse(self, resp: ChatResponse, schema_fields: list[dict[str, Any]]) -> ExtractionOutput:

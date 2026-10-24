@@ -48,6 +48,7 @@ class ChatRequest:
     message_id: uuid.UUID | None = None
     source_document_id: uuid.UUID | None = None
     schema_version: str = "1"
+    agent_profile_code: str | None = None  # M1.6 R-DEC-74 (`group_by=agent`, per-agent budget)
 
     def prompt_sha256(self) -> str:
         """Hash of the normalized input (fixture key + `ModelCallLog.prompt_sha256`)."""

@@ -6,6 +6,8 @@ Create Date: 2026-10-24
 
 * T-644: enum `ai.tool_kind` (READ/WRITE/APPROVAL/EXECUTION) + `tool_call_logs.tool_kind`
   NOT NULL, backfilled from the registry (`TOOL-*` → kind; unknown → `READ`).
+* T-647: `tool_call_logs` + tenant_id, request_id, user_id, ai_action_id (FK RESTRICT),
+  error_code, result_refs; `message_id` nullable (R-DEC-74).
 * T-646: `model_call_logs` + `tenant_id`, `request_id`, `agent_profile_code` (per-agent
   spend). `agent_profiles` + `agent_ref` (unique), `description_vi/en`, `tenant_id`; unique
   `code` → `(tenant_id, code)`. `autonomy_policies` + `tool_name` (backfill from `action_name`),
@@ -63,6 +65,7 @@ def upgrade() -> None:
     _upgrade_agents()
     _upgrade_policies()
     _upgrade_model_calls()
+    _upgrade_tool_calls()
 
 
 def _tenant_col() -> sa.Column[sa.UUID]:
@@ -127,7 +130,43 @@ def _downgrade_model_calls() -> None:
         op.drop_column(t, c, schema=S)
 
 
+def _upgrade_tool_calls() -> None:
+    t = "tool_call_logs"
+    op.add_column(t, _tenant_col(), schema=S)
+    op.add_column(t, sa.Column("request_id", sa.UUID(), nullable=True), schema=S)
+    op.add_column(t, sa.Column("user_id", sa.UUID(), nullable=True), schema=S)
+    op.add_column(t, sa.Column("ai_action_id", sa.UUID(), nullable=True), schema=S)
+    op.add_column(t, sa.Column("error_code", sa.Text(), nullable=True), schema=S)
+    op.add_column(t, sa.Column("result_refs", postgresql.JSONB(), nullable=False,
+                               server_default=sa.text("'[]'::jsonb")), schema=S)  # fmt: skip
+    op.alter_column(t, "message_id", nullable=True, schema=S)
+    op.create_foreign_key(op.f(f"fk_{t}_ai_action_id_ai_actions"), t, "ai_actions",
+                          ["ai_action_id"], ["id"], source_schema=S, referent_schema=S,
+                          ondelete="RESTRICT")  # fmt: skip
+    op.create_index(op.f(f"ix_{t}_tenant_created"), t,
+                    ["tenant_id", sa.text("created_at DESC")], schema=S)  # fmt: skip
+    for c in ("request_id", "user_id", "ai_action_id"):
+        op.create_index(op.f(f"ix_{t}_{c}"), t, [c], schema=S)
+    # 05 §2.8 lists `ai_actions.request_id` as existing; the v2.1 table lacked it → add here.
+    op.add_column("ai_actions", sa.Column("request_id", sa.UUID(), nullable=True), schema=S)
+    op.create_index(op.f("ix_ai_actions_request_id"), "ai_actions", ["request_id"], schema=S)
+
+
+def _downgrade_tool_calls() -> None:
+    t = "tool_call_logs"
+    op.drop_index(op.f("ix_ai_actions_request_id"), table_name="ai_actions", schema=S)
+    op.drop_column("ai_actions", "request_id", schema=S)
+    for ix in ("ai_action_id", "user_id", "request_id", "tenant_created"):
+        op.drop_index(op.f(f"ix_{t}_{ix}"), table_name=t, schema=S)
+    op.drop_constraint(op.f(f"fk_{t}_ai_action_id_ai_actions"), t, schema=S, type_="foreignkey")
+    op.execute("DELETE FROM ai.tool_call_logs WHERE message_id IS NULL")
+    op.alter_column(t, "message_id", nullable=False, schema=S)
+    for c in ("result_refs", "error_code", "ai_action_id", "user_id", "request_id", "tenant_id"):
+        op.drop_column(t, c, schema=S)
+
+
 def downgrade() -> None:
+    _downgrade_tool_calls()
     _downgrade_model_calls()
     t = "autonomy_policies"
     op.drop_constraint(op.f(f"ck_{t}_level_le_max"), t, type_="check", schema=S)

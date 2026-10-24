@@ -31,6 +31,7 @@ from app.core.model_gateway.errors import (
 from app.core.model_gateway.fixtures import FixtureStore
 from app.core.model_gateway.routing import TEMPLATE, Route, models_for, route, timeout_for
 from app.core.model_gateway.types import ChatChunk, ChatRequest, ChatResponse, Usage
+from app.core.request_context import current_request_id
 
 log = logging.getLogger("app.model_gateway")
 
@@ -60,6 +61,8 @@ class CallRecord:
     user_id: object = None
     message_id: object = None
     source_document_id: object = None
+    request_id: str | None = None  # M1.6: `X-Request-Id` (core reads the contextvar)
+    agent_profile_code: str | None = None
 
 
 class CallLogSink(Protocol):
@@ -158,7 +161,8 @@ class ModelGateway:
             prompt_sha256=req.prompt_sha256(), classification=rt.classification,
             route_reason=rt.reason, fallback_from=fallback_from, error_code=error_code,
             user_id=req.user_id, message_id=req.message_id,
-            source_document_id=req.source_document_id,
+            source_document_id=req.source_document_id, request_id=current_request_id(),
+            agent_profile_code=req.agent_profile_code,
         )  # fmt: skip
 
     async def _route(self, req: ChatRequest) -> Route:

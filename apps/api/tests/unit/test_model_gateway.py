@@ -552,3 +552,19 @@ async def test_chat_primary_timeout_falls_back_to_second_model_once() -> None:
     assert resp.model == "fast-fallback"
     assert resp.fallback_from == "omniroute:slow-primary"
     assert [r.status for r in sink.records] == ["timeout", "ok"]
+
+
+async def test_call_record_carries_request_id_and_agent_m16() -> None:
+    """T-647 (05 §2.8): `CallRecord.request_id` from `X-Request-Id`, agent from the request."""
+    from app.core import request_context
+
+    sink = NullSink()
+    token = request_context._request_id.set("6f1c1d8e-0000-4000-8000-000000000001")
+    try:
+        with pytest.raises(SecretDataBlockedError):
+            await gw(cfg(), sink).chat(req("SECRET", agent_profile_code="ceo"))
+    finally:
+        request_context._request_id.reset(token)
+    rec = sink.records[-1]
+    assert rec.request_id == "6f1c1d8e-0000-4000-8000-000000000001"
+    assert rec.agent_profile_code == "ceo"

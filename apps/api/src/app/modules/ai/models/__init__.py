@@ -169,9 +169,23 @@ class ToolCallLog(LogModel):
     """ENT-ToolCallLog — append-only."""
 
     __tablename__ = "tool_call_logs"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        Index("ix_tool_call_logs_tenant_created", "tenant_id", text("created_at DESC")),
+        {"schema": S},
+    )
 
-    message_id: Mapped[uuid.UUID] = fk(f"{S}.messages.id")
+    # M1.6 (05 §2.8, R-DEC-74): log tenant column (no TenantMixin), request/user/action links.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, server_default=text(f"'{DEFAULT_TENANT_ID}'")
+    )
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip
+    user_id: Mapped[uuid.UUID | None] = sr()  # soft ref auth.users (served person)
+    ai_action_id: Mapped[uuid.UUID | None] = fk(f"{S}.ai_actions.id", nullable=True)
+    error_code: Mapped[str | None] = txt(nullable=True)
+    result_refs: Mapped[Any] = mapped_column(JSONB, nullable=False,
+                                             server_default=text("'[]'::jsonb"))  # fmt: skip
+    message_id: Mapped[uuid.UUID | None] = fk(f"{S}.messages.id", nullable=True)
     tool_name: Mapped[str] = txt()
     tool_kind: Mapped[str] = mapped_column(TOOL_KIND, nullable=False)
     arguments: Mapped[Any] = mapped_column(JSONB, nullable=False)
@@ -284,6 +298,8 @@ class AIAction(BusinessModel):
     source_document_id: Mapped[uuid.UUID | None] = sr()
     input: Mapped[Any] = mapped_column(JSONB, nullable=False)
     result_refs: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip  # M1.6
     idempotency_key: Mapped[str] = txt(unique=True)
     executed_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     undo_deadline: Mapped[datetime | None] = mapped_column(TS, nullable=True)
