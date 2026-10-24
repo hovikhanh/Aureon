@@ -1,12 +1,13 @@
 /**
  * Mock C5 parsing (FR-DC-101, mock-only): the BFF passes file metadata, so `.xlsx` content is the
- * demo file picked by name (`DOC-07` / `kpi` / `okr` → KPI sheet, otherwise the HR roster DOC-06);
+ * demo workbook picked by name (`DOC-07` / `kpi` / `okr` → DOC-07, otherwise DOC-06; every sheet,
+ * exported from `data/` by `scripts/gen_capture_mock_data.py`);
  * `.csv` is parsed from text. Limits 5000 rows / 20 sheets / 60 columns → 413 `details.limit`.
  * Header → field mapping by `header_aliases` (the BE uses the classifier LLM; same output shape).
  */
 import data from "./capture-data.json";
 import { SCHEMA_FIELDS, type FieldDef } from "./capture-schemas";
-import { validateValues, type RowError } from "./capture-rules";
+import { createsMaster, masterErrors, validateValues, type RowError } from "./capture-rules";
 import type { MBatch } from "./capture-store";
 import { err } from "./capture-out";
 
@@ -28,7 +29,7 @@ export function loadSheets(f: UploadMeta): { name: string; rows: string[][] }[] 
     sheets = [{ name: f.name.replace(/\.csv$/i, ""), rows: parseCsv(text) }];
   } else {
     const src = /doc-07|kpi|okr/.test(lower) ? data.kpi : data.hr;
-    sheets = [{ name: src.sheet, rows: src.rows.map((r) => [...r]) }];
+    sheets = src.sheets.map((x) => ({ name: x.name, rows: x.rows.map((r) => [...r]) }));
   }
   if (sheets.length > LIMITS.sheets) throw err(413, "FILE_TOO_LARGE", "too many sheets", { limit: "sheets", max: LIMITS.sheets });
   for (const s of sheets) {
@@ -59,7 +60,7 @@ export function suggest(headers: readonly string[]): { code: string; confidence:
 export function autoMap(type: string | null, headers: readonly string[]): MBatch["mapping"] {
   return Object.fromEntries(headers.filter(Boolean).map((h) => {
     const f = rowFields(type).find((x) => x.header_aliases.some((a) => norm(a) === norm(h)));
-    return [h, { field: f?.name ?? null, confidence: f ? 0.92 : 0 }];
+    return [h, { field: f?.name ?? null, confidence: f ? 1 : 0 }];
   }));
 }
 
@@ -74,9 +75,13 @@ export function evaluate(b: MBatch): EvalRow[] {
     if (i < b.header_row || r.every((c) => String(c ?? "").trim() === "")) return;
     const raw: Record<string, unknown> = {};
     headers.forEach((h, j) => { const fld = b.mapping[h]?.field; if (fld) raw[fld] = r[j]; });
-    const v = validateValues(defs, raw);
-    out.push({ row_number: i + 1, values: v.values, errors: v.errors });
+    const v = validateValues(defs, raw, null);
+    out.push({ row_number: i + 1, values: Object.fromEntries(Object.entries(v.values).filter(([, x]) => x !== null)), errors: v.errors });
   });
+  // BE `_check_masters`: codes created by valid rows of the file count as known.
+  const inFile: Record<string, Set<string>> = {};
+  for (const fd of defs.filter(createsMaster)) inFile[fd.master_ref!] = new Set(out.filter((r) => !r.errors.length && r.values[fd.name] !== undefined).map((r) => String(r.values[fd.name])));
+  for (const r of out) r.errors.push(...masterErrors(defs, r.values, inFile));
   return out;
 }
 

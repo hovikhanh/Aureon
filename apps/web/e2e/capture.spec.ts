@@ -1,5 +1,10 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "./fixtures";
 import { login } from "./helpers";
+import { rootEnv } from "./support/seed";
 
 /**
  * T-634F..T-638F / T-643 (mock) — M1.5 Data Capture screens on the mock BFF (API_MODE=mock):
@@ -7,7 +12,7 @@ import { login } from "./helpers";
  * `/work/tasks`, UndoToast), SCR-62 C5 import (DOC-06 map → errors → submit) → SCR-18b REV
  * approve-pending → DIR khối O commits → `/admin/org` + LineageChip → undo; SCR-63 admin.
  * `@mock-only`: relies on the mock store seed (CAP-* documents, DOC-06 content by file name)
- * until the M1.5 BE lands (TC-M15-17/18 real-stack part).
+ * The real-stack part (TC-M15-17/18) is the `@real-only` describe at the end of the file.
  */
 const DOC06 = "DOC-06-danh-sach-nhan-su.xlsx";
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -20,7 +25,7 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
   test("SCR-45: groups with counts, filters, MANUAL source → no file, history", async ({ page }) => {
     await login(page, "ceo@abc.demo");
     const made = await page.request.post("/api/backend/data-capture/manual", { headers: { "Idempotency-Key": `e2e-${Date.now()}` },
-      data: { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ task_title: "Việc E2E inbox", task_due_date: "30/11/2026" }] } });
+      data: { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ period_key: "2026-Q4", owner_code: "NV-0001", task_title: "Việc E2E inbox", task_due_date: "2026-11-30" }] } });
     expect(made.status()).toBe(201);
     const doc = ((await made.json()) as { data: { document: { id: string } } }).data.document.id;
     await page.goto("/data");
@@ -44,6 +49,8 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await page.getByTestId("manual-menu").click();
     await page.getByTestId("manual-PLAN_KPI_OKR").click();
     await expect(page.getByTestId("schema-form")).toHaveAttribute("data-scr", "SCR-61");
+    await page.getByTestId("field-rows-0-period_key").fill("2026-Q4");
+    await page.getByTestId("field-rows-0-owner_code").fill("NV-0046");
     await page.getByTestId("field-rows-0-task_title").fill("Gọi lại khách hàng E2E");
     await page.getByTestId("field-rows-0-task_due_date").fill("31/13/2026");
     await page.getByTestId("form-submit").click();
@@ -83,8 +90,8 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await code.selectOption("employee_code");
     await page.getByTestId("import-save-mapping").click();
     await expect(wizard).toHaveAttribute("data-step", "preview");
-    await expect(page.getByTestId("summary-valid")).toContainText("51");
-    await expect(page.getByTestId("summary-invalid")).toContainText("1");
+    await expect(page.getByTestId("summary-valid")).toContainText("45");
+    await expect(page.getByTestId("summary-invalid")).toContainText("3");
     await expect(page.locator('[data-testid="import-row"][data-invalid="true"]').first().getByTestId("cell-error").first()).toBeVisible();
     const dl = page.waitForEvent("download");
     await page.getByTestId("import-download-errors").click();
@@ -104,8 +111,9 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await login(page, "reviewer@abc.demo");
     await page.goto(`/data/review/${docId}`);
     await expect(page.getByTestId("grid-row")).toHaveCount(25);
-    await expect(page.locator('[data-testid="planned-action"][data-permitted="false"]')).toHaveCount(2);
-    await expect(page.getByTestId("critical-left")).toContainText("51");
+    await expect(page.locator('[data-testid="planned-action"][data-permitted="false"]')).toHaveCount(3);
+    await expect(page.getByTestId("routing-reason")).toHaveAttribute("data-code", "C5_REVIEW");
+    await expect(page.getByTestId("critical-left")).toContainText("45");
     await expect(page.getByTestId("approve")).toBeDisabled();
     await expect(page.getByTestId("approve")).toContainText("chờ người có quyền ghi");
     // confirm every critical (salary) field via the API, then reload — the grid walk is covered by the confirm-row unit path
@@ -176,5 +184,130 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await page.getByTestId("admin-tab-schemas").click();
     await page.locator('[data-testid="schema-row"][data-type="HR_ROSTER"][data-status="draft"]').getByTestId("schema-publish").click();
     await expect(page.locator('[data-testid="schema-row"][data-type="HR_ROSTER"][data-status="retired"]')).toBeVisible();
+  });
+});
+
+/**
+ * T-643 / TC-M15-17 — M1.5 exit on the real stack (API + web + Celery): hr@ (DIR khối O) imports
+ * the real `data/DOC-06` workbook → preview 48 / 45 / 3 → submit → REV (role pool) reviews the
+ * row grid, confirms the critical salary cells and approves → APPROVED + pending permissions
+ * (R-DEC-61) → hr@ commits → `/admin/org` + LineageChip → undo (R-DEC-66). EMP enters a C1
+ * PLAN_KPI_OKR task row → COMMITTED → `/work` → undo. `support/capture_e2e.py` undoes / retires
+ * every E2E capture before and after, so the spec is repeatable on the dev DB.
+ */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+
+function captureCleanup(): void {
+  execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/capture_e2e.py"), "--cleanup"], {
+    cwd: ROOT, env: { ...process.env, ...rootEnv(), PYTHONPATH: "apps/api/src:apps/api" }, encoding: "utf8", timeout: 180_000,
+  });
+}
+
+test.describe("M1.5 data capture on the real stack (TC-M15-17)", { tag: "@real-only" }, () => {
+  test.describe.configure({ mode: "serial" });
+  test.beforeAll(() => captureCleanup());
+  test.afterAll(() => captureCleanup());
+
+  test("C5: hr@ imports DOC-06 → REV approves pending → hr@ commits → org + lineage → undo", async ({ page }) => {
+    test.setTimeout(300_000);
+    await login(page, "hr@abc.demo");
+    await page.goto("/data");
+    await page.getByTestId("dropzone-input").setInputFiles({ name: DOC06, mimeType: XLSX, buffer: readFileSync(path.join(ROOT, "data", DOC06)) });
+    await page.getByTestId("dropzone-import").click();
+    await expect(page).toHaveURL(/\/data\/imports\//, { timeout: 30_000 });
+    const wizard = page.getByTestId("import-wizard");
+    await expect(page.getByTestId("import-suggested")).toBeVisible();
+    await page.getByTestId("import-save-mapping").click();
+    await expect(wizard).toHaveAttribute("data-step", "preview");
+    await expect(page.getByTestId("summary-valid")).toContainText("45");
+    await expect(page.getByTestId("summary-invalid")).toContainText("3");
+    await expect(page.locator('[data-testid="import-row"][data-invalid="true"]').first().getByTestId("cell-error").first()).toBeVisible();
+    await page.getByTestId("import-next").click();
+    const submitted = page.waitForResponse((r) => r.request().method() === "POST" && /\/data-capture\/imports\/[^/]+\/submit$/.test(r.url()));
+    await page.getByTestId("import-submit").click();
+    const sub = await submitted;
+    expect(sub.status()).toBe(200);
+    const docId = ((await sub.json()) as { data: { document: { id: string } } }).data.document.id;
+    await expect(page).toHaveURL(/\/data$/);
+    await expect(page.locator(`[data-testid="inbox-row"][data-doc="${docId}"]`)).toHaveAttribute("data-status", "NEEDS_REVIEW");
+
+    await logout(page);
+    await login(page, "reviewer@abc.demo");
+    await page.goto(`/data/review/${docId}`);
+    await expect(page.getByTestId("grid-row").first()).toBeVisible();
+    await expect(page.getByTestId("routing-reason")).toHaveAttribute("data-code", "C5_REVIEW");
+    await expect(page.locator('[data-testid="planned-action"][data-permitted="false"]')).toHaveCount(3);
+    await expect(page.getByTestId("critical-left")).toContainText("45");
+    await expect(page.getByTestId("approve")).toContainText("chờ người có quyền ghi");
+    // confirm the 45 salary cells through EP-30 (same session + review lock), then the last row in the UI
+    const detail = (await (await page.request.get(`/api/backend/idp/documents/${docId}/review`)).json()) as { data: { fields: { id: string; is_critical: boolean }[] } };
+    const crit = detail.data.fields.filter((f) => f.is_critical);
+    expect(crit).toHaveLength(45);
+    const patched = await page.request.patch(`/api/backend/idp/documents/${docId}/fields`, { data: { fields: crit.map((f) => ({ field_id: f.id, action: "confirm" })) } });
+    expect(patched.status()).toBe(200);
+    await page.reload();
+    await expect(page.getByTestId("critical-left")).toHaveCount(0);
+    await page.getByTestId("approve").click();
+    await expect(page).toHaveURL(/\/data\/review$/);
+
+    await logout(page);
+    await login(page, "hr@abc.demo");
+    await page.goto(`/data/review/${docId}`);
+    await expect(page.getByTestId("approved-state")).toBeVisible();
+    await page.getByTestId("commit").click();
+    await expect(page.getByTestId("undo-toast")).toBeVisible({ timeout: 60_000 });
+    await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
+
+    await page.goto("/admin/org");
+    await page.getByTestId("org-node-OPS").click();
+    await expect(page.getByTestId("dept-panel")).toBeVisible();
+    await page.getByTestId("lineage-chip").first().click();
+    await expect(page.getByTestId("lineage-link").first()).toBeVisible();
+
+    await page.goto("/data");
+    await page.getByTestId("group-committed").click();
+    const row = page.locator(`[data-testid="inbox-row"][data-doc="${docId}"]`);
+    await row.getByTestId("inbox-undo").click();
+    await page.getByTestId("undo-reason").fill("Nhập nhầm file");
+    await page.getByTestId("undo-confirm").click();
+    await expect(page.getByTestId("undo-dialog")).toHaveCount(0);
+    await page.getByTestId("group-rolled_back").click();
+    await expect(page.locator(`[data-testid="inbox-row"][data-doc="${docId}"]`)).toHaveAttribute("data-status", "ROLLED_BACK");
+    await page.goto("/admin/org");
+    await expect(page.getByTestId("org-node-OPS")).toHaveCount(0);
+  });
+
+  test("C1: EMP enters a PLAN_KPI_OKR task row → COMMITTED → /work with lineage → undo", async ({ page }) => {
+    const title = `E2E capture ${Date.now()}`;
+    await login(page, "employee@abc.demo");
+    await page.goto("/data");
+    await page.getByTestId("manual-menu").click();
+    await page.getByTestId("manual-PLAN_KPI_OKR").click();
+    await expect(page.getByTestId("schema-form")).toHaveAttribute("data-scr", "SCR-61");
+    await page.getByTestId("field-rows-0-period_key").fill("2026-Q4");
+    await page.getByTestId("field-rows-0-owner_code").fill("NV-0046");
+    await page.getByTestId("field-rows-0-task_title").fill(title);
+    await page.getByTestId("field-rows-0-task_due_date").fill("30/11/2026");
+    const made = page.waitForResponse((r) => r.request().method() === "POST" && /\/data-capture\/manual$/.test(r.url()));
+    await page.getByTestId("form-submit").click();
+    const res = await made;
+    expect(res.status()).toBe(201);
+    const out = ((await res.json()) as { data: { document: { id: string; status: string }; actions: { action_name: string; table: string }[] } }).data;
+    expect([out.document.status, out.actions.map((a) => `${a.action_name}:${a.table}`)]).toEqual(["COMMITTED", ["ACT-create_task:execution.tasks"]]);
+    await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
+    await page.goto("/work");
+    await page.getByRole("button", { name: new RegExp(title) }).first().click();
+    await expect(page.getByTestId("task-detail-title")).toHaveText(title);
+    await page.getByTestId("lineage-chip").click();
+    await expect(page.getByTestId("lineage-link").first()).toBeVisible();
+
+    await page.goto("/data");
+    await page.getByTestId("group-committed").click();
+    await page.locator(`[data-testid="inbox-row"][data-doc="${out.document.id}"]`).getByTestId("inbox-undo").click();
+    await page.getByTestId("undo-reason").fill("Nhập nhầm");
+    await page.getByTestId("undo-confirm").click();
+    await expect(page.getByTestId("undo-dialog")).toHaveCount(0);
+    await page.goto("/work");
+    await expect(page.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);
   });
 });

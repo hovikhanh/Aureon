@@ -69,7 +69,7 @@ export async function downloadErrorFile(batchId: string): Promise<void> {
 }
 
 export const undoDocument = (id: string, reason: string, reason_code: UndoReason) => api.post<UndoOut>(`/data-capture/documents/${id}/undo`, { reason, reason_code });
-export const commitDocument = (id: string, version: number | undefined) => api.post<CommitOut>(`/data-capture/documents/${id}/commit`, { version });
+export const commitDocument = (id: string, version: number) => api.post<CommitOut>(`/data-capture/documents/${id}/commit`, { version });
 
 /** Undo (EP-DC-24) + refresh every capture / work / goals / org view the document wrote into. */
 export function useUndo() {

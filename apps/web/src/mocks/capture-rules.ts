@@ -8,7 +8,8 @@ import type { FieldDef } from "./capture-schemas";
 
 export interface RowError { field: string | null; rule_code: string; message_key: string; params: Record<string, unknown> }
 
-const err = (field: string, rule_code: string, params: Record<string, unknown> = {}): RowError => ({ field, rule_code, message_key: `capture.errors.${rule_code}`, params });
+/** BE `capture_common.row_error`: UPPERCASE rule code + `idp.import.error.<lower>` message key. */
+const err = (field: string, rule_code: string, params: Record<string, unknown> = {}): RowError => ({ field, rule_code, message_key: `idp.import.error.${rule_code.toLowerCase()}`, params });
 
 /** `dd/mm/yyyy` or ISO `yyyy-mm-dd` → ISO; null when not a real date. */
 export function parseVnDate(v: string): string | null {
@@ -30,43 +31,61 @@ export function parseVnNumber(v: unknown): number | null {
 }
 
 const DEPT_CODES = new Set(SNAPSHOT.departments.map((d) => d.code));
+const EMP_CODES = new Set(SNAPSHOT.employees.map((e) => e.code));
 const KPI_CODES = new Set(((SNAPSHOT as unknown as { kpis?: { code: string }[] }).kpis ?? []).map((k) => k.code));
-/** `master_ref` lookups the mock can resolve (hr.departments codes; KPI codes or METRIC-* codes). */
-export function masterKnown(ref: string, value: string): boolean {
-  if (ref === "hr.departments") return DEPT_CODES.has(value);
-  if (ref === "execution.kpis") return KPI_CODES.has(value);
+/** `master_ref` lookups (BE `_master_exists`): department / employee / KPI codes of the seed. */
+export function masterKnown(ref: string, value: string, extra: ReadonlySet<string> = new Set()): boolean {
+  if (extra.has(value)) return true;
+  if (ref === "hr.department_code") return DEPT_CODES.has(value);
+  if (ref === "hr.employee_code") return EMP_CODES.has(value);
+  if (ref === "execution.kpi_code") return KPI_CODES.has(value);
   return true;
 }
+/** A field whose master_ref is the natural key of its own ACT (BE `_creates_master`): new codes are created, not looked up. */
+export const createsMaster = (fd: FieldDef) => !!fd.master_ref && ["code", "employee_code"].includes(fd.target?.param ?? "");
 
-/** Validate + normalise one row (or the header values of a C1 form). */
-export function validateValues(fields: readonly FieldDef[], raw: Record<string, unknown>): { values: Record<string, unknown>; errors: RowError[] } {
+/**
+ * Validate + normalise one row (or the header values of a C1 form) like BE `normalize` +
+ * `required_errors` + `_check_masters`; `inFile` = master codes created by the same file
+ * (`null` = skip the master pass; C5 runs it after every row is normalised).
+ */
+export function validateValues(fields: readonly FieldDef[], raw: Record<string, unknown>, inFile: Record<string, ReadonlySet<string>> | null = {}): { values: Record<string, unknown>; errors: RowError[] } {
   const values: Record<string, unknown> = {};
   const errors: RowError[] = [];
   for (const fd of fields) {
     const v = raw[fd.name];
     const empty = v === undefined || v === null || String(v).trim() === "";
     if (empty) {
-      if (fd.required) errors.push(err(fd.name, "required"));
+      if (fd.required) errors.push(err(fd.name, "REQUIRED"));
       values[fd.name] = null;
       continue;
     }
     const s = String(v).trim();
     if (fd.value_type === "date") {
       const d = parseVnDate(s);
-      if (!d) errors.push(err(fd.name, "date_format", { value: s }));
-      values[fd.name] = d ?? s;
-    } else if (["number", "money"].includes(fd.value_type)) {
+      if (!d) errors.push(err(fd.name, "DATE_FORMAT", { value: s }));
+      values[fd.name] = d;
+    } else if (["number", "money", "percent"].includes(fd.value_type)) {
       const n = parseVnNumber(v);
-      if (n === null) errors.push(err(fd.name, "number_format", { value: s }));
-      values[fd.name] = n ?? s;
-    } else if (fd.value_type === "enum") {
-      if (fd.enum && !fd.enum.includes(s)) errors.push(err(fd.name, "in", { allowed: fd.enum.join(", ") }));
-      values[fd.name] = s;
+      if (n === null) errors.push(err(fd.name, "NUMBER_FORMAT", { value: s }));
+      values[fd.name] = n === null ? null : fd.value_type === "money" ? Math.round(n) : n;
+    } else if (fd.value_type === "enum" && fd.enum) {
+      const hit = fd.enum.find((e) => e.toLowerCase() === s.toLowerCase());
+      if (!hit) errors.push(err(fd.name, "ENUM", { value: s, allowed: fd.enum }));
+      values[fd.name] = hit ?? null;
     } else {
-      if (fd.master_ref && !masterKnown(fd.master_ref, s)) errors.push(err(fd.name, "master_not_found", { value: s }));
       values[fd.name] = s;
     }
   }
+  if (inFile !== null) errors.push(...masterErrors(fields, values, inFile));
   return { values, errors };
 }
 
+/** `MASTER_NOT_FOUND` for referenced codes unknown to the seed and not created in the same file. */
+export function masterErrors(fields: readonly FieldDef[], values: Record<string, unknown>, inFile: Record<string, ReadonlySet<string>> = {}): RowError[] {
+  return fields.flatMap((fd) => {
+    const code = values[fd.name];
+    if (!fd.master_ref || createsMaster(fd) || code === null || code === undefined) return [];
+    return masterKnown(fd.master_ref, String(code), inFile[fd.master_ref]) ? [] : [err(fd.name, "MASTER_NOT_FOUND", { value: String(code) })];
+  });
+}

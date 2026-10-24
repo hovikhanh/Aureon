@@ -4,10 +4,10 @@
  * at commit time so undo can detect "edited after commit" (R-DEC-63).
  */
 import { SNAPSHOT, mockId, type MockClaims } from "./fixtures";
-import { orgStore, today, type MDept, type MEmployee } from "./org";
+import { orgStore, today, type MDept, type MEmployee, type MPosition } from "./org";
 import { task, workStore, employeeOf } from "./work-store";
 import { goalStore, base as goalBase, type MKpi } from "./goals-store";
-import { SCHEMA_FIELDS } from "./capture-schemas";
+import { ACT_TABLE, SCHEMA_FIELDS } from "./capture-schemas";
 import { captureStore, newCaptureId, type MDoc, type MResultRef } from "./capture-store";
 import type { Row } from "./capture-actions";
 
@@ -47,12 +47,23 @@ export function runAct(c: MockClaims, d: MDoc, action: string, r: Row, created: 
     const code = str(v.department_code);
     const hit = liveDept(code);
     if (hit) return ref("hr", "departments", hit.id, hit.version, true);
-    const row: MDept = { id: newCaptureId("department"), version: 1, organization_id: orgStore().depts[0]?.organization_id ?? "", code, name: code, parent_id: null, manager_id: null,
+    const row: MDept = { id: newCaptureId("department"), version: 1, organization_id: orgStore().depts[0]?.organization_id ?? "", code, name: str(v.department_name) || code, parent_id: null, manager_id: null,
       valid_from: today(), valid_to: null, archived: false, created_at: at, updated_at: at };
     orgStore().depts.push(row);
     created.set(`dept:${code}`, row.id);
     lineage(d, action, r, "hr.departments", row.id, at);
     return ref("hr", "departments", row.id, 1);
+  }
+  if (action === "ACT-create_position") {
+    const dept = liveDept(str(v.department_code));
+    const title = str(v.title);
+    const hit = orgStore().positions.find((x) => !x.archived && x.title === title && x.department_id === dept?.id);
+    if (hit) return ref("hr", "positions", hit.id, hit.version, true);
+    const row: MPosition = { id: newCaptureId("position"), version: 1, department_id: dept?.id ?? "", code: `POS-${orgStore().positions.length + 1}`, title, level: null, headcount_budget: 0,
+      reports_to_position_id: null, archived: false, created_at: at, updated_at: at };
+    orgStore().positions.push(row);
+    lineage(d, action, r, "hr.positions", row.id, at);
+    return ref("hr", "positions", row.id, 1);
   }
   if (action === "ACT-create_employee") {
     const e: MEmployee = { id: newCaptureId("employee"), code: str(v.employee_code), full_name: str(v.full_name), version: 1, deleted: false };
@@ -74,28 +85,31 @@ export function runAct(c: MockClaims, d: MDoc, action: string, r: Row, created: 
   if (action === "ACT-upsert_kpi") {
     const code = str(v.kpi_code);
     const hit = goalStore().kpis.find((k) => !k.deleted && k.code === code);
-    const target = Number(v.target);
+    const target = Number(v.target ?? v.kpi_period_target ?? 0);
     if (hit) {
       const out = { ...ref("execution", "kpis", hit.id, hit.version + 1), snapshot: { version: hit.version + 1, target: hit.target, updated: true } };
       Object.assign(hit, { target, version: hit.version + 1, updated_at: at });
       lineage(d, action, r, "execution.kpis", hit.id, at);
       return out;
     }
-    const k: MKpi = { ...goalBase(newCaptureId("kpi"), at), source: sourceOf(d), code, name: str(v.note) || code, unit: str(v.unit), target, owner_id: c.sub, metric_code: null, key_result_id: null,
+    const k: MKpi = { ...goalBase(newCaptureId("kpi"), at), source: sourceOf(d), code, name: str(v.kpi_name) || code, unit: str(v.unit), target, owner_id: c.sub, metric_code: null, key_result_id: null,
       period_type: "QUARTER", direction: "HIGHER_IS_BETTER", value_type: "numeric", data_source_kind: "manual", parent_kpi_id: null, weight_pct: 100, initiative_id: null,
       department_id: c.department_id, status: "active", strategic_objective_id: null, pillar: null };
     goalStore().kpis.push(k);
     lineage(d, action, r, "execution.kpis", k.id, at);
     return ref("execution", "kpis", k.id, 1);
   }
+  // Targets without a mock store (objectives, key results, KPI targets, measurements, invoices): id + lineage only.
+  const [schema = "execution", table = "records"] = (ACT_TABLE[action] ?? "execution.records").split(".");
   const id = mockId("record", `${d.id}:${action}:${r.row_index ?? "h"}`);
-  lineage(d, action, r, action === "ACT-create_invoice" ? "finance.invoices" : "execution.kpi_measurements", id, at);
-  return ref(action === "ACT-create_invoice" ? "finance" : "execution", action === "ACT-create_invoice" ? "invoices" : "kpi_measurements", id, 1);
+  lineage(d, action, r, `${schema}.${table}`, id, at);
+  return ref(schema, table, id, 1);
 }
 
 function current(r: MResultRef): { version: number } | undefined {
   if (r.table === "departments") return orgStore().depts.find((x) => x.id === r.id);
   if (r.table === "employees") return orgStore().employees.find((x) => x.id === r.id);
+  if (r.table === "positions") return orgStore().positions.find((x) => x.id === r.id);
   if (r.table === "tasks") return workStore().tasks.find((x) => x.id === r.id);
   if (r.table === "kpis") return goalStore().kpis.find((x) => x.id === r.id);
   return undefined;
@@ -110,6 +124,7 @@ export function refEdited(r: MResultRef): boolean {
 export function undoRef(r: MResultRef): void {
   const at = new Date().toISOString();
   if (r.table === "departments") Object.assign(orgStore().depts.find((x) => x.id === r.id) ?? {}, { archived: true, valid_to: today(), updated_at: at });
+  if (r.table === "positions") Object.assign(orgStore().positions.find((x) => x.id === r.id) ?? {}, { archived: true, updated_at: at });
   if (r.table === "employees") {
     Object.assign(orgStore().employees.find((x) => x.id === r.id) ?? {}, { deleted: true });
     for (const a of orgStore().assignments) if (a.employee_id === r.id && a.valid_to === null) a.valid_to = today();

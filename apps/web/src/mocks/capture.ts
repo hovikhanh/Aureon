@@ -1,6 +1,6 @@
 /**
  * Mock BFF D03 Data Capture (M1.5, EP-DC-13..16, 23..26) on `API_MODE=mock`. Contract = 10 §7.2.4:
- * inbox groups + `meta.counts`, scope per role (ADM → 403 at the inbox), source view (MANUAL → 422),
+ * inbox groups + `meta.counts`, scope per role (ADM scope `s`: own #4 HR_ROSTER, R-DEC-76), source view (MANUAL → 422),
  * C1 form/manual submit (commit now when the caller holds every target permission, else
  * NEEDS_REVIEW), commit of APPROVED docs, 7-day undo (410 / 409 conflicts), lineage
  * (`restricted` out of scope). Review EP-DC-04..10 live in `capture-review.ts`, C5 in
@@ -22,12 +22,12 @@ import { CAPTURE_ADMIN_ROUTES } from "./capture-admin";
 
 function inbox(req: MockRequest): Response {
   const c = req.claims;
-  if (c.role === "ADM" || c.role === "AI") throw err(403, "FORBIDDEN_ROLE", "inbox not available for this role", { role: c.role });
+  if (!c.permissions.includes("idp:read")) throw err(403, "FORBIDDEN_ROLE", "inbox not available for this role", { role: c.role });
   const q = req.query;
   const group = q.get("group");
   if (group && !GROUPS[group]) throw err(422, "VALIDATION_ERROR", "unknown group", { field: "group" });
   const [ch, type, mine, text, from, to] = ["channel", "document_type", "mine", "q", "date_from", "date_to"].map((k) => q.get(k) ?? "");
-  const scoped = captureStore().docs.filter((d) => docVisible(c, d) && (c.role !== "EMP" || d.submitted_by === c.sub)).filter((d) =>
+  const scoped = captureStore().docs.filter((d) => docVisible(c, d) && (!["EMP", "ADM"].includes(c.role) || d.submitted_by === c.sub) && (c.role !== "ADM" || d.document_type === "HR_ROSTER")).filter((d) =>
     (!ch || d.channel === ch) && (!type || d.document_type === type) && (mine !== "true" || d.submitted_by === c.sub)
     && (!text || (d.original_filename ?? "").toLowerCase().includes(text!.toLowerCase())) && (!from || d.submitted_at.slice(0, 10) >= from!) && (!to || d.submitted_at.slice(0, 10) <= to!));
   const counts = Object.fromEntries(Object.keys(GROUPS).map((g) => [g, scoped.filter((d) => groupOf(d.status) === g).length]));
@@ -135,7 +135,7 @@ function manual(req: MockRequest): Response {
     const out = finishCommit(req, d);
     return ok({ document: out.document, status: d.status, actions: out.actions, validation_errors: [], undo_deadline: out.undo_deadline }, 201);
   }
-  Object.assign(d, { status: "NEEDS_REVIEW", routing_reasons: ["missing_target_permission"], assigned_to: reviewerFor() });
+  Object.assign(d, { status: "NEEDS_REVIEW", routing_reasons: ["MISSING_TARGET_PERMISSION"], assigned_to: reviewerFor() });
   return ok({ document: docOut(c, d), status: d.status, actions: [], validation_errors: [], undo_deadline: null }, 201);
 }
 

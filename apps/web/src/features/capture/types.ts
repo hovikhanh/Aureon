@@ -1,12 +1,12 @@
 /**
- * D03 Capture DTOs (10 §7.2.4) — re-exported from the generated OpenAPI types, plus the
- * R-DEC-60bis `version` on DocumentOut / DocumentTypeOut (optional until shared-types regenerate).
+ * D03 Capture DTOs (10 §7.2.4) — re-exported from the generated OpenAPI types (`version` on
+ * DocumentOut / DocumentTypeOut is required, R-DEC-60bis).
  */
 import type { Api } from "@aureon/shared-types";
 
-export type CaptureDocument = Api.DocumentOut & { version?: number };
+export type CaptureDocument = Api.DocumentOut;
 export type InboxItem = Omit<Api.InboxItemOut, "document"> & { document: CaptureDocument };
-export type DocumentType = Api.DocumentTypeOut & { version?: number };
+export type DocumentType = Api.DocumentTypeOut;
 export type FormOut = Api.FormOut;
 export type FormField = Api.FormFieldOut;
 export type ImportPreview = Api.ImportPreviewOut;
@@ -20,7 +20,7 @@ export type ExtractionSchema = Api.ExtractionSchemaOut;
 export type SchemaField = Api.SchemaFieldDef;
 export type ValidationRule = Api.ValidationRuleOut;
 export type Incident = Api.IncidentOut;
-export interface ActionRef { action_name: string; ids: string[]; table?: string }
+export type ActionRef = Api.ActionRefOut;
 export interface CommitOut { document: CaptureDocument; actions: ActionRef[]; undo_deadline: string | null }
 export interface ManualOut { document: CaptureDocument; status: string; actions: ActionRef[]; validation_errors: Record<string, unknown>[]; undo_deadline: string | null }
 export interface UndoOut { document: CaptureDocument; reverted_actions: ActionRef[] }

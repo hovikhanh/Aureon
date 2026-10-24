@@ -96,7 +96,7 @@ function approve(req: MockRequest): Response {
   const v = body(req).version;
   if (typeof v === "number" && v !== d.version) throw err(409, "CONFLICT_STATE", "stale version", { expected: d.version });
   const pending = d.fields.filter((f) => f.is_critical && !f.is_confirmed);
-  if (pending.length) throw err(422, "ACTION_REJECTED", "critical fields not confirmed", { reason: "critical_unconfirmed", fields: pending.map((f) => f.id) });
+  if (pending.length) throw err(422, "ACTION_REJECTED", "critical fields not confirmed", { reason: "critical_unconfirmed", fields: [...new Set(pending.map((f) => f.field_name))].sort() });
   const planned = plannedActions(req.claims, d);
   d.approved_by = req.claims.sub;
   if (planned.every((p) => p.permitted) && req.claims.permissions.includes("idp:write")) return ok(finishCommit(req, d));

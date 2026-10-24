@@ -115,7 +115,7 @@ function submit(req: MockRequest): Response {
   const d = captureStore().docs.find((x) => x.id === b.document_id)!;
   const defs = (SCHEMA_FIELDS[b.document_type ?? ""] ?? []).filter((f) => f.group === "row" && (seesLevel4(req.claims) || f.sensitivity_level < 4));
   d.fields = valid.flatMap((r) => makeFields(d.id, defs, r.values, r.row_number, 0.97, { kind: "sheet", sheet: b.sheet }));
-  Object.assign(d, { status: "NEEDS_REVIEW", document_type: b.document_type, sheet_name: b.sheet, routing_reasons: ["c5_always_review"], assigned_to: userId(REVIEWER), document_confidence: 0.97,
+  Object.assign(d, { status: "NEEDS_REVIEW", document_type: b.document_type, sheet_name: b.sheet, routing_reasons: ["C5_REVIEW"], assigned_to: userId(REVIEWER), document_confidence: 0.97,
     pillars: b.document_type === "HR_ROSTER" ? ["O"] : [], sensitivity_level: defs.some((f) => f.sensitivity_level >= 4) ? 4 : 2, version: d.version + 1 });
   Object.assign(b, { status: "SUBMITTED", version: b.version + 1 });
   recordAudit(req.claims, "idp.import_submit", "import_batches", b.id);

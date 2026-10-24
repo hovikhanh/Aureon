@@ -27,7 +27,7 @@ const post = <T = unknown>(path: string, claims: C, body: unknown = {}) => call<
 beforeEach(() => resetMockStore());
 
 describe("EP-DC-13 inbox", () => {
-  it("returns groups + meta.counts scoped per role; ADM → 403", async () => {
+  it("returns groups + meta.counts scoped per role; ADM = own #4 only (R-DEC-76)", async () => {
     const ceo = await call<{ document: { id: string } }[]>("/data-capture/inbox");
     expect(ceo.status).toBe(200);
     const counts = ceo.json!.meta!.counts as Record<string, number>;
@@ -40,7 +40,9 @@ describe("EP-DC-13 inbox", () => {
     expect(rev.json!.data.map((r) => r.document.id)).toEqual([SEED_DOC.roster]);
     const mgr = await call<{ document: { id: string } }[]>("/data-capture/inbox?group=failed", { claims: MGR });
     expect(mgr.json!.data.map((r) => r.document.id)).toEqual([SEED_DOC.failed]);
-    expect((await call("/data-capture/inbox", { claims: ADM })).json!.error!.code).toBe("FORBIDDEN_ROLE");
+    expect((await call("/data-capture/inbox", { claims: ADM })).json!.data).toEqual([]);
+    const own = await post<{ document_id: string }>("/data-capture/imports", ADM, { file: { name: "DOC-06-danh-sach-nhan-su.xlsx", size: 1, type: "" }, document_type: "HR_ROSTER" });
+    expect((await call<{ document: { id: string } }[]>("/data-capture/inbox", { claims: ADM })).json!.data.map((r) => r.document.id)).toEqual([own.json!.data.document_id]);
     expect((await call("/data-capture/inbox?group=nope")).status).toBe(422);
   });
 
@@ -58,7 +60,7 @@ describe("EP-DC-15/16 manual (C1)", () => {
     const form = await call<{ permitted: boolean; fields: { name: string }[] }>("/data-capture/forms/PLAN_KPI_OKR", { claims: CEO });
     expect(form.json!.data.permitted).toBe(true);
     expect(form.json!.data.fields.map((f) => f.name)).toContain("task_title");
-    const r = await post<{ status: string; actions: { table: string; ids: string[] }[] }>("/data-capture/manual", EMP, { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ task_title: "Gọi lại khách hàng X", task_due_date: "30/10/2026" }] });
+    const r = await post<{ status: string; actions: { table: string; ids: string[] }[] }>("/data-capture/manual", EMP, { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ period_key: "2026-Q4", owner_code: "NV-0046", task_title: "Gọi lại khách hàng X", task_due_date: "30/10/2026" }] });
     expect(r.status).toBe(201);
     expect(r.json!.data.status).toBe("COMMITTED");
     const taskId = r.json!.data.actions[0]!.ids[0]!;
@@ -69,8 +71,8 @@ describe("EP-DC-15/16 manual (C1)", () => {
   it("422 maps errors to fields; missing target permission → NEEDS_REVIEW", async () => {
     const bad = await post("/data-capture/manual", EMP, { document_type: "PERIOD_REPORT", schema_version: 1, values: {}, rows: [{ kpi_code: "NOPE", actual_value: "abc" }] });
     expect(bad.status).toBe(422);
-    expect((bad.json!.error!.details.fields as { field: string; rule_code: string }[]).map((f) => `${f.field}:${f.rule_code}`).sort()).toEqual(["actual_value:number_format", "kpi_code:master_not_found", "period_key:required"]);
-    const rev = await post<{ status: string }>("/data-capture/manual", REV, { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ task_title: "Việc A" }] });
+    expect((bad.json!.error!.details.fields as { field: string; rule_code: string }[]).map((f) => `${f.field}:${f.rule_code}`).sort()).toEqual(["actual_value:NUMBER_FORMAT", "kpi_code:MASTER_NOT_FOUND"]);
+    const rev = await post<{ status: string }>("/data-capture/manual", REV, { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ period_key: "2026-Q4", owner_code: "NV-0001", task_title: "Việc A" }] });
     expect(rev.json!.data.status).toBe("NEEDS_REVIEW");
     expect((await call("/data-capture/manual", { method: "POST", claims: EMP, body: {} })).status).toBe(400);
   });

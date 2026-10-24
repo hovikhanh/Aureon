@@ -42,11 +42,13 @@ export function makeFields(docId: string, defs: readonly FieldDef[], values: Rec
 function rosterDoc(): MDoc {
   const id = SEED_DOC.roster;
   const defs = SCHEMA_FIELDS.HR_ROSTER!;
-  const rows = data.hr.rows.slice(1, 4);
-  const fields = rows.flatMap((r, i) => makeFields(id, defs, Object.fromEntries(defs.map((d, j) => [d.name, r[j] || null])), i + 2, 0.95, { kind: "sheet", sheet: data.hr.sheet }));
+  const sheet = data.hr.sheets[0]!;
+  const head = sheet.rows[0]!.map((h) => h.toLowerCase());
+  const col = (d: FieldDef) => head.findIndex((h) => d.header_aliases.includes(h));
+  const fields = sheet.rows.slice(1, 4).flatMap((r, i) => makeFields(id, defs, Object.fromEntries(defs.map((d) => [d.name, r[col(d)] || null])), i + 2, 0.95, { kind: "sheet", sheet: sheet.name }));
   return docBase({ id, submitter: "hr@abc.demo", original_filename: "DS-nhan-su-moi-T10.xlsx", mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    channel: "C5", status: "NEEDS_REVIEW", document_type: "HR_ROSTER", pillars: ["O"], sensitivity_level: 4, assigned_to: uid("reviewer@abc.demo"), sheet_name: data.hr.sheet,
-    fields, document_confidence: 0.95, routing_reasons: ["c5_always_review"], submitted_at: "2026-10-19T03:00:00Z" });
+    channel: "C5", status: "NEEDS_REVIEW", document_type: "HR_ROSTER", pillars: ["O"], sensitivity_level: 4, assigned_to: uid("reviewer@abc.demo"), sheet_name: sheet.name,
+    fields, document_confidence: 0.95, routing_reasons: ["C5_REVIEW"], submitted_at: "2026-10-19T03:00:00Z" });
 }
 
 function schemaOf(code: string): MSchema {

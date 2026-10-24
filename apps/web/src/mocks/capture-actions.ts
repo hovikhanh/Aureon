@@ -6,7 +6,7 @@
  */
 import type { MockClaims } from "./fixtures";
 import { MockHttpError } from "./http";
-import { ACT_ORDER, ACT_REQUIRED, ACT_TABLE, SCHEMA_FIELDS } from "./capture-schemas";
+import { ACT_ORDER, ACT_PERMISSION, ACT_REQUIRED, ACT_TABLE, SCHEMA_FIELDS } from "./capture-schemas";
 import { actPermitted } from "./capture-scope";
 import type { MAction, MDoc, MField } from "./capture-store";
 import { captureStore, nowIso } from "./capture-store";
@@ -34,7 +34,6 @@ const filled = (v: unknown) => v !== null && v !== undefined && String(v).trim()
 export function rowActs(d: MDoc, r: Row): string[] {
   const defs = SCHEMA_FIELDS[d.document_type ?? ""] ?? [];
   const acts = new Set(defs.filter((f) => f.target && f.group === "row" && filled(r.values[f.name])).map((f) => f.target!.action));
-  if (d.document_type === "HR_ROSTER" && acts.size) acts.add("ACT-create_department").add("ACT-create_employee");
   return ACT_ORDER.filter((a) => acts.has(a));
 }
 
@@ -42,9 +41,8 @@ export interface Planned { action_name: string; count: number; required_permissi
 export function plannedActions(c: MockClaims, d: MDoc): Planned[] {
   const counts = new Map<string, number>();
   for (const r of docRows(d)) for (const a of rowActs(d, r)) counts.set(a, (counts.get(a) ?? 0) + 1);
-  return ACT_ORDER.filter((a) => counts.has(a)).map((a) => ({ action_name: a, count: counts.get(a)!, required_permission: a === "ACT-create_employee" ? "hr:write" : permOf(a), permitted: actPermitted(c, a, true) }));
+  return ACT_ORDER.filter((a) => counts.has(a)).map((a) => ({ action_name: a, count: counts.get(a)!, required_permission: ACT_PERMISSION[a]?.[0] ?? "execution:write", permitted: actPermitted(c, a, true) }));
 }
-const permOf = (a: string) => ({ "ACT-create_department": "hr:admin", "ACT-create_task": "execution:write", "ACT-upsert_kpi": "execution:write", "ACT-create_invoice": "finance:write" } as Record<string, string>)[a] ?? "execution:write";
 
 /** Dry-run validate (EP-DC-08 / 16 / 23): required params + target duplicates → 422 ACTION_REJECTED. */
 export function validateActs(d: MDoc): void {
@@ -52,7 +50,7 @@ export function validateActs(d: MDoc): void {
     for (const a of rowActs(d, r)) {
       const missing = (ACT_REQUIRED[a] ?? []).filter((p) => !filled(r.values[p]));
       const dup = actDuplicate(a, r.values);
-      const errors = [...missing.map((p) => ({ field: p, rule_code: "required" })), ...(dup ? [{ field: dup, rule_code: "duplicate" }] : [])];
+      const errors = [...missing.map((p) => ({ field: p, code: "missing", message: "field required" })), ...(dup ? [{ field: dup, code: "duplicate", message: "already exists" }] : [])];
       if (errors.length) throw new MockHttpError(422, "ACTION_REJECTED", "action validation failed", { action_name: a, row_index: r.row_index, errors });
     }
   }

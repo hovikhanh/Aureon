@@ -17,6 +17,7 @@ import { commitDocument, invalidateWrites, undoDocument } from "@/features/captu
 import { display, FieldRow, MONEY_TYPES, type FieldDraft } from "./FieldRow";
 import { PlannedActions } from "./PlannedActions";
 import { RejectDialog } from "./RejectDialog";
+import { RoutingReasons } from "./RoutingReasons";
 import { RowGrid } from "./RowGrid";
 import { SourceViewer } from "./SourceViewer";
 import type { ApproveOut, FieldPatchOut, ReviewField } from "./types";
@@ -102,9 +103,10 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
   };
 
   const commit = async () => {
+    if (!review.data) return;
     setBusy(true);
     try {
-      const out = await commitDocument(documentId, review.data?.document.version);
+      const out = await commitDocument(documentId, review.data.document.version);
       invalidateWrites(client);
       setCommitted(out as unknown as ApproveOut);
     } catch (e) {
@@ -119,10 +121,10 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
   const d = review.data;
   const active = fields.find((f) => f.id === activeId) ?? null;
   const decidable = ["NEEDS_REVIEW", "IN_REVIEW"].includes(d.document.status) && !committed;
-  const planned = d.planned_actions ?? [];
+  const planned = d.planned_actions;
   const pendingWrite = planned.some((p) => !p.permitted);
   const criticalLeft = fields.filter((f) => f.is_critical && !(drafts[f.id]?.confirmed ?? f.is_confirmed)).length;
-  const gridRows = d.rows ?? [];
+  const gridRows = d.rows;
   const activeRow = active?.row_index ?? null;
   const editorFields = gridRows.length ? fields.filter((f) => f.row_index === null || f.row_index === activeRow) : fields;
   /** Confirms every field of the selected row, then moves to the next row (keyboard-friendly walk through the grid). */
@@ -141,6 +143,7 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
         <Badge>{t(`idp.status.${d.document.status}` as "idp.status.NEEDS_REVIEW")}</Badge>
         <ConfidenceBadge value={d.document_confidence} />
       </div>
+      <RoutingReasons reasons={d.routing_reasons} />
       {lock.lockError && <p role="alert" className="rounded border border-warning bg-warning-subtle px-3 py-2 text-sm">{t(KNOWN.includes(lock.lockError) ? (`errors.${lock.lockError}` as "errors.generic") : "errors.generic")}</p>}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="lg:sticky lg:top-20 lg:h-[calc(100dvh-10rem)]"><SourceViewer pages={d.pages} active={active} fieldLabel={label} /></div>

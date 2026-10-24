@@ -34,11 +34,13 @@ describe("C5 import DOC-06 (EP-DC-17..22)", () => {
     const pv = up.json.data;
     expect(pv.suggested_document_type.code).toBe("HR_ROSTER");
     expect(pv.column_mapping["Mã NV"].field).toBe("employee_code");
-    // DOC-06 today: 51 employees + the payroll-total footer row (invalid — required cells empty).
-    expect(pv.summary).toEqual({ rows_total: 52, rows_valid: 51, rows_invalid: 1 });
+    // DOC-06 sheet "Nhân sự" = real API: 48 rows, 45 valid, NV-052 / NV-053 / NV-054 invalid.
+    expect(pv.summary).toEqual({ rows_total: 48, rows_valid: 45, rows_invalid: 3 });
+    expect(pv.sheets.map((s: { name: string; row_count: number }) => `${s.name}:${s.row_count}`)).toEqual(["Nhân sự:48", "Đã nghỉ việc:8"]);
     const bad = await call(`/data-capture/imports/${pv.batch_id}/rows?status=invalid`, HRD);
-    expect(bad.json.data.map((r: { row_number: number }) => r.row_number)).toEqual([54]);
-    expect(bad.json.data[0].errors.map((e: { field: string; rule_code: string }) => `${e.field}:${e.rule_code}`)).toContain("full_name:required");
+    expect(bad.json.data.map((r: { row_number: number }) => r.row_number)).toEqual([47, 48, 49]);
+    expect(bad.json.data.flatMap((r: { errors: { field: string; rule_code: string }[] }) => r.errors.map((e) => `${e.field}:${e.rule_code}`)))
+      .toEqual(["manager_code:MASTER_NOT_FOUND", "hire_date:DATE_FORMAT", "department_code:REQUIRED"]);
     const file = await call(`/data-capture/imports/${pv.batch_id}/error-file`, HRD);
     expect(file.res.headers.get("content-type")).toContain("spreadsheetml");
     expect(new Uint8Array(await file.res.arrayBuffer()).slice(0, 2)).toEqual(new Uint8Array([0x50, 0x4b]));
@@ -46,7 +48,7 @@ describe("C5 import DOC-06 (EP-DC-17..22)", () => {
     expect(unmapped.json.error!.details.unmapped_required).toContain("employee_code");
     expect((await call(`/data-capture/imports/${pv.batch_id}/mapping`, HRD, "PATCH", { document_type: "HR_ROSTER", sheet: "Nhân sự", header_row: 1, mapping: {}, version: 9 })).status).toBe(409);
     const sub = await call(`/data-capture/imports/${pv.batch_id}/submit`, HRD, "POST", { version: 1 });
-    expect([sub.json.data.rows_submitted, sub.json.data.rows_excluded, sub.json.data.document.status]).toEqual([51, 1, "NEEDS_REVIEW"]);
+    expect([sub.json.data.rows_submitted, sub.json.data.rows_excluded, sub.json.data.document.status]).toEqual([45, 3, "NEEDS_REVIEW"]);
     expect((await call(`/data-capture/imports/${pv.batch_id}/submit`, HRD, "POST", { version: 2 })).status).toBe(409);
     expect((await upload("DOC-06-danh-sach-nhan-su.xlsx", HRD)).json.error!.code).toBe("DUPLICATE_RESOURCE");
   });
@@ -72,10 +74,11 @@ async function rosterThroughReview(approver: C) {
 describe("review → commit → lineage → undo", () => {
   it("REV approves → APPROVED + pending_permissions; HR DIR commits; lineage; undo reverts", async () => {
     const { id, detail } = await rosterThroughReview(REV);
-    expect(detail.rows).toHaveLength(51);
-    expect(detail.planned_actions.map((p: { action_name: string; permitted: boolean }) => `${p.action_name}:${p.permitted}`)).toEqual(["ACT-create_department:false", "ACT-create_employee:false"]);
+    expect(detail.rows).toHaveLength(45);
+    expect(detail.routing_reasons).toEqual(["C5_REVIEW"]);
+    expect(detail.planned_actions.map((p: { action_name: string; permitted: boolean }) => `${p.action_name}:${p.permitted}`)).toEqual(["ACT-create_department:false", "ACT-create_position:false", "ACT-create_employee:false"]);
     const critical = await call(`/idp/documents/${id}/review/approve`, REV, "POST", {});
-    expect(critical.json.error!.details.reason).toBe("critical_unconfirmed");
+    expect([critical.json.error!.details.reason, critical.json.error!.details.fields]).toEqual(["critical_unconfirmed", ["salary"]]);
     await call(`/idp/documents/${id}/fields`, REV, "PATCH", { fields: detail.fields.filter((f: { is_critical: boolean }) => f.is_critical).map((f: { id: string }) => ({ field_id: f.id, action: "confirm" })) });
     const ap = await call(`/idp/documents/${id}/review/approve`, REV, "POST", {});
     expect([ap.json.data.document.status, ap.json.meta!.pending_permissions]).toEqual(["APPROVED", ["hr:admin", "hr:write"]]);
@@ -84,20 +87,20 @@ describe("review → commit → lineage → undo", () => {
     const cm = await call(`/data-capture/documents/${id}/commit`, HRD, "POST", { version });
     expect(cm.json.data.document.status).toBe("COMMITTED");
     const emp = cm.json.data.actions.find((a: { action_name: string }) => a.action_name === "ACT-create_employee");
-    expect(emp.ids).toHaveLength(51);
+    expect(emp.ids).toHaveLength(45);
     const ln = await call(`/lineage/hr.employees/${emp.ids[0]}`, HRD);
     expect(ln.json.data.links[0]).toMatchObject({ sheet_name: "Nhân sự", row_index: 2, field_name: "employee_code" });
     expect((await call(`/lineage/hr.employees/${emp.ids[0]}`, EMP)).json.data).toEqual({ restricted: true, reason: "target_out_of_scope" });
     expect((await call(`/lineage/hr.nope/${emp.ids[0]}`, HRD)).status).toBe(422);
     const acts = await call(`/data-capture/documents/${id}/actions`, HRD);
-    expect(acts.json.data.map((a: { seq: number }) => a.seq)).toEqual([1, 2]);
+    expect(acts.json.data.map((a: { seq: number }) => a.seq)).toEqual([1, 2, 3]);
     const un = await call(`/data-capture/documents/${id}/undo`, HRD, "POST", { reason: "Nhập nhầm", reason_code: "mistake" });
     expect(un.json.data.document.status).toBe("ROLLED_BACK");
     expect((await call(`/data-capture/documents/${id}/undo`, HRD, "POST", { reason: "x", reason_code: "mistake" })).status).toBe(409);
   });
 
   it("undo: 410 past deadline, 409 when a target was edited after commit", async () => {
-    const t = await call("/data-capture/manual", CEO, "POST", { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ task_title: "Việc B" }] });
+    const t = await call("/data-capture/manual", CEO, "POST", { document_type: "PLAN_KPI_OKR", schema_version: 1, values: {}, rows: [{ period_key: "2026-Q4", owner_code: "NV-0001", task_title: "Việc B" }] });
     const id = t.json.data.document.id;
     const taskId = t.json.data.actions[0].ids[0];
     const task = (await call(`/work/tasks/${taskId}`, CEO)).json.data;

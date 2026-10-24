@@ -359,6 +359,18 @@
       "total_amount": "Tổng thanh toán",
       "buyer_name": "Người mua",
       "buyer_tax_code": "MST người mua"
+    },
+    "routing": {
+      "title": "Lý do cần duyệt",
+      "CRITICAL_FIELD": "Có trường trọng yếu",
+      "LOW_CLASSIFICATION_CONFIDENCE": "Phân loại chưa chắc chắn",
+      "LOW_DOCUMENT_CONFIDENCE": "Độ tin cậy tài liệu thấp",
+      "LOW_CONFIDENCE": "Độ tin cậy thấp: {field}",
+      "VALIDATION_FAILED": "Kiểm tra dữ liệu không đạt",
+      "SUSPICIOUS_CONTENT": "Nội dung đáng ngờ (có dấu hiệu chèn lệnh)",
+      "C5_REVIEW": "Import bảng luôn qua duyệt",
+      "MISSING_TARGET_PERMISSION": "Người gửi thiếu quyền ghi đích",
+      "other": "Lý do khác ({code})"
     }
   },
   "finance": {
@@ -1301,7 +1313,8 @@
       "page": "Trang {page}/{total}",
       "open": "Mở trong tab mới",
       "expires": "Liên kết hết hạn sau 5 phút",
-      "loading": "Đang tải…"
+      "loading": "Đang tải…",
+      "unavailable": "Chưa xem trực tiếp được file gốc; không có lớp chữ để hiển thị cho trang này"
     },
     "history": {
       "title": "Lịch sử ghi",
@@ -1391,7 +1404,17 @@
       "invoice_number": "Số hóa đơn",
       "issue_date": "Ngày lập",
       "seller_tax_code": "MST người bán",
-      "total_amount": "Tổng thanh toán"
+      "total_amount": "Tổng thanh toán",
+      "assignee_code": "Người thực hiện",
+      "objective_title": "Mục tiêu",
+      "kr_title": "Kết quả then chốt",
+      "kpi_name": "Tên KPI",
+      "kpi_period_target": "Chỉ tiêu kỳ",
+      "baseline": "Giá trị nền",
+      "department_name": "Phòng ban",
+      "manager_code": "Quản lý trực tiếp",
+      "team_code": "Mã team",
+      "team_name": "Team"
     },
     "errors": {
       "required": "Bắt buộc nhập",
@@ -1416,7 +1439,13 @@
       "no_file": "Tài liệu nhập tay không có file gốc",
       "critical_unconfirmed": "Còn trường trọng yếu chưa xác nhận",
       "missing": "Thiếu quyền ghi: {perms}",
-      "encoding": "CSV phải dùng mã hóa UTF-8"
+      "encoding": "CSV phải dùng mã hóa UTF-8",
+      "REQUIRED": "Bắt buộc nhập",
+      "DATE_FORMAT": "Ngày không hợp lệ (dd/mm/yyyy)",
+      "NUMBER_FORMAT": "Số không hợp lệ (vd 1.250.000)",
+      "ENUM": "Giá trị không nằm trong danh sách cho phép",
+      "MASTER_NOT_FOUND": "Không tìm thấy mã \"{value}\" trong danh mục",
+      "UNKNOWN_FIELD": "Trường không thuộc biểu mẫu"
     },
     "form": {
       "title": "Nhập tay · {type}",

@@ -47,8 +47,8 @@ export interface DocumentOut {
   page_count: number | null;
   status: string;
   submitted_at: string;
-  /** R-DEC-60bis optimistic lock (optional until shared-types regenerate). */
-  version?: number;
+  /** R-DEC-60bis optimistic lock. */
+  version: number;
   document_type?: string | null;
   undo_deadline?: string | null;
 }
@@ -73,9 +73,9 @@ export interface ReviewDetail {
   locked_by: string | null;
   locked_until: string | null;
   /** EP-DC-05: table documents grouped by `row_index`. */
-  rows?: Array<{ row_index: number; fields: ReviewField[] }>;
-  planned_actions?: PlannedAction[];
-  can_commit?: boolean;
+  rows: Array<{ row_index: number; fields: ReviewField[] }>;
+  planned_actions: PlannedAction[];
+  can_commit: boolean;
 }
 
 /** EP-DC-05 dry-run of the ACT-* the approval will run. */
@@ -94,7 +94,7 @@ export interface FieldPatchOut {
 
 export interface ApproveOut {
   document: DocumentOut;
-  actions: Array<{ action_name: string; ids: string[] }>;
+  actions: Array<{ action_name: string; ids: string[]; table: string }>;
   undo_deadline: string | null;
 }
 

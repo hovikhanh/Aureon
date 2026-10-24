@@ -359,6 +359,18 @@
       "total_amount": "Total amount",
       "buyer_name": "Buyer",
       "buyer_tax_code": "Buyer tax code"
+    },
+    "routing": {
+      "title": "Why review is needed",
+      "CRITICAL_FIELD": "Has critical fields",
+      "LOW_CLASSIFICATION_CONFIDENCE": "Uncertain classification",
+      "LOW_DOCUMENT_CONFIDENCE": "Low document confidence",
+      "LOW_CONFIDENCE": "Low confidence: {field}",
+      "VALIDATION_FAILED": "Validation failed",
+      "SUSPICIOUS_CONTENT": "Suspicious content (possible injected instructions)",
+      "C5_REVIEW": "Table imports always go to review",
+      "MISSING_TARGET_PERMISSION": "Submitter lacks target write permission",
+      "other": "Other reason ({code})"
     }
   },
   "finance": {
@@ -1301,7 +1313,8 @@
       "page": "Page {page}/{total}",
       "open": "Open in new tab",
       "expires": "Link expires in 5 minutes",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "unavailable": "The original file cannot be shown inline yet; no text layer for this page"
     },
     "history": {
       "title": "Write history",
@@ -1391,7 +1404,17 @@
       "invoice_number": "Invoice number",
       "issue_date": "Issue date",
       "seller_tax_code": "Seller tax code",
-      "total_amount": "Total amount"
+      "total_amount": "Total amount",
+      "assignee_code": "Assignee",
+      "objective_title": "Objective",
+      "kr_title": "Key result",
+      "kpi_name": "KPI name",
+      "kpi_period_target": "Period target",
+      "baseline": "Baseline",
+      "department_name": "Department",
+      "manager_code": "Direct manager",
+      "team_code": "Team code",
+      "team_name": "Team"
     },
     "errors": {
       "required": "Required",
@@ -1416,7 +1439,13 @@
       "no_file": "Manual entries have no source file",
       "critical_unconfirmed": "Some critical fields are not confirmed",
       "missing": "Missing write permission: {perms}",
-      "encoding": "CSV must be UTF-8 encoded"
+      "encoding": "CSV must be UTF-8 encoded",
+      "REQUIRED": "Required",
+      "DATE_FORMAT": "Invalid date (dd/mm/yyyy)",
+      "NUMBER_FORMAT": "Invalid number (e.g. 1,250,000)",
+      "ENUM": "Value not in the allowed list",
+      "MASTER_NOT_FOUND": "Code \"{value}\" not found in master data",
+      "UNKNOWN_FIELD": "Field is not part of the form"
     },
     "form": {
       "title": "Manual entry · {type}",
