@@ -46,6 +46,12 @@ from app.modules.platform.services.approval_service import ApprovalService
 
 UNDO_WINDOW = timedelta(hours=24)  # DEC-134 (AI actions; IDP STP = 7 days)
 DEFAULT_AGENT = "ceo"  # M1.6 R-DEC-71 (v2.1 `assistant` kept on old rows)
+UNDO_KEY = "_undo"  # internal undo state inside `result_refs[0]` (never returned by the API)
+
+
+def public_refs(refs: Any) -> list[dict[str, Any]]:
+    """`result_refs` as exposed by `AIActionOut` / tool logs — without the undo state."""
+    return [{k: v for k, v in dict(r).items() if k != UNDO_KEY} for r in (refs or [])]
 
 
 class UndoExpiredError(AppError):
@@ -103,7 +109,7 @@ class ActionService:
                 status="error" if action.status == "failed" else "ok",
                 latency_ms=int((time.monotonic() - started) * 1000), agent_code=agent_code,
                 user_id=user.user_id, autonomy_level=level, message_id=message_id,
-                result_refs=action.result_refs or [], ai_action_id=action.id,
+                result_refs=public_refs(action.result_refs), ai_action_id=action.id,
                 approval_request_id=action.approval_request_id,
             )  # fmt: skip
         return self._to_out(action)
@@ -203,11 +209,19 @@ class ActionService:
         now = datetime.now(UTC)
         action.status = "executed"
         action.executed_at = now
-        # `ai_actions.result_refs` keeps its v2.1 shape `{type, id, table: "<schema>.<table>"}`
+        # `ai_actions.result_refs` keeps its v2.1 shape `{type, id, table: "<schema>.<table>"}`;
+        # T-645: the first ref also carries the ACT undo state (`snapshot` of the overwritten
+        # fields + `target_version` the write left) — `ai_actions` has no snapshot column
+        # (05 §2.8 "không đổi cột"); `_to_out` never exposes these keys.
         action.result_refs = [
-            {"type": "record", "id": r["id"], "table": f"{r['schema']}.{r['table']}"}
+            {"type": "record", "id": r["id"], "table": f"{r['schema']}.{r['table']}",
+             **({"reused": True} if r.get("reused") else {})}
             for r in outcome.result_refs
-        ]
+        ]  # fmt: skip
+        if action.result_refs and (outcome.snapshot is not None or outcome.target_version):
+            action.result_refs[0] |= {
+                UNDO_KEY: {"snapshot": outcome.snapshot, "target_version": outcome.target_version}
+            }
         action.undo_deadline = now + UNDO_WINDOW if act.reversible else None
         await self.db.flush()
         await self._audit(action, "ai.action_executed")
@@ -224,9 +238,9 @@ class ActionService:
         if not user.has("ai:write"):
             raise PermissionDeniedError("missing ai:write")
         act = get_action(action.action_name)
-        domain = act.module if act else None
-        if domain and not user.has(f"{domain}:write"):
-            raise PermissionDeniedError(f"missing {domain}:write")
+        # the ACT's own any-of permission (`execution:write`, `hr:admin` for structure — R-DEC-61)
+        if act is not None and not act.permitted(user):
+            raise PermissionDeniedError(f"missing {' | '.join(act.required_permission)}")
 
     async def _undo_from_refs(self, user: Principal, action: AIAction) -> None:
         """Reverse through the Action Registry v2 `undo` of the ACT (R-DEC-60) from the stored
@@ -236,8 +250,11 @@ class ActionService:
             return
         try:
             refs = [{"schema": r["table"].split(".")[0], "table": r["table"].split(".")[-1],
-                     "id": r["id"]} for r in action.result_refs]  # fmt: skip
-            await act.undo(self.db, user, ActionOutcome(refs))
+                     "id": r["id"], "reused": bool(r.get("reused"))}
+                    for r in action.result_refs]  # fmt: skip
+            state = action.result_refs[0].get(UNDO_KEY) or {}
+            await act.undo(self.db, user, ActionOutcome(
+                refs, state.get("snapshot"), state.get("target_version")))  # fmt: skip
         except NotFoundError:
             return  # already gone
 
@@ -271,7 +288,7 @@ class ActionService:
             autonomy_level=a.autonomy_level,
             status=a.status,
             input_preview=dict(a.input) if a.input else {},
-            result_refs=list(a.result_refs or []), on_behalf_of=a.on_behalf_of,
+            result_refs=public_refs(a.result_refs), on_behalf_of=a.on_behalf_of,
             approval_request_id=a.approval_request_id, executed_at=a.executed_at,
             undo_deadline=a.undo_deadline, can_undo=can_undo,
             agent_profile_code=a.agent_profile_code,

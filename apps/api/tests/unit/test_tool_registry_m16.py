@@ -29,9 +29,6 @@ from app.modules.ai.tools.spec import REQUIRED, check_object_schema
 
 SPEC = Path(REPO_ROOT) / "docs" / "3.EXECUTION" / "10-API-SPECIFICATION.md"
 KINDS = {"READ", "WRITE", "APPROVAL", "EXECUTION"}
-# BRD names whose `TOOL-*` is new in M1.6 (10 §7.2.5) — registered by T-645, then removed here.
-PENDING_T645 = frozenset({"get_okr_status", "get_project_status", "get_overdue_tasks",
-                          "update_task"})  # fmt: skip
 
 
 def _base() -> dict[str, Any]:
@@ -180,6 +177,4 @@ def test_brd_tools_mapped_or_excluded() -> None:
         if tool_cell.strip().startswith("—"):
             continue  # documented "không là tool / hoãn"
         for name in names:
-            if name in PENDING_T645:
-                continue
             assert name in brd_names, f"BRD tool {name} has no TOOL-* with brd_name"
