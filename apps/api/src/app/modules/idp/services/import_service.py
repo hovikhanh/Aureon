@@ -22,9 +22,9 @@ from typing import Any
 
 from app.core.field_policy import Masked
 from app.modules.idp.repositories import ImportRepository
-from app.modules.idp.services.classifier import fold
 from app.modules.idp.services.critical import is_critical
 from app.modules.idp.services.import_parse import Sheet, too_large
+from app.modules.idp.services.prompt_safety import fold
 
 WARN_LEVEL4 = "idp.warn.level4_dropped"
 PREVIEW_ROWS = 20

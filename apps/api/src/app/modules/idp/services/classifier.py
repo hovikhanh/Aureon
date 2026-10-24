@@ -6,7 +6,8 @@
    ≥ 60 % of the required fields matched → confidence = matched/required share.
 3. Keywords — `document_types.classifier_keywords` (Admin, EP-DC-28) in the text.
 4. LLM `task="classify"` via the ModelGateway (fixture in dev/CI), content wrapped in
-   `<<<DATA…DATA>>>`; answer must be `{code, confidence}` with `code` in the active set.
+   `<<<DATA…DATA>>>`; answer must be `{code, confidence}` with `code` in the active set. The body
+   is `prompt_safety.scrub_for_llm` (sheet → header + ≤ 5 rows, level-4 columns/PII removed).
 
 The caller routes `< 0.95` to `NEEDS_REVIEW` (the reviewer picks the type). Nothing found →
 `OTHER`.
@@ -15,7 +16,6 @@ The caller routes `< 0.95` to `NEEDS_REVIEW` (the reviewer picks the type). Noth
 from __future__ import annotations
 
 import logging
-import unicodedata
 import uuid
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -27,6 +27,7 @@ from app.core.errors import AppError
 from app.core.model_gateway import ChatRequest, ChatResponse, Message
 from app.core.model_gateway.errors import FixtureMissingError, TemplateRequired
 from app.modules.idp.models import DocumentType, ExtractionSchema
+from app.modules.idp.services.prompt_safety import fold, scrub_for_llm
 
 log = logging.getLogger(__name__)
 
@@ -55,13 +56,6 @@ class _Candidate:
     fields: tuple[dict[str, Any], ...]
 
 
-def fold(text: str) -> str:
-    """Lower-case, strip Vietnamese diacritics (đ→d) and collapse whitespace."""
-    s = unicodedata.normalize("NFD", text.lower().replace("đ", "d"))
-    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-    return " ".join(s.split())
-
-
 def header_score(headers: list[str], fields: tuple[dict[str, Any], ...]) -> float:
     """Share of the schema's required fields whose name/alias equals a header cell."""
     cells = {fold(h) for h in headers if h and h.strip()}
@@ -86,6 +80,13 @@ def invoice_score(text: str) -> float:
     folded = fold(text)
     hits = sum(1 for h in _INVOICE_HINTS if h in folded)
     return round(min(0.90 + 0.02 * hits, 0.99), 4) if hits >= 2 else 0.0
+
+
+def _level4_headers(cands: list[_Candidate]) -> frozenset[str]:
+    """Folded names + header aliases of every level-4 field of the active schemas."""
+    return frozenset(fold(a) for c in cands for f in c.fields
+                     if int(f.get("sensitivity_level") or 0) >= 4
+                     for a in [f["name"], *f.get("header_aliases", [])])  # fmt: skip
 
 
 class Classifier:
@@ -119,7 +120,8 @@ class Classifier:
         if score >= 0.95 or (score > 0 and self.gateway is None):
             return Classification(code, score, "keyword")
         if self.gateway is not None and classification != "SECRET":
-            llm = await self._llm(text, [c.code for c in cands], document_id, classification)
+            body = scrub_for_llm(text, _level4_headers(cands))  # INJ-02: no level-4 in prompt
+            llm = await self._llm(body, [c.code for c in cands], document_id, classification)
             if llm is not None and llm.confidence > score:
                 return llm
         if score > 0:

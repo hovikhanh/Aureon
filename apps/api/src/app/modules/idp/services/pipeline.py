@@ -41,6 +41,7 @@ from app.modules.idp.services.classifier import Classifier, invoice_score
 from app.modules.idp.services.extractor import Extractor, classification_for_sensitivity
 from app.modules.idp.services.malware_scan import MalwareScanService
 from app.modules.idp.services.preprocess import extract_pages
+from app.modules.idp.services.prompt_safety import looks_injected
 from app.modules.idp.services.schema_registry import schema_for_code
 from app.modules.idp.services.validator import Validator
 
@@ -117,6 +118,9 @@ class Pipeline:
             )
         await self.db.flush()
 
+        # Instruction-like content stays data (no tool calling); it only flags + forces review.
+        doc.suspicious_content = looks_injected(pre.full_text)
+
         # --- step 4: classification (pick the doc type + its published schema) ---
         doc.status = "CLASSIFYING"
         await self.db.flush()
@@ -185,6 +189,8 @@ class Pipeline:
 
         # --- step 9: routing ---
         decision, reasons = self._route(extraction, validation, fields_spec)
+        if doc.suspicious_content:
+            decision, reasons = "REVIEW", [*reasons, "SUSPICIOUS_CONTENT"]
         job.routing_decision = decision
         job.routing_reasons = reasons
         job.status = "SUCCEEDED"
