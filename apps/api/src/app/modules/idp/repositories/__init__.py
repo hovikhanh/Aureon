@@ -92,6 +92,12 @@ class ExtractedFieldRepository(BaseRepository[ExtractedField]):
             stmt = stmt.order_by(ExtractedField.field_name.asc())
         return list((await self.db.execute(stmt)).scalars().all())
 
+    async def by_ids(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, ExtractedField]:
+        if not ids:
+            return {}
+        stmt = self._scoped(select(ExtractedField)).where(ExtractedField.id.in_(list(ids)))
+        return {f.id: f for f in (await self.db.execute(stmt)).scalars()}
+
 
 class DocumentActionRepository(BaseRepository[DocumentAction]):
     """`idp.document_actions` — one row per executed ACT (R-DEC-63, append + status flip)."""

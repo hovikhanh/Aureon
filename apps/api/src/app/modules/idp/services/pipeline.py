@@ -166,7 +166,7 @@ class Pipeline:
             self.db.add(
                 ExtractedField(
                     extraction_job_id=job.id,
-                    document_page_id=pages.get(1),
+                    document_page_id=_page_of(fr.source_location, pages),
                     field_name=fr.field_name,
                     row_index=fr.row_index,
                     value_type=fr.value_type,
@@ -380,3 +380,11 @@ def enqueue_pipeline(document_id: uuid.UUID) -> None:
         process_document.delay(str(document_id), tenant)
     except Exception:
         return
+
+
+def _page_of(location: dict[str, Any] | None, pages: dict[int, uuid.UUID]) -> uuid.UUID | None:
+    """T-637: the field's own page (`source_location.page`), else page 1 (single-page docs)."""
+    page = (location or {}).get("page")
+    if isinstance(page, int) and page in pages:
+        return pages[page]
+    return pages.get(1)

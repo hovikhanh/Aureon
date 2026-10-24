@@ -128,6 +128,14 @@ class StructureService:
         if seen is not None and department_id not in seen:
             raise deny("department", department_id=department_id)
 
+    async def get_department_visible(self, user: Principal, id_: uuid.UUID) -> Any:
+        """Scoped single-department read (lineage EP-DC-26): 404 / 403 like EP-ORG reads."""
+        dept = await self.depts.get(id_)
+        if dept is None:
+            raise NotFoundError("department not found")
+        await self._check_visible(user, dept.id)
+        return dept
+
     # ---------- organizations (EP-ORG-01..05) ----------
     async def list_orgs(
         self, user: Principal, page: PageParams, *, q: str | None, include_archived: bool

@@ -345,3 +345,28 @@ class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
             NotificationPreference.user_id == user_id
         )
         return {p.kind: p for p in (await self.db.execute(stmt)).scalars().all()}
+
+
+class LineageRepository(BaseRepository[DataLineage]):
+    """ENT-DataLineage record links (R-DEC-64) — append-only except `revoked_at` on undo."""
+
+    model = DataLineage
+
+    async def for_target(self, schema: str, table: str, target_id: uuid.UUID) -> list[DataLineage]:
+        stmt = self._scoped(select(DataLineage)).where(
+            DataLineage.link_kind == "RECORD_FROM_FIELD", DataLineage.target_schema == schema,
+            DataLineage.target_table == table, DataLineage.target_id == target_id,
+        )  # fmt: skip
+        order = (DataLineage.revoked_at.is_not(None), DataLineage.created_at.desc())
+        return list((await self.db.execute(stmt.order_by(*order))).scalars())
+
+    async def revoke_for_actions(self, action_ids: Sequence[uuid.UUID], at: datetime) -> int:
+        if not action_ids:
+            return 0
+        stmt = update(DataLineage).where(
+            DataLineage.tenant_id == require_tenant(),
+            DataLineage.document_action_id.in_(list(action_ids)),
+            DataLineage.revoked_at.is_(None),
+        )
+        res = await self.db.execute(stmt.values(revoked_at=at))
+        return int(getattr(res, "rowcount", 0) or 0)

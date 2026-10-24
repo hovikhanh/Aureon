@@ -243,6 +243,34 @@ class KpiService(ExecBase):
         await self.audit("kpi_delete", "kpis", k.id, before=before)
 
     # ---------- measurements (R-DEC-51) ----------
+    async def get_target(self, user: Principal, id_: uuid.UUID) -> Any:
+        """Scoped read of one KPI target / measurement / check-in (lineage EP-DC-26): visible
+        when its KPI (or KR) is — same rule as the list endpoints."""
+        t = await self.targets.get(id_)
+        if t is None:
+            raise not_found("KPI target")
+        await self.get_kpi(user, t.kpi_id)
+        return t
+
+    async def get_measurement(self, user: Principal, id_: uuid.UUID) -> Any:
+        m = await self.measurements.get(id_)
+        if m is None:
+            raise not_found("measurement")
+        await self.get_kpi(user, m.kpi_id)
+        return m
+
+    async def get_check_in(self, user: Principal, id_: uuid.UUID) -> Any:
+        c = await self.check_ins.get(id_)
+        if c is None:
+            raise not_found("check-in")
+        if c.kpi_id is not None:
+            await self.get_kpi(user, c.kpi_id)
+        elif c.key_result_id is not None:
+            from app.modules.execution.services.okr_service import OkrService
+
+            await OkrService(self.db).get_kr(user, c.key_result_id)
+        return c
+
     async def list_measurements(
         self, user: Principal, kpi_id: uuid.UUID, page: PageParams,
         period_key: str | None = None,

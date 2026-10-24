@@ -45,6 +45,7 @@ from app.modules.idp.services.actions.executor import (
     run_all,
 )
 from app.modules.idp.services.capture_common import document_out
+from app.modules.idp.services.lineage import record_commit_lineage
 from app.modules.idp.services.scope import (
     document_visible,
     ensure_doc_type_scope,
@@ -77,6 +78,7 @@ class _Loaded:
     fields: list[ExtractedField]
     type_code: str | None
     steps: list[Step]
+    schema_fields: list[dict[str, Any]] = field(default_factory=list)
 
 
 class CommitService:
@@ -156,6 +158,7 @@ class CommitService:
         ctx = ActionContext(source=_SOURCE_BY_CHANNEL.get(doc.channel, "IDP"),
                             source_document_id=doc.id)  # fmt: skip
         done = await run_all(self.db, user, loaded.steps, ctx)
+        await record_commit_lineage(self.db, doc.id, loaded.fields, loaded.schema_fields, done)
         refs: dict[tuple[str, str], list[str]] = {}
         for step, outcome in done:
             for r in outcome.result_refs:
@@ -229,8 +232,9 @@ class CommitService:
         schema = await self._schema(job.extraction_schema_id) if job else None
         names = list(schema.action_names) if schema is not None else []
         values = [(f.field_name, f.row_index, _effective(f)) for f in fields]
-        steps = build_plan(names, list(schema.fields) if schema is not None else [], values)
-        return _Loaded(job, fields, type_code, steps)
+        spec = list(schema.fields) if schema is not None else []
+        steps = build_plan(names, spec, values)
+        return _Loaded(job, fields, type_code, steps, spec)
 
     def _add_review(
         self, doc: SourceDocument, loaded: _Loaded, user: Principal, comment: str | None

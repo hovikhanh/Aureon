@@ -99,3 +99,14 @@ async def inbox_filter(db: AsyncSession, user: Principal) -> ColumnElement[bool]
         )
         return or_(own, SourceDocument.id.in_(assigned))
     return own
+
+
+async def lineage_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
+    """Source side of EP-DC-26 (R-DEC-64): the document is in the caller's capture scope — the
+    same row filter as the inbox (REV: only assigned review sessions; EMP: own submissions)."""
+    from app.modules.idp.repositories import SourceDocumentRepository
+
+    if not await type_in_scope(db, user, doc):
+        return False
+    scope = await inbox_filter(db, user)
+    return scope is None or await SourceDocumentRepository(db).matches(doc.id, scope)
