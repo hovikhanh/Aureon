@@ -99,7 +99,7 @@ function shiftDate(iso: string, days: number): string {
 }
 const doneAt = (due: string, late: boolean) => `${shiftDate(due, late ? 2 : -1)}T09:00:00Z`;
 
-function task(p: Partial<MTask> & { id: string; title: string }): MTask {
+export function task(p: Partial<MTask> & { id: string; title: string }): MTask {
   return {
     version: 1, source: "SEED", data_classification: "internal", created_at: WORK_STAMP, updated_at: WORK_STAMP,
     description: null, owner_id: OWNER, assignee_id: null, department_id: null, start_date: null, due_date: null, priority: "medium",

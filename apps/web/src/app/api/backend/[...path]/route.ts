@@ -24,6 +24,9 @@ async function mock(req: NextRequest, path: string[]): Promise<Response> {
   const token = await getToken({ req, secret });
   const claims = decodeMockToken(token?.accessToken);
   if (!claims) return NextResponse.json(UNAUTH, { status: 401 });
+  if ((req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) {
+    return handleMock({ method: req.method, path: `/${path.join("/")}`, query: req.nextUrl.searchParams, headers: req.headers, body: await multipartBody(req), claims });
+  }
   const raw = ["GET", "HEAD"].includes(req.method) ? "" : await req.text();
   let body: unknown = undefined;
   try {
@@ -32,6 +35,16 @@ async function mock(req: NextRequest, path: string[]): Promise<Response> {
     return NextResponse.json({ error: { code: "BAD_REQUEST", message: "invalid JSON body", details: {} } }, { status: 400 });
   }
   return handleMock({ method: req.method, path: `/${path.join("/")}`, query: req.nextUrl.searchParams, headers: req.headers, body, claims });
+}
+
+/** Mock-only: multipart upload (EP-DC-01 `files`, EP-DC-17 `file`) → file metadata (+ CSV text) for the mock router. */
+async function multipartBody(req: NextRequest): Promise<Record<string, unknown>> {
+  const form = await req.formData();
+  const meta = async (f: File) => ({ name: f.name, size: f.size, type: f.type, ...(f.name.toLowerCase().endsWith(".csv") && f.size < 1_000_000 ? { text: await f.text() } : {}) });
+  const files = await Promise.all(form.getAll("files").filter((f): f is File => typeof f !== "string").map(meta));
+  const one = form.get("file");
+  const docType = form.get("document_type");
+  return { files, file: one && typeof one !== "string" ? await meta(one) : null, document_type: typeof docType === "string" && docType ? docType : null };
 }
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
