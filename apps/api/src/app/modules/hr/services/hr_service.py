@@ -174,6 +174,10 @@ class HrService:
         emp = await self.employees.by_code(code)
         return emp.id if emp is not None else None
 
+    async def email_taken(self, email: str) -> bool:
+        """A live employee already uses `email` (ACT-create_employee row check, ids only)."""
+        return await self.employees.by_email(email) is not None
+
     async def position_id_by_title(self, department_id: uuid.UUID, title: str) -> uuid.UUID | None:
         pos = await self.positions.by_title(department_id, title)
         return pos.id if pos is not None else None

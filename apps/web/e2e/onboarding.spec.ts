@@ -2,10 +2,10 @@ import { expect, test, type Page } from "./fixtures";
 import { login } from "./helpers";
 
 /**
- * M1.6 SCR-66 wizard on mock (T-648F, TC-M16-15): ADM runs UC-07 — company → DOC-06 import (salary column
+ * M1.6 SCR-66 wizard on mock (T-648F, TC-M16-15): ADM runs UC-07 — company → UC-07 sample import (salary column
  * dropped for ADM) → REV approves → ADM commits → users (a failing row does not block the others) →
  * KPI/OKR step "done by CEO/Director" + skip → finish; reload resumes at the open step; `missing_steps`
- * sends the CEO back. `@mock-only`: relies on the mock store seed + DOC-06 content by file name.
+ * sends the CEO back. `@mock-only`: relies on the mock store seed + UC-07 roster content by file name.
  */
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const logout = (page: Page) => page.context().clearCookies();
@@ -32,11 +32,12 @@ test.describe("M1.6 onboarding wizard (TC-M16-15)", { tag: ["@mock", "@mock-only
     await page.reload();
     await expect(wizard).toHaveAttribute("data-step", "org_import");
 
-    await expect(page.getByTestId("template-link")).toHaveAttribute("href", /DOC-06/);
-    await page.getByTestId("onboarding-file").setInputFiles({ name: "DOC-06-danh-sach-nhan-su.xlsx", mimeType: XLSX, buffer: Buffer.from(`PK mock ${Date.now()}`) });
+    await expect(page.getByTestId("template-link")).toHaveAttribute("href", /ABC_DanhSachNhanSu_Onboarding\.xlsx$/);
+    await page.getByTestId("onboarding-file").setInputFiles({ name: "ABC_DanhSachNhanSu_Onboarding.xlsx", mimeType: XLSX, buffer: Buffer.from(`PK mock ${Date.now()}`) });
     await expect(page.getByTestId("sensitive-dropped")).toContainText("Lương", { timeout: 60_000 }); // upload + preview + schema compile on demand
     await page.getByTestId("onboarding-save-mapping").click();
-    await expect(page.getByTestId("summary-invalid")).toContainText("1");
+    await expect(page.getByTestId("summary-valid")).toContainText("24"); // = scripts/gen_demo_docs.py uc07_expectations()
+    await expect(page.getByTestId("summary-invalid")).toContainText("3");
     const submitted = page.waitForResponse((r) => r.request().method() === "POST" && /\/imports\/[^/]+\/submit$/.test(r.url()));
     await page.getByTestId("onboarding-submit-import").click();
     const docId = ((await (await submitted).json()) as { data: { document: { id: string } } }).data.document.id;

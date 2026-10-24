@@ -160,7 +160,31 @@ async def check_rows(
             errors.append(row_error(e["field"], e["rule"]))
         out.append(CheckedRow(number, raw_of(cells, cols), values, errors))
     await _check_masters(db, out, fields)
+    await _check_unique_email(db, out, fields)
     return out
+
+
+async def _check_unique_email(
+    db: Any, rows: list[CheckedRow], fields: list[dict[str, Any]]
+) -> None:
+    """#4 roster `email` is unique among live employees (EP-HR-02): a repeat in the file or an
+    email already in use → row error `DUPLICATE` (same code as ACT-create_employee), so the
+    valid rows still commit (UC-07, TC-M16-22). First occurrence in the file wins."""
+    from app.modules.hr.services.hr_service import HrService
+    from app.modules.idp.services.capture_common import row_error
+
+    target = "ACT-create_employee"
+    if not any(f["name"] == "email" and (f.get("target") or {}).get("action") == target
+               for f in fields):  # fmt: skip
+        return
+    seen: set[str] = set()
+    for r in rows:
+        email = str(r.values.get("email") or "").strip().lower()
+        if not email:
+            continue
+        if email in seen or await HrService(db).email_taken(email):
+            r.errors.append(row_error("email", "DUPLICATE"))  # level 3: no value echoed
+        seen.add(email)
 
 
 async def _check_masters(db: Any, rows: list[CheckedRow], fields: list[dict[str, Any]]) -> None:

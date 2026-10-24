@@ -1424,7 +1424,8 @@
       "department_name": "Phòng ban",
       "manager_code": "Quản lý trực tiếp",
       "team_code": "Mã team",
-      "team_name": "Team"
+      "team_name": "Team",
+      "email": "Email"
     },
     "errors": {
       "required": "Bắt buộc nhập",

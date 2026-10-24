@@ -1,6 +1,6 @@
 /**
  * Mock C5 parsing (FR-DC-101, mock-only): the BFF passes file metadata, so `.xlsx` content is the
- * demo workbook picked by name (`DOC-07` / `kpi` / `okr` → DOC-07, otherwise DOC-06; every sheet,
+ * demo workbook picked by name (`DOC-07` / `kpi` / `okr` → DOC-07, `onboarding` → UC-07 roster, otherwise DOC-06; every sheet,
  * exported from `data/` by `scripts/gen_capture_mock_data.py`);
  * `.csv` is parsed from text. Limits 5000 rows / 20 sheets / 60 columns → 413 `details.limit`.
  * Header → field mapping by `header_aliases` (the BE uses the classifier LLM; same output shape).
@@ -28,7 +28,7 @@ export function loadSheets(f: UploadMeta): { name: string; rows: string[][] }[] 
     if (text.includes("\uFFFD")) throw err(422, "VALIDATION_ERROR", "CSV must be UTF-8", { field: "file", reason: "encoding" });
     sheets = [{ name: f.name.replace(/\.csv$/i, ""), rows: parseCsv(text) }];
   } else {
-    const src = /doc-07|kpi|okr/.test(lower) ? data.kpi : data.hr;
+    const src = /doc-07|kpi|okr/.test(lower) ? data.kpi : /onboarding/.test(lower) ? data.onboard : data.hr;
     sheets = src.sheets.map((x) => ({ name: x.name, rows: x.rows.map((r) => [...r]) }));
   }
   if (sheets.length > LIMITS.sheets) throw err(413, "FILE_TOO_LARGE", "too many sheets", { limit: "sheets", max: LIMITS.sheets });
@@ -82,6 +82,16 @@ export function evaluate(b: MBatch): EvalRow[] {
   const inFile: Record<string, Set<string>> = {};
   for (const fd of defs.filter(createsMaster)) inFile[fd.master_ref!] = new Set(out.filter((r) => !r.errors.length && r.values[fd.name] !== undefined).map((r) => String(r.values[fd.name])));
   for (const r of out) r.errors.push(...masterErrors(defs, r.values, inFile));
+  // BE `_check_unique_email`: repeat in the file → `DUPLICATE` (no value echoed; seed employees carry no email).
+  if (defs.some((d) => d.name === "email" && d.target?.action === "ACT-create_employee")) {
+    const seen = new Set<string>();
+    for (const r of out) {
+      const e = String(r.values.email ?? "").trim().toLowerCase();
+      if (!e) continue;
+      if (seen.has(e)) r.errors.push({ field: "email", rule_code: "DUPLICATE", message_key: "idp.import.error.duplicate", params: {} });
+      seen.add(e);
+    }
+  }
   return out;
 }
 

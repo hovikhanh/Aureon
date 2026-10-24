@@ -215,6 +215,11 @@ async def _emp_validate(
     ):  # upsert of employees is deferred (M2.x) → duplicate row error
         errors.append(_err("employee_code", "DUPLICATE", "employee_code exists"))
     ctx.plan("employee", p.employee_code)
+    if p.email:  # live email is unique (EP-HR-02) → row error, not a failed commit (TC-M16-22)
+        email = p.email.strip().lower()
+        if ctx.is_planned("employee_email", email) or await HrService(db).email_taken(email):
+            errors.append(_err("email", "DUPLICATE", "email exists"))
+        ctx.plan("employee_email", email)
     if p.manager_code:
         manager_code = p.manager_code
 

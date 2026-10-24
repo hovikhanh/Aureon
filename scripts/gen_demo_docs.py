@@ -14,6 +14,8 @@ Outputs (all under data/):
                                                 3 intentional error rows; leavers on sheet 2)
     DOC-07  kpi-okr-q4-2026.xlsx / .docx       (openpyxl + python-docx, #2 PLAN_KPI_OKR 2026-Q4)
     DOC-08  bao-cao-ket-qua-q3-2026.pdf        (reportlab, #3 PERIOD_REPORT Q3/2026)
+    UC-07   ABC_DanhSachNhanSu_Onboarding.xlsx (openpyxl, #4 HR_ROSTER onboarding roster with
+            intentional error rows — R-DEC-79, TC-M16-22)
 
 Re-running is idempotent: OOXML zips get fixed timestamps and reportlab runs in invariant mode,
 so every file is byte-identical across runs (T-641, TC-M15-15).
@@ -1192,6 +1194,97 @@ def gen_doc06(path: Path) -> str:
 
 
 # ===========================================================================
+# UC-07 — onboarding roster `ABC_DanhSachNhanSu_Onboarding.xlsx` (R-DEC-79, 08 §4.6, TC-M16-22)
+# ===========================================================================
+# A fresh roster for the SCR-66 wizard (fake data, DEC-136). Department / employee codes never
+# collide with the seed (BOD/SAL/…, NV-0001…) nor DOC-06 (NV-001…), so the E2E import creates
+# rows instead of reusing them. Columns follow #4 HR_ROSTER aliases (Email = level 3, Lương =
+# level 4 → dropped for ADM). Intentional error rows: unknown manager, wrong date format,
+# duplicate email. Valid / invalid counts are computed by `uc07_expectations()`.
+UC07_FILE: Final[str] = "ABC_DanhSachNhanSu_Onboarding.xlsx"
+UC07_HEADERS: Final[list[str]] = [
+    "Mã phòng ban", "Phòng ban", "Chức danh", "Mã NV", "Họ tên", "Quản lý trực tiếp",
+    "Ngày vào làm", "Trạng thái", "Email", "Lương",
+]
+UC07_DEPTS: Final[list[tuple[str, str, int]]] = [  # (code, name, headcount incl. the head)
+    ("OB-BGD", "Ban Giám đốc", 2), ("OB-KD", "Kinh doanh", 8), ("OB-VH", "Vận hành", 7),
+    ("OB-TC", "Tài chính — Kế toán", 4), ("OB-NS", "Nhân sự", 3),
+]
+_UC07_FIRST: Final[list[str]] = ["An", "Bình", "Chi", "Dũng", "Giang", "Hà", "Khánh", "Linh",
+                                 "Minh", "Nam", "Oanh", "Phúc", "Quân", "Sơn", "Thảo", "Uyên",
+                                 "Vy", "Xuân", "Yến", "Hưng", "Lộc", "Mai", "Nga", "Tâm"]
+_UC07_LAST: Final[list[str]] = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đặng", "Bùi"]
+
+
+def _uc07_valid_rows() -> list[list[object]]:
+    rows: list[list[object]] = []
+    seq = 0
+    ceo = "OB0001"
+    for code, name, size in UC07_DEPTS:
+        head = None
+        for i in range(size):
+            seq += 1
+            emp = f"OB{seq:04d}"
+            if code == "OB-BGD" and i == 0:
+                title, manager = "Tổng Giám đốc", None
+            elif i == 0:
+                title, manager = f"Trưởng phòng {name}", ceo
+            else:
+                title, manager = f"Chuyên viên {name}", head or ceo
+            if i == 0:
+                head = emp
+            full = f"{_UC07_LAST[seq % len(_UC07_LAST)]} Văn {_UC07_FIRST[seq % len(_UC07_FIRST)]}"
+            start = f"{1 + seq % 27:02d}/{1 + seq % 9:02d}/2025"
+            rows.append([code, name, title, emp, full, manager, start, "active",
+                         f"ob{seq:04d}@abc-e2e.demo", 12_000_000 + 500_000 * (seq % 9)])
+    return rows
+
+
+UC07_ERROR_ROWS: Final[list[list[object]]] = [
+    # 1. "thiếu quản lý": OB9999 is neither in the file nor in the company
+    ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0901", "Tạ Văn Lực", "OB9999",
+     "01/09/2025", "active", "ob0901@abc-e2e.demo", 13_000_000],
+    # 2. wrong date format (day 31 of month 02)
+    ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0902", "Kiều Thị Hiền", "OB0011",
+     "31/02/2025", "active", "ob0902@abc-e2e.demo", 11_000_000],
+    # 3. duplicate email (same as OB0003, an earlier valid row)
+    ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0903", "Lương Văn Tú", "OB0003",
+     "01/10/2025", "active", "ob0003@abc-e2e.demo", 12_500_000],
+]
+
+
+def uc07_expectations() -> dict[str, int]:
+    """Counts the E2E checks against (TC-M16-23) — computed, not typed in."""
+    valid = _uc07_valid_rows()
+    return {"rows_total": len(valid) + len(UC07_ERROR_ROWS), "rows_valid": len(valid),
+            "rows_invalid": len(UC07_ERROR_ROWS), "departments": len({r[0] for r in valid}),
+            "employees": len(valid)}
+
+
+def gen_uc07(path: Path) -> str:
+    valid = _uc07_valid_rows()
+    emails = [str(r[8]) for r in valid]
+    assert len(set(emails)) == len(emails), "UC-07: valid rows must have unique emails"
+    assert sum(d[2] for d in UC07_DEPTS) == len(valid)
+    assert any(r[8] in emails for r in UC07_ERROR_ROWS), "UC-07: needs a duplicate email row"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Nhân sự"
+    ws.append(UC07_HEADERS)
+    _style_header(ws, len(UC07_HEADERS))
+    for row in valid + [list(r) for r in UC07_ERROR_ROWS]:
+        ws.append(row)
+        ws.cell(row=ws.max_row, column=10).number_format = "#,##0"
+    for i, w in enumerate([14, 22, 30, 10, 22, 18, 14, 12, 26, 14], start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    ws.freeze_panes = "A2"
+    _save_wb(wb, path)
+    e = uc07_expectations()
+    return (f"UC-07: {e['rows_total']} rows = {e['rows_valid']} valid + {e['rows_invalid']} "
+            f"intentional errors, {e['departments']} departments, {path.name}")
+
+
+# ===========================================================================
 # DOC-07 — KPI/OKR Q4/2026 (doc type #2 PLAN_KPI_OKR): .xlsx plan + .docx narrative
 # ===========================================================================
 DOC07_PERIOD: Final[str] = "2026-Q4"
@@ -1366,6 +1459,7 @@ def main() -> None:
         (DATA_DIR / "DOC-07-kpi-okr-q4-2026.xlsx", gen_doc07),
         (DATA_DIR / "DOC-07-kpi-okr-q4-2026.docx", gen_doc07_docx),
         (DATA_DIR / "DOC-08-bao-cao-ket-qua-q3-2026.pdf", gen_doc08),
+        (DATA_DIR / UC07_FILE, gen_uc07),
     ]
 
     print(f"Σ invoice subtotals = {invoice_subtotal:,} (OK)")

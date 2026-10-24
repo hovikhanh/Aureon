@@ -17,7 +17,7 @@ import { dropHidden } from "./logic";
 import type { StepProps } from "./OnboardingWizard";
 
 const CFG = {
-  org_import: { type: "HR_ROSTER", template: "/templates/DOC-06-danh-sach-nhan-su.xlsx", ref: "org_import_id", perm: "idp:write" },
+  org_import: { type: "HR_ROSTER", template: "/templates/ABC_DanhSachNhanSu_Onboarding.xlsx", ref: "org_import_id", perm: "idp:write" },
   goals_import: { type: "PLAN_KPI_OKR", template: "/templates/DOC-07-kpi-okr-q4-2026.xlsx", ref: "goals_import_id", perm: "execution:write" },
 } as const;
 type ImportKind = keyof typeof CFG;

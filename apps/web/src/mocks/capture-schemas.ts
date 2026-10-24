@@ -44,6 +44,7 @@ export const SCHEMA_FIELDS: Record<string, FieldDef[]> = {
     row("manager_code", "text", EMP, ["mã quản lý", "quản lý trực tiếp", "manager"], { master_ref: "hr.employee_code" }),
     row("hire_date", "date", EMP, ["ngày vào", "ngày vào làm", "hire date"], { required: true }),
     row("status", "enum", EMP, ["trạng thái", "status"], { enum: ["probation", "active", "on_leave", "terminated"] }),
+    row("email", "text", EMP, ["email", "thư điện tử"], { sensitivity_level: 3 }),
     row("salary", "money", EMP, ["lương", "lương cơ bản", "salary"], { is_critical: true, sensitivity_level: 4 }),
   ],
   PLAN_KPI_OKR: [

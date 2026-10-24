@@ -143,8 +143,8 @@ class EmployeeRepository(BaseRepository[Employee]):
         return set((await self.db.execute(stmt)).scalars())
 
     async def by_email(self, email: str) -> Employee | None:
-        stmt = self._live().where(Employee.email == email)
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        stmt = self._live().where(func.lower(Employee.email) == email.lower())
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
 
     async def code_taken(self, code: str, exclude: uuid.UUID | None = None) -> bool:
         stmt = self._live().where(Employee.employee_code == code)

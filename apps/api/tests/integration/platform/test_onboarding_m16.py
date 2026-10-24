@@ -21,6 +21,17 @@ pytestmark = pytest.mark.integration
 URL = "/platform/onboarding"
 
 
+@pytest.fixture(autouse=True)
+async def _no_onboarding_row(db_session: Any) -> None:
+    """The seed stores ABC as `completed` (T-649); these cases start from "no row" — deleted
+    inside the test transaction, which is rolled back afterwards."""
+    from sqlalchemy import delete
+
+    from app.modules.platform.models import SystemSetting
+
+    await db_session.execute(delete(SystemSetting).where(SystemSetting.key == "onboarding.state"))
+
+
 async def _patch(api: ApiClient, role: str = "ADM", **body: Any) -> Any:
     return await api.call("PATCH", URL, role=role, json=body)
 

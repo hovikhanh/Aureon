@@ -1424,7 +1424,8 @@
       "department_name": "Department",
       "manager_code": "Direct manager",
       "team_code": "Team code",
-      "team_name": "Team"
+      "team_name": "Team",
+      "email": "Email"
     },
     "errors": {
       "required": "Required",
