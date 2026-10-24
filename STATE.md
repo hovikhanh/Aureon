@@ -10,6 +10,50 @@
 | Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
 
+## M1.5 — D03 Data Capture (chuỗi auto) — DONE `[full-test pending]` (2026-10-25, nhánh `v3/m1.5-capture`)
+| Task | Commit | Nội dung |
+|---|---|---|
+| T-634S | `38c9067` | Spec lock M1.3–M1.6 (R-DEC-60..69 cho M1.5) |
+| (contract) | `83f7f08` | Contract EP-DC-01..37 + stub 501 |
+| T-636 | `406dbc1`, `5844a06` | Action Registry v2 (12 ACT) + `document_actions` + EP-DC-23; `DocumentOut`/`DocumentTypeOut.version` (R-DEC-60bis) |
+| T-634 | `15d95b5`, `944eaed` | Doc type #2/#3/#4 + schema registry DB + admin EP-DC-27..35 + classifier 4 tầng; ADM `idp:read/write` scope `s` (R-DEC-76 kéo sớm) |
+| T-635 | `bd63bda` | C1 form/submit, C5 import EP-DC-17..22, Data Inbox EP-DC-13, source view EP-DC-14, EP-DC-01 chọn trước |
+| T-637 | `53986f4` | Lineage mọi commit + EP-DC-26 |
+| T-640 | `bebe01f` | Trường trọng yếu (R-DEC-69) + incident EP-DC-36/37 |
+| T-638 | `416c067` | Undo 7 ngày EP-DC-24/25 + `idp.document_rolled_back` + incident G4 khi undo |
+| T-639 | `afb4b74`, `1e05149` | `METRIC-DQ-02` (G3) + `dq_domain_scores` (migration `0020_capture_dq`) + `platform.on_capture_share` |
+| T-641 | `99e1496` | File mẫu DOC-06 (dòng lỗi cố ý) / DOC-07 xlsx+docx / DOC-08 pdf, deterministic |
+| T-642 | `75a6e03` | Anti-injection: `suspicious_content`, scrub prompt classify, ai_eval INJ-01..03 |
+| T-634F..T-638F | `f8dfcf1`, `55b9819`, `71bf35a`, `a180717`, `5f8ea4a`, `3330ba0`, `fd42425` | FE mock BFF EP-DC-01..37 + SCR-45/61/62/18a-b/63 |
+| T-643 | `0817d97`, `deda0fc`, `6062cad`, `2673512` | Nối FE↔BE, E2E `capture.spec.ts` mock + real (`support/capture_e2e.py`) |
+| review | `11e442b`, `80bb6ff` | 2 vòng review (dưới) |
+
+**Kiểm tra (2026-10-25):** ruff/format/mypy sạch · pytest **1084** passed (0 fail, `MODEL_GATEWAY_MODE=fixture`) · Vitest **283** ·
+Playwright mock **51/51** · real **74/74** (stack riêng `aureon_m15`, API :4300, web :3400; sau review `80bb6ff` chạy lại
+`capture.spec.ts` mock 4/4 tại :3150) · `alembic downgrade -1` ×3 (0020→0017) + `upgrade head` sạch. TC-M15-01..18 = Implemented.
+**Quyết định chính:** R-DEC-60bis — mọi chuyển trạng thái `source_documents` tăng `version` (khóa lạc quan EP-DC-08/22/23);
+R-DEC-76 kéo sớm từ M1.6 (ADM `idp:read/write` scope `s` = chỉ #4 HR_ROSTER); migration M1.5 = `0018`–`0020`
+(`0020_capture_dq`) → **M1.6 dùng `0021`**; `ACT-create_task` gắn vào #2 PLAN_KPI_OKR (cột `task_title`/`assignee_code`/
+`task_due_date`, theo 10 §7.2.4 "#1, #2"); EP-DC-14 trả presigned URL ký HMAC (`core/storage.presign_get`, TTL 5 phút)
+**không có route phục vụ file** (thêm route = endpoint mới → cần DEC).
+**review M1.5 (2 vòng):** vòng 1 `11e442b` — review detail `rows`/`planned_actions`/`can_commit`, REV role pool scope, mask mức 4
+trong review, bump version, ACT-create_task #2, seed doc types trong `app.seed`. Vòng 2 `80bb6ff` (5 finding, sửa cả 5):
+#1 MAJOR GET-by-id EP-DC-14/18–21/24/25 dùng `document_visible` v2.1 (cùng phòng ban) → EMP đọc import rows (mức 3) / action log
+tài liệu đồng nghiệp, ADM (`idp:admin` ⇒ toàn DN) đọc action log doc type ngoài #4 → `scope.capture_visible` (inbox scope + của
+mình + phiên review), test `test_capture_scope_review_m15.py`; #2 MAJOR EP-DC-37 không lọc scope → inbox scope ∪ người báo;
+#3 EP-DC-23 committer không có `idp:approve` dùng capture scope thay vì cùng phòng ban; #4 mock incidents lọc scope + EP-DC-36
+tài liệu ngoài scope `404` (trước `422`); #5 ai_eval INJ-02/03 đỏ sẵn ở HEAD — prompt classify liệt kê mọi doc type active trong
+DB (seed thêm INVOICE) → thêm fixture tương ứng. Đã soát: audit/outbox/lineage cùng transaction (SAVEPOINT executor), quyền đích
+từng ACT, undo `seq DESC` + `409 conflicts[]`, mức 4 không vào params/snapshot/audit/event/prompt, upload stream 1 MB, `413`
+rows/sheets/columns, migration reversible, master-ref cache (không N+1 theo dòng).
+**Nợ / lưu ý:** EP-DC-14 cần DEC cho route phục vụ file presigned (hiện URL ký nhưng không route đọc); ADM xem incident (EP-DC-37
+cần `idp:approve`) → OQ M3.x; SCR-63 `classifier_keywords` không trả trong `DocumentTypeOut`; reviewer@ thuộc phòng ADM → người ghi
+hoá đơn trên demo là office@ — xem lại UX/seed; SCR-18b không highlight ô nguồn trên trang; rule form validation chỉ single-field;
+fixture classify phụ thuộc tập doc type active (thêm doc type → ghi lại fixture INJ).
+**Môi trường:** shell kế thừa env DB demo ghi đè `.env` → mọi lệnh `set -a; . ./.env; set +a` + kiểm `aureon_m15`; `.env` đặt
+`MODEL_GATEWAY_MODE=live` → chạy pytest với `MODEL_GATEWAY_MODE=fixture`; sau TRUNCATE/reset chạy `uv run python -m app.seed`
+để có lại doc types (#2/#3/#4).
+
 ## M1.4 — D07–D10 (chuỗi auto) — DONE `[full-test pending]` (2026-10-24, nhánh `v3/m1.4-goals`)
 | Task | Commit | Nội dung |
 |---|---|---|
