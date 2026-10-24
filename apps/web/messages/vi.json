@@ -1914,5 +1914,95 @@
       "errorRate": "Tỷ lệ lỗi",
       "p95": "p95"
     }
+  },
+  "onboarding": {
+    "title": "Onboarding doanh nghiệp",
+    "hint": "Đưa doanh nghiệp lên Aureon trong 1 ngày: thông tin công ty → cơ cấu → người dùng → KPI/OKR.",
+    "intro": "Wizard 6 bước. Tiến độ được lưu sau mỗi bước — tải lại trang sẽ tiếp tục đúng bước đang làm.",
+    "start": "Bắt đầu onboarding",
+    "skip": "Bỏ qua",
+    "skipped": "bỏ qua",
+    "continue": "Tiếp tục",
+    "saveContinue": "Lưu và tiếp tục",
+    "clock": "Đã {time} giờ",
+    "clockHint": "Mục tiêu hoàn tất trong 1 ngày (xanh ≤ 8 giờ, vàng ≤ 24 giờ, đỏ > 24 giờ)",
+    "template": "Tải file mẫu",
+    "upload": "Tải file lên",
+    "uploadAgain": "Tải file khác",
+    "importDone": "Đã gửi {n} dòng hợp lệ.",
+    "sensitiveDropped": "Cột nhạy cảm đã bỏ qua: {cols}",
+    "steps": {
+      "company": "Thông tin doanh nghiệp",
+      "org_import": "Sơ đồ tổ chức / nhân sự",
+      "review": "Rà soát",
+      "users": "Tạo người dùng",
+      "goals_import": "Import KPI/OKR",
+      "finish": "Hoàn tất"
+    },
+    "company": {
+      "hint": "Thông tin pháp lý của doanh nghiệp.",
+      "code": "Mã doanh nghiệp",
+      "name": "Tên doanh nghiệp",
+      "legalName": "Tên pháp lý",
+      "taxCode": "Mã số thuế",
+      "required": "Bắt buộc nhập.",
+      "taxInvalid": "Mã số thuế gồm 10 số (hoặc 10 số-3 số)."
+    },
+    "org_import": {
+      "hint": "Tải file mẫu hoặc file danh sách nhân sự của doanh nghiệp (.xlsx/.csv). AI gợi ý ghép cột, bạn có thể sửa."
+    },
+    "goals_import": {
+      "hint": "Tùy chọn: import kế hoạch KPI/OKR (.xlsx/.csv).",
+      "notAllowed": "Bước này do CEO/Director thực hiện. Bạn có thể bỏ qua — CEO mở wizard sẽ thấy bước đang chờ."
+    },
+    "review": {
+      "hint": "Xem trước cơ cấu sẽ tạo và các dòng lỗi. Tài liệu import được duyệt rồi ghi vào hệ thống (hoàn tác trong 7 ngày).",
+      "noImport": "Chưa có file import — quay lại bước 2.",
+      "waiting": "Tài liệu đang chờ người duyệt. Trang sẽ tự cập nhật.",
+      "approved": "Đã duyệt — ghi dữ liệu vào cơ cấu tổ chức.",
+      "commit": "Ghi vào hệ thống",
+      "committed": "Đã ghi cơ cấu tổ chức.",
+      "undo": "Hoàn tác import",
+      "rejected": "Tài liệu bị từ chối hoặc đã hoàn tác.",
+      "reimport": "Import lại",
+      "planned": "Cơ cấu sẽ tạo",
+      "errors": "Dòng lỗi",
+      "real": "Cơ cấu hiện tại",
+      "people": "{n} người"
+    },
+    "users": {
+      "hint": "Chọn nhân viên cần tài khoản, nhập email và mật khẩu ban đầu. Tạo tối đa {max} dòng mỗi lượt; dòng lỗi không chặn dòng khác.",
+      "needCeo": "Chưa có tài khoản CEO — chỉ CEO được cấp vai trò CEO.",
+      "pick": "Chọn",
+      "pickRow": "Chọn {name}",
+      "employee": "Nhân viên",
+      "head": "trưởng phòng",
+      "role": "Vai trò",
+      "emailOf": "Email của {name}",
+      "passwordOf": "Mật khẩu ban đầu của {name}",
+      "generate": "Sinh mật khẩu ngẫu nhiên",
+      "result": "Kết quả",
+      "ok": "Đã tạo",
+      "emailInvalid": "Email không hợp lệ.",
+      "created": "Đã tạo {n} người dùng.",
+      "create": "Tạo {n} người dùng",
+      "enough": "Đủ — tiếp tục",
+      "tooMany": "Chỉ tạo {max} dòng đầu trong lượt này.",
+      "empty": "Mọi nhân viên đã có tài khoản."
+    },
+    "finish": {
+      "departments": "Phòng ban",
+      "employees": "Nhân viên",
+      "withoutUser": "Nhân viên chưa có tài khoản",
+      "users": "Người dùng theo vai trò",
+      "kpis": "KPI",
+      "objectives": "Mục tiêu OKR",
+      "time": "Thời gian",
+      "button": "Hoàn tất",
+      "done": "Onboarding đã hoàn tất.",
+      "missing": "Chưa xong bước bắt buộc: {step}",
+      "toHome": "Mở dashboard đầu tiên",
+      "toOrg": "Xem cơ cấu tổ chức"
+    }
   }
 }

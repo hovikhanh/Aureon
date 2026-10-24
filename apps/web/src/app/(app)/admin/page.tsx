@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 import { authOptions } from "@/lib/auth";
 import { canAccess } from "@/lib/permissions";
+import { OnboardingCard } from "@/features/admin/onboarding/OnboardingCard";
 
 const CARDS = [
   { href: "/admin/org", key: "org", scr: "SCR-51" },
@@ -33,6 +34,7 @@ export default async function Page() {
             </Link>
           </li>
         ))}
+        {canAccess("/admin/onboarding", u?.role ?? "", u?.permissions ?? [], u?.scopePillars ?? []) && <li><OnboardingCard /></li>}
       </ul>
     </div>
   );

@@ -1914,5 +1914,95 @@
       "errorRate": "Error rate",
       "p95": "p95"
     }
+  },
+  "onboarding": {
+    "title": "Company onboarding",
+    "hint": "Bring the company onto Aureon within one day: company info → structure → users → KPIs/OKRs.",
+    "intro": "A 6-step wizard. Progress is saved after every step — reloading resumes at the current step.",
+    "start": "Start onboarding",
+    "skip": "Skip",
+    "skipped": "skipped",
+    "continue": "Continue",
+    "saveContinue": "Save and continue",
+    "clock": "{time} h elapsed",
+    "clockHint": "Target: finish within one day (green ≤ 8 h, yellow ≤ 24 h, red > 24 h)",
+    "template": "Download template",
+    "upload": "Upload file",
+    "uploadAgain": "Upload another file",
+    "importDone": "{n} valid rows submitted.",
+    "sensitiveDropped": "Sensitive columns ignored: {cols}",
+    "steps": {
+      "company": "Company info",
+      "org_import": "Org chart / staff list",
+      "review": "Review",
+      "users": "Create users",
+      "goals_import": "Import KPIs/OKRs",
+      "finish": "Finish"
+    },
+    "company": {
+      "hint": "Legal information of the company.",
+      "code": "Company code",
+      "name": "Company name",
+      "legalName": "Legal name",
+      "taxCode": "Tax code",
+      "required": "Required.",
+      "taxInvalid": "Tax code has 10 digits (or 10-3 digits)."
+    },
+    "org_import": {
+      "hint": "Download the template or upload the company staff list (.xlsx/.csv). AI suggests the column mapping; you can change it."
+    },
+    "goals_import": {
+      "hint": "Optional: import the KPI/OKR plan (.xlsx/.csv).",
+      "notAllowed": "This step is done by the CEO/Director. You can skip it — the CEO will see it pending when opening the wizard."
+    },
+    "review": {
+      "hint": "Preview the structure to be created and the error rows. The import is reviewed, then written (undo within 7 days).",
+      "noImport": "No import yet — go back to step 2.",
+      "waiting": "The document is waiting for a reviewer. This page refreshes automatically.",
+      "approved": "Approved — write the data into the org structure.",
+      "commit": "Write to the system",
+      "committed": "Org structure written.",
+      "undo": "Undo import",
+      "rejected": "The document was rejected or rolled back.",
+      "reimport": "Import again",
+      "planned": "Structure to be created",
+      "errors": "Error rows",
+      "real": "Current structure",
+      "people": "{n} people"
+    },
+    "users": {
+      "hint": "Pick the employees who need an account, enter e-mail and initial password. Up to {max} rows per run; a failed row does not block the others.",
+      "needCeo": "No CEO account yet — only a CEO can grant the CEO role.",
+      "pick": "Pick",
+      "pickRow": "Pick {name}",
+      "employee": "Employee",
+      "head": "head",
+      "role": "Role",
+      "emailOf": "E-mail of {name}",
+      "passwordOf": "Initial password of {name}",
+      "generate": "Generate a random password",
+      "result": "Result",
+      "ok": "Created",
+      "emailInvalid": "Invalid e-mail.",
+      "created": "{n} users created.",
+      "create": "Create {n} users",
+      "enough": "Enough — continue",
+      "tooMany": "Only the first {max} rows are created in this run.",
+      "empty": "Every employee already has an account."
+    },
+    "finish": {
+      "departments": "Departments",
+      "employees": "Employees",
+      "withoutUser": "Employees without an account",
+      "users": "Users by role",
+      "kpis": "KPIs",
+      "objectives": "OKR objectives",
+      "time": "Time",
+      "button": "Finish",
+      "done": "Onboarding completed.",
+      "missing": "Required step not done: {step}",
+      "toHome": "Open the first dashboard",
+      "toOrg": "View org structure"
+    }
   }
 }

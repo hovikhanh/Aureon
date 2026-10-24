@@ -26,13 +26,15 @@ const EMP = new Map(SNAPSHOT.employees.map((e) => [eId(e.code), e]));
 export interface MEmployee { id: string; code: string; full_name: string; version: number; deleted: boolean }
 const empOf = (id: string) => EMP.get(id) ?? orgStore().employees.find((e) => e.id === id && !e.deleted);
 
-interface OrgStore { depts: MDept[]; teams: MTeam[]; positions: MPosition[]; assignments: MAssignment[]; employees: MEmployee[]; seq: number }
+export interface MOrg { id: string; version: number; code: string; name: string; legal_name: string | null; tax_code: string | null; valid_from: string; valid_to: string | null; created_at: string; updated_at: string }
+interface OrgStore { orgs: MOrg[]; depts: MDept[]; teams: MTeam[]; positions: MPosition[]; assignments: MAssignment[]; employees: MEmployee[]; seq: number }
 // on globalThis: `next dev` re-evaluates server modules when it compiles another page
 const G = globalThis as typeof globalThis & { __aureonMockOrg?: OrgStore | null };
 
 function seed(): OrgStore {
   const base = { version: 1, valid_from: ORG.valid_from, valid_to: null, archived: false, created_at: STAMP, updated_at: STAMP };
   return {
+    orgs: [{ id: ORG_ID, version: 1, code: ORG.code, name: ORG.name, legal_name: ORG.name, tax_code: null, valid_from: ORG.valid_from, valid_to: null, created_at: STAMP, updated_at: STAMP }],
     depts: SNAPSHOT.departments.map((d) => ({ ...base, id: dId(d.code), organization_id: ORG_ID, code: d.code, name: d.name, parent_id: null, manager_id: eId(d.head) })),
     teams: SNAPSHOT.departments.flatMap((d) => d.teams.map((t) => ({ ...base, id: tId(t.code), department_id: dId(d.code), code: t.code, name: t.name, lead_employee_id: null }))),
     positions: [],
@@ -290,6 +292,33 @@ function createAssignment(req: MockRequest) {
   return ok(row, 201);
 }
 
+/** EP-ORG-02 / EP-ORG-04 (SCR-66 step "company"): duplicate code → 409, PATCH needs `version`. */
+function createOrg(req: MockRequest) {
+  idem(req);
+  const b = body<MOrg>(req);
+  required(b, "code", "name");
+  const s = orgStore();
+  if (s.orgs.some((o) => o.code === b.code)) throw new MockHttpError(409, "DUPLICATE_RESOURCE", "organization code exists", { field: "code" });
+  const row: MOrg = { id: newId("organization"), version: 1, code: String(b.code), name: String(b.name), legal_name: b.legal_name ?? null, tax_code: b.tax_code ?? null,
+    valid_from: b.valid_from ?? today(), valid_to: null, created_at: now(), updated_at: now() };
+  s.orgs.push(row);
+  recordAudit(req.claims, "org.organization_create", "organizations", row.id);
+  return ok(row, 201);
+}
+
+function patchOrg(req: MockRequest) {
+  const row = orgStore().orgs.find((o) => o.id === req.params.id);
+  if (!row) throw new MockHttpError(404, "NOT_FOUND", "organization not found");
+  const b = body<MOrg>(req);
+  required(b as Record<string, unknown>, "version");
+  versionCheck(row, b);
+  for (const k of ["name", "legal_name", "tax_code"] as const) if (b[k] !== undefined) (row as unknown as Record<string, unknown>)[k] = b[k];
+  if (!row.name) throw new MockHttpError(422, "VALIDATION_ERROR", "invalid body", { fields: ["name"] });
+  Object.assign(row, { version: row.version + 1, updated_at: now() });
+  recordAudit(req.claims, "org.organization_update", "organizations", row.id);
+  return ok(row);
+}
+
 const list = <T extends { archived: boolean }>(rows: T[], map: (r: T) => object) => (req: MockRequest) => {
   visible(req.claims);
   return paginate(rows.filter((r) => !r.archived).map(map) as Record<string, unknown>[], parsePage(req.query, ["name", "code"]));
@@ -297,7 +326,9 @@ const list = <T extends { archived: boolean }>(rows: T[], map: (r: T) => object)
 
 export const ORG_ROUTES: readonly Route[] = [
   { method: "GET", pattern: "/org/tree", permission: "hr:read", handler: tree },
-  { method: "GET", pattern: "/org/organizations", permission: "hr:read", handler: (req) => { visible(req.claims); return ok([{ id: ORG_ID, code: ORG.code, name: ORG.name, legal_name: ORG.name, tax_code: null, valid_from: ORG.valid_from, valid_to: null, version: 1, created_at: STAMP, updated_at: STAMP }], 200, { pagination: { total: 1, limit: 20, offset: 0, has_next: false } }); } },
+  { method: "GET", pattern: "/org/organizations", permission: "hr:read", handler: (req) => { visible(req.claims); return paginate(orgStore().orgs as unknown as Record<string, unknown>[], parsePage(req.query, ["name", "code"])); } },
+  { method: "POST", pattern: "/org/organizations", permission: "hr:admin", handler: createOrg },
+  { method: "PATCH", pattern: "/org/organizations/:id", permission: "hr:admin", handler: patchOrg },
   { method: "GET", pattern: "/hr/departments", permission: "hr:read", handler: (req) => list(orgStore().depts, deptOut)(req) },
   { method: "POST", pattern: "/hr/departments", permission: "hr:admin", handler: createDept },
   { method: "PATCH", pattern: "/hr/departments/:id", permission: "hr:admin", handler: patchDept },
