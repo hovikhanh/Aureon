@@ -97,3 +97,13 @@ describe("mock chat SSE", () => {
     expect(res.status).toBe(422);
   });
 });
+
+describe("M1.4 goals routes (T-626F..T-628F)", () => {
+  it("serves every EP-STR/KPI/OKR/PRF path behind execution:read / execution:write (REV/ADM → FORBIDDEN_ROLE)", async () => {
+    const paths = ["/goals/tree", "/goals/strategies", "/goals/strategic-objectives", "/goals/initiatives", "/kpis", "/objectives", "/goals/check-ins", "/goals/check-ins/due"];
+    for (const p of paths) expect((await call(p)).status, p).toBe(200);
+    for (const p of paths) expect((await call(p, { claims: user("reviewer@abc.demo") })).status, p).toBe(403);
+    expect((await call("/kpis", { method: "POST", body: {}, claims: user("admin@abc.demo") })).status).toBe(403);
+    expect((await call("/execution/kpis")).status).toBe(404); // R-DEC-58: old paths removed, no alias
+  });
+});
