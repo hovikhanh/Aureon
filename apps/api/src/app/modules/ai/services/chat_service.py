@@ -9,6 +9,11 @@ Pipeline for one turn:
   4. Persist Conversation (create/update), the user Message, every ToolCallLog, and the assistant
      Message (sources + function_calls) — the turn is saved even when truncated (FR-AI-04/05).
 
+WRITE/EXECUTION calls (T-645b, 10 §7.2.5 EP-AI-01) never run in step 3: `resolve_level` → L0
+(kill switch `L0`) = `forbidden`/`AI_DISABLED` + `ai.warn.kill_switch`; L1 = a suggestion (no
+`ai_actions` row); L2 = `ActionService.propose()` → a card in `suggested_actions[]` awaiting
+the asker's confirmation (EP-AI-09).
+
 The gateway is injected (`GatewayLike`) so tests drive a scripted gateway; production passes
 `AiService.gateway()`. SECRET prompts raise `SecretDataBlockedError` from the gateway → the caller
 maps it to a safe refusal (handled in the route). Tool results are wrapped as data (injection
@@ -28,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
 from app.core.deps import Principal
+from app.core.errors import AppError
 from app.core.field_policy import strip_for_model
 from app.core.model_gateway.types import (
     ChatRequest,
@@ -38,6 +44,7 @@ from app.core.model_gateway.types import (
     Message as GwMessage,
 )
 from app.modules.ai.models import Conversation, Message
+from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.agent_catalog import CHAT_AGENT
 from app.modules.ai.services.agent_service import AgentService
 from app.modules.ai.services.autonomy import resolve_level
@@ -88,6 +95,7 @@ class ChatTurnResult:
     tokens_in: int = 0
     tokens_out: int = 0
     replayed: str | None = None  # demo entry id when answered by replay (DEC-241)
+    suggested_actions: list[dict[str, Any]] = field(default_factory=list)  # EP-AI-01 (T-645b)
 
 
 class ChatService:
@@ -121,6 +129,7 @@ class ChatService:
         sources: list[SourceRef] = []
         fcalls: list[dict[str, Any]] = []
         warnings: list[str] = []
+        suggested: list[dict[str, Any]] = []
         calls_made = 0
         truncated = False
         answer = ""
@@ -147,8 +156,18 @@ class ChatService:
                     warnings.append("ai.warn.tool_budget_exhausted")
                     break
                 calls_made += 1
-                result = await executor.run(tc.name, tc.arguments)
-                await self._log_tool(user, user_msg.id, tc.name, tc.arguments, result)
+                spec = get_tool(tc.name)
+                if (
+                    spec is not None
+                    and spec.is_write
+                    and spec.action_name
+                    and set(spec.required_permissions) <= user.permissions
+                ):
+                    result = await self._write_call(user, user_msg.id, tc.id, tc.name,
+                                                    tc.arguments, suggested, warnings)  # fmt: skip
+                else:
+                    result = await executor.run(tc.name, tc.arguments)
+                    await self._log_tool(user, user_msg.id, tc.name, tc.arguments, result)
                 fcalls.append(
                     {"tool": tc.name, "status": result.status, "latency_ms": result.latency_ms}
                 )
@@ -176,7 +195,7 @@ class ChatService:
         return ChatTurnResult(
             conversation_id=conv.id, message_id=assistant.id, answer=answer,
             sources=sources, function_calls=fcalls, truncated=truncated, warnings=warnings,
-            tokens_in=tokens_in, tokens_out=tokens_out,
+            tokens_in=tokens_in, tokens_out=tokens_out, suggested_actions=suggested,
         )  # fmt: skip
 
     async def _finish_replay(
@@ -256,6 +275,56 @@ class ChatService:
             autonomy_level=level, message_id=message_id, error_code=result.error_code,
             result_refs=result.sources,
         )  # fmt: skip
+
+    async def _write_call(
+        self, user: Principal, message_id: uuid.UUID, call_id: str, tool: str,
+        arguments: dict[str, Any], suggested: list[dict[str, Any]], warnings: list[str],
+    ) -> ToolResult:  # fmt: skip
+        """A model-called WRITE/EXECUTION tool → L0 refused / L1 suggestion / L2 card (T-645b)."""
+        spec = get_tool(tool)
+        if spec is None or not spec.action_name:
+            return ToolResult(tool, "error", 0, error_code="AI_TOOL_NOT_AVAILABLE")
+        raw = arguments.get("amount")
+        amount = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
+        level = await resolve_level(self.db, action_name=spec.action_name, role=user.role,
+                                    amount=amount, agent_code=AGENT_CODE)  # fmt: skip
+        if level in ("L0", "L1"):
+            refused = level == "L0"  # kill switch `L0` on this agent (10 §7.2.5)
+            code = "AI_DISABLED" if refused else None
+            if refused and "ai.warn.kill_switch" not in warnings:
+                warnings.append("ai.warn.kill_switch")
+            if not refused:
+                suggested.append({
+                    "action_name": spec.action_name, "tool_name": tool,
+                    "autonomy_level": "L1", "input_preview": dict(arguments),
+                })  # fmt: skip
+            result = ToolResult(tool, "forbidden" if refused else "ok", 0, error_code=code,
+                                data={} if refused else {"status": "suggested"})  # fmt: skip
+            await log_tool_call(
+                self.db, tool_name=tool, arguments=arguments, status=result.status,
+                latency_ms=0, agent_code=AGENT_CODE, user_id=user.user_id,
+                autonomy_level=level, message_id=message_id, error_code=code,
+            )  # fmt: skip
+            return result
+        try:
+            async with self.db.begin_nested():
+                card = await ActionService(self.db).propose(
+                    user, action_name=spec.action_name, tool_name=tool, input_data=arguments,
+                    idempotency_key=f"chat:{message_id}:{call_id}", amount=amount,
+                    message_id=message_id, agent_code=AGENT_CODE,
+                )  # fmt: skip
+        except AppError as exc:
+            await log_tool_call(
+                self.db, tool_name=tool, arguments=arguments, status="error", latency_ms=0,
+                agent_code=AGENT_CODE, user_id=user.user_id, autonomy_level=level,
+                message_id=message_id, error_code=exc.code,
+            )  # fmt: skip
+            return ToolResult(tool, "error", 0, error_code=exc.code)
+        suggested.append(card.model_dump(mode="json"))
+        # the model only learns a card was drafted (the id/card go to `suggested_actions`)
+        data = {"status": card.status, "autonomy_level": card.autonomy_level,
+                "action_name": card.action_name}  # fmt: skip
+        return ToolResult(tool, "ok", 0, data=data)
 
     async def _tool_specs(self, user: Principal, classification: str) -> list[ToolSpec]:
         """Agent `allowed_tools` ∩ the asker's permissions (FR-ADM-03); disabled agent → none."""

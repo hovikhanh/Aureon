@@ -73,7 +73,7 @@ def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
         "answer": turn.answer,
         "sources": [s.as_dict() for s in turn.sources],
         "function_calls": turn.function_calls,
-        "suggested_actions": [],
+        "suggested_actions": turn.suggested_actions,
         "truncated": turn.truncated,
         "warnings": turn.warnings,
     }
@@ -151,7 +151,7 @@ async def chat_stream(
             "answer": turn.answer,
             "sources": [s.as_dict() for s in turn.sources],
             "function_calls": turn.function_calls,
-            "suggested_actions": [],
+            "suggested_actions": turn.suggested_actions,
             "truncated": turn.truncated,
             "warnings": turn.warnings,
             "usage": {"tokens_in": turn.tokens_in, "tokens_out": turn.tokens_out},
