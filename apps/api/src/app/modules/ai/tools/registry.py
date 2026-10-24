@@ -1,532 +1,583 @@
-"""Tool Registry — the 43 `TOOL-*` of 10 §7 (00 §4.8: 35 v2.0 + 8 v2.1). Metadata per §7.4.
+"""Tool Registry — 53 `TOOL-*` (10 §7 + §7.2.5: 43 v2.0/v2.1 + 10 M1.6), 13 metadata (10 §2.1).
 
-`TOOLS` is the single source; `all_tools()`, `get_tool()`, and the filters below are the only
-public API. A turn's available tools = tools whose `required_permissions` the asker holds
-(`available_for`, P06, 02 §7.2) minus those removed by the autonomy / kill-switch layer (T-310).
-`advertisable_for` additionally drops `declare_to_model=False` (APPROVAL layer never sent to the
-model, §7.3) and `p1_frozen` tools (product/risk, R-DEC-16); for classification routing (§7.4,
-07 §6.5) callers may further filter by `max_classification`. Adding a tool here is a contract
-change (§7.2 rule 4): update 10 §7 + 00 §4.8 + 02 §7.3 first.
+`TOOLS` is the single source; `all_tools()`, `get_tool()` and the filters below are the only
+public API. Every `ToolDef` is validated when constructed (`spec.validate_tool`) so a tool with
+a missing metadata never gets registered (`ToolRegistryError` at import — TC-M16-01).
+A turn's available tools = tools whose `required_permissions` the asker holds (`available_for`,
+P06) ∩ the agent's `allowed_tools` (T-646). `advertisable_for` additionally drops
+`declare_to_model=False` (APPROVAL) and `p1_frozen` tools (product/risk, R-DEC-16) and applies
+the classification ceiling (07 §6.5). Adding a tool is a contract change: 10 §7 + 00 §4.8 first.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any, Final
 
-from app.modules.ai.tools.spec import ToolDef
+from app.modules.ai.tools.schemas import (
+    APPROVAL_OUT,
+    DATE,
+    INT,
+    LIMIT,
+    NUM,
+    PERIOD,
+    READ_OUT,
+    UUID,
+    WRITE_OUT,
+    S,
+    enum,
+    obj,
+)  # fmt: skip
+from app.modules.ai.tools.spec import ToolDef, ToolRegistryError
 
-CLASSIFICATION_RANK = {"INTERNAL": 1, "CONFIDENTIAL": 2, "SECRET": 3}
+CLASSIFICATION_RANK = {"PUBLIC": 0, "INTERNAL": 1, "CONFIDENTIAL": 2, "SECRET": 3}
 # R-DEC-16: modules frozen at P1 — their tools carry `p1_frozen` and are not advertised.
 P1_FROZEN_DOMAINS = frozenset({"product", "risk"})
+# 10 §7.2.5 row 14 `owner`: role of the domain owner approving an autonomy raise.
+OWNER_BY_DOMAIN = {
+    "finance": "ROLE-DIR:F", "sales": "ROLE-DIR:C", "hr": "ROLE-DIR:O", "product": "ROLE-DIR:U",
+    "risk": "ROLE-DIR:S", "execution": "ROLE-CEO", "dashboard": "ROLE-CEO",
+    "platform": "ROLE-CEO", "idp": "ROLE-ADM", "ai": "ROLE-ADM",
+}  # fmt: skip
+CONF: Final = "CONFIDENTIAL"
+INTERNAL: Final = "INTERNAL"
+
+_LIST = obj(limit=LIMIT, period=PERIOD)
+_PERIOD_ONLY = obj(period=PERIOD)
 
 
 def _read(
-    name: str,
-    endpoint: str,
-    perm: str,
-    *,
-    kind: str = "READ",
-    risk: str = "low",
-    scope: str,
-    classification: str = "INTERNAL",
-    cost: str = "low",
-    desc: str,
-) -> ToolDef:
+    name: str, endpoint: str, perm: str, scope: str, desc: str, *, brd: str | None = None,
+    risk: str = "low", cls: str = INTERNAL, cost: str = "low", compute: bool = False,
+    args: dict[str, Any] | None = None,
+) -> ToolDef:  # fmt: skip
+    domain = perm.split(":", 1)[0]
     return ToolDef(
-        name=name,
-        description=desc,
-        domain=perm.split(":", 1)[0],
-        endpoint=endpoint,
-        kind=kind,  # type: ignore[arg-type]
-        risk_level=risk,  # type: ignore[arg-type]
-        autonomy_default="L0",
-        autonomy_max="L0",
-        required_permissions=(perm,),
-        data_scope=scope,
-        classification=classification,  # type: ignore[arg-type]
-        reversible=None,
-        cost_estimate=cost,  # type: ignore[arg-type]
-    )
+        name=name, description=desc, domain=domain, endpoint_ref=endpoint, kind="READ",
+        risk_level=risk, autonomy_default="L0", autonomy_max="L0",  # type: ignore[arg-type]
+        required_permissions=(perm,), data_scope=scope,
+        data_classification=cls, reversible=None, cost_estimate=cost,  # type: ignore[arg-type]
+        input_schema=args or _PERIOD_ONLY, output_schema=READ_OUT, approval_required="never",
+        audit_required=False, owner=OWNER_BY_DOMAIN[domain], brd_name=brd, compute=compute,
+    )  # fmt: skip
 
 
 def _write(
-    name: str,
-    endpoint: str,
-    domain: str,
-    extra_perm: str | None,
-    *,
-    risk: str,
-    default: str,
-    maximum: str,
-    scope: str,
-    classification: str = "CONFIDENTIAL",
-    reversible: bool = True,
-    cost: str = "low",
-    kind: str = "WRITE",
-    desc: str,
-) -> ToolDef:
+    name: str, endpoint: str, domain: str, extra_perm: str | None, scope: str, desc: str, *,
+    args: dict[str, Any], default: str, maximum: str, brd: str | None = None,
+    risk: str = "medium", cls: str = CONF, reversible: bool = True, cost: str = "low",
+    kind: str = "WRITE", approval: str = "never",
+) -> ToolDef:  # fmt: skip
     perms = ("ai:write",) + ((extra_perm,) if extra_perm else ())
     return ToolDef(
-        name=name,
-        description=desc,
-        domain=domain,
-        endpoint=endpoint,
-        kind=kind,  # type: ignore[arg-type]
-        risk_level=risk,  # type: ignore[arg-type]
-        autonomy_default=default,  # type: ignore[arg-type]
-        autonomy_max=maximum,  # type: ignore[arg-type]
-        required_permissions=perms,
-        data_scope=scope,
-        classification=classification,  # type: ignore[arg-type]
-        reversible=reversible,
-        cost_estimate=cost,  # type: ignore[arg-type]
-    )
+        name=name, description=desc, domain=domain, endpoint_ref=endpoint,
+        kind=kind, risk_level=risk,  # type: ignore[arg-type]
+        autonomy_default=default, autonomy_max=maximum,  # type: ignore[arg-type]
+        required_permissions=perms, data_scope=scope, data_classification=cls,  # type: ignore[arg-type]
+        reversible=reversible, cost_estimate=cost,  # type: ignore[arg-type]
+        input_schema=args, output_schema=WRITE_OUT,
+        approval_required=approval,  # type: ignore[arg-type]
+        audit_required=True, owner=OWNER_BY_DOMAIN[domain], brd_name=brd,
+        action_name="ACT-" + name.removeprefix("TOOL-"),
+    )  # fmt: skip
 
 
-# ---------------------------------------------------------------- §7.1 read / compute (25)
+def _approval(name: str, decision: str, risk: str) -> ToolDef:
+    return ToolDef(
+        name=name, description=f"{decision.capitalize()} an approval request (server-only).",
+        domain="platform", endpoint_ref=f"EP-WF-03 decision={decision}", kind="APPROVAL",
+        risk_level=risk, autonomy_default="L0", autonomy_max="L0",  # type: ignore[arg-type]
+        required_permissions=("platform:approve",), data_scope="platform:record",
+        data_classification=CONF, reversible=False, cost_estimate="low",
+        input_schema=obj(("request_id",), request_id=UUID, comment=S),
+        output_schema=APPROVAL_OUT, approval_required="always", audit_required=True,
+        owner="ROLE-CEO", declare_to_model=False,
+    )  # fmt: skip
+
+
+# ---------------------------------------------------------------- READ (31; 2 `compute`)
+_METRIC_ARGS = obj(("metric_code",), metric_code=S, period=PERIOD)
+_TASK_FILTER = obj(limit=LIMIT, assignee_code=S, department_code=S, project_code=S,
+                   status=enum("todo", "in_progress", "blocked", "done", "cancelled"))  # fmt: skip
 _READ_TOOLS: tuple[ToolDef, ...] = (
     _read(
         "TOOL-get_finance_dashboard",
         "EP-60",
         "finance:query",
-        scope="finance:aggregate",
-        desc="5-metric Finance pillar card (FIN-01..07 summary).",
+        "finance:aggregate",
+        "5-metric Finance pillar card (FIN-01..07 summary).",
+        brd="get_financial_summary",
     ),
     _read(
         "TOOL-get_finance_forecast",
         "EP-66.L",
         "finance:read",
+        "finance:aggregate",
+        "Finance revenue / expense forecast.",
+        brd="get_financial_summary",
         risk="medium",
-        scope="finance:aggregate",
-        cost="low",
-        desc="Finance revenue / expense forecast.",
     ),
     _read(
         "TOOL-list_expenses",
         "EP-62.L",
         "finance:read",
+        "finance:record",
+        "List expense records (filtered, paginated).",
+        brd="get_financial_summary",
         risk="medium",
-        scope="finance:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List expense records (filtered, paginated).",
+        args=_LIST,
     ),
     _read(
         "TOOL-get_budget_status",
         "EP-64",
         "finance:query",
-        scope="finance:aggregate",
-        desc="Budget vs actual utilisation by department.",
+        "finance:aggregate",
+        "Budget vs actual utilisation by department.",
+        brd="get_financial_summary",
     ),
     _read(
         "TOOL-list_invoices",
         "EP-67.L",
         "finance:read",
+        "finance:record",
+        "List invoices (filtered, paginated).",
+        brd="get_financial_summary",
         risk="medium",
-        scope="finance:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List invoices (filtered, paginated).",
+        args=_LIST,
     ),
     _read(
         "TOOL-get_runway_what_if",
         "EP-69",
         "finance:query",
-        kind="COMPUTE",
-        scope="finance:aggregate",
+        "finance:aggregate",
+        "Runway what-if (no new revenue).",
+        brd="get_financial_summary",
         cost="medium",
-        desc="Runway what-if (no new revenue).",
+        compute=True,
+        args=obj(monthly_burn_change_pct=NUM),
     ),
     _read(
         "TOOL-get_sales_dashboard",
         "EP-70",
         "sales:query",
-        scope="sales:aggregate",
-        desc="Sales pillar card (pipeline, NRR, concentration).",
+        "sales:aggregate",
+        "Sales pillar card (pipeline, NRR, concentration).",
+        brd="get_sales_pipeline",
     ),
     _read(
         "TOOL-list_deals",
         "EP-72.L",
         "sales:read",
+        "sales:record",
+        "List deals (filtered).",
+        brd="get_sales_pipeline",
         risk="medium",
-        scope="sales:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List deals (filtered).",
+        args=_LIST,
     ),
     _read(
         "TOOL-get_sales_pipeline",
         "EP-75",
         "sales:query",
-        scope="sales:aggregate",
-        desc="Sales pipeline coverage by stage.",
+        "sales:aggregate",
+        "Sales pipeline coverage by stage.",
+        brd="get_sales_pipeline",
     ),
     _read(
         "TOOL-get_hr_dashboard",
         "EP-80",
         "hr:query",
-        scope="hr:aggregate",
-        desc="HR / Operations pillar card (turnover, hiring).",
+        "hr:aggregate",
+        "HR / Operations pillar card (turnover, hiring).",
+        brd="get_health_metrics",
     ),
     _read(
         "TOOL-list_hiring_plans",
         "EP-84.L",
         "hr:read",
+        "hr:record",
+        "List hiring plans (names pseudonymised EMP-xxxx).",
         risk="medium",
-        scope="hr:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List hiring plans (names pseudonymised EMP-xxxx).",
+        args=_LIST,
     ),
     _read(
         "TOOL-get_workload",
         "EP-87",
         "hr:query",
-        scope="hr:record",
-        classification="CONFIDENTIAL",
+        "hr:record",
+        "Team workload summary.",
+        brd="get_employee_workload",
+        cls=CONF,
         cost="medium",
-        desc="Team workload summary.",
+        args=obj(department_code=S, team_code=S),
     ),
     _read(
         "TOOL-get_product_dashboard",
         "EP-90",
         "product:query",
-        scope="product:aggregate",
-        desc="Product / Innovation pillar card.",
+        "product:aggregate",
+        "Product / Innovation pillar card.",
     ),
     _read(
         "TOOL-get_product_metrics",
         "EP-95.L",
         "product:query",
-        scope="product:aggregate",
-        desc="Product metric history (churn, retention, NPS).",
+        "product:aggregate",
+        "Product metric history (churn, retention, NPS).",
     ),
     _read(
         "TOOL-get_risk_dashboard",
         "EP-100",
         "risk:query",
-        scope="risk:aggregate",
-        desc="Strategy / Risk pillar card.",
+        "risk:aggregate",
+        "Strategy / Risk pillar card.",
     ),
     _read(
         "TOOL-list_risks",
         "EP-101.L",
         "risk:read",
+        "risk:record",
+        "List risks in the register.",
         risk="medium",
-        scope="risk:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List risks in the register.",
+        args=_LIST,
     ),
     _read(
         "TOOL-run_risk_scenario",
         "EP-105",
         "risk:query",
-        kind="COMPUTE",
+        "risk:aggregate",
+        "Run a risk scenario (saves ENT-Scenario, no business write).",
         risk="medium",
-        scope="risk:aggregate",
         cost="high",
-        desc="Run a risk scenario (saves ENT-Scenario, no business write).",
+        compute=True,
+        args=obj(("scenario_code",), scenario_code=S),
     ),
     _read(
         "TOOL-get_execution_dashboard",
         "EP-49",
         "execution:query",
-        scope="execution:aggregate",
-        desc="Execution pillar / FOCUS dashboard snapshot.",
+        "execution:aggregate",
+        "Execution pillar / FOCUS dashboard snapshot.",
+        brd="get_department_performance",
     ),
     _read(
         "TOOL-list_tasks",
         "EP-TASK-01",
         "execution:read",
+        "execution:record",
+        "List execution tasks (filtered).",
         risk="medium",
-        scope="execution:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List execution tasks (filtered).",
+        args=_TASK_FILTER,
     ),
     _read(
         "TOOL-list_objectives",
         "EP-OKR-01",
         "execution:read",
+        "execution:record",
+        "List OKR objectives.",
+        brd="get_okr_status",
         risk="medium",
-        scope="execution:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="List OKR objectives.",
+        args=_LIST,
     ),
     _read(
         "TOOL-get_metric",
         "EP-12",
         "dashboard:read",
-        scope="dashboard:aggregate",
-        desc="One metric value + threshold + lineage url.",
+        "dashboard:aggregate",
+        "One metric value + threshold + lineage url.",
+        brd="get_health_metrics",
+        args=_METRIC_ARGS,
     ),
     _read(
         "TOOL-list_alerts",
         "EP-15",
         "dashboard:read",
-        scope="dashboard:aggregate",
-        desc="Open alerts across visible pillars.",
+        "dashboard:aggregate",
+        "Open alerts across visible pillars.",
+        brd="get_health_metrics",
+        args=obj(),
     ),
     _read(
         "TOOL-get_lineage",
         "EP-14",
         "dashboard:read",
+        "dashboard:record",
+        "Metric / record lineage (source documents, computation).",
+        brd="get_source_document",
         risk="medium",
-        scope="dashboard:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="Metric lineage (source documents, computation).",
+        args=obj(("ref",), ref=S),
     ),
     _read(
         "TOOL-search_documents",
         "EP-24",
         "idp:read",
+        "idp:document",
+        "Search source documents (+ RAG SOP/policy).",
+        brd="search_documents",
         risk="medium",
-        scope="idp:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="Search source documents (+ RAG SOP/policy).",
+        args=obj(("query",), query=S, limit=LIMIT),
     ),
     _read(
         "TOOL-get_source_document",
         "EP-DC-02",
         "idp:read",
+        "idp:document",
+        "Get a source document (page + bbox, no raw url to LLM).",
+        brd="get_source_document",
         risk="medium",
-        scope="idp:record",
-        classification="CONFIDENTIAL",
+        cls=CONF,
         cost="medium",
-        desc="Get a source document (page + bbox, no raw url to LLM).",
+        args=obj(("document_id",), document_id=UUID, page=INT),
+    ),
+    _read(
+        "TOOL-get_kpi_status",
+        "EP-KPI-01",
+        "execution:read",
+        "execution:aggregate",
+        "KPI status + evaluation band + last check-in.",
+        brd="get_kpi_status",
+        args=obj(kpi_code=S, period=PERIOD),
+    ),
+    _read(
+        "TOOL-get_cash_flow_forecast",
+        "EP-128",
+        "finance:read",
+        "finance:aggregate",
+        "13-week cash-flow forecast (GET).",
+        brd="get_financial_summary",
+        risk="medium",
+        args=obj(),
     ),
 )
 
-# ---------------------------------------------------------------- §7.2 write via ACT-* (10)
+# ---------------------------------------------------------------- WRITE / EXECUTION / APPROVAL
+_TASK_ARGS = obj(("title",), title=S, assignee_code=S, due_date=DATE, project_code=S,
+                 priority=enum("low", "medium", "high", "urgent"), description=S)  # fmt: skip
 _WRITE_TOOLS: tuple[ToolDef, ...] = (
     _write(
         "TOOL-create_task",
-        "EP-TASK-02 / ACT-create_task",
+        "EP-TASK-02",
         "execution",
         "execution:write",
-        risk="medium",
+        "execution:record",
+        "Create an execution task.",
+        brd="create_task",
+        args=_TASK_ARGS,
         default="L3",
         maximum="L3",
-        scope="execution:record",
-        desc="Create an execution task.",
     ),
     _write(
         "TOOL-record_decision",
-        "EP-43.C / ACT-record_decision",
+        "EP-43.C",
         "execution",
         "execution:write",
-        risk="medium",
+        "execution:record",
+        "Record a decision.",
+        brd="log_decision",
+        args=obj(("title",), title=S, meeting_id=UUID, rationale=S),
         default="L3",
         maximum="L3",
-        scope="execution:record",
-        desc="Record a decision.",
     ),
     _write(
         "TOOL-create_meeting",
-        "EP-42.C / ACT-create_meeting",
+        "EP-42.C",
         "execution",
         "execution:write",
-        risk="medium",
+        "execution:record",
+        "Create an internal meeting.",
+        brd="create_calendar_event",
+        args=obj(
+            ("title", "starts_at"), title=S, starts_at={"type": "string", "format": "date-time"}
+        ),
         default="L3",
         maximum="L3",
-        scope="execution:record",
-        desc="Create a meeting.",
     ),
     _write(
         "TOOL-record_kpi_measurement",
-        "EP-KPI-07 / ACT-record_kpi_measurement",
+        "EP-KPI-07",
         "execution",
         "execution:write",
-        risk="medium",
+        "execution:record",
+        "Record a KPI measurement / check-in.",
+        brd="record_kpi_measurement",
+        args=obj(
+            ("kpi_code", "period_key", "actual_value"),
+            kpi_code=S,
+            period_key=PERIOD,
+            actual_value=NUM,
+        ),
         default="L2",
         maximum="L3",
-        scope="execution:record",
-        desc="Record a KPI measurement / check-in.",
     ),
     _write(
         "TOOL-record_expense",
-        "EP-62.C / ACT-record_expense",
+        "EP-62.C",
         "finance",
         "finance:write",
+        "finance:record",
+        "Record an expense (<5M VND may be L3).",
         risk="high",
+        approval="threshold",
+        args=obj(("amount", "category"), amount=INT, currency=S, category=S, spent_on=DATE),
         default="L2",
         maximum="L3",
-        scope="finance:record",
-        desc="Record an expense (<5M VND may be L3).",
     ),
     _write(
         "TOOL-create_invoice",
-        "EP-67.C / ACT-create_invoice",
+        "EP-67.C",
         "finance",
         "finance:write",
+        "finance:record",
+        "Create an invoice.",
         risk="high",
+        approval="threshold",
+        args=obj(
+            ("invoice_number", "total_amount"),
+            invoice_number=S,
+            total_amount=INT,
+            currency=S,
+            issue_date=DATE,
+        ),
         default="L2",
         maximum="L3",
-        scope="finance:record",
-        desc="Create an invoice.",
     ),
     _write(
         "TOOL-upsert_deal",
-        "EP-72 / ACT-upsert_deal",
+        "EP-72",
         "sales",
         "sales:write",
+        "sales:record",
+        "Create or update a deal.",
         risk="high",
+        args=obj(("name",), name=S, stage=S, amount=INT, currency=S),
         default="L2",
         maximum="L2",
-        scope="sales:record",
-        desc="Create or update a deal.",
     ),
     _write(
         "TOOL-upsert_risk",
-        "EP-101 / ACT-upsert_risk",
+        "EP-101",
         "risk",
         "risk:write",
-        risk="medium",
+        "risk:record",
+        "Create or update a risk.",
+        args=obj(("title",), title=S, likelihood=INT, impact=INT),
         default="L2",
         maximum="L2",
-        scope="risk:record",
-        desc="Create or update a risk.",
     ),
     _write(
         "TOOL-create_mitigation",
-        "EP-103.C / ACT-create_mitigation",
+        "EP-103.C",
         "risk",
         "risk:write",
-        risk="medium",
+        "risk:record",
+        "Create a risk mitigation.",
+        args=obj(("risk_id", "title"), risk_id=UUID, title=S),
         default="L2",
         maximum="L2",
-        scope="risk:record",
-        desc="Create a risk mitigation.",
     ),
     _write(
         "TOOL-submit_document",
         "EP-DC-01",
         "idp",
         "idp:write",
-        risk="medium",
+        "idp:document",
+        "Submit a document (C2 voice / attachment; always an action card).",
+        brd="upload_document",
+        cost="medium",
+        args=obj(("document_type",), document_type=S, note=S),
         default="L2",
         maximum="L2",
-        scope="idp:record",
-        cost="medium",
-        desc="Submit a document (C2 voice / attachment; always an action card).",
-    ),
-)
-
-# ---------------------------------------------------------------- §7.3 v2.1 tools (8)
-_V21_TOOLS: tuple[ToolDef, ...] = (
-    _read(
-        "TOOL-get_kpi_status",
-        "EP-KPI-01",
-        "execution:read",
-        risk="low",
-        scope="execution:aggregate",
-        desc="KPI status + evaluation band + last check-in.",
-    ),
-    _read(
-        "TOOL-get_cash_flow_forecast",
-        "EP-128",
-        "finance:read",
-        risk="medium",
-        scope="finance:aggregate",
-        cost="low",
-        desc="13-week cash-flow forecast (GET).",
     ),
     _write(
         "TOOL-assign_task",
         "EP-TASK-04",
         "execution",
         "execution:write",
-        risk="medium",
+        "execution:record",
+        "Assign / reassign a task (undo via before-snapshot).",
+        brd="assign_task",
+        args=obj(("task_id", "assignee_code"), task_id=UUID, assignee_code=S),
         default="L2",
         maximum="L3",
-        scope="execution:record",
-        desc="Assign / reassign a task (undo via before-snapshot).",
     ),
     _write(
         "TOOL-generate_report",
         "EP-121",
         "dashboard",
         "dashboard:read",
+        "dashboard:aggregate",
+        "Generate a report (weekly / monthly / board).",
+        brd="generate_report",
         risk="low",
-        default="L2",
-        maximum="L2",
-        scope="dashboard:aggregate",
-        classification="INTERNAL",
+        cls=INTERNAL,
         reversible=False,
         cost="high",
-        desc="Generate a report (weekly / monthly / board).",
+        args=obj(("kind",), kind=enum("weekly", "monthly", "board"), period=PERIOD),
+        default="L2",
+        maximum="L2",
     ),
     _write(
         "TOOL-request_approval",
         "EP-123.C",
         "dashboard",
         "dashboard:read",
-        risk="medium",
+        "platform:record",
+        "Open an approval request.",
+        brd="request_approval",
+        args=obj(("subject", "reason"), subject=S, reason=S, amount=INT, currency=S),
         default="L2",
         maximum="L2",
-        scope="platform:record",
-        desc="Open an approval request.",
     ),
     _write(
         "TOOL-send_notification",
-        "platform.notify",
+        "EP-NTF-01",
         "platform",
         None,
+        "platform:record",
+        "Send a notification (in-app L3 / email channel EXECUTION L2).",
+        brd="send_notification",
         risk="low",
-        default="L3",
-        maximum="L3",
-        scope="platform:record",
-        classification="INTERNAL",
+        cls=INTERNAL,
         reversible=False,
         kind="EXECUTION",
-        desc="Send a notification (in-app L3 / email channel EXECUTION L2).",
+        args=obj(
+            ("recipient_code", "message"),
+            recipient_code=S,
+            message=S,
+            channel=enum("in_app", "email"),
+        ),
+        default="L3",
+        maximum="L3",
     ),
-    ToolDef(
-        name="TOOL-approve_request",
-        description="Approve an approval request (server-only).",
-        domain="platform",
-        endpoint="EP-WF-03 decision=approve",
-        kind="APPROVAL",
-        risk_level="high",
-        autonomy_default="L0",
-        autonomy_max="L0",
-        required_permissions=("platform:approve",),
-        data_scope="platform:record",
-        classification="CONFIDENTIAL",
-        reversible=False,
-        cost_estimate="low",
-        declare_to_model=False,
-    ),
-    ToolDef(
-        name="TOOL-reject_request",
-        description="Reject an approval request (server-only).",
-        domain="platform",
-        endpoint="EP-WF-03 decision=reject",
-        kind="APPROVAL",
-        risk_level="medium",
-        autonomy_default="L0",
-        autonomy_max="L0",
-        required_permissions=("platform:approve",),
-        data_scope="platform:record",
-        classification="CONFIDENTIAL",
-        reversible=False,
-        cost_estimate="low",
-        declare_to_model=False,
-    ),
+    _approval("TOOL-approve_request", "approve", "high"),
+    _approval("TOOL-reject_request", "reject", "medium"),
 )
 
 TOOLS: tuple[ToolDef, ...] = tuple(
     replace(t, p1_frozen=True) if t.domain in P1_FROZEN_DOMAINS else t
-    for t in (*_READ_TOOLS, *_WRITE_TOOLS, *_V21_TOOLS)
+    for t in (*_READ_TOOLS, *_WRITE_TOOLS)
 )
 
 _BY_NAME: dict[str, ToolDef] = {t.name: t for t in TOOLS}
-if len(_BY_NAME) != len(TOOLS):  # pragma: no cover - guards against a duplicate TOOL-* name
-    raise RuntimeError("duplicate tool name in registry")
+if len(_BY_NAME) != len(TOOLS):
+    raise ToolRegistryError("duplicate tool name in registry")
 
 
 def all_tools() -> tuple[ToolDef, ...]:
@@ -537,21 +588,34 @@ def get_tool(name: str) -> ToolDef | None:
     return _BY_NAME.get(name)
 
 
+def tool_kind(name: str) -> str:
+    """`ToolCallLog.tool_kind` for a tool name (unknown / unregistered → `READ`, 05 §2.8)."""
+    t = _BY_NAME.get(name)
+    return t.kind if t else "READ"
+
+
+def tool_for_action(action_name: str) -> ToolDef | None:
+    """The WRITE/EXECUTION tool whose `action_name` is this `ACT-*` (policy backfill, EP-AI-19)."""
+    return next((t for t in TOOLS if t.action_name == action_name), None)
+
+
 def available_for(permissions: frozenset[str]) -> tuple[ToolDef, ...]:
     """Tools the asker may use this turn (holds ALL required_permissions — P06, 02 §7.2)."""
     return tuple(t for t in TOOLS if set(t.required_permissions) <= permissions)
 
 
 def advertisable_for(
-    permissions: frozenset[str], *, max_classification: str | None = None
-) -> tuple[ToolDef, ...]:
+    permissions: frozenset[str], *, max_classification: str | None = None,
+    allowed: frozenset[str] | None = None,
+) -> tuple[ToolDef, ...]:  # fmt: skip
     """Tools sent to the model: available, `declare_to_model`, not `p1_frozen` (R-DEC-16),
-    within the classification ceiling."""
+    within the classification ceiling and — when given — the agent's `allowed_tools` (T-646)."""
     ceiling = CLASSIFICATION_RANK.get(max_classification or "SECRET", 3)
     return tuple(
         t
         for t in available_for(permissions)
         if t.declare_to_model
         and not t.p1_frozen
-        and CLASSIFICATION_RANK[t.classification] <= ceiling
+        and CLASSIFICATION_RANK[t.data_classification] <= ceiling
+        and (allowed is None or t.name in allowed)
     )

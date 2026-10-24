@@ -14,7 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 Level = Literal["L0", "L1", "L2", "L3"]
-ToolKindOut = Literal["READ", "WRITE", "COMPUTE", "APPROVAL", "EXECUTION"]
+ToolKindOut = Literal["READ", "WRITE", "APPROVAL", "EXECUTION"]
 RoleCode = Literal["CEO", "DIR", "MGR", "EMP", "REV", "ADM", "AI"]
 ToolCallStatus = Literal["ok", "error", "forbidden", "timeout"]
 

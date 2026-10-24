@@ -92,3 +92,21 @@ async def test_stub_501_envelope(api: ApiClient) -> None:
         assert "EP-AI-16" in r.json()["error"]["message"]
     else:
         assert r.status_code == 200
+
+
+async def test_tools_catalog_metadata_and_filters(api: ApiClient) -> None:
+    """TC-M16-01/09: EP-AI-14 exposes the 13 metadata; `kind`/`domain`/`available_only`."""
+    r = await api.call("GET", "/ai/tools", "EMP")
+    assert r.status_code == 200
+    rows = r.json()["data"]
+    assert {t["kind"] for t in rows} <= {"READ", "WRITE", "APPROVAL", "EXECUTION"}
+    runway = next(t for t in rows if t["name"] == "TOOL-get_runway_what_if")
+    assert runway["kind"] == "READ" and runway["compute"] is True
+    assert runway["input_schema"]["additionalProperties"] is False
+    assert runway["owner"] == "ROLE-DIR:F" and runway["brd_name"] == "get_financial_summary"
+    writes = (await api.call("GET", "/ai/tools?kind=WRITE", "CEO")).json()["data"]
+    assert writes and all(t["kind"] == "WRITE" and t["action_name"] for t in writes)
+    fin = (await api.call("GET", "/ai/tools?domain=finance", "CEO")).json()["data"]
+    assert fin and all(t["domain"] == "finance" for t in fin)
+    mine = (await api.call("GET", "/ai/tools?available_only=true", "EMP")).json()["data"]
+    assert mine and all(t["available"] for t in mine) and len(mine) < len(rows)

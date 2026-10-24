@@ -45,6 +45,7 @@ TS = DateTime(timezone=True)
 # ---------- enums owned by `ai` (05 §6; ai.autonomy_level lives in core/enums.py) ----------
 MESSAGE_SENDER = pg_enum(S, "message_sender", "user", "assistant", "system")
 TOOL_CALL_STATUS = pg_enum(S, "tool_call_status", "ok", "error", "forbidden", "timeout")
+TOOL_KIND = pg_enum(S, "tool_kind", "READ", "WRITE", "APPROVAL", "EXECUTION")  # 0021, R-DEC-70
 FEEDBACK_RATING = pg_enum(S, "feedback_rating", "up", "down")
 INSIGHT_KIND = pg_enum(S, "insight_kind", "anomaly", "trend", "risk", "recommendation", "briefing")
 INSIGHT_STATUS = pg_enum(S, "insight_status", "active", "dismissed", "expired")
@@ -150,6 +151,7 @@ class ToolCallLog(LogModel):
 
     message_id: Mapped[uuid.UUID] = fk(f"{S}.messages.id")
     tool_name: Mapped[str] = txt()
+    tool_kind: Mapped[str] = mapped_column(TOOL_KIND, nullable=False)
     arguments: Mapped[Any] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(TOOL_CALL_STATUS, nullable=False)
     http_status: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
