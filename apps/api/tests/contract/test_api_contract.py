@@ -10,6 +10,7 @@ row is defined in code), plus the auth EPs of 10 §7.2, so a spec change without
 import inspect
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.routing import APIRoute
@@ -24,6 +25,8 @@ pytestmark = pytest.mark.contract
 
 SPEC = Path(REPO_ROOT) / "docs" / "3.EXECUTION" / "10-API-SPECIFICATION.md"
 PUBLIC_ALLOWED = {("POST", "/auth/login"), ("POST", "/auth/refresh"), ("GET", "/health")}
+# SSE (`text/event-stream`, EP-111) streams events, not a JSON envelope (10 §1.3 / CLAUDE.md §5.8).
+STREAMING = {("POST", "/ai/chat/stream")}
 
 
 def _section(title: str) -> str:
@@ -39,8 +42,22 @@ def spec_error_codes() -> dict[str, int]:
 
 
 @pytest.fixture(scope="module")
-def app_routes() -> list[APIRoute]:
-    return [r for r in create_app().routes if isinstance(r, APIRoute)]
+def app_routes() -> list[Any]:
+    """Every API route with its effective (mounted) path.
+
+    FastAPI ≥ 0.143 keeps `include_router` children behind an `_IncludedRouter`, so
+    `app.routes` no longer lists them as `APIRoute`; `effective_route_contexts()` yields
+    route contexts (`path`, `methods`, `response_model`, `status_code`) with the full path.
+    """
+    out: list[Any] = []
+    for top in create_app().routes:
+        if isinstance(top, APIRoute):
+            out.append(top)
+        elif hasattr(top, "effective_route_contexts"):
+            out += [c for c in top.effective_route_contexts()
+                    if isinstance(c.original_route, APIRoute)]  # fmt: skip
+    assert len(out) > 100  # guard: an empty list would make every check below vacuous
+    return out
 
 
 def _code_error_classes() -> list[type[errors.AppError]]:
@@ -85,20 +102,22 @@ def test_no_v1_codes() -> None:
     assert 'RATE_LIMITED"' not in src and '"FORBIDDEN"' not in src
 
 
-def test_all_routes_under_base_path(app_routes: list[APIRoute]) -> None:
+def test_all_routes_under_base_path(app_routes: list[Any]) -> None:
     for r in app_routes:
         assert r.path.startswith(API_PREFIX + "/"), r.path
 
 
-def test_every_route_declares_envelope_or_204(app_routes: list[APIRoute]) -> None:
+def test_every_route_declares_envelope_or_204(app_routes: list[Any]) -> None:
     for r in app_routes:
         if r.status_code == 204:
+            continue
+        if any((m, r.path.removeprefix(API_PREFIX)) in STREAMING for m in r.methods):
             continue
         assert r.response_model is not None, r.path
         assert getattr(r.response_model, "__name__", "").startswith("Envelope["), r.path
 
 
-def test_public_endpoints_are_only_the_allowed_ones(app_routes: list[APIRoute]) -> None:
+def test_public_endpoints_are_only_the_allowed_ones(app_routes: list[Any]) -> None:
     """10 §2.2: only EP-01/02/06 are public. Everything else 401s without a token."""
     client = TestClient(create_app())
     for r in app_routes:
@@ -111,7 +130,7 @@ def test_public_endpoints_are_only_the_allowed_ones(app_routes: list[APIRoute]) 
             assert res.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
-def test_auth_paths_exist_in_spec(app_routes: list[APIRoute]) -> None:
+def test_auth_paths_exist_in_spec(app_routes: list[Any]) -> None:
     spec_paths = set(
         re.findall(r"\| (?:GET|POST|PATCH|DELETE)[^|]*\| `(/auth/[a-z/-]+)`", SPEC.read_text())
     )
@@ -121,7 +140,7 @@ def test_auth_paths_exist_in_spec(app_routes: list[APIRoute]) -> None:
             assert rel in spec_paths, rel
 
 
-def test_no_register_endpoint(app_routes: list[APIRoute]) -> None:
+def test_no_register_endpoint(app_routes: list[Any]) -> None:
     assert all("register" not in r.path for r in app_routes)  # DEC-137
 
 
