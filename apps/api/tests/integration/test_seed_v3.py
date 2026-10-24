@@ -229,3 +229,49 @@ def _member_dept(tree: Any, employee_id: uuid.UUID) -> uuid.UUID | None:
         if any(m.employee_id == employee_id for m in node.members):
             return node.id
     return None
+
+
+async def test_tc_m13_11_seed_links_milestones_reassign(seeded: AsyncSession) -> None:
+    """T-624: dependencies, sub-task, source_ref, milestones (1 late), PENDING task_reassign —
+    added without new tasks so the 08 §5 targets (asserted above) stay; second run adds none."""
+    from app.modules.execution.models import Milestone, TaskDependency
+    from app.modules.execution.services.project_rules import milestone_late
+    from app.modules.platform.models import ApprovalRequest
+    from app.modules.platform.services.approval_service import RULE_TASK_REASSIGN
+    from app.seed.ids import seed_uuid
+
+    assert await _count(seeded, TaskDependency) >= 3
+    assert await _count(seeded, Task, Task.parent_task_id.is_not(None)) >= 1
+    refs = (await seeded.execute(select(Task.task_source, Task.source_ref).where(
+        Task.source == "SEED", Task.source_ref.is_not(None)))).all()  # fmt: skip
+    kinds = Counter(ref["kind"] for _, ref in refs)
+    assert kinds["decision"] == 8 and kinds["document"] >= 1
+    assert all(src == ("meeting" if ref["kind"] == "decision" else "document")
+               for src, ref in refs)  # fmt: skip
+    ms = (await seeded.execute(select(Milestone).where(Milestone.source == "SEED"))).scalars()
+    per: Counter[uuid.UUID] = Counter()
+    late: list[uuid.UUID] = []
+    for m in ms:
+        assert m.project_id is not None
+        per[m.project_id] += 1
+        if milestone_late(m.status, m.due_date, AS_OF):
+            late.append(m.project_id)
+    assert len([p for p, n in per.items() if n >= 2]) >= 3
+    assert late == [seed_uuid("project", "PRJ-ERP")]
+    reqs = (await seeded.execute(select(ApprovalRequest))).scalars().all()
+    assert [(r.target_kind, r.status) for r in reqs] == [("task_reassign", "PENDING")]
+    assert reqs[0].department_id == seed_uuid("department", "SVC")
+    mgr = (await seeded.execute(select(User).where(User.email == "manager@abc.demo"))).scalar_one()
+    assert mgr.department_id == reqs[0].department_id  # → in the SVC MGR's EP-WF-01 inbox
+    from app.core.deps import Principal
+    from app.core.pagination import PageParams
+    from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
+    from app.modules.platform.services.approval_service import ApprovalService
+
+    p = Principal(user_id=mgr.id, role="MGR", permissions=frozenset(ROLE_PERMISSIONS["MGR"]),
+                  department_id=mgr.department_id)  # fmt: skip
+    items, _, pending = await ApprovalService(seeded).inbox(
+        p, PageParams(limit=20, offset=0, sort_by="created_at", order="desc"),
+        status=None, rule_code=None, target_kind=None,
+    )  # fmt: skip
+    assert [i.rule_code for i in items] == [RULE_TASK_REASSIGN] and pending == 1

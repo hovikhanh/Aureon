@@ -115,6 +115,15 @@ def _execution() -> dict[str, Any]:
         ],
         "meeting": {"title": X.MEETING_TITLE, "held_at": X.MEETING_AT.isoformat(),
                     "decisions": [c for c, _, _ in X.DECISIONS]},
+        "dependencies": [{"task": a, "depends_on": b} for a, b in X.DEPENDENCIES],
+        "subtasks": [{"task": c, "parent": p} for c, p in X.SUBTASKS],
+        "document_tasks": [{"task": k, "document": d, "page": pg}
+                           for k, d, pg in X.DOCUMENT_TASKS],
+        "milestones": [{"project": c, "title": t, "due_date": d.isoformat(), "status": st}
+                       for c, t, d, st, _ in X.MILESTONES],
+        "reassign_request": {"task": X.REASSIGN[0], "from": X.ASSIGNEES[0].code,
+                             "to": X.REASSIGN[1].code, "department": X.ASSIGNEES[0].dept,
+                             "status": "PENDING"},
     }  # fmt: skip
 
 

@@ -159,3 +159,25 @@ DECISIONS = (
     ("Tạm dừng tuyển mới khối hỗ trợ tới hết Q4", "HR", "Tiết kiệm ~0,4 tỷ/tháng"),
     ("Tập trung đội Sales vào 5 cơ hội lớn nhất Q4", "SAL", "Coverage ≥ 3x trước 15/11"),
 )
+
+# ---------- M1.3 (T-624, R-DEC-42/43/45/49) — no new tasks, so 08 §5 numbers are unchanged ----
+# (task, depends_on) — finish_to_start; T-16 is the `blocked` window task.
+DEPENDENCIES: tuple[tuple[str, str], ...] = (
+    ("PRJ-ERP-4", "PRJ-ERP-3"), ("PRJ-ERP-5", "PRJ-ERP-4"), ("PRJ-HN-2", "PRJ-HN-1"),
+    ("T-16", "PRJ-ERP-3"),
+)  # fmt: skip
+SUBTASKS: tuple[tuple[str, str], ...] = (("PRJ-CRM-5", "PRJ-CRM-4"),)  # (child, parent)
+# A task created from a scanned contract (FR-DC → task): `source_ref.kind = document`.
+DOCUMENT_TASKS: tuple[tuple[str, str, int], ...] = (("PRJ-ERP-0", "HD-ERP-2026-07", 3),)
+# project, title, due, status, done day — PRJ-ERP's "Go-live kho HCM" is past due → late.
+MILESTONES: tuple[tuple[str, str, date, str, date | None], ...] = (
+    ("PRJ-ERP", "Go-live kho HCM", date(2026, 10, 15), "planned", None),
+    ("PRJ-ERP", "Go-live toàn hệ thống", date(2026, 11, 30), "planned", None),
+    ("PRJ-HN", "Ký hợp đồng thuê mặt bằng", date(2026, 9, 30), "done", date(2026, 9, 28)),
+    ("PRJ-HN", "Khai trương chi nhánh", date(2027, 3, 15), "planned", None),
+    ("PRJ-CRM", "Làm sạch dữ liệu 50 khách lớn", date(2026, 8, 31), "done", date(2026, 8, 30)),
+    ("PRJ-CRM", "Chuyển quy trình chăm sóc lên CRM", date(2026, 11, 20), "planned", None),
+)  # fmt: skip
+# EP-TASK-19 demo: the EMP account (ASSIGNEES[0], SVC) asks to hand T-L000 to a SVC colleague;
+# stays PENDING in the SVC manager's inbox (EP-WF-01).
+REASSIGN = ("T-L000", ASSIGNEES[1], "Đang xử lý sự cố khách lớn, xin chuyển cho đồng nghiệp")
