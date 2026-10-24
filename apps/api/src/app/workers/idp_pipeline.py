@@ -6,6 +6,7 @@ re-running a document whose job already SUCCEEDED/FAILED is a no-op. Runs inside
 from __future__ import annotations
 
 import asyncio
+import importlib
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,10 @@ from app.modules.idp.services.gateway import pipeline_gateway
 from app.modules.idp.services.pipeline import Pipeline
 from app.worker import celery_app
 from app.workers.events import _engine
+
+# Composition root: `ai` registers the ai.model_call_logs sink the pipeline gateway uses
+# (R-DEC-60 — idp itself does not import ai, see core/model_gateway/sinks.py).
+importlib.import_module("app.modules.ai")
 
 PIPELINE_LIMITS = {"time_limit": 300, "soft_time_limit": 240}
 

@@ -48,6 +48,9 @@ async def test_reader_sees_own_and_same_department_only(db_session, idp_store) -
 
 
 async def test_pipeline_gateway_factory_and_public_service(db_session) -> None:
+    import importlib
+
+    importlib.import_module("app.modules.ai")  # composition root registers the call-log sink
     from app.modules.idp.services import IdpService
     from app.modules.idp.services.gateway import pipeline_gateway
 

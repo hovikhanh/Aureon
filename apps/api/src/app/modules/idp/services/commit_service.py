@@ -217,8 +217,6 @@ class CommitService:
         type_code = await self._doc_type_code(doc.document_type_id)
         schema = await self._schema(job.extraction_schema_id) if job else None
         names = list(schema.action_names) if schema is not None else []
-        if not names and type_code == "INVOICE":  # v2.1 catalog row predates `action_names`
-            names = ["ACT-create_invoice"]
         values = [(f.field_name, f.row_index, _effective(f)) for f in fields]
         steps = build_plan(names, list(schema.fields) if schema is not None else [], values)
         return _Loaded(job, fields, type_code, steps)
