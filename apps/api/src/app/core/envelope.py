@@ -27,6 +27,8 @@ class Meta(BaseModel):
     pagination: Pagination | None = None
     unread_count: int | None = None  # EP-NTF-01 only (10 §7.2.1)
     pending_count: int | None = None  # EP-WF-01 only (10 §7.2.2)
+    counts: dict[str, int] | None = None  # EP-DC-13 inbox groups only (10 §7.2.4)
+    pending_permissions: list[str] | None = None  # EP-DC-08 approve → APPROVED only (10 §7.2.4)
 
 
 class Envelope[T](BaseModel):
@@ -44,6 +46,7 @@ class Page[T]:
     offset: int
     unread_count: int | None = None
     pending_count: int | None = None
+    counts: dict[str, int] | None = None
 
 
 def page_meta(*, total: int, limit: int, offset: int) -> Pagination:
@@ -67,5 +70,6 @@ def to_envelope(result: object) -> object:
         meta = build_meta(pagination)
         meta.unread_count = result.unread_count
         meta.pending_count = result.pending_count
+        meta.counts = result.counts
         return Envelope[object](data=list(result.items), meta=meta)
     return Envelope[object](data=result, meta=build_meta())

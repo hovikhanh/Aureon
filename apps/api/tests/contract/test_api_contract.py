@@ -27,6 +27,8 @@ SPEC = Path(REPO_ROOT) / "docs" / "3.EXECUTION" / "10-API-SPECIFICATION.md"
 PUBLIC_ALLOWED = {("POST", "/auth/login"), ("POST", "/auth/refresh"), ("GET", "/health")}
 # SSE (`text/event-stream`, EP-111) streams events, not a JSON envelope (10 §1.3 / CLAUDE.md §5.8).
 STREAMING = {("POST", "/ai/chat/stream")}
+# Binary downloads (EP-DC-21 error rows `.xlsx`, 10 §7.2.4) return the file, not a JSON envelope.
+BINARY = {("GET", "/data-capture/imports/{batch_id}/error-file")}
 
 
 def _section(title: str) -> str:
@@ -111,7 +113,7 @@ def test_every_route_declares_envelope_or_204(app_routes: list[Any]) -> None:
     for r in app_routes:
         if r.status_code == 204:
             continue
-        if any((m, r.path.removeprefix(API_PREFIX)) in STREAMING for m in r.methods):
+        if any((m, r.path.removeprefix(API_PREFIX)) in STREAMING | BINARY for m in r.methods):
             continue
         assert r.response_model is not None, r.path
         assert getattr(r.response_model, "__name__", "").startswith("Envelope["), r.path
