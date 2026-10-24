@@ -1,9 +1,8 @@
 """`/goals/*` — D07 Strategy / StrategicObjective / Initiative + D10 check-in feed (10 §7.2.3).
 
 EP-STR-12..21 moved from `/execution/initiatives*` with v2.1 behaviour (no alias, R-DEC-58);
-EP-PRF-05 replaces `GET /execution/check-ins`. New endpoints answer `501` until their task
-(`core/stub.py`). Static paths (`/goals/tree`, `/goals/check-ins/due`) are declared before
-`{id}` catch-alls.
+EP-PRF-05 replaces `GET /execution/check-ins`; EP-STR-01 tree, EP-STR-22, EP-PRF-06 since T-628.
+Static paths (`/goals/tree`, `/goals/check-ins/due`) are declared before `{id}` catch-alls.
 """
 
 import uuid
@@ -19,8 +18,8 @@ from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.execution.schemas.common import (
+    PERIOD,
     Confidence,
     InitiativeStatus,
     Pillar,
@@ -45,8 +44,10 @@ from app.modules.execution.schemas.strategy import (
     StrategyOut,
     StrategyUpdate,
 )
+from app.modules.execution.services.goal_tree import GoalTreeService
 from app.modules.execution.services.initiative_service import InitiativeService, initiative_out
 from app.modules.execution.services.kpi_service import KpiService
+from app.modules.execution.services.meeting_service import ProjectService
 from app.modules.execution.services.strategy_service import StrategyService, strategy_out
 
 router = EnvelopeRouter(prefix="/goals", tags=["goals"])
@@ -63,10 +64,13 @@ def _page(items: Any, total: int, page: PageParams) -> Page[Any]:
 # ---------- EP-STR-01 tree ----------
 @router.get("/tree", response_model=GoalTreeOut, summary="EP-STR-01 Goal alignment tree")
 async def goal_tree(
-    user: Reader, strategy_id: uuid.UUID | None = None, period_key: str | None = None,
+    db: Db, user: Reader, strategy_id: uuid.UUID | None = None,
+    period_key: Annotated[str | None, Query(pattern=PERIOD)] = None,
     department_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-STR-01", "T-628")
+    return await GoalTreeService(db).tree(
+        user, strategy_id=strategy_id, period_key=period_key, department_id=department_id
+    )
 
 
 # ---------- EP-PRF-05/06 check-in feed (static paths before `{id}`) ----------
@@ -92,8 +96,8 @@ async def list_check_ins(
     "/check-ins/due", response_model=list[CheckInDueOut],
     summary="EP-PRF-06 My check-ins due (F4 card)",
 )  # fmt: skip
-async def check_ins_due(user: Reader) -> Any:
-    not_implemented("EP-PRF-06", "T-628")
+async def check_ins_due(db: Db, user: Reader) -> Any:
+    return await GoalTreeService(db).check_ins_due(user)
 
 
 # ---------- EP-STR-02..06 strategies ----------
@@ -346,5 +350,9 @@ async def delete_milestone(
     INI + "/{initiative_id}/projects", response_model=list[InitiativeProjectOut],
     summary="EP-STR-22 List projects of an initiative",
 )  # fmt: skip
-async def list_initiative_projects(initiative_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-STR-22", "T-628")
+async def list_initiative_projects(initiative_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    await InitiativeService(db).get_initiative(user, initiative_id)  # 404 / 403 on the parent
+    rows = await ProjectService(db).of_initiatives(user, [initiative_id])
+    return [InitiativeProjectOut(
+        id=p.id, code=p.code, name=p.name, status=p.status, start_date=p.start_date,
+        planned_end_date=p.planned_end_date, owner_id=p.owner_id) for p in rows]  # fmt: skip

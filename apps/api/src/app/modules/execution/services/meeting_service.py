@@ -330,6 +330,19 @@ class ProjectService(ExecBase):
             own.append(Project.id.in_(sub))
         return scope.predicate(user, "read", dept=Project.department_id, own=own)
 
+    async def of_initiatives(
+        self, user: Principal, initiative_ids: Sequence[uuid.UUID]
+    ) -> Sequence[Project]:
+        """Projects linked to `initiative_ids` within the caller's scope (EP-STR-22, EP-STR-01),
+        by `code`."""
+        if not initiative_ids:
+            return []
+        pred = self._pred(user)
+        return await self.projects.where(
+            Project.initiative_id.in_(list(initiative_ids)),
+            *([pred] if pred is not None else []), order=Project.code,
+        )  # fmt: skip
+
     async def list_projects(
         self, user: Principal, page: PageParams, *, status: str | None,
         department_id: uuid.UUID | None, owner_id: uuid.UUID | None = None,

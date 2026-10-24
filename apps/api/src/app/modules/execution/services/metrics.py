@@ -102,6 +102,12 @@ def hr03(tasks: Sequence[Task], as_of: date, key: str) -> MetricReading:
                    "no assigned open tasks")  # fmt: skip
 
 
+def sei_on_track(i: Initiative, as_of: date) -> bool:
+    """SEI rule (DEC-226): progress ≥ 0.9 × linear plan — also EP-STR-01 `on_track`."""
+    expected = linear_progress(i.start_date, i.planned_end_date, as_of)
+    return Decimal(i.progress_pct) >= expected * SEI_ON_TRACK_RATIO
+
+
 def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricReading:
     if not initiatives:
         return reading("METRIC-RSK-06", None, key, (), "no active initiatives")
@@ -110,8 +116,7 @@ def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricRea
         weights = [Decimal(1)] * len(initiatives)
     hit = Decimal(0)
     for i, w in zip(initiatives, weights, strict=True):
-        expected = linear_progress(i.start_date, i.planned_end_date, as_of)
-        if Decimal(i.progress_pct) >= expected * SEI_ON_TRACK_RATIO:
+        if sei_on_track(i, as_of):
             hit += w
     return reading("METRIC-RSK-06", pct(hit, sum(weights)), key,
                    refs("initiatives", (i.id for i in initiatives)), "")  # fmt: skip

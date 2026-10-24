@@ -20,12 +20,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError
 from app.core.pagination import PageParams
-from app.modules.execution.models import Decision, Initiative, Kpi, Milestone, Objective, Task
+from app.modules.execution.models import (
+    Decision,
+    Initiative,
+    Kpi,
+    Milestone,
+    Objective,
+    Project,
+    Task,
+)
 from app.modules.execution.repositories import (
     DecisionRepository,
     InitiativeRepository,
     KpiRepository,
     MilestoneRepository,
+    ProjectRepository,
     TaskRepository,
 )
 from app.modules.execution.schemas.initiatives import (
@@ -163,10 +172,13 @@ class InitiativeService(ExecBase):
             or await self.tasks.where(Task.initiative_id == i.id)
             or await DecisionRepository(self.db).where(Decision.initiative_id == i.id)
             or await KpiRepository(self.db).where(Kpi.initiative_id == i.id)
+            or await ProjectRepository(self.db).where(Project.initiative_id == i.id)  # TC-M14-06
         )
         if linked:
-            raise ConflictStateError("initiative still has milestones, tasks, decisions or KPIs",
-                                     details={"initiative_id": str(i.id)})  # fmt: skip
+            raise ConflictStateError(
+                "initiative still has milestones, tasks, decisions, KPIs or projects",
+                details={"initiative_id": str(i.id)},
+            )
         before = initiative_out(i)
         i.updated_by = user.user_id
         await self.initiatives.soft_delete(i)
