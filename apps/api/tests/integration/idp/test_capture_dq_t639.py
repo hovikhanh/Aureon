@@ -99,3 +99,27 @@ async def test_dq01_breakdown_reads_domain_scores(db_session) -> None:
     rows = await MetricQueryService(db_session).breakdown("METRIC-DQ-01", "2026-10")
     assert rows and all(t == "domain" and v is not None for t, _, v in rows)
     assert {d for _, d, _ in rows} >= {"finance", "hr"}
+
+
+def _doc06_rows() -> list[list[object]]:
+    from openpyxl import load_workbook
+
+    from tests.unit.test_demo_docs_t641 import DOC06
+
+    ws = load_workbook(DOC06, read_only=True).worksheets[0]
+    return [list(r) for r in list(ws.iter_rows(values_only=True))[1:]]
+
+
+async def test_doc06_import_splits_error_rows(api: ApiClient, db_session, idp_store) -> None:
+    """TC-M15-12/15: DOC-06 (scripts/gen_demo_docs.py) → 45 valid + 3 error rows. Codes are
+    re-tagged so re-runs on the shared test DB do not collide with an earlier import."""
+    from tests.integration.idp.test_import_c5_t635 import _upload, _xlsx
+
+    rows, tag = _doc06_rows(), uuid.uuid4().hex[:5]
+    for r in rows:
+        r[0] = f"{r[0]}-{tag}" if r[0] else None
+        r[3] = f"{r[3]}-{tag}"
+        r[5] = f"{r[5]}-{tag}" if r[5] and r[5] != "NV-999" else r[5]
+    p = (await _upload(api, "CEO", _xlsx(rows, tag=tag))).json()["data"]
+    assert p["suggested_document_type"]["code"] == "HR_ROSTER"
+    assert p["summary"] == {"rows_total": 48, "rows_valid": 45, "rows_invalid": 3}

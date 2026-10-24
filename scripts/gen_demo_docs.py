@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate 7 realistic demo business documents for Công ty TNHH TM&DV ABC.
+"""Generate the realistic demo business documents for Công ty TNHH TM&DV ABC.
 
 Run from repo root:
     cd /home/vika/Aureon && uv run --group demo python scripts/gen_demo_docs.py
@@ -10,8 +10,13 @@ Outputs (all under data/):
     DOC-03  bao-cao-sales-t9-2026.pdf          (reportlab, sales report)
     DOC-04  hop-dong-mau.pdf                   (reportlab, 2 contracts)
     DOC-05  bien-ban-hop-giao-ban.docx         (python-docx, 3 meetings)
-    DOC-06  danh-sach-nhan-su.xlsx             (openpyxl, 45 active + 6 terminated)
-    DOC-07  kpi-okr-q4-2026.xlsx               (openpyxl, 18 KPI/OKR rows)
+    DOC-06  danh-sach-nhan-su.xlsx             (openpyxl, C5 import #4 HR_ROSTER: 45 active +
+                                                3 intentional error rows; leavers on sheet 2)
+    DOC-07  kpi-okr-q4-2026.xlsx / .docx       (openpyxl + python-docx, #2 PLAN_KPI_OKR 2026-Q4)
+    DOC-08  bao-cao-ket-qua-q3-2026.pdf        (reportlab, #3 PERIOD_REPORT Q3/2026)
+
+Re-running is idempotent: OOXML zips get fixed timestamps and reportlab runs in invariant mode,
+so every file is byte-identical across runs (T-641, TC-M15-15).
 
 Only openpyxl / python-docx / reportlab / Pillow + stdlib are used. No network.
 All monetary amounts are VND integers. Reference date = 20/10/2026.
@@ -19,8 +24,11 @@ All monetary amounts are VND integers. Reference date = 20/10/2026.
 
 from __future__ import annotations
 
+import io
+import re
+import zipfile
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 # --- python-docx ------------------------------------------------------------
 from docx import Document
@@ -33,6 +41,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.worksheet import Worksheet
 
 # --- reportlab --------------------------------------------------------------
+from reportlab import rl_config
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -51,6 +60,7 @@ from reportlab.platypus import (
 # Constants / company context
 # ---------------------------------------------------------------------------
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+rl_config.invariant = 1  # PDFs without timestamp / random ID → identical on re-run
 DATA_DIR: Final[Path] = ROOT / "data"
 
 COMPANY: Final[str] = "Công ty TNHH TM&DV ABC"
@@ -63,6 +73,42 @@ FONT_DIR: Final[Path] = Path("/usr/share/fonts/truetype/dejavu")
 FONT_REGULAR: Final[str] = "VNFont"
 FONT_BOLD: Final[str] = "VNFont-Bold"
 FONT_OBLIQUE: Final[str] = "VNFont-Oblique"
+
+
+# ---------------------------------------------------------------------------
+# Deterministic output (T-641: re-running gives byte-identical files)
+# ---------------------------------------------------------------------------
+_FIXED_ZIP_TIME: Final[tuple[int, int, int, int, int, int]] = (2026, 10, 20, 8, 0, 0)
+_FIXED_ISO: Final[str] = "2026-10-20T08:00:00Z"
+
+
+def _stable_zip(data: bytes) -> bytes:
+    """Rewrite an OOXML zip with fixed entry timestamps and fixed core.xml dates."""
+    src = zipfile.ZipFile(io.BytesIO(data))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            body = src.read(info.filename)
+            if info.filename == "docProps/core.xml":
+                body = re.sub(rb"(<dcterms:(?:created|modified)[^>]*>)[^<]*",
+                              rb"\g<1>" + _FIXED_ISO.encode(), body)
+            entry = zipfile.ZipInfo(info.filename, date_time=_FIXED_ZIP_TIME)
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            entry.external_attr = 0o600 << 16
+            dst.writestr(entry, body)
+    return out.getvalue()
+
+
+def _save_wb(wb: Workbook, path: Path) -> None:
+    buf = io.BytesIO()
+    wb.save(buf)
+    path.write_bytes(_stable_zip(buf.getvalue()))
+
+
+def _save_docx(document: Any, path: Path) -> None:
+    buf = io.BytesIO()
+    document.save(buf)
+    path.write_bytes(_stable_zip(buf.getvalue()))
 
 
 def _register_fonts() -> None:
@@ -442,7 +488,7 @@ def gen_doc02(path: Path) -> str:
     ws2.column_dimensions["A"].width = 24
     ws2.column_dimensions["B"].width = 20
 
-    wb.save(str(path))
+    _save_wb(wb, path)
     return (
         f"DOC-02: {len(INVOICES)} invoices, Σsubtotal={num(subtotal_sum)}, "
         f"Σvat={num(INVOICE_VAT_TARGET)}, {path.name}"
@@ -963,7 +1009,7 @@ def gen_doc05(path: Path) -> str:
         f"DOC-05: expected 4 OPEN-overdue, got {status_counter[STATUS_OPEN]}"
     )
 
-    document.save(str(path))
+    _save_docx(document, path)
     return (
         f"DOC-05: 3 meetings, {total_actions} action items "
         f"(9 done/2 late/4 open), {path.name}"
@@ -1066,121 +1112,225 @@ def _build_terminated_employees() -> list[tuple[str, str, str, str, str, str, st
     return out
 
 
+DEPT_NAMES: Final[dict[str, str]] = {
+    "ADMIN": "Hành chính", "FIN": "Tài chính — Kế toán", "CUS": "Kinh doanh",
+    "OPS": "Vận hành", "HR": "Nhân sự",
+}
+# Department heads (Quản lý trực tiếp of their staff); the CEO NV-001 heads ADMIN.
+DEPT_HEADS: Final[dict[str, str]] = {
+    "ADMIN": "NV-001", "FIN": "NV-011", "CUS": "NV-019", "OPS": "NV-031", "HR": "NV-041",
+}
+# T-641 / 08 §4.6: intentional error rows for the C5 import demo (split into a fix file).
+DOC06_ERROR_ROWS: Final[list[list[object]]] = [
+    # 1. unknown manager ("thiếu quản lý": NV-999 is not in the file nor in the company)
+    ["CUS", "Kinh doanh", "Nhân viên Kinh doanh", "NV-052", "Mai Văn Lực", "NV-999",
+     "01/09/2026", "active", 14_000_000],
+    # 2. wrong date format (month 13)
+    ["OPS", "Vận hành", "Nhân viên Kho", "NV-053", "Tạ Thị Hiền", "NV-031",
+     "15/13/2026", "active", 11_000_000],
+    # 3. department not in the company: no department code, unknown department name
+    [None, "Phòng Marketing", "Chuyên viên Marketing", "NV-054", "Kiều Văn Tú", "NV-001",
+     "01/10/2026", "active", 16_000_000],
+]
+DOC06_HEADERS: Final[list[str]] = [
+    "Mã phòng ban", "Phòng ban", "Chức danh", "Mã NV", "Họ tên", "Quản lý trực tiếp",
+    "Ngày vào làm", "Trạng thái", "Lương",
+]
+
+
+def _doc06_row(e: tuple[str, str, str, str, str, str, str, int]) -> list[object]:
+    code, name, role, dept, start, _leave, _status, salary = e
+    head = DEPT_HEADS[dept]
+    manager = None if code == "NV-001" else ("NV-001" if code == head else head)
+    return [dept, DEPT_NAMES[dept], role, code, name, manager, start, "active", salary]
+
+
 def gen_doc06(path: Path) -> str:
     wb = Workbook()
     ws = wb.active
     ws.title = "Nhân sự"
-    headers = [
-        "Mã NV", "Họ tên", "Chức danh", "Phòng ban",
-        "Ngày vào", "Ngày nghỉ", "Trạng thái", "Lương (VND)",
-    ]
-    ws.append(headers)
-    _style_header(ws, len(headers))
-
+    ws.append(DOC06_HEADERS)
+    _style_header(ws, len(DOC06_HEADERS))
     thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
     active = _build_active_employees()
     terminated = _build_terminated_employees()
     active_sum = sum(e[7] for e in active)
-
-    # Department distribution check
     dist: dict[str, int] = {}
     for e in active:
         dist[e[3]] = dist.get(e[3], 0) + 1
     expected = {"FIN": 8, "CUS": 12, "OPS": 10, "HR": 5, "ADMIN": 10}
     assert dist == expected, f"DOC-06: dept distribution {dist} != {expected}"
-
-    for e in active + terminated:
-        ws.append(list(e))
+    assert all(DEPT_HEADS[d] in {e[0] for e in active if e[3] == d} for d in DEPT_HEADS)
+    rows = [_doc06_row(e) for e in active] + [list(r) for r in DOC06_ERROR_ROWS]
+    assert len(DOC06_ERROR_ROWS) >= 3, "DOC-06: needs ≥ 3 intentional error rows"
+    for row in rows:
+        ws.append(row)
         r = ws.max_row
-        ws.cell(row=r, column=8).number_format = "#,##0"
-        for c in range(1, len(headers) + 1):
+        ws.cell(row=r, column=9).number_format = "#,##0"
+        for c in range(1, len(DOC06_HEADERS) + 1):
             ws.cell(row=r, column=c).border = border
-        st = ws.cell(row=r, column=7)
-        if e[6] == "ACTIVE":
-            st.font = Font(color="1E7D32", bold=True)
-        else:
-            st.font = Font(color="C62828", bold=True)
-
-    # Note cell below the table
-    note_row = ws.max_row + 2
-    note_cell = ws.cell(row=note_row, column=1)
-    note_cell.value = "Tổng quỹ lương tháng (ACTIVE) = 855.000.000 đ"
-    note_cell.font = Font(bold=True, italic=True, color="1F4E79")
-
-    # Widths
-    widths = [10, 24, 36, 12, 12, 12, 14, 16]
-    for i, w in enumerate(widths, start=1):
+    for i, w in enumerate([14, 22, 36, 10, 24, 18, 14, 12, 16], start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
     ws.freeze_panes = "A2"
-
-    wb.save(str(path))
+    # Leavers on a second sheet (the import reads the first sheet with data).
+    left = wb.create_sheet("Đã nghỉ việc")
+    left.append(["Mã NV", "Họ tên", "Chức danh", "Phòng ban", "Ngày vào", "Ngày nghỉ",
+                 "Trạng thái", "Lương"])
+    _style_header(left, 8)
+    for e in terminated:
+        left.append(list(e))
+    note = left.cell(row=left.max_row + 2, column=1)  # not on the import sheet (would be a row)
+    note.value = "Tổng quỹ lương tháng (ACTIVE) = 855.000.000 đ"
+    note.font = Font(bold=True, italic=True, color="1F4E79")
+    _save_wb(wb, path)
     return (
         f"DOC-06: {len(active)} active (ΣLương={num(active_sum)}) + "
-        f"{len(terminated)} terminated, dist={expected}, {path.name}"
+        f"{len(DOC06_ERROR_ROWS)} error rows + {len(terminated)} terminated (sheet 2), "
+        f"dist={expected}, {path.name}"
     )
 
 
 # ===========================================================================
-# DOC-07 — KPI/OKR Q4/2026 (openpyxl, 18 rows)
+# DOC-07 — KPI/OKR Q4/2026 (doc type #2 PLAN_KPI_OKR): .xlsx plan + .docx narrative
 # ===========================================================================
+DOC07_PERIOD: Final[str] = "2026-Q4"
+DOC07_HEADERS: Final[list[str]] = [
+    "Kỳ", "Mục tiêu", "Kết quả then chốt", "Đơn vị", "Giá trị nền", "Chỉ tiêu",
+    "Người phụ trách", "Mã KPI", "Tên KPI", "Chỉ tiêu kỳ",
+]
+# (objective, key result, unit, baseline, target, owner code, kpi code, kpi name, kpi target)
+# Owner codes = seeded department heads (NV-0004 Sales, NV-0088 CFO, NV-0041 Ops, NV-0100 HR,
+# NV-0108 Product); KPI codes = seeded KPIs → the plan upserts targets on existing KPIs.
+DOC07_ROWS: Final[list[tuple[str, str, str, int, int, str, str, str, float]]] = [
+    ("Tăng trưởng doanh thu Q4", "Doanh thu thuần Q4 đạt 80 tỷ", "tỷ VND", 72, 80,
+     "NV-0004", "KPI-CO-01", "Doanh thu thuần (tỷ)", 27),
+    ("Tăng trưởng doanh thu Q4", "Ký mới 12 khách hàng lớn", "khách hàng", 7, 12,
+     "NV-0004", "KPI-SAL-01", "Doanh số mới khách hàng lớn (tỷ)", 6),
+    ("Tăng trưởng doanh thu Q4", "Tạo 90 cơ hội mới", "cơ hội", 60, 90,
+     "NV-0004", "KPI-SAL-02", "Số cơ hội mới", 30),
+    ("Lành mạnh tài chính", "Giảm DSO xuống 40 ngày", "ngày", 52, 40,
+     "NV-0088", "KPI-FIN-01", "DSO (ngày)", 40),
+    ("Lành mạnh tài chính", "Chi phí vận hành ≤ 18% doanh thu", "%", 21, 18,
+     "NV-0088", "KPI-FIN-02", "Chi phí vận hành / doanh thu (%)", 18),
+    ("Lành mạnh tài chính", "Biên lợi nhuận gộp ≥ 18%", "%", 16, 18,
+     "NV-0088", "KPI-CO-02", "Biên lợi nhuận gộp (%)", 18),
+    ("Dịch vụ đúng hẹn", "Bảo trì đúng SLA 95%", "%", 88, 95,
+     "NV-0041", "KPI-SVC-01", "Tỷ lệ bảo trì đúng SLA (%)", 95),
+    ("Dịch vụ đúng hẹn", "Giao hàng trung bình ≤ 2 ngày", "ngày", 3, 2,
+     "NV-0041", "KPI-SVC-02", "Thời gian giao hàng TB (ngày)", 2),
+    ("Đội ngũ đủ người", "Thời gian tuyển dụng ≤ 30 ngày", "ngày", 42, 30,
+     "NV-0100", "KPI-HR-01", "Thời gian tuyển dụng TB (ngày)", 30),
+    ("Số hóa bán hàng", "40% đơn hàng qua ABC Order", "%", 28, 40,
+     "NV-0108", "KPI-PRD-01", "Đơn hàng qua ABC Order (%)", 40),
+    ("Số hóa bán hàng", "Không quá 1 sự cố nghiêm trọng / tháng", "sự cố", 3, 1,
+     "NV-0108", "KPI-PRD-02", "Sự cố nghiêm trọng / tháng", 1),
+]
+
+
+def _doc07_check() -> tuple[int, int]:
+    objectives = {r[0] for r in DOC07_ROWS}
+    assert len(DOC07_ROWS) == 11, f"DOC-07: expected 11 KR rows, got {len(DOC07_ROWS)}"
+    assert len(objectives) == 5, f"DOC-07: expected 5 objectives, got {len(objectives)}"
+    assert len({r[6] for r in DOC07_ROWS}) == len(DOC07_ROWS), "DOC-07: KPI code repeated"
+    return len(objectives), len(DOC07_ROWS)
+
+
 def gen_doc07(path: Path) -> str:
+    n_obj, n_kr = _doc07_check()
     wb = Workbook()
     ws = wb.active
-    ws.title = "KPI Q4 2026"
-    headers = ["Metric code", "Mục tiêu Q4", "Đơn vị", "Owner", "Ghi chú"]
-    ws.append(headers)
-    _style_header(ws, len(headers))
-
-    rows: list[tuple[str, str, str, str, str]] = [
-        ("METRIC-FIN-01", "27.000.000.000", "VND", "CFO", "Plan T10+T11+T12"),
-        ("METRIC-FIN-02", "≥ 18,0%", "%", "CFO", "Biên LN gộp"),
-        ("METRIC-FIN-03", "≥ 9,0", "tháng", "CFO", "Cash runway"),
-        ("METRIC-FIN-04", "≤ 40 ngày", "days", "CFO", "DSO"),
-        ("METRIC-FIN-05", "≤ 10%", "%", "CFO", "Công nợ quá hạn"),
-        ("METRIC-FIN-06", "≤ 5%", "%", "CFO", "Chênh ngân sách"),
-        ("METRIC-CUS-01", "≥ 3,0x", "ratio", "Sales Dir", "Pipeline coverage"),
-        ("METRIC-CUS-02", "≥ 25%", "%", "Sales Dir", "Tỷ lệ chuyển đổi"),
-        ("METRIC-CUS-03", "≥ 100%", "%", "Sales Dir", "NRR"),
-        ("METRIC-CUS-04", "≤ 40%", "%", "Sales Dir", "Tập trung doanh thu"),
-        ("METRIC-CUS-05", "≥ 30", "score", "Sales Dir", "NPS"),
-        ("METRIC-OPS-01", "≥ 85%", "%", "Ops Mgr", "Task đúng hạn"),
-        ("METRIC-OPS-02", "≤ 1", "count", "Ops Mgr", "Dự án trễ"),
-        ("METRIC-OPS-03", "≥ 80%", "%", "Ops Mgr", "Thực thi quyết định"),
-        ("METRIC-OPS-04", "≤ 6", "tasks/person", "Ops Mgr", "Workload"),
-        ("METRIC-HR-01", "≥ 2,0 tỷ", "VND/person", "HR Mgr", "Doanh thu/nhân sự"),
-        ("METRIC-HR-02", "≤ 15%", "%", "HR Mgr", "Tỷ lệ nghỉ việc"),
-        ("METRIC-HR-03", "≤ 10%", "%", "HR Mgr", "Nhân sự quá tải"),
-    ]
-    assert len(rows) == 18, f"DOC-07: expected 18 KPI rows, got {len(rows)}"
-
+    ws.title = "OKR KPI Q4 2026"
+    ws.append(DOC07_HEADERS)
+    _style_header(ws, len(DOC07_HEADERS))
     thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    group_fill = {
-        "FIN": "EAF1F8",
-        "CUS": "EAF8EA",
-        "OPS": "FFF4E5",
-        "HR": "F3EAF8",
-    }
-    for code, target, unit, owner, note in rows:
-        ws.append([code, target, unit, owner, note])
-        r = ws.max_row
-        grp = code.split("-")[1]
-        fill = PatternFill("solid", fgColor=group_fill.get(grp, "FFFFFF"))
-        for c in range(1, len(headers) + 1):
-            cell = ws.cell(row=r, column=c)
-            cell.border = border
-            cell.fill = fill
-        ws.cell(row=r, column=1).font = Font(bold=True)
-
-    widths = [16, 20, 14, 12, 26]
-    for i, w in enumerate(widths, start=1):
+    for row in DOC07_ROWS:
+        ws.append([DOC07_PERIOD, *row])
+        for c in range(1, len(DOC07_HEADERS) + 1):
+            ws.cell(row=ws.max_row, column=c).border = border
+    for i, w in enumerate([10, 26, 36, 12, 12, 10, 16, 12, 34, 12], start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
     ws.freeze_panes = "A2"
+    _save_wb(wb, path)
+    return f"DOC-07: {n_obj} objectives / {n_kr} KR + KPI target rows ({DOC07_PERIOD}), {path.name}"
 
-    wb.save(str(path))
-    return f"DOC-07: {len(rows)} KPI/OKR metrics (FIN/CUS/OPS/HR), {path.name}"
+
+def gen_doc07_docx(path: Path) -> str:
+    """Same plan as a Word document: one heading per objective + a KR/KPI table."""
+    n_obj, n_kr = _doc07_check()
+    document = Document()
+    _set_doc_font(document)
+    document.core_properties.author = COMPANY
+    document.add_heading("KẾ HOẠCH OKR / KPI QUÝ 4/2026", level=1)
+    document.add_paragraph(f"{COMPANY}. Kỳ: {DOC07_PERIOD}. Ngày lập: {REF_DATE}.")
+    seen: list[str] = []
+    for r in DOC07_ROWS:
+        if r[0] not in seen:
+            seen.append(r[0])
+    for objective in seen:
+        document.add_heading(f"Mục tiêu: {objective}", level=2)
+        table = document.add_table(rows=1, cols=len(DOC07_HEADERS))
+        table.style = "Table Grid"
+        for i, h in enumerate(DOC07_HEADERS):
+            table.rows[0].cells[i].text = h
+        for r in (x for x in DOC07_ROWS if x[0] == objective):
+            cells = table.add_row().cells
+            for i, v in enumerate([DOC07_PERIOD, *r]):
+                cells[i].text = f"{v:g}" if isinstance(v, float) else str(v)
+    _save_docx(document, path)
+    return f"DOC-07 (.docx): {n_obj} objectives / {n_kr} KR tables, {path.name}"
+
+
+# ===========================================================================
+# DOC-08 — Period results report Q3/2026 (doc type #3 PERIOD_REPORT, reportlab)
+# ===========================================================================
+DOC08_HEADERS: Final[list[str]] = ["Mã KPI", "Kỳ", "Thực tế", "Ghi chú"]
+# (kpi code, period, actual, note) — monthly actuals for Q3/2026 on seeded KPIs.
+DOC08_ROWS: Final[list[tuple[str, str, float, str]]] = [
+    ("KPI-CO-01", "2026-07", 24.8, "Doanh thu thuần tháng 7"),
+    ("KPI-CO-01", "2026-08", 25.6, "Doanh thu thuần tháng 8"),
+    ("KPI-CO-01", "2026-09", 26.1, "Doanh thu thuần tháng 9"),
+    ("KPI-FIN-01", "2026-09", 48, "DSO cuối quý"),
+    ("KPI-SVC-01", "2026-09", 91.5, "Bảo trì đúng SLA"),
+    ("KPI-SAL-02", "2026-09", 27, "Cơ hội mới tháng 9"),
+    ("KPI-HR-01", "2026-09", 38, "Thời gian tuyển dụng TB"),
+    ("KPI-PRD-01", "2026-09", 31.2, "Đơn qua ABC Order"),
+]
+DOC08_REVENUE_Q3: Final[float] = 76.5  # Σ KPI-CO-01 Q3 (tỷ VND)
+
+
+def gen_doc08(path: Path) -> str:
+    q3 = round(sum(r[2] for r in DOC08_ROWS if r[0] == "KPI-CO-01"), 1)
+    assert q3 == DOC08_REVENUE_Q3, f"DOC-08: Σ revenue Q3 {q3} != {DOC08_REVENUE_Q3}"
+    assert len(DOC08_ROWS) == 8, f"DOC-08: expected 8 rows, got {len(DOC08_ROWS)}"
+    _register_fonts()
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle("VNTitle8", parent=styles["Title"], fontName=FONT_BOLD, fontSize=15)
+    body = ParagraphStyle("VNBody8", parent=styles["Normal"], fontName=FONT_REGULAR,
+                          fontSize=10, leading=14)
+    doc = SimpleDocTemplate(str(path), pagesize=A4, topMargin=20 * mm, bottomMargin=18 * mm,
+                            leftMargin=18 * mm, rightMargin=18 * mm,
+                            title="BÁO CÁO KẾT QUẢ QUÝ 3/2026")
+    data = [DOC08_HEADERS] + [[c, k, f"{v:g}".replace(".", ","), n] for c, k, v, n in DOC08_ROWS]
+    table = Table(data, colWidths=[30 * mm, 25 * mm, 25 * mm, 90 * mm])
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), FONT_REGULAR),
+        ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
+        ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+    ]))
+    story = [
+        Paragraph("BÁO CÁO KẾT QUẢ QUÝ 3/2026", title),
+        Paragraph(f"{COMPANY} — MST {COMPANY_TAX}. Kỳ báo cáo: 2026-Q3. Ngày lập: {REF_DATE}.",
+                  body),
+        Spacer(1, 4 * mm), table, Spacer(1, 4 * mm),
+        Paragraph(f"Tổng doanh thu thuần Q3: {f'{q3:g}'.replace('.', ',')} tỷ VND.", body),
+    ]
+    doc.build(story)
+    return f"DOC-08: {len(DOC08_ROWS)} KPI actuals Q3/2026 (Σ doanh thu {q3} tỷ), {path.name}"
 
 
 # ===========================================================================
@@ -1214,11 +1364,13 @@ def main() -> None:
         (DATA_DIR / "DOC-05-bien-ban-hop-giao-ban.docx", gen_doc05),
         (DATA_DIR / "DOC-06-danh-sach-nhan-su.xlsx", gen_doc06),
         (DATA_DIR / "DOC-07-kpi-okr-q4-2026.xlsx", gen_doc07),
+        (DATA_DIR / "DOC-07-kpi-okr-q4-2026.docx", gen_doc07_docx),
+        (DATA_DIR / "DOC-08-bao-cao-ket-qua-q3-2026.pdf", gen_doc08),
     ]
 
     print(f"Σ invoice subtotals = {invoice_subtotal:,} (OK)")
     print(f"Σ active salaries   = {active_salary_sum:,} (OK)")
-    print(f"Writing 7 documents into {DATA_DIR} ...\n")
+    print(f"Writing {len(targets)} documents into {DATA_DIR} ...\n")
 
     for path, fn in targets:
         if path.exists():
@@ -1228,7 +1380,7 @@ def main() -> None:
         print(f"  ✓ {path}  ({size:,} bytes)")
         print(f"    {summary}")
 
-    print("\nAll 7 demo documents generated successfully.")
+    print(f"\nAll {len(targets)} demo documents generated successfully.")
 
 
 if __name__ == "__main__":
