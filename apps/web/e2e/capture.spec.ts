@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { login } from "./helpers";
 
 /**
@@ -90,10 +90,15 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await page.getByTestId("import-download-errors").click();
     expect((await dl).suggestedFilename()).toMatch(/\.xlsx$/);
     await page.getByTestId("import-next").click();
+    // the document id comes from the submit response: right after router.push("/data") the inbox
+    // still shows the cached list (seed CAP roster doc, also NEEDS_REVIEW) until the refetch lands
+    const submitted = page.waitForResponse((r) => r.request().method() === "POST" && /\/data-capture\/imports\/[^/]+\/submit$/.test(r.url()));
     await page.getByTestId("import-submit").click();
+    const sub = await submitted;
+    expect(sub.status()).toBe(200);
+    const docId = ((await sub.json()) as { data: { document: { id: string } } }).data.document.id;
     await expect(page).toHaveURL(/\/data$/);
-    const docId = await page.locator('[data-testid="inbox-row"][data-status="NEEDS_REVIEW"]').first().getAttribute("data-doc");
-    expect(docId).toBeTruthy();
+    await expect(page.locator(`[data-testid="inbox-row"][data-doc="${docId}"]`)).toHaveAttribute("data-status", "NEEDS_REVIEW");
 
     await logout(page);
     await login(page, "reviewer@abc.demo");

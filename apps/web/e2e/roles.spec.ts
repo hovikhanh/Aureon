@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { login, loginAs, loginWithPassword } from "./helpers";
 import { cleanupReviewDocs, rootEnv, seedReviewDoc } from "./support/seed";
 

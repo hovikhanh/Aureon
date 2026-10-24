@@ -8,6 +8,7 @@ import { API_BASE, isMockMode } from "@/lib/server-env";
 import { clearSession, persistToken, readToken } from "@/lib/session-token";
 import { decodeMockToken } from "@/mocks/auth";
 import { handleMock } from "@/mocks/router";
+import { resetMockStore } from "@/mocks/store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,12 @@ const UNAUTH = { error: { code: "UNAUTHENTICATED", message: "no session", detail
 
 /** T-604: API_MODE=mock → in-process mock router (no backend); claims from the mock token. */
 async function mock(req: NextRequest, path: string[]): Promise<Response> {
+  // E2E hook, mock mode only (API_MODE=mock is refused in production; never forwarded to the API):
+  // fresh demo state per Playwright test — the in-memory store lives as long as `next dev`.
+  if (req.method === "POST" && path.join("/") === "__mock/reset") {
+    resetMockStore();
+    return new NextResponse(null, { status: 204 });
+  }
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "auth not configured", details: {} } }, { status: 500 });
   const token = await getToken({ req, secret });
