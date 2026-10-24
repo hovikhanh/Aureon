@@ -30,7 +30,6 @@ from app.modules.execution.schemas.kpi import (
     MeasurementOut,
 )
 from app.modules.execution.schemas.okr import CheckInCreate, CheckInOut
-from app.modules.execution.services import scope
 from app.modules.execution.services.kpi_service import KpiService
 from app.modules.execution.services.kpi_target_service import KpiTargetService
 
@@ -147,9 +146,7 @@ async def create_target(
 ) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return KpiTargetOut.model_validate(hit)
-    await KpiService(db).get_kpi(user, kpi_id, "write")
-    if scope.level(user, "write") == "o":  # 10 EP-KPI-09 "không EMP"
-        raise scope.deny("KPI target", kpi_id=kpi_id)
+    await KpiService(db).get_kpi(user, kpi_id, "write")  # EMP → 403 (10 EP-KPI-09 "không EMP")
     out = await KpiTargetService(db).upsert(kpi_id, body, user.user_id)
     await db.commit()
     await idem.remember(out)

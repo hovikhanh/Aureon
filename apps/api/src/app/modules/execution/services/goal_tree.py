@@ -123,12 +123,13 @@ class GoalTreeService:
         day = today()
         period = period_key or period_key_for("QUARTER", day)
         start, end = period_bounds(period)
-        goal_scope.check_department_filter(user, department_id)
+        gs = await goal_scope.resolve(self.db, user)
+        gs.check_department_filter(department_id)
 
-        def visible(dept: uuid.UUID | None, owner: uuid.UUID) -> bool:
+        def visible(dept: uuid.UUID | None, owner: uuid.UUID, pillar: str | None) -> bool:
             if department_id is not None and dept != department_id:
                 return False
-            return goal_scope.row_visible(user, dept=dept, owners=(owner,))
+            return gs.readable(dept=dept, owners=(owner,), pillar=pillar)
 
         if strategy_id is not None:
             strategies = await self.strategies.where(Strategy.id == strategy_id)
@@ -153,7 +154,7 @@ class GoalTreeService:
         inis = await self.initiatives.where(
             Initiative.strategic_objective_id.in_([s.id for s in sos]), order=Initiative.code,
         ) if sos else []  # fmt: skip
-        vis_inis = [i for i in inis if visible(i.department_id, i.owner_id)]
+        vis_inis = [i for i in inis if visible(i.department_id, i.owner_id, i.pillar)]
         projects = await ProjectService(self.db).of_initiatives(user, [i.id for i in vis_inis])
         proj_by: dict[uuid.UUID, list[IniProjectNode]] = defaultdict(list)
         for p in projects:
@@ -163,9 +164,9 @@ class GoalTreeService:
                 )
 
         kf = _Forest(kpis, lambda k: k.parent_kpi_id,
-                     lambda k: visible(k.department_id, k.owner_id))  # fmt: skip
+                     lambda k: visible(k.department_id, k.owner_id, k.pillar))  # fmt: skip
         of = _Forest(objs, lambda o: o.parent_id,
-                     lambda o: visible(o.department_id, o.owner_id))  # fmt: skip
+                     lambda o: visible(o.department_id, o.owner_id, o.pillar))  # fmt: skip
 
         def kpi_node(k: Kpi, depth: int) -> KpiNode:
             kids = [kpi_node(c, depth + 1) for c in kf.children(k, depth)]
@@ -199,13 +200,14 @@ class GoalTreeService:
                 projects=proj_by.get(i.id, []),
             )  # fmt: skip
 
-        return self._assemble(user, strategies, sos, kf, of, vis_inis, kpi_node, obj_node,
+        return self._assemble(gs, strategies, sos, kf, of, vis_inis, kpi_node, obj_node,
                               ini_node, filtered=department_id is not None,
                               with_unaligned=strategy_id is None)  # fmt: skip
 
     @staticmethod
     def _assemble(
-        user: Principal, strategies: Sequence[Strategy], sos: Sequence[StrategicObjective],
+        gs: goal_scope.GoalScope, strategies: Sequence[Strategy],
+        sos: Sequence[StrategicObjective],
         kf: "_Forest[Kpi]", of: "_Forest[Objective]", inis: Sequence[Initiative],
         kpi_node: Callable[[Kpi, int], KpiNode], obj_node: Callable[[Objective, int], ObjNode],
         ini_node: Callable[[Initiative], IniNode], *, filtered: bool, with_unaligned: bool,
@@ -233,7 +235,7 @@ class GoalTreeService:
                 "initiatives": [ini_node(i) for i in ini_by.get(s.id, [])],
             }
             has_kids = any(kids.values())
-            readable = goal_scope.so_readable(user, dept=s.department_id, owner=s.owner_id,
+            readable = goal_scope.so_readable(gs, dept=s.department_id, owner=s.owner_id,
                                               pillar=s.pillar)  # fmt: skip
             if (filtered or not readable) and not has_kids:
                 continue

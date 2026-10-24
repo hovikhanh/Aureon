@@ -1,6 +1,7 @@
 """EP-STR-12..21 initiatives + milestones (10 §7.2.3; v2.1 EP-45, T-133).
 
-- Scope (DEC-220): department + `owner_id`; milestones inherit the initiative's scope.
+- Scope (R-DEC-57, `goal_scope`): department subtree + pillar + `owner_id`; milestones
+  inherit the initiative's scope.
 - `progress_pct` is system-computed (10 EP-STR-15; DEC-225): share of `done` milestones; with no
   milestones, share of `done` among the initiative's non-cancelled tasks; else 0. It is
   recomputed whenever a milestone or a linked task changes.
@@ -45,7 +46,7 @@ from app.modules.execution.schemas.initiatives import (
     MilestoneOut,
     MilestoneUpdate,
 )
-from app.modules.execution.services import scope
+from app.modules.execution.services import goal_scope
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
 from app.modules.execution.services.meeting_service import _c19
 from app.modules.execution.services.project_rules import milestone_late
@@ -97,8 +98,9 @@ class InitiativeService(ExecBase):
         self, user: Principal, page: PageParams, *, objective_id: uuid.UUID | None,
         status: str | None, pillar: str | None, strategic_objective_id: uuid.UUID | None = None,
     ) -> tuple[list[InitiativeOut], int]:  # fmt: skip
-        pred = scope.predicate(user, "read", dept=Initiative.department_id,
-                               own=[Initiative.owner_id == user.user_id])  # fmt: skip
+        gs = await goal_scope.resolve(self.db, user)
+        pred = gs.predicate(dept=Initiative.department_id, owner=Initiative.owner_id,
+                            pillar=Initiative.pillar)  # fmt: skip
         raw = {"objective_id": objective_id, "status": status, "pillar": pillar,
                "strategic_objective_id": strategic_objective_id}  # fmt: skip
         items, total = await self.initiatives.list_page(
@@ -109,12 +111,14 @@ class InitiativeService(ExecBase):
         return [initiative_out(i) for i in items], total
 
     async def get_initiative(
-        self, user: Principal, id_: uuid.UUID, action: str = "read"
+        self, user: Principal, id_: uuid.UUID, action: goal_scope.Action = "read"
     ) -> Initiative:
         i = await self.initiatives.get(id_)
         if i is None:
             raise not_found("initiative")
-        scope.check(user, action, dept=i.department_id, owners=(i.owner_id,), what="initiative")
+        gs = await goal_scope.resolve(self.db, user)
+        gs.check(action, dept=i.department_id, owners=(i.owner_id,), pillar=i.pillar,
+                 what="initiative")  # fmt: skip
         return i
 
     @staticmethod
@@ -127,8 +131,9 @@ class InitiativeService(ExecBase):
 
     async def create_initiative(self, user: Principal, body: InitiativeCreate) -> InitiativeOut:
         data = body.model_dump()
-        scope.require_self(user, data["owner_id"], field="owner_id")
-        data["department_id"] = scope.pin_department(user, data["department_id"])
+        gs = await goal_scope.resolve(self.db, user)
+        gs.require_writer("initiative")
+        data["department_id"] = gs.pin_department(data["department_id"])
         self._dates(data["start_date"], data["planned_end_date"])
         await self.require_unique(Initiative, "code", data["code"], None)
         await self.require_refs(data, RULE, objective_id=Objective)
@@ -149,9 +154,9 @@ class InitiativeService(ExecBase):
         _drop_nulls(data, "code", "title", "objective_id", "strategic_objective_id", "owner_id",
                     "start_date", "planned_end_date", "status", "weight_pct")  # fmt: skip
         old_so = i.strategic_objective_id
-        scope.require_self(user, data.get("owner_id"), field="owner_id")
         if "department_id" in data:
-            data["department_id"] = scope.pin_department(user, data["department_id"])
+            gs = await goal_scope.resolve(self.db, user)
+            data["department_id"] = gs.pin_department(data["department_id"])
         self._dates(data.get("start_date", i.start_date),
                     data.get("planned_end_date", i.planned_end_date))  # fmt: skip
         if "code" in data:
@@ -217,7 +222,11 @@ class InitiativeService(ExecBase):
         return [milestone_out(m) for m in items], total
 
     async def _milestone(
-        self, user: Principal, initiative_id: uuid.UUID, milestone_id: uuid.UUID, action: str
+        self,
+        user: Principal,
+        initiative_id: uuid.UUID,
+        milestone_id: uuid.UUID,
+        action: goal_scope.Action,
     ) -> Milestone:
         await self.get_initiative(user, initiative_id, action)
         m = await self.milestones.get(milestone_id)

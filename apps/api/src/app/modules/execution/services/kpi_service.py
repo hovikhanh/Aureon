@@ -61,7 +61,7 @@ from app.modules.execution.schemas.okr import (
     KrMeasurementBrief,
     KrMeasurementOut,
 )
-from app.modules.execution.services import scope
+from app.modules.execution.services import goal_scope
 from app.modules.execution.services.at_risk import AtRiskService
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
 from app.modules.execution.services.kpi_rules import (
@@ -140,9 +140,9 @@ class KpiService(ExecBase):
         self.target_svc = KpiTargetService(db)
 
     # ---------- KPIs ----------
-    def _pred(self, user: Principal) -> ColumnElement[bool] | None:
-        return scope.predicate(user, "read", dept=Kpi.department_id,
-                               own=[Kpi.owner_id == user.user_id])  # fmt: skip
+    async def _pred(self, user: Principal) -> ColumnElement[bool] | None:
+        gs = await goal_scope.resolve(self.db, user)
+        return gs.predicate(dept=Kpi.department_id, owner=Kpi.owner_id, pillar=Kpi.pillar)
 
     async def list_kpis(
         self, user: Principal, page: PageParams, *, owner_id: uuid.UUID | None,
@@ -150,7 +150,7 @@ class KpiService(ExecBase):
         parent_kpi_id: uuid.UUID | None = None, strategic_objective_id: uuid.UUID | None = None,
         band: str | None = None,
     ) -> tuple[list[KpiOut], int]:  # fmt: skip
-        pred = self._pred(user)
+        pred = await self._pred(user)
         where = [pred] if pred is not None else []
         if band is not None:  # band of the latest-period evaluation (EP-KPI-01)
             where.append(Kpi.id.in_(KpiEvaluationRepository.kpis_with_latest_band(band)))
@@ -169,18 +169,23 @@ class KpiService(ExecBase):
         """KpiOut + `latest_evaluation` (EP-KPI-02..04)."""
         return kpi_out(k, (await self.target_svc.latest([k.id])).get(k.id))
 
-    async def get_kpi(self, user: Principal, id_: uuid.UUID, action: str = "read") -> Kpi:
+    async def get_kpi(
+        self, user: Principal, id_: uuid.UUID, action: goal_scope.Action = "read"
+    ) -> Kpi:
+        """`check_in` = EP-KPI-07 / EP-PRF-04 (EMP: own KPI only, R-DEC-57)."""
         k = await self.kpis.get(id_)
         if k is None:
             raise not_found("KPI")
-        scope.check(user, action, dept=k.department_id, owners=(k.owner_id,), what="KPI")
+        gs = await goal_scope.resolve(self.db, user)
+        gs.check(action, dept=k.department_id, owners=(k.owner_id,), pillar=k.pillar, what="KPI")
         return k
 
     async def create_kpi(self, user: Principal, body: KpiCreate) -> KpiOut:
         data = body.model_dump()
         data["target_value"] = data.pop("target")
-        scope.require_self(user, data["owner_id"], field="owner_id")
-        data["department_id"] = scope.pin_department(user, data["department_id"])
+        gs = await goal_scope.resolve(self.db, user)
+        gs.require_writer("KPI")
+        data["department_id"] = gs.pin_department(data["department_id"])
         await self.require_unique(Kpi, "code", data["code"], None)
         self.require_root_link(data, "parent_kpi_id", RULE)
         await self.require_refs(data, RULE, parent_kpi_id=Kpi)
@@ -202,9 +207,9 @@ class KpiService(ExecBase):
                     "data_source_kind", "weight_pct", "status"):  # fmt: skip
             if key in data and data[key] is None:
                 del data[key]
-        scope.require_self(user, data.get("owner_id"), field="owner_id")
         if "department_id" in data:
-            data["department_id"] = scope.pin_department(user, data["department_id"])
+            gs = await goal_scope.resolve(self.db, user)
+            data["department_id"] = gs.pin_department(data["department_id"])
         if data.get("parent_kpi_id") == k.id:
             raise BusinessRuleError("KPI cannot be its own parent",
                                     details={"field": "parent_kpi_id", "rule": RULE})  # fmt: skip
@@ -248,7 +253,7 @@ class KpiService(ExecBase):
         self, user: Principal, kpi_id: uuid.UUID, body: MeasurementCreate, source: str = "MANUAL"
     ) -> MeasurementOut:
         """EP-KPI-07 / ACT-record_kpi_measurement (EMP: only their own KPI)."""
-        k = await self.get_kpi(user, kpi_id, "write")
+        k = await self.get_kpi(user, kpi_id, "check_in")
         return await self._measure(
             k, body.period_key, body.actual_value, user.user_id,
             source_document_id=body.source_document_id, data_source=body.data_source,
@@ -362,11 +367,11 @@ class KpiService(ExecBase):
             where.append(CheckIn.checked_in_at >= from_)
         if to is not None:
             where.append(CheckIn.checked_in_at < to)
-        if scope.level(user) != "all":
-            kp = self._pred(user)
-            kpi_ids = KpiRepository.ids_where(*([kp] if kp is not None else []))
-            kr_pred = kr_scope_predicate(user)
-            parts = [CheckIn.kpi_id.in_(kpi_ids), CheckIn.user_id == user.user_id]
+        kp = await self._pred(user)
+        if kp is not None:
+            kr_pred = await kr_scope_predicate(self.db, user)
+            parts = [CheckIn.kpi_id.in_(KpiRepository.ids_where(kp)),
+                     CheckIn.user_id == user.user_id]  # fmt: skip
             if kr_pred is not None:
                 parts.append(CheckIn.key_result_id.in_(KeyResultRepository.ids_where(kr_pred)))
             where.append(or_(*parts))
@@ -414,7 +419,7 @@ class KpiService(ExecBase):
         """EP-PRF-02 — one transaction: CheckIn + KRMeasurement + KR `current_value` /
         `confidence` / `last_checked_in_at` + objective progress (R-DEC-53)."""
         okr = OkrService(self.db)
-        kr = await okr.get_kr(user, kr_id, "write")
+        kr = await okr.get_kr(user, kr_id, "check_in")
         o = await self.objectives.get(kr.objective_id)
         if o is None or o.status != "active":
             raise ConflictStateError("objective is not active",
@@ -447,7 +452,7 @@ class KpiService(ExecBase):
         self, user: Principal, kpi_id: uuid.UUID, body: CheckInCreate
     ) -> CheckInOut:
         """EP-PRF-04 — CheckIn + measurement of the KPI's current period (`check_in_id`)."""
-        k = await self.get_kpi(user, kpi_id, "write")
+        k = await self.get_kpi(user, kpi_id, "check_in")
         period_key = period_key_for(k.period_type, today())
         k = await self.target_svc.lock_kpi(k.id)  # validate before any write
         self.target_svc.require_open(list(await self.targets.versions(k.id, period_key)),
