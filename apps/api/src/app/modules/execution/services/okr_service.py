@@ -1,9 +1,9 @@
-"""EP-46 objectives + key results (T-132).
+"""EP-OKR-01..10 objectives + key results (10 §7.2.3; v2.1 EP-46, T-132).
 
 - Scope (DEC-220): department + `owner_id`; a KR inherits its objective's department.
 - KR count per objective ≤ 5 (05 ENT-KeyResult, BRD FR-OKR-01); activating an objective
   (`status = active`) needs 2..5 KRs and a non-`◑o` caller — "kích hoạt chỉ sau duyệt"
-  (10 EP-46, US-DC-005; DEC-223).
+  (10 EP-OKR-02/04, US-DC-005; DEC-223).
 - `progress_pct`: KR = baseline → target (0..100); objective = weighted mean of KRs.
 """
 
@@ -32,7 +32,7 @@ from app.modules.execution.schemas.okr import (
     ObjectiveUpdate,
 )
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import ExecBase, not_found, num
+from app.modules.execution.services.base import M14_PENDING, ExecBase, not_found, num
 from app.modules.execution.services.kpi_rules import kr_progress_pct, weighted_avg
 from app.modules.execution.services.meeting_service import _c19
 
@@ -76,11 +76,14 @@ class OkrService(ExecBase):
     # ---------- objectives ----------
     async def list_objectives(
         self, user: Principal, page: PageParams, *, period_key: str | None,
-        owner_id: uuid.UUID | None,
+        owner_id: uuid.UUID | None, department_id: uuid.UUID | None = None,
+        parent_id: uuid.UUID | None = None,
     ) -> tuple[list[ObjectiveOut], int]:  # fmt: skip
         pred = scope.predicate(user, "read", dept=Objective.department_id,
                                own=[Objective.owner_id == user.user_id])  # fmt: skip
-        filters = {k: v for k, v in {"period_key": period_key, "owner_id": owner_id}.items() if v}
+        raw = {"period_key": period_key, "owner_id": owner_id, "department_id": department_id,
+               "parent_id": parent_id}  # fmt: skip
+        filters = {k: v for k, v in raw.items() if v}
         items, total = await self.objectives.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
             filters=filters, where=[pred] if pred is not None else [],
@@ -111,7 +114,7 @@ class OkrService(ExecBase):
                                          order=KeyResult.created_at))  # fmt: skip
 
     async def create_objective(self, user: Principal, body: ObjectiveCreate) -> ObjectiveOut:
-        data = body.model_dump()
+        data = body.model_dump(exclude=M14_PENDING)
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         if data["status"] == "active":
@@ -129,7 +132,7 @@ class OkrService(ExecBase):
     ) -> ObjectiveOut:
         o = await self.get_objective(user, id_, "write")
         before = objective_out(o)
-        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING})
         _drop_nulls(data, "title", "owner_id", "period_key", "level", "okr_type", "weight_pct",
                     "status")  # fmt: skip
         scope.require_self(user, data.get("owner_id"), field="owner_id")
@@ -207,10 +210,10 @@ class OkrService(ExecBase):
         return out
 
     async def update_kr(
-        self, user: Principal, objective_id: uuid.UUID, kr_id: uuid.UUID,
-        body: KeyResultUpdate, expected: int,
-    ) -> KeyResultOut:  # fmt: skip
-        k = await self._kr_in(user, objective_id, kr_id)
+        self, user: Principal, kr_id: uuid.UUID, body: KeyResultUpdate, expected: int
+    ) -> KeyResultOut:
+        """EP-OKR-09 `/key-results/{id}` (flattened path, R-DEC-58)."""
+        k = await self.get_kr(user, kr_id, "write")
         before = kr_out(k)
         data = body.model_dump(exclude_unset=True, exclude={"version"})
         _drop_nulls(data, "title", "baseline", "target", "unit", "owner_id", "status",
@@ -223,14 +226,9 @@ class OkrService(ExecBase):
         await self.audit("key_result_update", "key_results", k.id, before, out)
         return out
 
-    async def _kr_in(self, user: Principal, objective_id: uuid.UUID, kr_id: uuid.UUID) -> KeyResult:
+    async def delete_kr(self, user: Principal, kr_id: uuid.UUID) -> None:
+        """EP-OKR-10 `/key-results/{id}` (flattened path, R-DEC-58)."""
         k = await self.get_kr(user, kr_id, "write")
-        if k.objective_id != objective_id:
-            raise not_found("key result")
-        return k
-
-    async def delete_kr(self, user: Principal, objective_id: uuid.UUID, kr_id: uuid.UUID) -> None:
-        k = await self._kr_in(user, objective_id, kr_id)
         if await self.kpis.where(Kpi.key_result_id == k.id):
             raise ConflictStateError("key result still has KPIs",
                                      details={"key_result_id": str(k.id)})  # fmt: skip

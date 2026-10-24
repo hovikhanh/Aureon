@@ -1,4 +1,4 @@
-"""EP-42 meetings, EP-43 decisions, EP-45 projects DTOs (10 §4.4; 05 §4.7; DEC-221).
+"""EP-42 meetings, EP-43 decisions, EP-TASK-09..13 projects DTOs (10 §4.4; 05 §4.7; DEC-221).
 
 Field names follow 10; fields beyond 10's "main fields" use the 05 column name. Project
 `due_date` (10) ↔ column `planned_end_date` (05); project `code` is required by 05 (UQ).
@@ -99,7 +99,7 @@ class DecisionOut(Out):
     source_document_id: uuid.UUID | None
 
 
-# ---------- EP-45 projects ----------
+# ---------- EP-TASK-09..13 projects (v2.1 EP-45) ----------
 class ProjectCreate(BaseModel):
     code: str = Field(min_length=1, max_length=50)
     name: str = Field(min_length=1, max_length=500)

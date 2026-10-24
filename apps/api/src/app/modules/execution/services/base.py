@@ -37,6 +37,11 @@ REFS: dict[str, type[BusinessModel]] = {
 }
 
 
+# M1.4 body fields accepted by the T-626C contract whose columns land in migration 0016 (T-626).
+M14_PENDING: set[str] = {"strategic_objective_id"}
+M14_PENDING_KPI: set[str] = {*M14_PENDING, "pillar"}
+
+
 def now_utc() -> datetime:
     return datetime.now(UTC)
 

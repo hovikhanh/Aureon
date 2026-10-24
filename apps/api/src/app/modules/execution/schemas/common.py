@@ -2,9 +2,10 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from decimal import Decimal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "in_review", "done", "cancelled"]
 TaskPriority = Literal["low", "medium", "high", "urgent"]
@@ -23,6 +24,22 @@ KpiValueType = Literal["ratio", "percentage", "numeric", "currency", "duration",
 KpiDataSource = Literal["manual", "document", "automated", "ai_assisted"]
 KpiPeriodType = Literal["MONTH", "QUARTER", "YEAR", "ROLLING_12M"]
 KpiBand = Literal["CRITICAL", "BELOW", "NEAR", "MEETS", "EXCEEDS"]
+StrategyStatus = Literal["draft", "active", "closed"]  # 05 §2.6 `execution.strategy_status`
+GoalTargetType = Literal["key_result", "kpi"]  # check-in target (EP-PRF-05/06)
+AtRiskReason = Literal["declining", "low_confidence", "behind_plan"]  # R-DEC-55
+
+PERIOD = r"^\d{4}(-Q[1-4]|-(0[1-9]|1[0-2]))?$"
+
+
+def measure(required: bool = False) -> Any:
+    """numeric(20,6) (05 C10)."""
+    if required:
+        return Field(max_digits=20, decimal_places=6)
+    return Field(default=None, max_digits=20, decimal_places=6)
+
+
+def weight(default: Decimal | None = Decimal(100)) -> Any:
+    return Field(default=default, ge=0, le=100, max_digits=7, decimal_places=4)
 
 
 class Out(BaseModel):
