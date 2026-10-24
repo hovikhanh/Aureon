@@ -34,7 +34,7 @@ test.describe("M1.6 onboarding wizard (TC-M16-15)", { tag: ["@mock", "@mock-only
 
     await expect(page.getByTestId("template-link")).toHaveAttribute("href", /DOC-06/);
     await page.getByTestId("onboarding-file").setInputFiles({ name: "DOC-06-danh-sach-nhan-su.xlsx", mimeType: XLSX, buffer: Buffer.from(`PK mock ${Date.now()}`) });
-    await expect(page.getByTestId("sensitive-dropped")).toContainText("Lương");
+    await expect(page.getByTestId("sensitive-dropped")).toContainText("Lương", { timeout: 60_000 }); // upload + preview + schema compile on demand
     await page.getByTestId("onboarding-save-mapping").click();
     await expect(page.getByTestId("summary-invalid")).toContainText("1");
     const submitted = page.waitForResponse((r) => r.request().method() === "POST" && /\/imports\/[^/]+\/submit$/.test(r.url()));
