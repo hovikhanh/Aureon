@@ -46,6 +46,7 @@ from app.modules.idp.schemas.capture import (
     ValidationRulePatch,
     VersionIn,
 )
+from app.modules.idp.services.admin_service import CaptureAdminService
 from app.modules.idp.services.commit_service import CommitService
 
 router = EnvelopeRouter(prefix="/data-capture", tags=["data-capture"])
@@ -188,16 +189,20 @@ async def document_actions(document_id: uuid.UUID, user: Reader) -> Any:
     "/document-types", response_model=list[DocumentTypeOut],
     summary="EP-DC-27 List document types",
 )  # fmt: skip
-async def list_document_types(user: Reader, include_inactive: bool = False) -> Any:
-    not_implemented("EP-DC-27", "T-634")
+async def list_document_types(user: Reader, db: Db, include_inactive: bool = False) -> Any:
+    return await CaptureAdminService(db).list_types(user, include_inactive=include_inactive)
 
 
 @router.patch(
     "/document-types/{type_id}", response_model=DocumentTypeOut,
     summary="EP-DC-28 Update document type",
 )  # fmt: skip
-async def patch_document_type(type_id: uuid.UUID, body: DocumentTypePatch, user: Admin) -> Any:
-    not_implemented("EP-DC-28", "T-634")
+async def patch_document_type(
+    type_id: uuid.UUID, body: DocumentTypePatch, user: Admin, db: Db
+) -> Any:
+    out = await CaptureAdminService(db).patch_type(user, type_id, body)
+    await db.commit()
+    return out
 
 
 # ---------- EP-DC-29..32 extraction schemas ----------
@@ -206,33 +211,49 @@ async def patch_document_type(type_id: uuid.UUID, body: DocumentTypePatch, user:
     summary="EP-DC-29 List extraction schemas",
 )  # fmt: skip
 async def list_schemas(
-    user: Admin, document_type: str | None = None, status: SchemaStatus | None = None
+    user: Admin, db: Db, document_type: str | None = None, status: SchemaStatus | None = None
 ) -> Any:
-    not_implemented("EP-DC-29", "T-634")
+    return await CaptureAdminService(db).list_schemas(document_type=document_type, status=status)
 
 
 @router.post(
     "/extraction-schemas", response_model=ExtractionSchemaOut, status_code=201,
     summary="EP-DC-30 Create extraction schema draft",
 )  # fmt: skip
-async def create_schema(body: ExtractionSchemaCreate, user: Admin, idem: Idem) -> Any:
-    not_implemented("EP-DC-30", "T-634")
+async def create_schema(body: ExtractionSchemaCreate, user: Admin, db: Db, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ExtractionSchemaOut.model_validate(hit)
+    out = await CaptureAdminService(db).create_schema(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.patch(
     "/extraction-schemas/{schema_id}", response_model=ExtractionSchemaOut,
     summary="EP-DC-31 Update extraction schema draft",
 )  # fmt: skip
-async def patch_schema(schema_id: uuid.UUID, body: ExtractionSchemaPatch, user: Admin) -> Any:
-    not_implemented("EP-DC-31", "T-634")
+async def patch_schema(
+    schema_id: uuid.UUID, body: ExtractionSchemaPatch, user: Admin, db: Db
+) -> Any:
+    out = await CaptureAdminService(db).patch_schema(user, schema_id, body)
+    await db.commit()
+    return out
 
 
 @router.post(
     "/extraction-schemas/{schema_id}/publish", response_model=ExtractionSchemaOut,
     summary="EP-DC-32 Publish extraction schema",
 )  # fmt: skip
-async def publish_schema(schema_id: uuid.UUID, body: VersionIn, user: Admin, idem: Idem) -> Any:
-    not_implemented("EP-DC-32", "T-634")
+async def publish_schema(
+    schema_id: uuid.UUID, body: VersionIn, user: Admin, db: Db, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ExtractionSchemaOut.model_validate(hit)
+    out = await CaptureAdminService(db).publish_schema(user, schema_id, body.version)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 # ---------- EP-DC-33..35 validation rules ----------
@@ -241,25 +262,33 @@ async def publish_schema(schema_id: uuid.UUID, body: VersionIn, user: Admin, ide
     summary="EP-DC-33 List validation rules",
 )  # fmt: skip
 async def list_rules(
-    user: Admin, extraction_schema_id: uuid.UUID | None = None, kind: RuleKind | None = None
-) -> Any:
-    not_implemented("EP-DC-33", "T-634")
+    user: Admin, db: Db, extraction_schema_id: uuid.UUID | None = None,
+    kind: RuleKind | None = None,
+) -> Any:  # fmt: skip
+    return await CaptureAdminService(db).list_rules(schema_id=extraction_schema_id, kind=kind)
 
 
 @router.post(
     "/validation-rules", response_model=ValidationRuleOut, status_code=201,
     summary="EP-DC-34 Create validation rule",
 )  # fmt: skip
-async def create_rule(body: ValidationRuleCreate, user: Admin, idem: Idem) -> Any:
-    not_implemented("EP-DC-34", "T-634")
+async def create_rule(body: ValidationRuleCreate, user: Admin, db: Db, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return ValidationRuleOut.model_validate(hit)
+    out = await CaptureAdminService(db).create_rule(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.patch(
     "/validation-rules/{rule_id}", response_model=ValidationRuleOut,
     summary="EP-DC-35 Update validation rule",
 )  # fmt: skip
-async def patch_rule(rule_id: uuid.UUID, body: ValidationRulePatch, user: Admin) -> Any:
-    not_implemented("EP-DC-35", "T-634")
+async def patch_rule(rule_id: uuid.UUID, body: ValidationRulePatch, user: Admin, db: Db) -> Any:
+    out = await CaptureAdminService(db).patch_rule(user, rule_id, body)
+    await db.commit()
+    return out
 
 
 # ---------- EP-DC-36/37 incidents (G4) ----------

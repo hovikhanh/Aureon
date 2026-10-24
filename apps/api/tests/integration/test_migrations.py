@@ -107,3 +107,21 @@ def test_foreign_keys_are_indexed() -> None:
         for fk in table.foreign_keys:
             col = fk.parent.name
             assert col in indexed or col in unique, f"{name}.{col}"
+
+
+def test_0019_seeds_p0_capture_doc_types(engine: Engine) -> None:
+    """TC-M15-01: #2/#3/#4 each point at a published v1 schema with registered ACTs."""
+    from app.modules.idp.services.actions import get_action
+
+    sql = text(
+        "SELECT d.code, s.status, s.schema_version, s.action_names, "
+        "cardinality(d.classifier_keywords) FROM idp.document_types d "
+        "JOIN idp.extraction_schemas s ON s.id = d.current_schema_id "
+        "WHERE d.code IN ('PLAN_KPI_OKR', 'PERIOD_REPORT', 'HR_ROSTER')"
+    )
+    with engine.connect() as conn:
+        rows = {r[0]: r for r in conn.execute(sql)}
+    assert set(rows) == {"PLAN_KPI_OKR", "PERIOD_REPORT", "HR_ROSTER"}
+    for _code, status, version, actions, keywords in rows.values():
+        assert status == "published" and version >= 1 and keywords > 0
+        assert actions and all(get_action(a) for a in actions)

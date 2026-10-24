@@ -41,26 +41,43 @@ def build_plan(
     schema_fields: list[dict[str, Any]],
     values: list[tuple[str, int | None, Any]],
 ) -> list[Step]:
-    """`values` = (field_name, row_index, effective value) of the reviewed fields."""
+    """`values` = (field_name, row_index, effective value) of the reviewed fields.
+
+    A step exists for (ACT, row) when a field targets that ACT; a row value then also fills any
+    param of the same name in the row's other steps (shared keys such as `department_code`,
+    `period_key`, `owner_code` — untargeted context fields), never overriding a target.
+    """
     defs = {f["name"]: f for f in schema_fields}
     single = action_names[0] if len(action_names) == 1 else None
+    acts = {n: _act(n) for n in action_names}
     grouped: dict[tuple[str, int | None], dict[str, Any]] = defaultdict(dict)
+    by_row: dict[int | None, dict[str, Any]] = defaultdict(dict)
     for name, row, value in values:
+        if value is None:
+            continue
+        by_row[row][name] = value
         target = (defs.get(name) or {}).get("target")
         action, param = (target["action"], target["param"]) if target else (single, name)
-        if action is None or value is None:
-            continue
-        grouped[(action, row)][param] = value
+        if action is not None:
+            grouped[(action, row)][param] = value
+    for (action, row), params in grouped.items():
+        if action in acts:
+            known = acts[action].params_model.model_fields
+            params.update({k: v for k, v in by_row[row].items() if k in known and k not in params})
     steps: list[Step] = []
-    for name in action_names:
-        act = get_action(name)
-        if act is None:
-            raise ActionRejectedError(
-                f"unknown action {name}", details={"action_name": name, "reason": "unregistered"}
-            )
+    for name, act in acts.items():
         rows = sorted((r for (a, r) in grouped if a == name), key=lambda r: (r is not None, r))
         steps += [Step(act, r, grouped[(name, r)]) for r in rows]
     return steps
+
+
+def _act(name: str) -> ActionDef:
+    act = get_action(name)
+    if act is None:
+        raise ActionRejectedError(
+            f"unknown action {name}", details={"action_name": name, "reason": "unregistered"}
+        )
+    return act
 
 
 def missing_permissions(user: Principal, steps: list[Step]) -> list[str]:
