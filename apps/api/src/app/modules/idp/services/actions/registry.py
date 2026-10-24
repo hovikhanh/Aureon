@@ -88,7 +88,9 @@ class ActionDef:
     level4_params: frozenset[str] = frozenset()  # never persisted in `document_actions.params`
 
     def permitted(self, user: Principal) -> bool:
-        return any(user.has(p) for p in self.required_permission)
+        """Any-of `required_permission` (R-DEC-61) **and** the ACT's domain is in the caller's
+        khối (R-DEC-30/12a: e.g. structure writes only for DIR khối O — TC-M16-14)."""
+        return user.in_pillar(self.module) and any(user.has(p) for p in self.required_permission)
 
     def parse(self, params: dict[str, Any]) -> tuple[BaseModel | None, list[RowError]]:
         try:
