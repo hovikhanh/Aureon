@@ -7,6 +7,7 @@ import { SNAPSHOT, mockId } from "./fixtures";
 import { fail, ok } from "./http";
 import type { MockRequest } from "./router";
 import { metricVisible, sessionFor, type MockMessage } from "./store";
+import { proposeFromChat } from "./ai-actions";
 
 export const SSE_ORDER = ["start", "tool_call", "tool_result", "token", "done"] as const;
 
@@ -39,7 +40,8 @@ export function chatStream(req: MockRequest): Response {
     session.conversations.unshift(conv);
   }
   const now = new Date().toISOString();
-  const { answer, sources } = answerFor(req);
+  const proposed = proposeFromChat(req.claims, body.message, req.headers.get("x-request-id") ?? globalThis.crypto.randomUUID());
+  const { answer, sources } = proposed.actions.length ? { answer: "[mock] Tôi đã soạn thao tác bên dưới — bạn xem và xác nhận.", sources: [] } : answerFor(req);
   const call = { tool: "get_metric_values", status: "ok", latency_ms: 5 };
   const user: MockMessage = { id: globalThis.crypto.randomUUID(), sender: "user", content: body.message, sources: [], function_calls: [], truncated: false, created_at: now };
   const asst: MockMessage = { id: globalThis.crypto.randomUUID(), sender: "assistant", content: answer, sources, function_calls: [call], truncated: false, created_at: now };
@@ -53,7 +55,7 @@ export function chatStream(req: MockRequest): Response {
   push("tool_call", { call_id: call.tool, tool: call.tool });
   push("tool_result", { call_id: call.tool, tool: call.tool, status: call.status, latency_ms: call.latency_ms, sources });
   for (const word of answer.match(/\S+\s*/g) ?? []) push("token", { delta: word });
-  push("done", { message_id: asst.id, answer, sources, function_calls: [call], suggested_actions: [], truncated: false, warnings: [], usage: { tokens_in: 0, tokens_out: 0 } });
+  push("done", { message_id: asst.id, answer, sources, function_calls: [call], suggested_actions: proposed.actions, truncated: false, warnings: proposed.warnings, usage: { tokens_in: 0, tokens_out: 0 } });
 
   const enc = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

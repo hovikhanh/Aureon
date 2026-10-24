@@ -256,7 +256,8 @@
     "openLineage": "View lineage",
     "warning": {
       "AI_NO_DATA_AVAILABLE": "No data available to answer this.",
-      "default": "Note: {code}"
+      "default": "Note: {code}",
+      "kill_switch": "Kill switch is on — AI will not draft actions."
     },
     "truncated": "The answer was truncated.",
     "suggestions": {
@@ -488,6 +489,15 @@
     "dataCapture": {
       "title": "Data capture settings",
       "body": "Document types, ExtractionSchema, validation rules."
+    },
+    "ai": {
+      "title": "AI Control Center",
+      "body": "Kill switch, agents, autonomy, Tool Registry, logs & cost."
+    },
+    "onboarding": {
+      "title": "Company onboarding",
+      "body": "6-step wizard: company → structure → users → KPIs.",
+      "pending": "Not finished"
     }
   },
   "adminCommon": {
@@ -1621,6 +1631,288 @@
         "fieldName": "Field name",
         "send": "Send"
       }
+    }
+  },
+  "aiAdmin": {
+    "title": "AI Control Center",
+    "subtitle": "Kill switch, agents, autonomy and Tool Registry",
+    "openLogs": "Logs & cost",
+    "openInM3": "Opens in M3",
+    "conflict": "Data changed, reloading",
+    "tabs": {
+      "overview": "Overview",
+      "agents": "Agents",
+      "autonomy": "Autonomy",
+      "tools": "Tool Registry"
+    },
+    "level": {
+      "L0": "Information only",
+      "L1": "AI suggests",
+      "L2": "AI drafts",
+      "L3": "AI did it"
+    },
+    "reason": {
+      "above_ceiling": "Above the M1 autonomy ceiling (L2)",
+      "above_tool_max": "Above the tool's maximum level",
+      "critical_field": "Action has critical fields — cannot go below L2",
+      "not_configurable": "This tool's autonomy is not configurable",
+      "execution_max_l2": "EXECUTION tools are capped at L2",
+      "invalid_tool": "Tool not valid for this agent"
+    },
+    "kill": {
+      "title": "Kill switch",
+      "on": "On — AI stopped",
+      "off": "Off — AI running normally",
+      "error": "Could not load kill switch state",
+      "mode": "Mode",
+      "modes": {
+        "WRITE_OFF": "Writes paused (WRITE_OFF)",
+        "L0": "Answer only (L0)"
+      },
+      "scope": "Scope",
+      "scopeAll": "All agents",
+      "lastChange": "Last change",
+      "changedAt": "at {at}",
+      "reason": "Reason",
+      "turnOff": "Turn off kill switch",
+      "turnOn": "Emergency AI stop",
+      "agentsRequired": "Pick at least one agent or \"All\".",
+      "dialogOn": "Emergency AI stop",
+      "dialogOnBody": "AI will not write on its own; every proposal needs a human confirmation. This is audited.",
+      "dialogOff": "Turn off kill switch",
+      "dialogOffBody": "AI returns to policy autonomy. Please give a reason.",
+      "onToast": "Emergency AI stop enabled",
+      "offToast": "Kill switch turned off"
+    },
+    "ceiling": {
+      "title": "Maximum autonomy: {level} (M1)",
+      "hint": "system ceiling, read only"
+    },
+    "queue": {
+      "title": "AI draft queue",
+      "error": "Could not load the queue",
+      "open": "Open list",
+      "empty": "No cards waiting.",
+      "filterAgent": "Filter by agent",
+      "allAgents": "All agents",
+      "mine": "Yours",
+      "forOther": "For another user (view only)"
+    },
+    "cost": {
+      "title": "AI cost this month",
+      "error": "Could not load cost",
+      "used": "${used} / ${budget}",
+      "warning": "nearing budget",
+      "danger": "over budget",
+      "link": "Cost details"
+    },
+    "agents": {
+      "error": "Could not load agents",
+      "edit": "Edit",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "killed": "Kill-switched",
+      "noBudget": "Shared budget",
+      "saved": "Agent saved",
+      "budgetInvalid": "Budget must be a number ≥ 0",
+      "editHint": "Change enablement, max autonomy, budget and tools. A reason is required.",
+      "col": {
+        "name": "Agent",
+        "tools": "Tools",
+        "max": "Max level",
+        "effective": "Effective",
+        "budget": "Monthly budget (USD)",
+        "spend": "Spent",
+        "status": "Status"
+      }
+    },
+    "autonomy": {
+      "error": "Could not load the autonomy matrix",
+      "hint": "WRITE/EXECUTION tools only. Override by agent, role or amount threshold.",
+      "new": "Add override",
+      "add": "override",
+      "capped": "capped by the M1 ceiling",
+      "everyone": "Everyone",
+      "forRole": "role {role}",
+      "forAgent": "agent {agent}",
+      "upTo": "≤ {amount}",
+      "delete": "Delete override",
+      "deleteTitle": "Delete this override?",
+      "deleteBody": "The tool returns to its default level. This is audited.",
+      "deleted": "Override deleted",
+      "saved": "Policy saved",
+      "editTitle": "Edit override",
+      "dialogHint": "Effective level = min(policy, M1 ceiling, agent max).",
+      "agent": "Agent (optional)",
+      "role": "Role (optional)",
+      "any": "— Any —",
+      "level": "Level",
+      "maxLevel": "Max level",
+      "amount": "Amount threshold (VND, optional)",
+      "active": "Active",
+      "col": {
+        "tool": "Tool",
+        "default": "Default",
+        "overrides": "Overrides"
+      }
+    },
+    "tools": {
+      "loading": "Loading…",
+      "error": "Could not load the Tool Registry",
+      "filter": {
+        "kind": "Kind",
+        "allKinds": "All kinds",
+        "domain": "Domain",
+        "allDomains": "All domains",
+        "agent": "Agent",
+        "allAgents": "All agents",
+        "mine": "Only tools I can use"
+      },
+      "columns": "Columns",
+      "count": "{shown}/{total} tools",
+      "yes": "Yes",
+      "no": "No",
+      "frozen": "P1 — frozen",
+      "col": {
+        "name": "Name",
+        "kind": "Kind",
+        "domain": "Domain",
+        "description": "Description",
+        "permission": "Permission",
+        "risk_level": "Risk",
+        "data_scope": "Data scope",
+        "data_classification": "Classification",
+        "autonomy": "Autonomy",
+        "approval_required": "Approval",
+        "reversible": "Reversible",
+        "audit_required": "Audit",
+        "cost_estimate": "Cost estimate",
+        "owner": "Owner",
+        "endpoint_ref": "Endpoint",
+        "brd_name": "BRD name",
+        "agents": "Agents",
+        "input_schema": "input_schema",
+        "output_schema": "output_schema"
+      }
+    }
+  },
+  "killSwitch": {
+    "banner": {
+      "WRITE_OFF": "AI writes are paused — proposals need your confirmation",
+      "L0": "AI only answers, it does not draft actions"
+    },
+    "scopeAll": "Applies to all agents",
+    "scopeAgents": "Applies to: {agents}",
+    "open": "Open AI Control Center"
+  },
+  "aiAction": {
+    "level": {
+      "L0": "Information only",
+      "L1": "AI suggests",
+      "L2": "AI drafts",
+      "L3": "AI did it"
+    },
+    "name": {
+      "create_task": "Create task",
+      "update_task": "Update task",
+      "create_invoice": "Create invoice",
+      "record_expense": "Record expense",
+      "upsert_deal": "Upsert deal",
+      "record_decision": "Record decision",
+      "record_kr_checkin": "KR check-in",
+      "upsert_kpi": "Upsert KPI"
+    },
+    "status": {
+      "proposed": "Proposed",
+      "confirmed": "Confirmed",
+      "executed": "Executed",
+      "rejected": "Rejected",
+      "undone": "Undone",
+      "failed": "Failed"
+    },
+    "field": {
+      "title": "Title",
+      "due_date": "Due date",
+      "assignee": "Assignee",
+      "priority": "Priority",
+      "status": "Status",
+      "amount": "Amount",
+      "total_amount": "Total amount",
+      "customer": "Customer",
+      "currency": "Currency",
+      "decision": "Decision",
+      "description": "Description"
+    },
+    "confirm": "Confirm",
+    "edit": "Edit before confirming",
+    "reject": "Reject",
+    "cancel": "Cancel",
+    "rejectReason": "Reason for rejecting",
+    "doItMyself": "Do it myself",
+    "error": "The action failed",
+    "executed": "AI executed the confirmed action",
+    "rejected": "Card rejected",
+    "undone": "Undone",
+    "undoExpired": "The undo window has expired"
+  },
+  "aiLogs": {
+    "title": "AI logs & cost",
+    "subtitle": "Tool calls, model calls and cost by request_id",
+    "back": "← AI Control Center",
+    "tabs": {
+      "tool": "Tool calls",
+      "model": "Model calls",
+      "cost": "Cost"
+    },
+    "from": "From",
+    "to": "To",
+    "requestId": "request_id",
+    "auditLink": "View audit (SCR-14)",
+    "error": "Could not load data",
+    "empty": "No records in this range.",
+    "copy": "Copy request_id",
+    "copied": "Copied",
+    "filterBy": "Filter by this request_id",
+    "total": "{total} records",
+    "prev": "Previous",
+    "next": "Next",
+    "arguments": "Arguments (PII filtered)",
+    "results": "Result sources",
+    "actionLink": "Open the AIAction card",
+    "fallbackFrom": "from {from}",
+    "period": "Month",
+    "groupBy": "Group by",
+    "budget": "Used {used} / ${budget} ({pct})",
+    "group": {
+      "provider": "Provider",
+      "model": "Model",
+      "task_kind": "Task kind",
+      "agent": "Agent",
+      "user": "User"
+    },
+    "col": {
+      "time": "Time",
+      "user": "Served user",
+      "agent": "Agent",
+      "tool": "Tool",
+      "kind": "Kind",
+      "status": "Status",
+      "level": "Autonomy",
+      "latency": "Latency",
+      "request": "request_id",
+      "model": "Provider / model",
+      "fallback": "Fallback",
+      "tokens": "Tokens in/out",
+      "cost": "Cost (USD)",
+      "hash": "prompt_sha256"
+    },
+    "cost": {
+      "key": "Group",
+      "calls": "Calls",
+      "tokens": "Tokens in/out",
+      "cost": "Cost (USD)",
+      "errorRate": "Error rate",
+      "p95": "p95"
     }
   }
 }

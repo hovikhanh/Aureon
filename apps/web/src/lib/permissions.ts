@@ -63,6 +63,9 @@ const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/admin/positions", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
   { prefix: "/admin/users", roles: ["ADM", "CEO"], anyOf: ["platform:read"] },
   { prefix: "/admin/roles", roles: ["ADM", "CEO"], anyOf: ["platform:read"] },
+  // M1.6 (06 §3.4, R-DEC-79): SCR-64/65 AI Control Center + logs (DIR never), SCR-66 onboarding wizard
+  { prefix: "/admin/ai", roles: ["ADM", "CEO"], anyOf: ["ai:admin"] },
+  { prefix: "/admin/onboarding", roles: ["ADM", "CEO"], anyOf: ["platform:admin"] },
 ];
 export const ROUTE_RULES: readonly RouteRule[] = [
   ...NAV_ITEMS.map(({ href, roles, anyOf, dirPillars }): RouteRule => ({ prefix: href, roles, anyOf, dirPillars })),

@@ -51,4 +51,14 @@ export const qk = {
   captureRules: (params: Record<string, unknown>) => ["capture", "rules", params] as const,
   captureIncidents: (params: Record<string, unknown>) => ["capture", "incidents", params] as const,
   lineage: (entity: string, id: string) => ["lineage", entity, id] as const,
+  // M1.6 AI Control Center (T-644F..T-647F) — all under "ai-admin" so one invalidate refreshes banner + tabs
+  aiKillSwitch: () => ["ai-admin", "kill-switch"] as const,
+  aiTools: () => ["ai-admin", "tools"] as const,
+  aiAgents: () => ["ai-admin", "agents"] as const,
+  aiPolicies: () => ["ai-admin", "policies"] as const,
+  aiUsage: (params: Record<string, unknown>) => ["ai-admin", "usage", params] as const,
+  aiActions: (params: Record<string, unknown>) => ["ai-admin", "actions", params] as const,
+  aiLogs: (kind: string, params: Record<string, unknown>) => ["ai-admin", "logs", kind, params] as const,
+  // M1.6 onboarding (T-648F)
+  onboarding: () => ["onboarding"] as const,
 };
