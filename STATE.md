@@ -33,6 +33,16 @@ EMP nhập ID nhân viên khi đề nghị chuyển (OQ-13-09 ghi vào 13, chố
 `next start` cũ sau rebuild trả 400 chunk tĩnh → khởi động lại sau mỗi build; mock project đôi khi timeout lần compile đầu (`next dev`), chạy lại xanh;
 audit log append-only nên cleanup E2E chỉ soft-delete task/approval.
 
+**review: 14 finding, đã sửa 12, nợ #9** (2026-10-24, commit `fix(work): M1.3 review …`):
+`approval_service.can_decide` (một luật duy nhất cho inbox/detail/decide/notification — R-DEC-45: role ∈ step hiện tại,
+CEO miễn scope không miễn role, DIR theo pillar rule, DIR `escalate_to_role_code` khi phòng không có MGR / `department_id` NULL);
+parent ngoài scope → 404; reassign khóa task + `to_assignee_id` qua `core.directory` (hr đăng ký, tránh vòng `hr→execution`);
+workload summary = METRIC-HR-03 (`min(week_end, today)`); `details` BE↔FE↔mock (`blocking[]`, `reason=has_subtasks|self_approval|
+distinct_approvers|same_assignee|not_found`, `field=reason|to_assignee_id`); seed reassign `emit=False`; ACT-create_task
+`task_source=ai` + `source_ref`; `_brief` một query; `rule()` ON CONFLICT; alembic env bỏ `_m13_assignee_backfill` khỏi autogenerate.
+#14 giữ `core/stub.py` (M1.4 dùng). **Nợ #9:** tiêu đề notification (approval_requested/decided, task_assigned) vẫn lưu text thô
+(`title` = tên task / status), chưa có i18n key — chốt cùng M2.x notification i18n.
+
 ## M1.1 — Nền build v3 (09 §6.2) — đã làm
 | Task | Commit | Nội dung |
 |---|---|---|

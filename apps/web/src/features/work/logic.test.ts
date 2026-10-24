@@ -75,7 +75,10 @@ describe("errors → i18n keys", () => {
     [e("BUSINESS_RULE_VIOLATION", { field: "blocked_reason" }), "blockedReason"], [e("BUSINESS_RULE_VIOLATION", { reason: "direct_reassign_allowed" }), "directReassign"],
     [e("BUSINESS_RULE_VIOLATION", { reason: "has_subtasks" }), "hasSubtasks"], [e("BUSINESS_RULE_VIOLATION", { rule: "R-DEC-42" }), "parent"],
     [e("BUSINESS_RULE_VIOLATION", { field: "due_date" }), "dueBeforeStart"], [e("BUSINESS_RULE_VIOLATION", { field: "reason" }), "reasonRequired"],
-    [e("BUSINESS_RULE_VIOLATION", { reason: "self_approval" }), "selfApproval"], [e("BUSINESS_RULE_VIOLATION"), "rule"],
+    [e("BUSINESS_RULE_VIOLATION", { reason: "self_approval" }), "selfApproval"],
+    [e("BUSINESS_RULE_VIOLATION", { reason: "distinct_approvers" }), "distinctApprovers"],
+    [e("BUSINESS_RULE_VIOLATION", { field: "to_assignee_id", reason: "same_assignee" }), "sameAssignee"],
+    [e("BUSINESS_RULE_VIOLATION", { field: "to_assignee_id", reason: "not_found" }), "assigneeNotFound"], [e("BUSINESS_RULE_VIOLATION"), "rule"],
     [e("CONFLICT_STATE", { from_status: "done" }), "transition"], [e("CONFLICT_STATE"), "conflict"], [e("FORBIDDEN_SCOPE"), "FORBIDDEN_SCOPE"], [e("BOOM"), "generic"],
   ])("%o → %s", (err, key) => expect(workErrorKey(err)).toBe(key));
   it("blocking titles fall back to ids", () => {

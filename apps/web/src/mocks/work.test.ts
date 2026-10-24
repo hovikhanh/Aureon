@@ -125,6 +125,44 @@ describe("mock approvals inbox", () => {
     expect((await call(path, { method: "POST", claims: MGR, headers: IDEM, body: { decision: "approve" } })).status).toBe(409);
   });
 
+  it("can_decide (R-DEC-45): CEO not in a MGR step; DIR other pillar not on ai_action; inbox ↔ detail ↔ decide agree", async () => {
+    const ra = mockId("approval", "MOCK-RA-1");
+    const inbox = async (c: ReturnType<typeof user>) => (await call<{ id: string }[]>("/workflow/approval-requests?limit=100", { claims: c })).json!.data.map((a) => a.id);
+    expect(await inbox(CEO)).not.toContain(ra); // SVC has a MGR → CEO/DIR not approvers
+    expect((await call(`/workflow/approval-requests/${ra}`, { claims: CEO })).status).toBe(404);
+    const ceo = await call(`/workflow/approval-requests/${ra}/decide`, { method: "POST", claims: CEO, headers: IDEM, body: { decision: "approve" } });
+    expect([ceo.status, ceo.json!.error?.code]).toEqual([403, "FORBIDDEN_ROLE"]);
+    const SALES = user("sales@abc.demo");
+    const ai = mockId("approval", "MOCK-AI-1");
+    expect(await inbox(SALES)).not.toContain(ai);
+    expect((await call(`/workflow/approval-requests/${ai}`, { claims: SALES })).status).toBe(404);
+    const s = await call(`/workflow/approval-requests/${ai}/decide`, { method: "POST", claims: SALES, headers: IDEM, body: { decision: "approve" } });
+    expect([s.status, s.json!.error?.code]).toEqual([403, "FORBIDDEN_SCOPE"]);
+    expect(await inbox(CFO)).toContain(ai);
+  });
+
+  it("DIR fallback: department without MGR → DIR (any pillar) sees and decides", async () => {
+    const t = await call<Task>("/work/tasks", { method: "POST", claims: CEO, headers: IDEM, body: { title: "Không có quản lý", department_id: mockId("department", "BOD"), assignee_id: empId("NV-0046") } });
+    expect(t.status).toBe(201);
+    const id = t.json!.data.id;
+    const empSelf = { ...EMP, department_id: mockId("department", "BOD") };
+    const r = await call<{ id: string }>(`/work/tasks/${id}/reassign-requests`, { method: "POST", claims: empSelf, headers: IDEM, body: { to_assignee_id: empId("NV-0041"), reason: "quá tải" } });
+    expect(r.status).toBe(201);
+    const rid = r.json!.data.id;
+    const SALES = user("sales@abc.demo");
+    expect((await call<{ id: string }[]>("/workflow/approval-requests?limit=100", { claims: SALES })).json!.data.map((a) => a.id)).toContain(rid);
+    expect((await call<{ id: string }[]>("/workflow/approval-requests?limit=100", { claims: CEO })).json!.data.map((a) => a.id)).not.toContain(rid);
+    expect((await call(`/workflow/approval-requests/${rid}/decide`, { method: "POST", claims: SALES, headers: IDEM, body: { decision: "approve" } })).status).toBe(200);
+  });
+
+  it("reassign to_assignee_id same / unknown → 422 field=to_assignee_id", async () => {
+    const path = `/work/tasks/${tid("MOCK-E3")}/reassign-requests`;
+    const same = await call(path, { method: "POST", claims: EMP, headers: IDEM, body: { to_assignee_id: empId("NV-0046"), reason: "x" } });
+    expect([same.status, same.json!.error?.details]).toEqual([422, { field: "to_assignee_id", reason: "same_assignee" }]);
+    const bad = await call(path, { method: "POST", claims: EMP, headers: IDEM, body: { to_assignee_id: "nope", reason: "x" } });
+    expect(bad.json!.error?.details).toEqual({ field: "to_assignee_id", reason: "not_found" });
+  });
+
   it("DIR finance sees ai_action requests (pillar F); missing Idempotency-Key → 400", async () => {
     const r = await call<{ id: string; target_kind: string; overdue: boolean }[]>("/workflow/approval-requests", { claims: CFO });
     expect(r.json!.data.filter((a) => a.target_kind === "ai_action")).toHaveLength(2);

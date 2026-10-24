@@ -104,6 +104,8 @@ export function workErrorKey(e: ErrorLike): string {
     if (e.details.field === "due_date") return "dueBeforeStart";
     if (e.details.field === "reason") return "reasonRequired";
     if (e.details.reason === "self_approval") return "selfApproval";
+    if (e.details.reason === "distinct_approvers") return "distinctApprovers";
+    if (e.details.field === "to_assignee_id") return e.details.reason === "same_assignee" ? "sameAssignee" : "assigneeNotFound";
     return "rule";
   }
   if (e.code === "CONFLICT_STATE") return e.details.from_status ? "transition" : "conflict";

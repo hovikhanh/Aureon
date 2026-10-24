@@ -139,7 +139,7 @@ function checkFields(b: Record<string, unknown>, create: boolean): void {
 function checkParent(c: MockClaims, self: string | null, parentId: unknown): void {
   if (parentId === null || parentId === undefined) return;
   const parent = liveTask(String(parentId));
-  if (!parent || !taskVisible(c, parent)) throw biz("parent task not found", { field: "parent_task_id", rule: "R-DEC-42" });
+  if (!parent || !taskVisible(c, parent)) throw err(404, "NOT_FOUND", "task not found"); // BE: parent read scope (EP-TASK-03)
   if (parent.id === self || parent.parent_task_id !== null) throw biz("parent must be a top-level task other than itself", { field: "parent_task_id", rule: "R-DEC-42" });
   if (self && workStore().tasks.some((t) => !t.deleted && t.parent_task_id === self)) throw biz("a task with sub-tasks cannot become a sub-task", { field: "parent_task_id", rule: "R-DEC-42" });
 }

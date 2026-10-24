@@ -1,12 +1,14 @@
 /**
  * Mock `/workflow/approval-requests*` (T-625F, EP-WF-01..03, R-DEC-45) + the `task_reassign`
  * flow of EP-TASK-19. Inbox `assigned_to=me` = PENDING ∩ caller role in the **current step** ∩
- * scope (CEO all · DIR pillar of the rule · MGR own department), never the caller's own request.
+ * scope (CEO all · DIR pillar of the rule · MGR own department) — CEO is exempt from scope, not
+ * from the step role; DIR (escalate role) stands in when the department has no MGR. Never the
+ * caller's own request. Same `verdict` for inbox, detail, decide and notifications (R-DEC-45).
  * Decide: not PENDING / expired → 409; requester = approver or reject without reason → 422;
  * role not in step → 403 FORBIDDEN_ROLE; outside scope → 403 FORBIDDEN_SCOPE. Final approve of a
  * `task_reassign` reassigns the task (version changed since the request → 409, stays PENDING).
  */
-import { SNAPSHOT, claimsFor, type MockClaims } from "./fixtures";
+import { SNAPSHOT, claimsFor, type MockClaims, type RoleCode } from "./fixtures";
 import { ok, paginate, parsePage } from "./http";
 import { recordAudit } from "./audit";
 import { pushNotification } from "./admin";
@@ -18,14 +20,28 @@ const SLA_HOURS = 8;
 const STATUSES = ["PENDING", "APPROVED", "REJECTED", "CANCELLED", "EXPIRED"];
 const nowIso = () => new Date().toISOString();
 
-function inScope(c: MockClaims, a: MApproval): boolean {
+// `escalate_to_role_code` per rule (05 §2.5): stands in for a department-scoped step role (MGR).
+const ESCALATE: Record<string, RoleCode> = { "RULE-task_reassign": "DIR" };
+const stepRoles = (a: MApproval) => a.steps[a.step - 1] ?? [];
+const staffed = (dept: string | null) => dept !== null && SNAPSHOT.users.some((u) => u.role === "MGR" && claimsFor(u).department_id === dept);
+
+function inScope(c: Pick<MockClaims, "role" | "scope_pillars" | "department_id">, a: MApproval): boolean {
   if (c.role === "CEO") return true;
   if (c.role === "DIR") return a.pillar === null || c.scope_pillars.length === 0 || c.scope_pillars.includes(a.pillar);
   if (c.role === "MGR") return a.department_id !== null && a.department_id === c.department_id;
   return false;
 }
-const stepRoles = (a: MApproval) => a.steps[a.step - 1] ?? [];
-const isApprover = (c: MockClaims, a: MApproval) => a.steps.some((s) => s.includes(c.role)) && inScope(c, a);
+/** BE `approval_service.decide_verdict` (R-DEC-45 §3) — shared by inbox, detail, decide and the
+ *  approval_requested recipients: role ∈ current step (CEO exempt from scope, not from role) ∩
+ *  scope; else the rule's escalate role (DIR, any pillar) when the department has no MGR / is null. */
+function verdict(c: Pick<MockClaims, "role" | "scope_pillars" | "department_id">, a: MApproval): "ok" | "role" | "scope" {
+  const roles = stepRoles(a);
+  if (roles.includes(c.role)) return inScope(c, a) ? "ok" : "scope";
+  const fb = roles.includes("MGR") ? ESCALATE[a.rule_code] : undefined;
+  if (fb && c.role === fb && !staffed(a.department_id)) return "ok";
+  return "role";
+}
+const canDecide = (c: Pick<MockClaims, "role" | "scope_pillars" | "department_id">, a: MApproval) => verdict(c, a) === "ok";
 const overdue = (a: MApproval) => a.status === "PENDING" && a.due_at < nowIso();
 
 function out(a: MApproval) {
@@ -45,7 +61,7 @@ async function list(req: MockRequest): Promise<Response> {
   if (!STATUSES.includes(status)) throw err(422, "VALIDATION_ERROR", "invalid status", { field: "status" });
   const assigned = q.get("assigned_to") ?? "me";
   if (assigned !== "me") throw err(422, "VALIDATION_ERROR", "assigned_to must be me", { field: "assigned_to" });
-  const mine = (a: MApproval) => a.requested_by !== c.sub && inScope(c, a) && (a.status === "PENDING" ? stepRoles(a).includes(c.role) : isApprover(c, a));
+  const mine = (a: MApproval) => a.requested_by !== c.sub && canDecide(c, a);
   const pending = workStore().approvals.filter((a) => a.status === "PENDING" && mine(a)).length;
   const rows = workStore().approvals.filter((a) => a.status === status && mine(a)
     && (!q.get("rule_code") || a.rule_code === q.get("rule_code")) && (!q.get("target_kind") || a.target_kind === q.get("target_kind")))
@@ -61,7 +77,7 @@ async function withMeta(res: Response, extra: Record<string, unknown>): Promise<
 
 function find(c: MockClaims, id: string): MApproval {
   const a = workStore().approvals.find((x) => x.id === id);
-  if (!a || !(isApprover(c, a) || a.requested_by === c.sub)) throw err(404, "NOT_FOUND", "approval request not found");
+  if (!a || !(canDecide(c, a) || a.requested_by === c.sub)) throw err(404, "NOT_FOUND", "approval request not found");
   return a;
 }
 
@@ -77,8 +93,9 @@ function decide(req: MockRequest): Response {
     a.status = "EXPIRED";
     throw err(409, "CONFLICT_STATE", "request expired", { status: "EXPIRED" });
   }
-  if (!stepRoles(a).includes(c.role)) throw err(403, "FORBIDDEN_ROLE", `role ${c.role} not an approver for step ${a.step}`, { step: a.step });
-  if (!inScope(c, a)) throw err(403, "FORBIDDEN_SCOPE", "approval outside your scope", { department_id: String(a.department_id) });
+  const v = verdict(c, a);
+  if (v === "role") throw err(403, "FORBIDDEN_ROLE", `role ${c.role} not an approver for step ${a.step}`, { step: a.step });
+  if (v === "scope") throw err(403, "FORBIDDEN_SCOPE", "approval outside your scope", { department_id: String(a.department_id) });
   if (a.requested_by === c.sub) throw biz("approver must differ from requester", { reason: "self_approval" });
   const reason = typeof b.reason === "string" ? b.reason.trim() : "";
   if (b.decision === "reject") {
@@ -132,6 +149,7 @@ export function createReassignRequest(c: MockClaims, t: MTask, to: string, reaso
     throw err(409, "CONFLICT_STATE", "a reassign request is already pending", { task_id: t.id });
   }
   const target = employeeById(to);
+  if (to === t.assignee_id) throw biz("to_assignee_id is already the assignee", { field: "to_assignee_id", reason: "same_assignee" });
   if (!target) throw biz("assignee not found", { field: "to_assignee_id", reason: "not_found" });
   const stamp = nowIso();
   const a: MApproval = {
@@ -144,7 +162,7 @@ export function createReassignRequest(c: MockClaims, t: MTask, to: string, reaso
   recordAudit(c, "platform.approval_requested", "approval_requests", a.id, reason);
   for (const u of SNAPSHOT.users) {
     const uc = claimsFor(u);
-    if (u.role === "MGR" && uc.department_id === t.department_id) {
+    if (uc.sub !== c.sub && !u.is_service_account && canDecide(uc, a)) {
       pushNotification(uc, { kind: "approval_requested", title: t.title, body: "", link: `/work/approvals?id=${a.id}`, ref_schema: "platform", ref_table: "approval_requests", ref_id: a.id });
     }
   }
