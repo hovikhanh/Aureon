@@ -4210,7 +4210,7 @@ export type ToolCallLogOut = {
 
 export type ToolOut = {
   name: string;
-  kind: "READ" | "WRITE" | "COMPUTE" | "APPROVAL" | "EXECUTION";
+  kind: "READ" | "WRITE" | "APPROVAL" | "EXECUTION";
   autonomy_default: string;
   available: boolean;
   data_scope: string;

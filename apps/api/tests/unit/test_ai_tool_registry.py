@@ -27,7 +27,8 @@ def test_registry_has_43_tools() -> None:
 
 def test_kind_split_matches_spec() -> None:
     c = Counter(t.kind for t in TOOLS)
-    assert c["READ"] + c["COMPUTE"] == 27  # QUERY
+    assert c["READ"] == 27  # QUERY (v2.1 COMPUTE → READ + compute, R-DEC-70)
+    assert sum(t.compute for t in TOOLS) == 2
     assert c["WRITE"] == 13
     assert c["APPROVAL"] == 2
     assert c["EXECUTION"] == 1
@@ -39,15 +40,15 @@ def test_every_tool_carries_valid_metadata() -> None:
         assert t.description
         assert t.domain
         assert t.endpoint
-        assert t.kind in ("READ", "COMPUTE", "WRITE", "APPROVAL", "EXECUTION")
+        assert t.kind in ("READ", "WRITE", "APPROVAL", "EXECUTION")
         assert t.risk_level in ("low", "medium", "high")
         assert t.cost_estimate in ("low", "medium", "high")
-        assert t.classification in ("INTERNAL", "CONFIDENTIAL", "SECRET")
+        assert t.classification in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "SECRET")
         assert t.required_permissions, f"{t.name} missing permissions"
         for p in t.required_permissions:
             assert p in VALID_PERMISSIONS, f"{t.name} has undefined permission {p}"
-        # QUERY/COMPUTE → reversible n/a; WRITE → bool
-        if t.kind in ("READ", "COMPUTE"):
+        # READ (incl. compute) → reversible n/a; WRITE → bool
+        if t.kind == "READ":
             assert t.reversible is None and t.reversible_label == "n/a"
         else:
             assert isinstance(t.reversible, bool)

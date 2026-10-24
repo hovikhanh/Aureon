@@ -41,6 +41,7 @@ from app.modules.ai.schemas import (
     ToolOut,
     UndoActionIn,
 )
+from app.modules.ai.services import tool_catalog
 from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
@@ -48,7 +49,6 @@ from app.modules.ai.services.conversation_service import ConversationService
 from app.modules.ai.services.cost_service import CostService
 from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
-from app.modules.ai.tools import advertisable_for, all_tools, available_for
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai"])
 
@@ -255,22 +255,13 @@ async def set_kill_switch(
 
 
 @router.get("/tools", response_model=list[ToolOut], summary="EP-AI-14 Tool Registry")
-async def list_tools(user: AiUser) -> list[ToolOut]:
-    advertised = {t.name for t in advertisable_for(user.permissions)}
-    avail = {t.name for t in available_for(user.permissions)}
-    return [
-        ToolOut(
-            name=t.name,
-            kind=t.kind,
-            autonomy_default=t.autonomy_default,
-            available=t.name in avail and t.name in advertised,
-            data_scope=t.data_scope,
-            classification=t.classification,
-            reversible=t.reversible_label,
-            cost_estimate=t.cost_estimate,
-        )
-        for t in all_tools()
-    ]
+async def list_tools(
+    user: AiUser,
+    kind: Literal["READ", "WRITE", "APPROVAL", "EXECUTION"] | None = None,
+    domain: str | None = None,
+    available_only: bool = False,
+) -> list[ToolOut]:
+    return tool_catalog.list_tools(user, kind=kind, domain=domain, available_only=available_only)
 
 
 @router.get("/usage", response_model=CostSummaryOut, summary="EP-AI-15 AI usage & cost")

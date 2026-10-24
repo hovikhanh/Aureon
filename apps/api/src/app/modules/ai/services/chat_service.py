@@ -46,7 +46,7 @@ from app.modules.ai.services.demo_replay import (
 )
 from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
 from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
-from app.modules.ai.tools import advertisable_for, get_tool
+from app.modules.ai.tools import advertisable_for, get_tool, tool_kind
 
 MAX_TOOL_CALLS = 8
 HISTORY_PAIRS = 10  # FR-AI-05: last 10 message pairs
@@ -179,7 +179,8 @@ class ChatService:
     ) -> ChatTurnResult:
         for fc in demo.function_calls:
             self.db.add(ToolCallLog(
-                message_id=user_msg.id, tool_name=fc["tool"], arguments={},
+                message_id=user_msg.id, tool_name=fc["tool"], tool_kind=tool_kind(fc["tool"]),
+                arguments={},
                 status=fc["status"], http_status=None, latency_ms=fc["latency_ms"],
                 agent_profile_code=AGENT_CODE, autonomy_level="L0",
             ))  # fmt: skip
@@ -239,7 +240,8 @@ class ChatService:
         spec = get_tool(tool)
         self.db.add(
             ToolCallLog(
-                message_id=message_id, tool_name=tool, arguments=arguments,
+                message_id=message_id, tool_name=tool, tool_kind=tool_kind(tool),
+                arguments=arguments,
                 status=result.status, http_status=None, latency_ms=result.latency_ms,
                 agent_profile_code=AGENT_CODE,
                 autonomy_level=spec.autonomy_default if spec else None,
