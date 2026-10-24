@@ -95,6 +95,10 @@ CATALOG: tuple[MetricDef, ...] = (
     MetricDef("METRIC-RSK-06", "S", "Strategy execution index (SEI)",
               "Strategy execution index", "PERCENT", LO, 70, 50, "execution",
               ("execution.kpi_measured",)),
+    # M1.4 G2 (R-DEC-54, 03 §4): KPI/OKR updated on time
+    MetricDef("METRIC-STR-01", "S", "KPI/OKR cập nhật đúng kỳ", "KPI/OKR updated on time",
+              "PERCENT", LO, 80, 60, "execution",
+              ("execution.kpi_measured", "execution.okr_checked_in")),
     MetricDef("METRIC-DQ-01", None, "Data Quality Score", "Data quality score", "SCORE", LO, 80,
               60, "platform", ("idp.document_committed",)),
 )  # fmt: skip

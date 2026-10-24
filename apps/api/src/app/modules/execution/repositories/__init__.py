@@ -317,11 +317,18 @@ class KpiEvaluationRepository(Repo[KpiEvaluation]):
         self, pairs: Sequence[tuple[uuid.UUID, str]]
     ) -> set[tuple[uuid.UUID, str]]:
         """Which `(kpi_id, period_key)` pairs already have an evaluation."""
+        return set(await self.for_pairs(pairs))
+
+    async def for_pairs(
+        self, pairs: Sequence[tuple[uuid.UUID, str]]
+    ) -> dict[tuple[uuid.UUID, str], KpiEvaluation]:
+        """Live evaluations of the given `(kpi_id, period_key)` pairs (G2 METRIC-STR-01)."""
         if not pairs:
-            return set()
+            return {}
         rows = await self.where(KpiEvaluation.kpi_id.in_({k for k, _ in pairs}),
                                 KpiEvaluation.period_key.in_({p for _, p in pairs}))  # fmt: skip
-        return {(e.kpi_id, e.period_key) for e in rows} & set(pairs)
+        want = set(pairs)
+        return {(e.kpi_id, e.period_key): e for e in rows if (e.kpi_id, e.period_key) in want}
 
     @staticmethod
     def kpis_with_latest_band(band: str) -> Select[tuple[uuid.UUID]]:
