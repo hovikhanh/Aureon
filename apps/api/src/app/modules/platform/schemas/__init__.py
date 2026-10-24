@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -130,3 +130,51 @@ class PreferenceItem(BaseModel):
 
 class PreferencesIn(BaseModel):
     items: list[PreferenceItem] = Field(min_length=1, max_length=20)
+
+
+# ---------- EP-ADM-13/14 onboarding (10 §7.2.5, 05 §2.8, R-DEC-75) ----------
+OnboardingStatus = Literal["not_started", "in_progress", "completed"]
+OnboardingStepName = Literal["company", "org_import", "review", "users", "goals_import", "finish"]
+OnboardingStepStatus = Literal["pending", "in_progress", "done", "skipped"]
+OnboardingAction = Literal["start", "complete_step", "skip_step", "reopen_step", "finish", "reset"]
+
+
+class OnboardingStepOut(BaseModel):
+    status: OnboardingStepStatus = "pending"
+    updated_at: datetime | None = None
+    refs: dict[str, Any] = Field(default_factory=dict)
+
+
+class OnboardingProgressOut(BaseModel):
+    """Derived from real data through public services (never trusted from the client)."""
+
+    organization_ready: bool = False
+    departments: int = 0
+    employees: int = 0
+    employees_without_user: int = 0
+    users_by_role: dict[str, int] = Field(default_factory=dict)
+    kpis: int = 0
+    objectives: int = 0
+
+
+class OnboardingStateOut(BaseModel):
+    """`platform.system_settings` key `onboarding.state` + derived `progress`."""
+
+    status: OnboardingStatus = "not_started"
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    started_by: uuid.UUID | None = None
+    steps: dict[OnboardingStepName, OnboardingStepOut] = Field(default_factory=dict)
+    refs: dict[str, Any] = Field(default_factory=dict)
+    version: int = 0  # `system_settings.version`; 0 = no row yet
+    progress: OnboardingProgressOut = Field(default_factory=OnboardingProgressOut)
+
+
+class OnboardingPatchIn(BaseModel):
+    """EP-ADM-14 body. `version` is required for every action except `start` (service check)."""
+
+    action: OnboardingAction
+    step: OnboardingStepName | None = None
+    refs: dict[str, Any] | None = None
+    reason: str | None = Field(default=None, max_length=500)
+    version: int | None = None

@@ -18,6 +18,29 @@ export type AIActionOut = {
   executed_at?: string | null;
   undo_deadline?: string | null;
   can_undo?: boolean;
+  agent_profile_code?: string | null;
+  request_id?: string | null;
+  created_at?: string | null;
+};
+
+export type AIAgentOut = {
+  code: string;
+  agent_ref: string;
+  name_vi: string;
+  name_en: string;
+  description_vi: string;
+  description_en: string;
+  allowed_tools?: string[];
+  max_autonomy_level: "L0" | "L1" | "L2" | "L3";
+  effective_max_level: "L0" | "L1" | "L2" | "L3";
+  model_task: string;
+  prompt_version?: string | null;
+  monthly_budget_usd?: string | null;
+  month_spend_usd?: number | null;
+  is_enabled: boolean;
+  kill_switched: boolean;
+  version: number;
+  updated_at?: string | null;
 };
 
 export type AcceptIn = {
@@ -32,6 +55,15 @@ export type ActionRefOut = {
   action_name: string;
   ids: string[];
   table: string;
+};
+
+export type AgentPatchIn = {
+  is_enabled?: boolean | null;
+  max_autonomy_level?: ("L0" | "L1" | "L2" | "L3") | null;
+  monthly_budget_usd?: number | string | null;
+  allowed_tools?: string[] | null;
+  reason: string;
+  version: number;
 };
 
 export type AlertOut = {
@@ -169,6 +201,45 @@ export type AuditLogOut = {
   before?: unknown | null;
   after?: unknown | null;
   why?: string | null;
+};
+
+export type AutonomyPolicyCreateIn = {
+  tool_name: string;
+  agent_profile_code?: string | null;
+  role_code?: ("CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM" | "AI") | null;
+  max_amount?: number | null;
+  currency?: string | null;
+  level: "L0" | "L1" | "L2" | "L3";
+  max_level: "L0" | "L1" | "L2" | "L3";
+  is_active?: boolean;
+  reason: string;
+};
+
+export type AutonomyPolicyOut = {
+  id: string;
+  tool_name: string;
+  action_name: string;
+  agent_profile_code?: string | null;
+  role_code?: ("CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM" | "AI") | null;
+  max_amount?: number | null;
+  currency?: string | null;
+  level: "L0" | "L1" | "L2" | "L3";
+  max_level: "L0" | "L1" | "L2" | "L3";
+  is_active: boolean;
+  reason: string;
+  version: number;
+  updated_by?: string | null;
+  updated_at?: string | null;
+};
+
+export type AutonomyPolicyPatchIn = {
+  level?: ("L0" | "L1" | "L2" | "L3") | null;
+  max_level?: ("L0" | "L1" | "L2" | "L3") | null;
+  max_amount?: number | null;
+  currency?: string | null;
+  is_active?: boolean | null;
+  reason: string;
+  version: number;
 };
 
 export type Body_import_upload_api_v1_data_capture_imports_post = {
@@ -836,6 +907,11 @@ export type Envelope_AIActionOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_AIAgentOut_ = {
+  data: AIAgentOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_AlertOut_ = {
   data: AlertOut;
   meta?: Meta | null;
@@ -858,6 +934,11 @@ export type Envelope_ApproveOut_ = {
 
 export type Envelope_AssessmentOut_ = {
   data: AssessmentOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_AutonomyPolicyOut_ = {
+  data: AutonomyPolicyOut;
   meta?: Meta | null;
 };
 
@@ -1111,6 +1192,11 @@ export type Envelope_ObjectiveOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_OnboardingStateOut_ = {
+  data: OnboardingStateOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_OrgTreeOut_ = {
   data: OrgTreeOut;
   meta?: Meta | null;
@@ -1301,6 +1387,11 @@ export type Envelope_list_AIActionOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_AIAgentOut__ = {
+  data: AIAgentOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_AlertOut__ = {
   data: AlertOut[];
   meta?: Meta | null;
@@ -1318,6 +1409,11 @@ export type Envelope_list_AssessmentOut__ = {
 
 export type Envelope_list_AuditLogOut__ = {
   data: AuditLogOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_AutonomyPolicyOut__ = {
+  data: AutonomyPolicyOut[];
   meta?: Meta | null;
 };
 
@@ -1526,6 +1622,11 @@ export type Envelope_list_MitigationOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_ModelCallLogOut__ = {
+  data: ModelCallLogOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_NotificationOut__ = {
   data: NotificationOut[];
   meta?: Meta | null;
@@ -1628,6 +1729,11 @@ export type Envelope_list_TaskOut__ = {
 
 export type Envelope_list_TeamOut__ = {
   data: TeamOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ToolCallLogOut__ = {
+  data: ToolCallLogOut[];
   meta?: Meta | null;
 };
 
@@ -2375,6 +2481,8 @@ export type KillSwitchOut = {
   agents?: string[];
   changed_by?: string | null;
   changed_at?: string | null;
+  autonomy_ceiling?: "L0" | "L1" | "L2" | "L3";
+  reason?: string | null;
 };
 
 export type KpiCreate = {
@@ -2840,6 +2948,26 @@ export type MitigationUpdate = {
   task_id?: string | null;
 };
 
+export type ModelCallLogOut = {
+  id: string;
+  created_at: string;
+  request_id?: string | null;
+  caller_module: string;
+  task_kind: string;
+  provider: string;
+  model: string;
+  fallback_from?: string | null;
+  agent_profile_code?: string | null;
+  user_id?: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+  latency_ms: number;
+  status: "ok" | "error" | "forbidden" | "timeout";
+  error_code?: string | null;
+  prompt_sha256?: string | null;
+};
+
 export type ModelGatewayCheck = {
   mode: string;
   primary: string;
@@ -2940,6 +3068,41 @@ export type ObjectiveUpdate = {
 export type OnTimePoint = {
   period_key: string;
   tasks_on_time_pct: number | null;
+};
+
+export type OnboardingPatchIn = {
+  action: "start" | "complete_step" | "skip_step" | "reopen_step" | "finish" | "reset";
+  step?: ("company" | "org_import" | "review" | "users" | "goals_import" | "finish") | null;
+  refs?: Record<string, unknown> | null;
+  reason?: string | null;
+  version?: number | null;
+};
+
+export type OnboardingProgressOut = {
+  organization_ready?: boolean;
+  departments?: number;
+  employees?: number;
+  employees_without_user?: number;
+  users_by_role?: Record<string, number>;
+  kpis?: number;
+  objectives?: number;
+};
+
+export type OnboardingStateOut = {
+  status?: "not_started" | "in_progress" | "completed";
+  started_at?: string | null;
+  completed_at?: string | null;
+  started_by?: string | null;
+  steps?: Record<string, OnboardingStepOut>;
+  refs?: Record<string, unknown>;
+  version?: number;
+  progress?: OnboardingProgressOut;
+};
+
+export type OnboardingStepOut = {
+  status?: "pending" | "in_progress" | "done" | "skipped";
+  updated_at?: string | null;
+  refs?: Record<string, unknown>;
 };
 
 export type OrgTreeOut = {
@@ -4027,6 +4190,24 @@ export type TokenOut = {
   user: UserOut;
 };
 
+export type ToolCallLogOut = {
+  id: string;
+  created_at: string;
+  request_id?: string | null;
+  user_id?: string | null;
+  agent_profile_code: string;
+  tool_name: string;
+  tool_kind: "READ" | "WRITE" | "APPROVAL" | "EXECUTION";
+  status: "ok" | "error" | "forbidden" | "timeout";
+  error_code?: string | null;
+  latency_ms: number;
+  autonomy_level?: ("L0" | "L1" | "L2" | "L3") | null;
+  ai_action_id?: string | null;
+  message_id?: string | null;
+  arguments?: Record<string, unknown>;
+  result_refs?: Record<string, unknown>[];
+};
+
 export type ToolOut = {
   name: string;
   kind: "READ" | "WRITE" | "COMPUTE" | "APPROVAL" | "EXECUTION";
@@ -4036,6 +4217,25 @@ export type ToolOut = {
   classification: string;
   reversible: string;
   cost_estimate: string;
+  tool_id?: string | null;
+  brd_name?: string | null;
+  description?: string | null;
+  domain?: string | null;
+  input_schema?: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
+  permission?: string[];
+  risk_level?: ("low" | "medium" | "high") | null;
+  data_classification?: ("PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "SECRET") | null;
+  autonomy_max?: ("L0" | "L1" | "L2" | "L3") | null;
+  approval_required?: ("never" | "threshold" | "always") | null;
+  audit_required?: boolean | null;
+  owner?: string | null;
+  compute?: boolean;
+  agents?: string[];
+  effective_level?: ("L0" | "L1" | "L2" | "L3") | null;
+  p1_frozen?: boolean;
+  action_name?: string | null;
+  endpoint_ref?: string | null;
 };
 
 export type TreeDepartment = {
@@ -4305,6 +4505,30 @@ export interface ApiOperations {
     request: UndoActionIn;
     response: Envelope_AIActionOut_;
   };
+  "GET /api/v1/ai/agents": {
+    request: void;
+    response: Envelope_list_AIAgentOut__;
+  };
+  "PATCH /api/v1/ai/agents/{code}": {
+    request: AgentPatchIn;
+    response: Envelope_AIAgentOut_;
+  };
+  "GET /api/v1/ai/autonomy-policies": {
+    request: void;
+    response: Envelope_list_AutonomyPolicyOut__;
+  };
+  "POST /api/v1/ai/autonomy-policies": {
+    request: AutonomyPolicyCreateIn;
+    response: Envelope_AutonomyPolicyOut_;
+  };
+  "DELETE /api/v1/ai/autonomy-policies/{policy_id}": {
+    request: void;
+    response: void;
+  };
+  "PATCH /api/v1/ai/autonomy-policies/{policy_id}": {
+    request: AutonomyPolicyPatchIn;
+    response: Envelope_AutonomyPolicyOut_;
+  };
   "POST /api/v1/ai/chat": {
     request: ChatRequestIn;
     response: Envelope_ChatAnswerOut_;
@@ -4336,6 +4560,14 @@ export interface ApiOperations {
   "PUT /api/v1/ai/kill-switch": {
     request: KillSwitchIn;
     response: Envelope_KillSwitchOut_;
+  };
+  "GET /api/v1/ai/model-calls": {
+    request: void;
+    response: Envelope_list_ModelCallLogOut__;
+  };
+  "GET /api/v1/ai/tool-calls": {
+    request: void;
+    response: Envelope_list_ToolCallLogOut__;
   };
   "GET /api/v1/ai/tools": {
     request: void;
@@ -5096,6 +5328,14 @@ export interface ApiOperations {
   "POST /api/v1/platform/dead-letters/{id}/replay": {
     request: void;
     response: Envelope_ReplayOut_;
+  };
+  "GET /api/v1/platform/onboarding": {
+    request: void;
+    response: Envelope_OnboardingStateOut_;
+  };
+  "PATCH /api/v1/platform/onboarding": {
+    request: OnboardingPatchIn;
+    response: Envelope_OnboardingStateOut_;
   };
   "GET /api/v1/platform/roles": {
     request: void;

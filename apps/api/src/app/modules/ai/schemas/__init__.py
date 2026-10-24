@@ -1,4 +1,4 @@
-"""`ai` Pydantic schemas — EP-110..119 contract (10 §4.10)."""
+"""`ai` Pydantic schemas — EP-AI-01..23 contract (10 §7.2.5; v2.1 EP-110..119 kept)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,19 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+# M1.6 AI Control Center schemas live in `admin.py` (self-contained, 10 §7.2.5).
+from app.modules.ai.schemas.admin import (
+    AgentPatchIn,
+    AIAgentOut,
+    AutonomyPolicyCreateIn,
+    AutonomyPolicyOut,
+    AutonomyPolicyPatchIn,
+    ModelCallLogOut,
+    PolicyDefaultOut,
+    ToolCallLogOut,
+    ToolOut,
+)
 
 
 class ChatContext(BaseModel):
@@ -65,17 +78,6 @@ class MessageOut(BaseModel):
     created_at: datetime
 
 
-class ToolOut(BaseModel):
-    name: str
-    kind: Literal["READ", "WRITE", "COMPUTE", "APPROVAL", "EXECUTION"]
-    autonomy_default: str
-    available: bool
-    data_scope: str
-    classification: str
-    reversible: str
-    cost_estimate: str
-
-
 class AIActionOut(BaseModel):
     """EP-115/116 AIActionOut (10 §4.11)."""
 
@@ -91,6 +93,10 @@ class AIActionOut(BaseModel):
     executed_at: datetime | None = None
     undo_deadline: datetime | None = None
     can_undo: bool = False
+    # M1.6 (EP-AI-08, 10 §7.2.5) — additive only
+    agent_profile_code: str | None = None
+    request_id: str | None = None
+    created_at: datetime | None = None
 
 
 class ConfirmActionIn(BaseModel):
@@ -111,6 +117,9 @@ class KillSwitchOut(BaseModel):
     agents: list[str] = Field(default_factory=list)
     changed_by: uuid.UUID | None = None
     changed_at: datetime | None = None
+    # M1.6 (EP-AI-12, R-DEC-72) — additive only
+    autonomy_ceiling: Literal["L0", "L1", "L2", "L3"] = "L2"
+    reason: str | None = None
 
 
 class KillSwitchIn(BaseModel):
@@ -163,3 +172,13 @@ class CostSummaryOut(BaseModel):
     over_budget: bool
     warn_80pct: bool
     rows: list[CostRowOut] = Field(default_factory=list)
+
+
+__all__ = [
+    "AIActionOut", "AIAgentOut", "AgentPatchIn", "AutonomyPolicyCreateIn", "AutonomyPolicyOut",
+    "AutonomyPolicyPatchIn", "ChatAnswerOut", "ChatContext", "ChatRequestIn", "ConfidenceOut",
+    "ConfirmActionIn", "ConversationOut", "CostRowOut", "CostSummaryOut", "FunctionCallOut",
+    "InsightOut", "KillSwitchIn", "KillSwitchOut", "MessageOut", "ModelCallLogOut",
+    "PolicyDefaultOut", "RecommendationOut", "RejectActionIn", "SourceRefOut", "ToolCallLogOut",
+    "ToolOut", "UndoActionIn",
+]  # fmt: skip

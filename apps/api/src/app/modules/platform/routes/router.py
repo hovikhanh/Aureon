@@ -17,6 +17,7 @@ from app.core.envelope import Page
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.platform.routes.notifications import router as notifications_router
+from app.modules.platform.routes.onboarding import router as onboarding_router
 from app.modules.platform.routes.workflow import router as workflow_router
 from app.modules.platform.schemas import (
     AuditLogOut,
@@ -94,5 +95,7 @@ async def replay_dead_letter(id: uuid.UUID, _: PlatformAdmin, svc: Service) -> R
 module_router = EnvelopeRouter(tags=["platform"])
 module_router.include_router(router)
 module_router.include_router(notifications_router)
+# M1.6: EP-ADM-13/14 onboarding state (R-DEC-75).
+module_router.include_router(onboarding_router)
 # M1.3 T-619C: `/workflow/*` (EP-WF-01..03, R-DEC-40) — replaces `/platform/approvals/*`.
 module_router.include_router(workflow_router)

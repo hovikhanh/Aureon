@@ -357,7 +357,7 @@ Nhóm bảng theo 05 §2.1: **nghiệp vụ** (C3/C4/C19 + `tenant_id` + `delete
 
 ### 2.8. Field-level đợt code — M1.6 (D26 AI Platform nền, UC-07 Onboarding — đề xuất, chờ human duyệt bước S)
 
-> Migration `0020_ai_platform_m16` (reversible; `downgrade` xóa cột/bảng mới, khôi phục `message_id NOT NULL` sau khi xóa dòng log có `message_id IS NULL` — chỉ dev). `0021_*` để trống (dự phòng). Không bảng mới cho onboarding (R-DEC-75). Endpoint ở 10 §7.2.5.
+> Migration `0021_ai_platform_m16` (down_revision `0020_capture_dq` — M1.5 đã dùng `0020`; reversible; `downgrade` xóa cột/bảng mới, khôi phục `message_id NOT NULL` sau khi xóa dòng log có `message_id IS NULL` — chỉ dev). Không bảng mới cho onboarding (R-DEC-75). Endpoint ở 10 §7.2.5.
 
 **ENT-ToolCallLog — `ai.tool_call_logs`** (sửa; `LogModel` append-only — R-DEC-74)
 

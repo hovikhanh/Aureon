@@ -7,7 +7,7 @@ from app.core.handlers import install_error_handlers
 from app.core.ops_routes import install_ops_routes
 from app.core.request_context import RequestIdMiddleware
 from app.core.tenant import TenantContextMiddleware
-from app.modules.ai.routes.router import router as ai_router
+from app.modules.ai.routes.router import module_router as ai_router
 from app.modules.auth.routes.router import module_router as auth_router
 from app.modules.dashboard.routes.router import router as dashboard_router
 from app.modules.execution.routes.router import module_router as execution_router
