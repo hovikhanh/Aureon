@@ -62,6 +62,8 @@ export interface MockClaims {
   permissions: string[];
   scope_pillars: string[];
   department_id: string;
+  /** R-DEC-41 — `hr.employees.id` of the user (null for accounts without an employee). */
+  employee_id: string | null;
 }
 
 /** Same claim set as the real RS256 JWT (CLAUDE §5.3, `core/security.py`). */
@@ -74,5 +76,6 @@ export function claimsFor(user: SnapshotUser): MockClaims {
     permissions: [...SNAPSHOT.role_permissions[user.role]],
     scope_pillars: [...user.scope_pillars].sort(),
     department_id: mockId("department", user.department),
+    employee_id: user.employee ? mockId("employee", user.employee) : null,
   };
 }

@@ -896,6 +896,7 @@
       "legendHigh": "> {pct}"
     },
     "approvals": {
+      "openTask": "Mở công việc",
       "title": "Phê duyệt",
       "hint": "Yêu cầu đang chờ anh/chị duyệt.",
       "kind": "Loại",
@@ -940,9 +941,8 @@
       "task_reassign": "Chuyển task"
     },
     "approvalTitle": {
-      "task_reassign": "Chuyển “{task}” cho {to}",
-      "ai_action": "Hành động AI cần duyệt",
-      "payment": "Thanh toán cho {vendor}"
+      "task_reassign": "Chuyển việc từ {from} sang {to}",
+      "ai_action": "Hành động AI cần duyệt"
     },
     "errors": {
       "dependencyOpen": "Còn task phụ thuộc chưa xong.",

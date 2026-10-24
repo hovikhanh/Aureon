@@ -121,17 +121,20 @@ export function blockingTitles(e: ErrorLike): string[] {
 export const shortId = (id: string) => id.slice(0, 8);
 
 // ------------------------------------------------------------------ approvals (SCR-43)
-const APPROVAL_TITLES = ["task_reassign", "payment", "ai_action"] as const;
+const APPROVAL_TITLES = ["task_reassign", "ai_action"] as const;
 export type ApprovalTitle = (typeof APPROVAL_TITLES)[number];
-/** `title_key` (`approval.<x>`, EP-WF-01) → `work.approvalTitle.<x>`; unknown → by `target_kind`. */
+/** `title_key` = `approval.<target_kind>.title` (EP-WF-01, BE `approval_service._to_out`) →
+ *  `work.approvalTitle.<target_kind>`; unknown → by `target_kind` (anything but a reassign = AI action). */
 export function approvalTitle(titleKey: string | null | undefined, targetKind: string): ApprovalTitle {
-  const k = titleKey?.split(".").pop() as ApprovalTitle | undefined;
+  const k = titleKey?.match(/^approval\.([a-z_]+)\.title$/)?.[1] as ApprovalTitle | undefined;
   if (k && APPROVAL_TITLES.includes(k)) return k;
   return targetKind === "task_reassign" ? "task_reassign" : "ai_action";
 }
-/** i18n params of a title: API `params` with string values only (never trust shape). */
-export function approvalParams(params: Record<string, unknown> | undefined): Record<string, string> {
+/** i18n params of a title. BE `params`: task_reassign `{task_id, from_assignee_id, to_assignee_id}`,
+ *  ai_action `{amount, currency}` — ids only (no fixed sentence, CLAUDE §5.2), so names come from
+ *  EP-ORG-24 `members[]` via `nameOf` when readable, else the short id (never trust the shape). */
+export function approvalParams(params: Record<string, unknown> | undefined, nameOf: (id: string) => string | undefined = () => undefined): Record<string, string> {
   const p = params ?? {};
-  const s = (v: unknown) => (typeof v === "string" || typeof v === "number" ? String(v) : "—");
-  return { task: s(p.task_title), to: s(p.to_name), vendor: s(p.vendor) };
+  const who = (v: unknown) => (typeof v === "string" && v ? (nameOf(v) ?? shortId(v)) : "—");
+  return { from: who(p.from_assignee_id), to: who(p.to_assignee_id) };
 }

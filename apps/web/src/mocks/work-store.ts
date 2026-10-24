@@ -63,8 +63,9 @@ export function resetWorkStore(): void {
 }
 export const newWorkId = (kind: string): string => mockId(kind, `new-${++workStore().seq}-${Date.now()}`);
 
-/** `employee_id` of a signed-in user (R-DEC-41 claim `employee_id`; mock derives it from the e-mail). */
-export function employeeOf(c: Pick<MockClaims, "email">): string | null {
+/** `employee_id` of a signed-in user (R-DEC-41 claim `employee_id`; tokens minted before the claim fall back to the e-mail). */
+export function employeeOf(c: Pick<MockClaims, "email"> & Partial<Pick<MockClaims, "employee_id">>): string | null {
+  if (c.employee_id !== undefined) return c.employee_id;
   const code = SNAPSHOT.users.find((u) => u.email === c.email)?.employee;
   return code ? empId(code) : null;
 }
@@ -176,21 +177,22 @@ function seedApprovals(emp: (typeof SNAPSHOT.users)[number] | undefined, peerCod
   out.push(
     { ...base, timeline: [], id: mockId("approval", "MOCK-AI-1"), rule_code: "RULE-ai_action_single", target_kind: "ai_action", target_id: mockId("ai_action", "1"), ai_action_id: mockId("ai_action", "1"),
       amount: 350_000_000, steps: [["CEO", "DIR"]], pillar: "F", requested_by: aiBy, requested_by_name: ai?.full_name ?? null, due_at: iso(6), department_id: null,
-      title_key: "approval.payment", params: { vendor: "Công ty Văn phòng Phẩm Sài Gòn" }, payload: {}, created_at: iso(-2),
-      payload_diff: [{ field: "status", before: "unpaid", after: "scheduled" }] },
+      title_key: "approval.ai_action.title", params: { amount: 350_000_000, currency: "VND" }, payload: { vendor: "Công ty Văn phòng Phẩm Sài Gòn" }, created_at: iso(-2),
+      payload_diff: [{ field: "vendor", before: null, after: "Công ty Văn phòng Phẩm Sài Gòn" }] },
     { ...base, timeline: [], id: mockId("approval", "MOCK-AI-2"), rule_code: "RULE-ai_action_single", target_kind: "ai_action", target_id: mockId("ai_action", "2"), ai_action_id: mockId("ai_action", "2"),
       amount: 1_200_000_000, steps: [["CEO", "DIR"]], pillar: "F", requested_by: aiBy, requested_by_name: ai?.full_name ?? null, due_at: iso(-1), department_id: null,
-      title_key: "approval.payment", params: { vendor: "Công ty Thiết bị Minh Long" }, payload: {}, created_at: iso(-10),
-      payload_diff: [{ field: "status", before: "unpaid", after: "scheduled" }] },
+      title_key: "approval.ai_action.title", params: { amount: 1_200_000_000, currency: "VND" }, payload: { vendor: "Công ty Thiết bị Minh Long" }, created_at: iso(-10),
+      payload_diff: [{ field: "vendor", before: null, after: "Công ty Thiết bị Minh Long" }] },
   );
   if (emp?.employee && peerCode) {
     const t = mockId("task", "MOCK-E5");
-    const peer = employeeById(empId(peerCode));
+    const from = empId(emp.employee);
+    const to = empId(peerCode);
     out.push({ ...base, timeline: [], id: mockId("approval", "MOCK-RA-1"), rule_code: "RULE-task_reassign", target_kind: "task_reassign", target_table: "tasks", target_id: t, amount: null,
       steps: [["MGR"]], pillar: "O", requested_by: uId(emp.email), requested_by_name: emp.full_name, due_at: iso(5), department_id: dId(emp.department),
-      title_key: "approval.task_reassign", params: { task_title: "Đề xuất cải tiến quy trình tiếp nhận", to_name: peer?.full_name ?? peerCode },
-      payload: { task_id: t, to_assignee_id: empId(peerCode), version: 1, reason: "Đang dồn nhiều việc bảo trì" }, created_at: iso(-1),
-      payload_diff: [{ field: "assignee_id", before: emp.full_name, after: peer?.full_name ?? peerCode }] });
+      title_key: "approval.task_reassign.title", params: { task_id: t, from_assignee_id: from, to_assignee_id: to },
+      payload: { task_id: t, from_assignee_id: from, to_assignee_id: to, reason: "Đang dồn nhiều việc bảo trì", task_version: 1 }, created_at: iso(-1),
+      payload_diff: [{ field: "assignee_id", before: from, after: to }] });
   }
   return out;
 }

@@ -94,26 +94,36 @@ function decide(req: MockRequest): Response {
       a.status = "APPROVED";
     }
   }
-  a.timeline.push({ step: a.step, actor_ref: c.name, decision: b.decision, reason: reason || null, at: nowIso() });
+  a.timeline.push({ step: a.step, actor_ref: c.sub, decision: b.decision, reason: reason || null, at: nowIso() });
   recordAudit(c, "platform.approval_decided", "approval_requests", a.id, reason || null);
   const requester = SNAPSHOT.users.find((u) => claimsFor(u).sub === a.requested_by);
   if (requester && a.status !== "PENDING") {
-    pushNotification(claimsFor(requester), { kind: "approval_decided", title: a.status, body: "", link: a.target_kind === "task_reassign" ? `/work?task=${a.target_id}` : "/work/approvals", ref_schema: "platform", ref_table: "approval_requests", ref_id: a.id });
+    pushNotification(claimsFor(requester), { kind: "approval_decided", title: a.status, body: "", link: `/work/approvals?id=${a.id}`, ref_schema: "platform", ref_table: "approval_requests", ref_id: a.id });
   }
   return ok(out(a));
 }
 
 function applyReassign(c: MockClaims, a: MApproval): void {
-  const p = a.payload as { task_id?: string; to_assignee_id?: string; version?: number };
+  const p = a.payload as { task_id?: string; to_assignee_id?: string; task_version?: number };
   const t = workStore().tasks.find((x) => x.id === p.task_id && !x.deleted);
   if (!t) throw err(409, "CONFLICT_STATE", "task no longer exists", { task_id: String(p.task_id) });
-  if (t.version !== p.version) throw err(409, "CONFLICT_STATE", "task changed since the request", { expected: p.version, current: t.version });
+  if (t.version !== p.task_version) throw err(409, "CONFLICT_STATE", "task changed since the request", { expected: p.task_version, current: t.version });
   t.assignee_id = p.to_assignee_id ?? t.assignee_id;
   t.version += 1;
   t.updated_at = nowIso();
   recordAudit(c, "execution.task_update", "tasks", t.id);
   const u = userOfEmployee(t.assignee_id);
   if (u) pushNotification(claimsFor(u), { kind: "task_assigned", title: t.title, body: "", link: `/work?task=${t.id}`, ref_schema: "execution", ref_table: "tasks", ref_id: t.id });
+}
+
+/** BE `approval_service` shape of a `task_reassign`: `title_key` `approval.<kind>.title`, ids-only
+ *  `params` + `payload` (`task_version`), `payload_diff` on `assignee_id` (employee ids). */
+export function reassignShape(taskId: string, from: string | null, to: string, reason: string, version: number) {
+  return {
+    title_key: "approval.task_reassign.title", params: { task_id: taskId, from_assignee_id: from, to_assignee_id: to },
+    payload: { task_id: taskId, from_assignee_id: from, to_assignee_id: to, reason, task_version: version },
+    payload_diff: [{ field: "assignee_id", before: from, after: to }],
+  };
 }
 
 /** EP-TASK-19 body (validated by the caller in `work.ts`). */
@@ -127,17 +137,15 @@ export function createReassignRequest(c: MockClaims, t: MTask, to: string, reaso
   const a: MApproval = {
     id: newWorkId("approval"), rule_code: "RULE-task_reassign", target_kind: "task_reassign", target_table: "tasks", target_id: t.id, ai_action_id: null,
     amount: null, currency: "VND", status: "PENDING", step: 1, steps: [["MGR"]], pillar: "O", requested_by: c.sub, requested_by_name: c.name,
-    due_at: new Date(Date.now() + SLA_HOURS * 3_600_000).toISOString(), department_id: t.department_id, title_key: "approval.task_reassign",
-    params: { task_title: t.title, to_name: target.full_name }, payload: { task_id: t.id, to_assignee_id: to, version: t.version, reason },
-    payload_diff: [{ field: "assignee_id", before: employeeById(t.assignee_id)?.full_name ?? t.assignee_id, after: target.full_name }],
-    timeline: [{ step: 0, actor_ref: c.name, decision: "requested", reason, at: stamp }], first_decided_by: null, created_at: stamp,
+    due_at: new Date(Date.now() + SLA_HOURS * 3_600_000).toISOString(), department_id: t.department_id, ...reassignShape(t.id, t.assignee_id, to, reason, t.version),
+    timeline: [{ step: 0, actor_ref: c.sub, decision: "requested", reason, at: stamp }], first_decided_by: null, created_at: stamp,
   };
   workStore().approvals.push(a);
   recordAudit(c, "platform.approval_requested", "approval_requests", a.id, reason);
   for (const u of SNAPSHOT.users) {
     const uc = claimsFor(u);
     if (u.role === "MGR" && uc.department_id === t.department_id) {
-      pushNotification(uc, { kind: "approval_requested", title: t.title, body: "", link: `/work/approvals?request=${a.id}`, ref_schema: "platform", ref_table: "approval_requests", ref_id: a.id });
+      pushNotification(uc, { kind: "approval_requested", title: t.title, body: "", link: `/work/approvals?id=${a.id}`, ref_schema: "platform", ref_table: "approval_requests", ref_id: a.id });
     }
   }
   return out(a);

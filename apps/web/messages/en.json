@@ -896,6 +896,7 @@
       "legendHigh": "> {pct}"
     },
     "approvals": {
+      "openTask": "Open task",
       "title": "Approvals",
       "hint": "Requests waiting for your decision.",
       "kind": "Type",
@@ -940,9 +941,8 @@
       "task_reassign": "Task reassignment"
     },
     "approvalTitle": {
-      "task_reassign": "Reassign “{task}” to {to}",
-      "ai_action": "AI action awaiting approval",
-      "payment": "Payment to {vendor}"
+      "task_reassign": "Reassign a task from {from} to {to}",
+      "ai_action": "AI action awaiting approval"
     },
     "errors": {
       "dependencyOpen": "Some dependencies are not done yet.",

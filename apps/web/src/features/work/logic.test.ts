@@ -86,12 +86,18 @@ describe("errors → i18n keys", () => {
 
 describe("approvals + misc", () => {
   it("title key → i18n key", () => {
-    expect(approvalTitle("approval.task_reassign", "task")).toBe("task_reassign");
-    expect(approvalTitle("approval.payment", "ai_action")).toBe("payment");
+    expect(approvalTitle("approval.task_reassign.title", "task")).toBe("task_reassign");
+    expect(approvalTitle("approval.ai_action.title", "task_reassign")).toBe("ai_action");
+    expect(approvalTitle("approval.task_reassign", "ai_action")).toBe("ai_action");
     expect(approvalTitle(null, "task_reassign")).toBe("task_reassign");
     expect(approvalTitle("approval.unknown", "ai_action")).toBe("ai_action");
   });
-  it("params are stringified safely", () => expect(approvalParams({ task_title: "T", to_name: 3, vendor: { x: 1 } })).toEqual({ task: "T", to: "3", vendor: "—" }));
+  it("params: names from members, else short id; bad shape → —", () => {
+    const names = new Map([["0123456789abcdef", "Ngô Thị Lan"]]);
+    expect(approvalParams({ from_assignee_id: "0123456789abcdef", to_assignee_id: "fedcba9876543210" }, (id) => names.get(id))).toEqual({ from: "Ngô Thị Lan", to: "fedcba98" });
+    expect(approvalParams({ from_assignee_id: 3, to_assignee_id: { x: 1 } })).toEqual({ from: "—", to: "—" });
+    expect(approvalParams(undefined)).toEqual({ from: "—", to: "—" });
+  });
   it("shortId", () => expect(shortId("0123456789abcdef")).toBe("01234567"));
 });
 
