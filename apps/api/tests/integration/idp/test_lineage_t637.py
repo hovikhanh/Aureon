@@ -20,9 +20,11 @@ ROWS = [  # data starts on Excel row 4 (title, blank, header) → row 7 = 4th ro
 ]  # fmt: skip
 
 
-async def _committed(api: ApiClient, db) -> tuple[uuid.UUID, dict[str, Any]]:
+async def _committed(
+    api: ApiClient, db, rows: list[list[Any]] = ROWS
+) -> tuple[uuid.UUID, dict[str, Any]]:
     uid = uuid.uuid4()
-    p = (await _upload(api, "CEO", _xlsx(ROWS, tag=uuid.uuid4().hex), user_id=uid)).json()["data"]
+    p = (await _upload(api, "CEO", _xlsx(rows, tag=uuid.uuid4().hex), user_id=uid)).json()["data"]
     sub = await api.http.post(f"/api/v1/data-capture/imports/{p['batch_id']}/submit",
                               headers=api.headers("CEO", idem=True, user_id=uid),
                               json={"version": p["version"]})  # fmt: skip

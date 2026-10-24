@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
 from app.core.tenant import require_tenant
@@ -16,6 +17,8 @@ from app.modules.idp.models import (
     CaptureIncident,
     DocumentAction,
     ExtractedField,
+    ExtractionJob,
+    ExtractionReview,
     ImportBatch,
     ImportRow,
     ReviewAssignment,
@@ -93,11 +96,33 @@ class ExtractedFieldRepository(BaseRepository[ExtractedField]):
             stmt = stmt.order_by(ExtractedField.field_name.asc())
         return list((await self.db.execute(stmt)).scalars().all())
 
+    async def critical_of_document(self, document_id: uuid.UUID) -> list[ExtractedField]:
+        """Critical fields of the latest extraction job of a document (G4 undo incidents)."""
+        job = (
+            select(ExtractionJob.id).where(ExtractionJob.source_document_id == document_id)
+            .order_by(ExtractionJob.attempt_no.desc()).limit(1).scalar_subquery()
+        )  # fmt: skip
+        stmt = (
+            self._scoped(select(ExtractedField))
+            .where(ExtractedField.extraction_job_id == job, ExtractedField.is_critical.is_(True))
+            .order_by(ExtractedField.field_name, ExtractedField.row_index)
+        )
+        return list((await self.db.execute(stmt)).scalars())
+
     async def by_ids(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, ExtractedField]:
         if not ids:
             return {}
         stmt = self._scoped(select(ExtractedField)).where(ExtractedField.id.in_(list(ids)))
         return {f.id: f for f in (await self.db.execute(stmt)).scalars()}
+
+
+async def approvers_of(db: AsyncSession, document_id: uuid.UUID) -> set[uuid.UUID]:
+    """Reviewers who approved this document (`ExtractionReview.decision = APPROVED`)."""
+    stmt = select(ExtractionReview.reviewer_id).where(
+        ExtractionReview.source_document_id == document_id,
+        ExtractionReview.decision == "APPROVED",
+    )
+    return set((await db.execute(stmt)).scalars())
 
 
 class DocumentActionRepository(BaseRepository[DocumentAction]):

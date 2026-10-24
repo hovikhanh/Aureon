@@ -19,7 +19,6 @@ from app.core.errors import DuplicateResourceError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.core.stub import not_implemented
 from app.modules.idp.schemas import ApproveOut
 from app.modules.idp.schemas.capture import (
     DocumentActionOut,
@@ -57,6 +56,7 @@ from app.modules.idp.services.inbox_service import InboxFilters, InboxService
 from app.modules.idp.services.incident_service import IncidentService
 from app.modules.idp.services.manual_service import ManualService
 from app.modules.idp.services.scope import ensure_doc_type_scope
+from app.modules.idp.services.undo_service import UndoService
 from app.modules.idp.services.upload_service import UploadFile as SvcUploadFile
 
 router = EnvelopeRouter(prefix="/data-capture", tags=["data-capture"])
@@ -234,16 +234,23 @@ async def document_commit(
     "/documents/{document_id}/undo", response_model=UndoOut,
     summary="EP-DC-24 Undo a committed document (7 days)",
 )  # fmt: skip
-async def document_undo(document_id: uuid.UUID, body: UndoIn, user: Writer, idem: Idem) -> Any:
-    not_implemented("EP-DC-24", "T-638")
+async def document_undo(
+    document_id: uuid.UUID, body: UndoIn, db: Db, user: Writer, idem: Idem
+) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return UndoOut.model_validate(hit)
+    out = await UndoService(db).undo(user, document_id, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
 
 
 @router.get(
     "/documents/{document_id}/actions", response_model=list[DocumentActionOut],
     summary="EP-DC-25 Document actions (Action Registry log)",
 )  # fmt: skip
-async def document_actions(document_id: uuid.UUID, user: Reader) -> Any:
-    not_implemented("EP-DC-25", "T-638")
+async def document_actions(document_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return await UndoService(db).actions_of(user, document_id)
 
 
 # ---------- EP-DC-27/28 document types ----------

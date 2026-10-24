@@ -9,7 +9,6 @@
 """
 
 import re
-import uuid
 from pathlib import Path
 
 import pytest
@@ -57,8 +56,12 @@ def test_no_unspecified_capture_route(routes: dict[tuple[str, str], APIRoute]) -
     assert extra == []
 
 
-async def test_stub_answers_501_envelope(api: ApiClient) -> None:
-    r = await api.call("GET", f"/data-capture/documents/{uuid.uuid4()}/actions", "CEO")
-    assert r.status_code == 501
-    assert r.json()["error"]["code"] == "INTERNAL_ERROR"
+def test_no_m15_stub_left() -> None:
+    """T-635..T-640 replaced every `501` stub of 10 §7.2.4 with a real handler."""
+    src = Path(__file__).resolve().parents[2] / "src/app/modules/idp/routes"
+    for f in ("data_capture.py", "lineage.py", "router.py"):
+        assert "not_implemented" not in (src / f).read_text(encoding="utf-8"), f
+
+
+async def test_ai_actor_has_no_inbox(api: ApiClient) -> None:
     assert (await api.call("GET", "/data-capture/inbox", "AI")).status_code == 403
