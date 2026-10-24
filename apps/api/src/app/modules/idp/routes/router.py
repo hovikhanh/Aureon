@@ -1,6 +1,8 @@
-"""HTTP routes for `idp` (10 §3.3). EP-20 upload runs the ingest synchronously, then the
-pipeline (scan → OCR → extract → validate) runs out of band; the response is `202` with the
-created document and job ids (04 §3). Other read endpoints expose the pipeline results.
+"""HTTP routes for `idp` — `/idp/*` EP-DC-01..12 (10 §7.2.4; v2.1 paths kept, R-DEC-39).
+
+Upload runs the ingest synchronously, then the pipeline (scan → OCR → extract →
+validate) runs out of band; the response is `202` with the created document and job ids (04 §3).
+Other read endpoints expose the pipeline results.
 """
 
 from __future__ import annotations
@@ -9,7 +11,7 @@ import uuid
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import Depends, File, Query, Response, UploadFile, status
+from fastapi import Depends, File, Form, Query, Response, UploadFile, status
 
 from app.core.concurrency import IfMatch, parse_if_match
 from app.core.deps import DbSession, Principal, require_permission
@@ -18,6 +20,9 @@ from app.core.errors import NotFoundError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.core.stub import not_implemented
+from app.modules.idp.routes.data_capture import router as data_capture_router
+from app.modules.idp.routes.lineage import router as lineage_router
 from app.modules.idp.schemas import (
     ApproveIn,
     ApproveOut,
@@ -70,14 +75,17 @@ def _to_svc_file(upload: UploadFile) -> SvcUploadFile:
     "/documents",
     response_model=UploadResultOut,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="EP-20 Upload documents (C3/C4, 1..100 files)",
+    summary="EP-DC-01 Upload documents (C3/C4, 1..100 files)",
 )
 async def upload_documents(
     user: IdpWriter,
     db: DbSession,
     idem: Idem,
     files: Annotated[list[UploadFile], File(description="1..100 files")],
+    document_type: Annotated[str | None, Form()] = None,
 ) -> UploadResultOut:
+    if document_type is not None:
+        not_implemented("EP-DC-01 document_type", "T-635")
     result = await UploadService(db).upload(user, [_to_svc_file(f) for f in files])
     await db.commit()
     # Hand each accepted (non-duplicate) document to the pipeline out of band.
@@ -97,7 +105,7 @@ async def upload_documents(
 @router.get(
     "/documents/{document_id}",
     response_model=DocumentOut,
-    summary="EP-25 Document detail",
+    summary="EP-DC-02 Document detail",
 )
 async def get_document(document_id: uuid.UUID, user: IdpReader, db: DbSession) -> DocumentOut:
     doc = await IdpQueryService(db).get_document(user, document_id)
@@ -109,7 +117,7 @@ async def get_document(document_id: uuid.UUID, user: IdpReader, db: DbSession) -
 @router.get(
     "/documents/{document_id}/extraction",
     response_model=ExtractionResultOut,
-    summary="EP-26 Extraction result (field results)",
+    summary="EP-DC-03 Extraction result (field results)",
 )
 async def get_extraction(
     document_id: uuid.UUID, user: IdpReader, db: DbSession
@@ -128,7 +136,7 @@ async def get_extraction(
 @router.get(
     "/review-queue",
     response_model=list[ReviewQueueItemOut],
-    summary="EP-28 Review queue (paginated, filterable, dept-scoped)",
+    summary="EP-DC-04 Review queue (paginated, filterable, dept-scoped)",
 )
 async def review_queue(
     user: IdpApprover,
@@ -156,7 +164,7 @@ async def review_queue(
 @router.get(
     "/documents/{document_id}/review",
     response_model=ReviewDetailOut,
-    summary="Review detail — fields + confidence + validation + lineage",
+    summary="EP-DC-05 Review detail — fields + rows + planned actions",
 )
 async def review_detail(
     document_id: uuid.UUID, user: IdpApprover, db: DbSession
@@ -167,7 +175,7 @@ async def review_detail(
 @router.post(
     "/documents/{document_id}/review/open",
     response_model=ReviewOpenOut,
-    summary="EP-29 Open review (15-min soft lock)",
+    summary="EP-DC-06 Open review (15-min soft lock)",
 )
 async def review_open(
     document_id: uuid.UUID, user: IdpApprover, db: DbSession, idem: Idem
@@ -180,7 +188,7 @@ async def review_open(
 @router.patch(
     "/documents/{document_id}/fields",
     response_model=FieldPatchOut,
-    summary="EP-30 Correct/confirm fields (validation recompute)",
+    summary="EP-DC-07 Correct/confirm fields (validation recompute)",
 )
 async def patch_fields(
     document_id: uuid.UUID,
@@ -198,7 +206,7 @@ async def patch_fields(
 @router.post(
     "/documents/{document_id}/review/approve",
     response_model=ApproveOut,
-    summary="EP-31 Approve + commit to domain via Action Registry",
+    summary="EP-DC-08 Approve + commit to domain via Action Registry",
 )
 async def review_approve(
     document_id: uuid.UUID,
@@ -222,7 +230,7 @@ async def review_approve(
 @router.post(
     "/documents/{document_id}/review/reject",
     response_model=DocumentOut,
-    summary="EP-32 Reject (reason required)",
+    summary="EP-DC-09 Reject (reason required)",
 )
 async def review_reject(
     document_id: uuid.UUID, body: RejectIn, user: IdpApprover, db: DbSession, idem: Idem
@@ -236,7 +244,7 @@ async def review_reject(
     "/documents/{document_id}/review/release",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    summary="EP-35 Release review (no save)",
+    summary="EP-DC-10 Release review (no save)",
 )
 async def review_release(document_id: uuid.UUID, user: IdpApprover, db: DbSession) -> Response:
     await ReviewService(db).release(user, document_id)
@@ -247,7 +255,7 @@ async def review_release(document_id: uuid.UUID, user: IdpApprover, db: DbSessio
 @router.post(
     "/documents/{document_id}/review/reassign",
     response_model=ReassignOut,
-    summary="EP-126 Reassign reviewer (ACT-reassign_review)",
+    summary="EP-DC-11 Reassign reviewer (ACT-reassign_review)",
 )
 async def review_reassign(
     document_id: uuid.UUID, body: ReassignIn, user: IdpApprover, db: DbSession, idem: Idem
@@ -266,9 +274,17 @@ async def review_reassign(
 @router.post(
     "/review-queue/merge",
     response_model=MergeOut,
-    summary="EP-127 Merge documents into one review (ACT-merge_review)",
+    summary="EP-DC-12 Merge documents into one review (ACT-merge_review)",
 )
 async def review_merge(body: MergeIn, user: IdpApprover, db: DbSession, idem: Idem) -> MergeOut:
     parent, children = await ReviewService(db).merge(user, body.document_ids, body.primary_id)
     await db.commit()
     return MergeOut(parent=parent, children=children)
+
+
+# `/idp/*` + `/data-capture/*` (EP-DC-13..25, 27..37) + `/lineage/*` (EP-DC-26) — 10 §7.2.4.
+
+module_router = EnvelopeRouter()
+module_router.include_router(router)
+module_router.include_router(data_capture_router)
+module_router.include_router(lineage_router)
