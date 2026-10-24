@@ -27,9 +27,9 @@ async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSessio
         "code": uniq("PRJ"), "name": "p", "owner_id": str(emp), "status": "active",
         "start_date": "2041-01-01", "due_date": "2041-03-31"})  # fmt: skip
     await make_task(api, project_id=p["id"], due_date="2041-04-30")
-    o = await make(api, "/execution/objectives", {"title": "o", "owner_id": str(emp),
+    o = await make(api, "/objectives", {"title": "o", "owner_id": str(emp),
                                                   "period_key": "2041"})  # fmt: skip
-    i = await make(api, "/execution/initiatives", {
+    i = await make(api, "/goals/initiatives", {
         "code": uniq("INI"), "title": "i", "objective_id": o["id"], "owner_id": str(emp),
         "start_date": "2041-01-01", "planned_end_date": "2041-12-31", "status": "active",
         "weight_pct": 10})  # fmt: skip

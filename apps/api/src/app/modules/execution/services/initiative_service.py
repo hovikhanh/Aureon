@@ -1,7 +1,7 @@
-"""EP-45 initiatives + milestones (T-133).
+"""EP-STR-12..21 initiatives + milestones (10 §7.2.3; v2.1 EP-45, T-133).
 
 - Scope (DEC-220): department + `owner_id`; milestones inherit the initiative's scope.
-- `progress_pct` is system-computed (10 EP-45; DEC-225): share of `done` milestones; with no
+- `progress_pct` is system-computed (10 EP-STR-15; DEC-225): share of `done` milestones; with no
   milestones, share of `done` among the initiative's non-cancelled tasks; else 0. It is
   recomputed whenever a milestone or a linked task changes.
 - `planned_end_date ≥ start_date`; milestone `done` stamps `done_at`.
@@ -34,7 +34,7 @@ from app.modules.execution.schemas.initiatives import (
     MilestoneUpdate,
 )
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
+from app.modules.execution.services.base import M14_PENDING, ExecBase, not_found, now_utc, today
 from app.modules.execution.services.meeting_service import _c19
 from app.modules.execution.services.project_rules import milestone_late
 
@@ -111,7 +111,7 @@ class InitiativeService(ExecBase):
             )
 
     async def create_initiative(self, user: Principal, body: InitiativeCreate) -> InitiativeOut:
-        data = body.model_dump()
+        data = body.model_dump(exclude=M14_PENDING)
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         self._dates(data["start_date"], data["planned_end_date"])
@@ -129,7 +129,7 @@ class InitiativeService(ExecBase):
     ) -> InitiativeOut:
         i = await self.get_initiative(user, id_, "write")
         before = initiative_out(i)
-        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING})
         _drop_nulls(data, "code", "title", "objective_id", "owner_id", "start_date",
                     "planned_end_date", "status", "weight_pct")  # fmt: skip
         scope.require_self(user, data.get("owner_id"), field="owner_id")

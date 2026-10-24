@@ -247,7 +247,7 @@ _READ_TOOLS: tuple[ToolDef, ...] = (
     ),
     _read(
         "TOOL-list_objectives",
-        "EP-46.L",
+        "EP-OKR-01",
         "execution:read",
         risk="medium",
         scope="execution:record",
@@ -338,7 +338,7 @@ _WRITE_TOOLS: tuple[ToolDef, ...] = (
     ),
     _write(
         "TOOL-record_kpi_measurement",
-        "EP-47 / ACT-record_kpi_measurement",
+        "EP-KPI-07 / ACT-record_kpi_measurement",
         "execution",
         "execution:write",
         risk="medium",
@@ -420,7 +420,7 @@ _WRITE_TOOLS: tuple[ToolDef, ...] = (
 _V21_TOOLS: tuple[ToolDef, ...] = (
     _read(
         "TOOL-get_kpi_status",
-        "EP-47.L",
+        "EP-KPI-01",
         "execution:read",
         risk="low",
         scope="execution:aggregate",

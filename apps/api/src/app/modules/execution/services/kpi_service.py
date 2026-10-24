@@ -1,4 +1,4 @@
-"""EP-47 KPIs + measurements, EP-48 check-ins (T-132, T-133).
+"""EP-KPI-01..07 KPIs + measurements, EP-PRF-01..05 check-ins (10 §7.2.3; v2.1 EP-47/48).
 
 - Measurement of `(kpi, period_key)`: target = `KPITarget` of that period, created on first
   measurement from `kpis.target_value` with default bands (DEC-147, DEC-224); achievement +
@@ -8,10 +8,12 @@
 - Each measurement publishes `EVT-execution.kpi_measured`
   `{kpi_id, period_key, actual_value, achievement_pct}` (05 §5.3).
 - Check-in on a KR updates `current_value` / `confidence` + objective progress; on a KPI it
-  records a measurement of the KPI's current period (EP-48 → `kpi_measured`).
+  records a measurement of the KPI's current period (EP-PRF-04 → `kpi_measured`). The target
+  comes from the path (`/key-results/{id}/check-ins`, `/kpis/{id}/check-ins`, R-DEC-58).
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -22,26 +24,34 @@ from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
-from app.modules.execution.models import CheckIn, Kpi, KpiMeasurement, KpiTarget, Task
+from app.modules.execution.models import (
+    CheckIn,
+    KeyResult,
+    Kpi,
+    KpiMeasurement,
+    KpiTarget,
+    Objective,
+    Task,
+)
 from app.modules.execution.repositories import (
     CheckInRepository,
     KeyResultRepository,
     KpiRepository,
     KpiTargetRepository,
     MeasurementRepository,
+    ObjectiveRepository,
     TaskRepository,
 )
-from app.modules.execution.schemas.okr import (
-    CheckInCreate,
-    CheckInOut,
+from app.modules.execution.schemas.kpi import (
     KpiCreate,
     KpiOut,
     KpiUpdate,
     MeasurementCreate,
     MeasurementOut,
 )
+from app.modules.execution.schemas.okr import CheckInCreate, CheckInOut
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
+from app.modules.execution.services.base import M14_PENDING_KPI, ExecBase, not_found, now_utc, today
 from app.modules.execution.services.kpi_rules import (
     DEFAULT_BANDS,
     achievement_pct,
@@ -82,6 +92,7 @@ def check_in_out(c: CheckIn) -> CheckInOut:
         value=float(c.value), confidence=c.confidence, note=c.note, blocker=c.blocker,
         support_needed=c.support_needed, next_action=c.next_action,
         checked_in_at=c.checked_in_at, user_id=c.user_id,
+        target_type="kpi" if c.kpi_id is not None else "key_result",
     )  # fmt: skip
 
 
@@ -110,11 +121,13 @@ class KpiService(ExecBase):
 
     async def list_kpis(
         self, user: Principal, page: PageParams, *, owner_id: uuid.UUID | None,
-        metric_code: str | None,
+        metric_code: str | None, department_id: uuid.UUID | None = None,
+        parent_kpi_id: uuid.UUID | None = None,
     ) -> tuple[list[KpiOut], int]:  # fmt: skip
         pred = self._pred(user)
-        filters = {k: v for k, v in {"owner_id": owner_id, "metric_code": metric_code}.items()
-                   if v is not None}  # fmt: skip
+        raw = {"owner_id": owner_id, "metric_code": metric_code, "department_id": department_id,
+               "parent_kpi_id": parent_kpi_id}  # fmt: skip
+        filters = {k: v for k, v in raw.items() if v is not None}
         items, total = await self.kpis.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
             filters=filters, where=[pred] if pred is not None else [],
@@ -129,7 +142,7 @@ class KpiService(ExecBase):
         return k
 
     async def create_kpi(self, user: Principal, body: KpiCreate) -> KpiOut:
-        data = body.model_dump()
+        data = body.model_dump(exclude=M14_PENDING_KPI)
         data["target_value"] = data.pop("target")
         scope.require_self(user, data["owner_id"], field="owner_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
@@ -146,7 +159,7 @@ class KpiService(ExecBase):
     ) -> KpiOut:
         k = await self.get_kpi(user, id_, "write")
         before = kpi_out(k)
-        data = body.model_dump(exclude_unset=True, exclude={"version"})
+        data = body.model_dump(exclude_unset=True, exclude={"version", *M14_PENDING_KPI})
         if "target" in data:
             data["target_value"] = data.pop("target")
         for key in ("name", "unit", "target_value", "owner_id", "direction", "value_type",
@@ -179,12 +192,16 @@ class KpiService(ExecBase):
 
     # ---------- measurements ----------
     async def list_measurements(
-        self, user: Principal, kpi_id: uuid.UUID, page: PageParams
-    ) -> tuple[list[MeasurementOut], int]:
+        self, user: Principal, kpi_id: uuid.UUID, page: PageParams,
+        period_key: str | None = None,
+    ) -> tuple[list[MeasurementOut], int]:  # fmt: skip
         k = await self.get_kpi(user, kpi_id)
+        filters: dict[str, Any] = {"kpi_id": k.id}
+        if period_key is not None:
+            filters["period_key"] = period_key
         items, total = await self.measurements.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
-            filters={"kpi_id": k.id},
+            filters=filters,
         )  # fmt: skip
         return [measurement_out(m) for m in items], total
 
@@ -248,8 +265,21 @@ class KpiService(ExecBase):
     async def list_check_ins(
         self, user: Principal, page: PageParams, *, owner_id: uuid.UUID | None,
         period_key: str | None, kpi_id: uuid.UUID | None, key_result_id: uuid.UUID | None,
+        department_id: uuid.UUID | None = None, from_: datetime | None = None,
+        to: datetime | None = None, confidence: str | None = None,
     ) -> tuple[list[CheckInOut], int]:  # fmt: skip
         where: list[ColumnElement[bool]] = []
+        if department_id is not None:  # target's department (KPI / KR's objective)
+            objs = ObjectiveRepository.ids_where(Objective.department_id == department_id)
+            where.append(or_(
+                CheckIn.kpi_id.in_(KpiRepository.ids_where(Kpi.department_id == department_id)),
+                CheckIn.key_result_id.in_(KeyResultRepository.ids_where(
+                    KeyResult.objective_id.in_(objs))),
+            ))  # fmt: skip
+        if from_ is not None:
+            where.append(CheckIn.checked_in_at >= from_)
+        if to is not None:
+            where.append(CheckIn.checked_in_at < to)
         if scope.level(user) != "all":
             kp = self._pred(user)
             kpi_ids = KpiRepository.ids_where(*([kp] if kp is not None else []))
@@ -264,7 +294,8 @@ class KpiService(ExecBase):
             except ValueError as exc:
                 raise BusinessRuleError(str(exc), details={"field": "period_key"}) from exc
             where += [CheckIn.checked_in_at >= start, CheckIn.checked_in_at < end]
-        raw = {"user_id": owner_id, "kpi_id": kpi_id, "key_result_id": key_result_id}
+        raw = {"user_id": owner_id, "kpi_id": kpi_id, "key_result_id": key_result_id,
+               "confidence": confidence}  # fmt: skip
         filters = {k: v for k, v in raw.items() if v is not None}
         items, total = await self.check_ins.list_page(
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
@@ -272,17 +303,28 @@ class KpiService(ExecBase):
         )  # fmt: skip
         return [check_in_out(c) for c in items], total
 
-    async def check_in(self, user: Principal, body: CheckInCreate) -> CheckInOut:
-        at = now_utc()
-        if body.kpi_id is None:  # schema guarantees exactly one target
-            okr = OkrService(self.db)
-            kr = await okr.get_kr(user, body.key_result_id or uuid.UUID(int=0), "write")
-            await okr.apply_check_in(kr, body.value, body.confidence)
-        else:
-            k = await self.get_kpi(user, body.kpi_id, "write")
-            key = period_key_for(k.period_type, today())
-            await self._measure(k, key, body.value, user.user_id)
-        c = await self.check_ins.create(**body.model_dump(), checked_in_at=at, user_id=user.user_id)
+    async def check_in_kr(
+        self, user: Principal, kr_id: uuid.UUID, body: CheckInCreate
+    ) -> CheckInOut:
+        """EP-PRF-02 — KR `current_value` / `confidence` + objective progress."""
+        okr = OkrService(self.db)
+        kr = await okr.get_kr(user, kr_id, "write")
+        await okr.apply_check_in(kr, body.value, body.confidence)
+        return await self._check_in(user, body, key_result_id=kr.id)
+
+    async def check_in_kpi(
+        self, user: Principal, kpi_id: uuid.UUID, body: CheckInCreate
+    ) -> CheckInOut:
+        """EP-PRF-04 — measurement of the KPI's current period (v2.1 behaviour)."""
+        k = await self.get_kpi(user, kpi_id, "write")
+        await self._measure(k, period_key_for(k.period_type, today()), body.value, user.user_id)
+        return await self._check_in(user, body, kpi_id=k.id)
+
+    async def _check_in(
+        self, user: Principal, body: CheckInCreate, **target: uuid.UUID
+    ) -> CheckInOut:
+        c = await self.check_ins.create(**body.model_dump(), **target, checked_in_at=now_utc(),
+                                        user_id=user.user_id)  # fmt: skip
         await self.db.refresh(c)
         out = check_in_out(c)
         await self.audit("check_in_create", "check_ins", c.id, after=out)

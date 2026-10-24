@@ -1,4 +1,4 @@
-"""EP-42 meetings, EP-43 decisions, EP-45 projects (T-131).
+"""EP-42 meetings, EP-43 decisions, projects EP-TASK-09..13 (T-131; v2.1 EP-45).
 
 Scope (DEC-220): meeting = department + chair/attendees; decision has no `department_id`
 (05) → department of its meeting + `owner_id`; project = department + `owner_id`.

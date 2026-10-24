@@ -1,22 +1,22 @@
-"""EP-46 objectives / key results, EP-47 KPIs / measurements, EP-48 check-ins (10 §4.4).
+"""EP-OKR-01..11 objectives / key results, EP-PRF-01..06 check-ins (10 §7.2.3; 05 §2.6).
 
-10 ↔ 05 renames (DEC-222): KPI `target` ↔ column `target_value`; check-in filter `owner_id`
-↔ column `user_id`. Fields beyond 10's "main fields" carry the 05 column name.
+10 ↔ 05 renames (DEC-222): check-in filter `owner_id` ↔ column `user_id`. Fields added in M1.4
+that land with a later migration (T-626 `strategic_objective_id`, T-627 at-risk columns +
+`kr_measurements`) default to `None` / empty until their task fills them. KPI DTOs live in
+`schemas/kpi.py`.
 """
 
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from app.modules.execution.schemas.common import (
+    PERIOD,
+    AtRiskReason,
     Confidence,
-    KpiDataSource,
-    KpiDirection,
-    KpiPeriodType,
-    KpiValueType,
+    GoalTargetType,
     LogOut,
     ObjectiveLevel,
     OkrStatus,
@@ -24,24 +24,14 @@ from app.modules.execution.schemas.common import (
     Out,
     Patch,
     Pillar,
+    measure,
+    weight,
 )
 
-
-def measure(required: bool = False) -> Any:
-    """numeric(20,6) (05 C10)."""
-    if required:
-        return Field(max_digits=20, decimal_places=6)
-    return Field(default=None, max_digits=20, decimal_places=6)
+METRIC = r"^METRIC-[A-Z]+-\d{2}$"
 
 
-def weight(default: Decimal | None = Decimal(100)) -> Any:
-    return Field(default=default, ge=0, le=100, max_digits=7, decimal_places=4)
-
-
-PERIOD = r"^\d{4}(-Q[1-4]|-(0[1-9]|1[0-2]))?$"
-
-
-# ---------- EP-46 objectives ----------
+# ---------- EP-OKR-01..05 objectives ----------
 class ObjectiveCreate(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     owner_id: uuid.UUID
@@ -55,6 +45,7 @@ class ObjectiveCreate(BaseModel):
     pillar: Pillar | None = None
     status: OkrStatus = "draft"
     source_document_id: uuid.UUID | None = None
+    strategic_objective_id: uuid.UUID | None = None  # root objective only (EP-OKR-02)
 
 
 class ObjectiveUpdate(Patch):
@@ -70,6 +61,7 @@ class ObjectiveUpdate(Patch):
     pillar: Pillar | None = None
     status: OkrStatus | None = None
     score: Decimal | None = Field(default=None, ge=0, le=1, max_digits=3, decimal_places=2)
+    strategic_objective_id: uuid.UUID | None = None
 
 
 class ObjectiveOut(Out):
@@ -87,15 +79,18 @@ class ObjectiveOut(Out):
     progress_pct: float
     score: float | None
     source_document_id: uuid.UUID | None
+    strategic_objective_id: uuid.UUID | None = None
+    at_risk_kr_count: int = 0
 
 
+# ---------- EP-OKR-06..11 key results ----------
 class KeyResultCreate(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     baseline: Decimal = measure(True)
     target: Decimal = measure(True)
     unit: str = Field(min_length=1, max_length=50)
     owner_id: uuid.UUID
-    metric_code: str | None = Field(default=None, pattern=r"^METRIC-[A-Z]+-\d{2}$")
+    metric_code: str | None = Field(default=None, pattern=METRIC)
     current_value: Decimal | None = measure()
     status: OkrStatus = "draft"
     weight_pct: Decimal = weight()
@@ -107,7 +102,7 @@ class KeyResultUpdate(Patch):
     target: Decimal | None = measure()
     unit: str | None = Field(default=None, min_length=1, max_length=50)
     owner_id: uuid.UUID | None = None
-    metric_code: str | None = Field(default=None, pattern=r"^METRIC-[A-Z]+-\d{2}$")
+    metric_code: str | None = Field(default=None, pattern=METRIC)
     status: OkrStatus | None = None
     weight_pct: Decimal | None = weight(None)
 
@@ -125,86 +120,30 @@ class KeyResultOut(Out):
     confidence: str | None
     weight_pct: float
     progress_pct: float
+    at_risk: bool = False
+    at_risk_since: datetime | None = None
+    at_risk_reasons: list[AtRiskReason] = Field(default_factory=list)
+    last_checked_in_at: datetime | None = None
 
 
-# ---------- EP-47 KPIs ----------
-class KpiCreate(BaseModel):
-    code: str = Field(min_length=1, max_length=50)
-    name: str = Field(min_length=1, max_length=500)
-    unit: str = Field(min_length=1, max_length=50)
-    target: Decimal = measure(True)
-    owner_id: uuid.UUID
-    metric_code: str | None = Field(default=None, pattern=r"^METRIC-[A-Z]+-\d{2}$")
-    key_result_id: uuid.UUID | None = None
-    period_type: KpiPeriodType = "MONTH"
-    direction: KpiDirection = "HIGHER_IS_BETTER"
-    value_type: KpiValueType = "numeric"
-    data_source_kind: KpiDataSource = "manual"
-    parent_kpi_id: uuid.UUID | None = None
-    weight_pct: Decimal = weight()
-    initiative_id: uuid.UUID | None = None
-    department_id: uuid.UUID | None = None
-    status: OkrStatus = "active"
+class KrMeasurementOut(LogOut):
+    """ENT-KRMeasurement (EP-OKR-11, R-DEC-53)."""
 
-
-class KpiUpdate(Patch):
-    name: str | None = Field(default=None, min_length=1, max_length=500)
-    unit: str | None = Field(default=None, min_length=1, max_length=50)
-    target: Decimal | None = measure()
-    owner_id: uuid.UUID | None = None
-    metric_code: str | None = Field(default=None, pattern=r"^METRIC-[A-Z]+-\d{2}$")
-    key_result_id: uuid.UUID | None = None
-    direction: KpiDirection | None = None
-    value_type: KpiValueType | None = None
-    data_source_kind: KpiDataSource | None = None
-    parent_kpi_id: uuid.UUID | None = None
-    weight_pct: Decimal | None = weight(None)
-    initiative_id: uuid.UUID | None = None
-    department_id: uuid.UUID | None = None
-    status: OkrStatus | None = None
-
-
-class KpiOut(Out):
-    code: str
-    name: str
-    unit: str
-    target: float
-    owner_id: uuid.UUID
-    metric_code: str | None
-    key_result_id: uuid.UUID | None
-    period_type: str
-    direction: str
-    value_type: str
-    data_source_kind: str
-    parent_kpi_id: uuid.UUID | None
-    weight_pct: float
-    initiative_id: uuid.UUID | None
-    department_id: uuid.UUID | None
-    status: str
-
-
-class MeasurementCreate(BaseModel):
-    period_key: str = Field(pattern=PERIOD)
-    actual_value: Decimal = measure(True)
-    source_document_id: uuid.UUID | None = None
-
-
-class MeasurementOut(LogOut):
-    kpi_id: uuid.UUID
+    key_result_id: uuid.UUID
+    check_in_id: uuid.UUID | None
     period_key: str
-    actual_value: float
-    achievement_pct: float
-    evaluation_band: str
-    kpi_target_id: uuid.UUID
-    locked_at: datetime | None
+    value: float
+    progress_pct: float
+    previous_progress_pct: float | None
+    confidence: Confidence
     measured_at: datetime
-    source_document_id: uuid.UUID | None
+    measured_by: uuid.UUID | None
 
 
-# ---------- EP-48 check-ins ----------
+# ---------- EP-PRF-01..06 check-ins ----------
 class CheckInCreate(BaseModel):
-    key_result_id: uuid.UUID | None = None
-    kpi_id: uuid.UUID | None = None
+    """EP-PRF-02 / EP-PRF-04 body — the target is the path (`/key-results/{id}`, `/kpis/{id}`)."""
+
     value: Decimal = measure(True)
     confidence: Confidence
     note: str | None = Field(default=None, max_length=5000)
@@ -212,11 +151,11 @@ class CheckInCreate(BaseModel):
     support_needed: str | None = Field(default=None, max_length=5000)
     next_action: str | None = Field(default=None, max_length=5000)
 
-    @model_validator(mode="after")
-    def _exactly_one(self) -> "CheckInCreate":
-        if (self.key_result_id is None) == (self.kpi_id is None):
-            raise ValueError("exactly one of key_result_id / kpi_id is required")
-        return self
+
+class KrMeasurementBrief(BaseModel):
+    value: float
+    progress_pct: float
+    previous_progress_pct: float | None
 
 
 class CheckInOut(LogOut):
@@ -230,3 +169,22 @@ class CheckInOut(LogOut):
     next_action: str | None
     checked_in_at: datetime
     user_id: uuid.UUID
+    target_type: GoalTargetType | None = None
+    target_title: str | None = None
+    department_id: uuid.UUID | None = None
+    kr_measurement: KrMeasurementBrief | None = None
+
+
+class CheckInDueOut(BaseModel):
+    """EP-PRF-06 — one F4 card of the caller; `prefill` stays `null` in M1.4 (M2.4)."""
+
+    target_type: GoalTargetType
+    target_id: uuid.UUID
+    title: str
+    unit: str
+    current_value: float | None
+    target: float
+    confidence: Confidence | None
+    last_checked_in_at: datetime | None
+    due: bool
+    prefill: None = None
