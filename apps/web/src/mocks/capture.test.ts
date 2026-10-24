@@ -49,7 +49,7 @@ describe("EP-DC-13 inbox", () => {
     expect([m.status, m.json!.error!.details.reason]).toEqual([422, "no_file"]);
     const f = await call<{ url: string; page: number }>(`/data-capture/documents/${SEED_DOC.invoice}/source?page=1`);
     expect(f.json!.data.page).toBe(1);
-    expect(f.json!.data.url).toContain(SEED_DOC.invoice);
+    expect(decodeURIComponent(f.json!.data.url)).toContain(SEED_DOC.invoice);
   });
 });
 

@@ -51,7 +51,10 @@ function source(req: MockRequest): Response {
   if (d.kind === "MANUAL") throw err(422, "BUSINESS_RULE_VIOLATION", "manual document has no file", { reason: "no_file" });
   const page = Number(req.query.get("page") ?? 1);
   if (d.sensitivity_level >= 3) recordAudit(req.claims, "idp.source_view", "source_documents", d.id);
-  return ok({ url: `/mock-files/${d.id}?page=${page}&expires=${Date.parse(nowIso()) + 300_000}`, mime_type: d.mime_type, page_count: d.page_count, page });
+  // Mock-only presigned URL: an inline SVG "page" (no object storage in mock mode); keeps the document id for tests.
+  const esc = (x: string) => x.replace(/[&<>"]/g, "_");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842"><rect width="100%" height="100%" fill="white"/><text x="40" y="60" font-size="18">${esc(d.original_filename ?? "")}</text><text x="40" y="90" font-size="14">p. ${page} · ${d.id}</text></svg>`;
+  return ok({ url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, mime_type: d.mime_type, page_count: d.page_count, page });
 }
 
 function actions(req: MockRequest): Response {
@@ -95,7 +98,7 @@ function form(req: MockRequest): Response {
   const code = req.params.type ?? "";
   const t = captureStore().docTypes.find((x) => x.code === code && x.is_active);
   const s = captureStore().schemas.find((x) => x.document_type === code && x.status === "published");
-  if (!t || !s || !t.channels_supported.includes("C1")) throw err(404, "NOT_FOUND", "no C1 form for this document type");
+  if (!t || !s) throw err(404, "NOT_FOUND", "no form for this document type");
   const fields = s.fields.filter((f) => f.sensitivity_level < 4 || seesLevel4(req.claims)).map((f) => ({ name: f.name, label_key: f.label_key, value_type: f.value_type, required: f.required,
     is_critical: f.is_critical, sensitivity_level: f.sensitivity_level, enum: f.enum, master_ref: f.master_ref, repeatable_group: f.group === "row" ? "rows" : null }));
   const acts = s.action_names;

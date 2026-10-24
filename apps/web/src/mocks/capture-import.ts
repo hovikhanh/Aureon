@@ -1,5 +1,5 @@
 /**
- * Mock C5 import EP-DC-17..22: upload → preview (sheets, suggested type, column mapping, 5 preview
+ * Mock C5 import EP-DC-17..22: upload → preview (sheets, suggested type, column mapping, ≤ 20 preview
  * rows, summary) → mapping PATCH (422 `unmapped_required[]`, 409 when not VALIDATING / stale
  * version, submitter only) → rows by status → error file (.xlsx, 404 when none) → submit valid rows
  * as one NEEDS_REVIEW document (field `row_index` = sheet row; 422 `no_valid_rows`).
@@ -20,7 +20,7 @@ function previewOut(req: MockRequest, b: MBatch) {
   const invalid = rows.filter((r) => r.errors.length).length;
   return { batch_id: b.id, document_id: b.document_id, version: b.version, suggested_document_type: b.suggested, column_mapping: b.mapping,
     sheets: b.sheets.map((s) => ({ name: s.name, row_count: Math.max(0, s.rows.length - 1), header_row: b.header_row, columns: (s.name === b.sheet ? headersOf(b) : s.rows[0] ?? []).map((h, index) => ({ index, header: h || null })) })),
-    preview_rows: rows.slice(0, 5).map((r) => maskRow(req, r.values)), summary: { rows_total: rows.length, rows_valid: rows.length - invalid, rows_invalid: invalid } };
+    preview_rows: rows.slice(0, 20).map((r) => maskRow(req, r.values)), summary: { rows_total: rows.length, rows_valid: rows.length - invalid, rows_invalid: invalid } };
 }
 
 function maskRow(req: MockRequest, v: Record<string, unknown>) {

@@ -52,6 +52,10 @@ const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/goals/objectives", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { prefix: "/goals/check-ins", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { prefix: "/data/review", roles: ["REV", "DIR", "MGR", "CEO"], anyOf: ["idp:approve"] },
+  // M1.5 (06 §3.4): SCR-61 C1 form, SCR-62 C5 import wizard (ADM: R-DEC-76 `idp:write` scope s), SCR-63 capture config
+  { prefix: "/data/new", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
+  { prefix: "/data/imports", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
+  { prefix: "/admin/data-capture", roles: ["ADM"], anyOf: ["idp:admin"] },
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"] },
   { prefix: "/admin/audit", roles: ["ADM"], anyOf: ["platform:read"] },

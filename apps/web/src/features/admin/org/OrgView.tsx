@@ -5,6 +5,7 @@
  * right = detail panel (info, head, assignment history EP-ORG-21) + actions (EP-ORG-07..15/22).
  */
 import * as React from "react";
+import { LineageChip } from "@/components/ai/LineageChip";
 import { useLocale, useTranslations } from "next-intl";
 import { Building2, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { apiRequest } from "@/lib/api-client";
@@ -166,7 +167,7 @@ function DeptPanel({ dept, depts, editable, onAction, onSelect }: { dept: TreeDe
   const parent = depts.find((d) => d.id === dept.parent_id);
   return (
     <div data-testid="dept-panel">
-      <h2 className="text-lg font-semibold">{dept.name}</h2>
+      <div className="flex items-center gap-2"><h2 className="text-lg font-semibold">{dept.name}</h2><LineageChip entity="hr.departments" id={dept.id} /></div>
       <Info rows={[[t("orgAdmin.field.code"), dept.code], [t("orgAdmin.field.parent"), parent?.name ?? t("common.none")], [t("orgAdmin.field.head"), head ? `${head.full_name} (${head.employee_code})` : t("common.none")],
         [t("orgAdmin.field.headcount"), dept.headcount], [t("orgAdmin.field.teams"), dept.teams.length]]} />
       {editable && (
@@ -225,7 +226,7 @@ function EmployeePanel({ dept, member, depts, editable, onTransfer }: { dept: Tr
   const rows = [...(history.data?.data ?? [])].reverse();
   return (
     <div data-testid="emp-panel">
-      <h2 className="text-lg font-semibold">{member.full_name}</h2>
+      <div className="flex items-center gap-2"><h2 className="text-lg font-semibold">{member.full_name}</h2><LineageChip entity="hr.employees" id={member.employee_id} /></div>
       <Info rows={[[t("orgAdmin.field.code"), member.employee_code], [t("orgAdmin.field.department"), dept.name], [t("orgAdmin.field.team"), teamOf(member.team_id) || t("common.none")],
         [t("orgAdmin.field.position"), member.position_title ?? t("common.none")], [t("orgAdmin.field.manager"), manager?.full_name ?? t("common.none")]]} />
       {editable && <div className="mt-4"><Button size="sm" variant="outline" onClick={onTransfer} data-testid="emp-transfer">{t("orgAdmin.transfer")}</Button></div>}

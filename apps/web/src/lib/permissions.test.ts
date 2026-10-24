@@ -63,6 +63,8 @@ describe("route guard (06 §3.4)", () => {
     ["/work/approvals", "MGR", true], ["/work/approvals", "EMP", false],
     ["/business/finance/invoices", "REV", true], ["/business/finance/invoices", "EMP", false],
     ["/business/hr/employees", "EMP", true], ["/business/hr/employees", "ADM", false],
+    ["/data/new/PLAN_KPI_OKR", "EMP", true], ["/data/new/HR_ROSTER", "ADM", true], ["/data/imports/abc", "REV", true], ["/data/imports/abc", "ADM", true],
+    ["/admin/data-capture", "ADM", true], ["/admin/data-capture", "CEO", false], ["/admin/data-capture", "DIR", false],
     ["/admin/audit", "ADM", true], ["/admin/audit", "CEO", false], ["/admin", "CEO", true],
     ["/work/projects", "EMP", true], ["/work/projects/abc", "MGR", true], ["/work/projects", "REV", false],
     ["/work/workload", "MGR", true], ["/work/workload", "DIR", true], ["/work/workload", "EMP", false], ["/work/workload", "ADM", false],
