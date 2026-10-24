@@ -15,13 +15,14 @@
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import ColumnElement, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError
 from app.core.events.outbox import publish_in_tx
@@ -61,12 +62,14 @@ from app.modules.execution.schemas.okr import (
     KrMeasurementOut,
 )
 from app.modules.execution.services import scope
+from app.modules.execution.services.at_risk import AtRiskService
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
 from app.modules.execution.services.kpi_rules import (
     achievement_pct,
     band,
     kr_progress_pct,
     local_day,
+    on_time,
     period_bounds,
     period_key_for,
 )
@@ -275,7 +278,6 @@ class KpiService(ExecBase):
         out = measurement_out(m)
         await self.audit("kpi_measure", "kpi_measurements", m.id, after=out)
         scored = await self.target_svc.evaluate(k, period_key, source=source)
-        ev = scored.evaluation
         payload: dict[str, Any] = {
             "kpi_id": str(k.id), "period_key": period_key, "actual_value": str(actual),
             "achievement_pct": str(ach), "kpi_code": k.code, "measurement_id": str(m.id),
@@ -289,13 +291,30 @@ class KpiService(ExecBase):
             aggregate_schema="execution", aggregate_table="kpis", aggregate_id=k.id,
             payload=payload,
         )  # fmt: skip
-        if ev is not None:
-            await self.after_evaluation(k, ev, scored.previous_band)
+        await self.target_svc.signal_band(k, scored)
         return out
 
-    async def after_evaluation(self, k: Kpi, ev: KpiEvaluation, previous_band: str | None) -> None:
-        """Hook for band transitions (`execution.kpi_below_threshold`, T-629)."""
-        return None
+    async def _checked_in(
+        self, c: CheckIn, *, target_type: str, target_id: uuid.UUID, period_key: str,
+        department_id: uuid.UUID | None, on_time: bool, objective_id: uuid.UUID | None = None,
+        progress: Decimal | None = None, previous: Decimal | None = None,
+    ) -> None:  # fmt: skip
+        """`execution.okr_checked_in` (EP-PRF-02 / EP-PRF-04) → G2 recompute."""
+        await publish_in_tx(
+            self.db, event_type="execution.okr_checked_in", producer="execution",
+            aggregate_schema="execution", aggregate_table="check_ins", aggregate_id=c.id,
+            payload={
+                "check_in_id": str(c.id), "target_type": target_type,
+                "target_id": str(target_id),
+                "objective_id": str(objective_id) if objective_id else None,
+                "period_key": period_key, "value": str(c.value), "confidence": c.confidence,
+                "progress_pct": None if progress is None else str(progress),
+                "previous_progress_pct": None if previous is None else str(previous),
+                "user_id": str(c.user_id),
+                "department_id": str(department_id) if department_id else None,
+                "on_time": on_time,
+            },
+        )  # fmt: skip
 
     async def delete_measurement(self, measurement_id: uuid.UUID) -> None:
         """Undo of ACT-record_kpi_measurement (Action Registry v2, M1.5): remove the row and
@@ -402,6 +421,9 @@ class KpiService(ExecBase):
                                      details={"reason": "objective_not_active",
                                               "objective_id": str(kr.objective_id)})  # fmt: skip
         prev = await self.kr_measurements.latest(kr.id)
+        last = kr.last_checked_in_at
+        kr_on_time = last is None or local_day(last) >= today() - timedelta(
+            days=get_config().goals_kr_checkin_max_age_days)  # fmt: skip
         c = await self._new_check_in(user, body, key_result_id=kr.id)
         krm = await self.kr_measurements.create(
             key_result_id=kr.id, check_in_id=c.id, period_key=o.period_key, value=body.value,
@@ -412,6 +434,13 @@ class KpiService(ExecBase):
         await okr.apply_check_in(kr, body.value, body.confidence, c.checked_in_at)
         out = check_in_out(c, title=kr.title, department_id=o.department_id, krm=krm)
         await self.audit("check_in_create", "check_ins", c.id, after=out)
+        await self._checked_in(
+            c, target_type="kr", target_id=kr.id, objective_id=o.id, period_key=o.period_key,
+            department_id=o.department_id, on_time=kr_on_time, progress=Decimal(krm.progress_pct),
+            previous=None if krm.previous_progress_pct is None
+            else Decimal(krm.previous_progress_pct),
+        )  # fmt: skip
+        await AtRiskService(self.db).refresh(kr, o, today())
         return out
 
     async def check_in_kpi(
@@ -428,6 +457,10 @@ class KpiService(ExecBase):
                             check_in_id=c.id)  # fmt: skip
         out = check_in_out(c, title=k.name, department_id=k.department_id)
         await self.audit("check_in_create", "check_ins", c.id, after=out)
+        await self._checked_in(c, target_type="kpi", target_id=k.id, period_key=period_key,
+                               department_id=k.department_id,
+                               on_time=on_time(c.checked_in_at, period_key,
+                                               get_config().goals_kpi_grace_days))  # fmt: skip
         return out
 
     async def _new_check_in(

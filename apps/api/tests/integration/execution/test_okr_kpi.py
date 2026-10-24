@@ -111,8 +111,8 @@ async def test_kpi_measurements_and_event(api: ApiClient, db_session: AsyncSessi
     ad = again.json()["data"]  # R-DEC-51: a new row per measurement (history kept)
     assert ad["id"] != md["id"] and ad["evaluation_band"] == "MEETS"
     assert ad["data_source"] == "manual" and ad["measured_by"] is not None
-    events = await outbox_for(db_session, kid)
-    assert [e[0] for e in events] == ["execution.kpi_measured"] * 2
+    events = [e for e in await outbox_for(db_session, kid) if e[0] == "execution.kpi_measured"]
+    assert len(events) == 2
     v21 = {"kpi_id": kid, "period_key": "2037-08", "actual_value": "95",
            "achievement_pct": "100.0000"}  # fmt: skip
     assert v21.items() <= events[1][1].items()  # v2.1 fields kept, payload extended (R-DEC-56)

@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
 from app.core.errors import BusinessRuleError, ConflictStateError
+from app.core.events.outbox import publish_in_tx
 from app.modules.execution.models import Kpi, KpiEvaluation, KpiMeasurement, KpiTarget
 from app.modules.execution.repositories import (
     KpiEvaluationRepository,
@@ -42,6 +43,7 @@ from app.modules.execution.services.kpi_rules import (
     DEFAULT_CAP,
     achievement_pct,
     band,
+    entered_low_band,
     gap_value,
     in_force,
     local_day,
@@ -182,7 +184,7 @@ class KpiTargetService(ExecBase):
         await self.db.refresh(t)
         out = target_out(t)
         await self.audit("kpi_target_set", "kpi_targets", t.id, before, out)
-        await self.evaluate(k, body.period_key, source=source)
+        await self.signal_band(k, await self.evaluate(k, body.period_key, source=source))
         return out
 
     async def evaluate(
@@ -216,6 +218,26 @@ class KpiTargetService(ExecBase):
         else:
             await self.evaluations.update(ev, previous_band=old, **values)
         return Scored(ev, old)
+
+    async def signal_band(self, k: Kpi, scored: Scored) -> None:
+        """`execution.kpi_below_threshold` when the period's band moves into BELOW / CRITICAL
+        from a better band or on the first evaluation (staying low → no event, 10 §9.2).
+        Called after a measurement (EP-KPI-07, EP-PRF-04, ACT) and a target change (EP-KPI-09);
+        not on undo."""
+        ev = scored.evaluation
+        if ev is None or not entered_low_band(ev.band, scored.previous_band):
+            return
+        await publish_in_tx(
+            self.db, event_type="execution.kpi_below_threshold", producer="execution",
+            aggregate_schema="execution", aggregate_table="kpis", aggregate_id=k.id,
+            payload={
+                "kpi_id": str(k.id), "kpi_code": k.code, "period_key": ev.period_key,
+                "evaluation_id": str(ev.id), "achievement_pct": str(ev.achievement_pct),
+                "band": ev.band, "previous_band": scored.previous_band,
+                "gap_value": str(ev.gap_value), "owner_id": str(k.owner_id),
+                "department_id": str(k.department_id) if k.department_id else None,
+            },
+        )  # fmt: skip
 
     # ---------- reads ----------
     async def list_targets(

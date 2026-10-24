@@ -41,8 +41,12 @@ def test_beat_schedule_registers_jobs() -> None:
         assert _hours(entry["schedule"]) == hour and str(entry["schedule"]._orig_minute) == minute
     assert celery_app.conf.timezone == "Asia/Ho_Chi_Minh"
     # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay + check-review-sla (T-412)
-    # + notification e-mail sweep (T-616b)
-    assert len(sched) == 9
+    # + notification e-mail sweep (T-616b) + KR at-risk 07:00 + Friday check-in reminder (T-629)
+    assert len(sched) == 11
+    assert sched["execution.kr_at_risk"]["task"] in celery_app.tasks
+    remind = sched["execution.checkin_reminder"]
+    assert remind["task"] in celery_app.tasks and remind["schedule"]._orig_day_of_week == 5
+    assert _hours(remind["schedule"]) == "8"
     mail = sched["dispatch-notification-emails"]
     assert mail["task"] == notifications.dispatch_email.name and mail["task"] in celery_app.tasks
 

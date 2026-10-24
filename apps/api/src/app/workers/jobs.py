@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from app.core.clock import business_today
 from app.core.tenant import active_tenant_ids, tenant_scope
 from app.modules.ai.services.verification import verify_action_outcomes
+from app.modules.execution.services.at_risk import AtRiskService, checkin_reminder
 from app.modules.execution.services.task_service import detect_overdue_tasks
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.invoice_service import InvoiceService
@@ -75,6 +76,14 @@ async def overdue_tasks(db: AsyncSession) -> int:
     return len(await detect_overdue_tasks(db, business_today()))
 
 
+async def kr_at_risk(db: AsyncSession) -> int:
+    return await AtRiskService(db).daily(business_today())
+
+
+async def weekly_checkin_reminder(db: AsyncSession) -> int:
+    return await checkin_reminder(db, business_today())
+
+
 async def recompute(db: AsyncSession) -> dict[str, int]:
     return await MetricStore(db).recompute(business_today())
 
@@ -118,3 +127,13 @@ def recompute_metrics() -> dict[str, int]:
 def check_review_sla() -> int:
     """Hourly (T-412): escalate overdue IDP reviews → `idp.review_escalated` + notification."""
     return int(asyncio.run(_run(review_sla)))
+
+
+@celery_app.task(name="app.jobs.detect_kr_at_risk", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def detect_kr_at_risk() -> int:
+    return int(asyncio.run(_run(kr_at_risk)))
+
+
+@celery_app.task(name="app.jobs.checkin_reminder", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def checkin_reminder_job() -> int:
+    return int(asyncio.run(_run(weekly_checkin_reminder)))

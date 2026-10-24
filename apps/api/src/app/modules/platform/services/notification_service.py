@@ -100,6 +100,16 @@ class NotificationService:
             ))  # fmt: skip
         return out
 
+    async def already_sent(
+        self, recipient_id: uuid.UUID, *, kind: str, since: datetime, link: str | None = None,
+        ref_table: str | None = None, ref_id: uuid.UUID | None = None, title: str | None = None,
+    ) -> bool:  # fmt: skip
+        """Public dedupe lookup for idempotent producers (goal alerts / weekly reminder, T-629):
+        a `kind` notification with this `link` / `ref_table + ref_id` / `title` already exists
+        for the recipient since `since`."""
+        return await self.repo.exists(recipient_id, kind=kind, since=since, link=link,
+                                      ref_table=ref_table, ref_id=ref_id, title=title)  # fmt: skip
+
     # ---------- EP-NTF-01..03 inbox ----------
     async def inbox(
         self, user_id: uuid.UUID, *, unread_only: bool, kind: str | None, limit: int, offset: int
