@@ -8,6 +8,7 @@ Return a `Page` from list endpoints to get `meta.pagination`.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -29,6 +30,7 @@ class Meta(BaseModel):
     pending_count: int | None = None  # EP-WF-01 only (10 §7.2.2)
     counts: dict[str, int] | None = None  # EP-DC-13 inbox groups only (10 §7.2.4)
     pending_permissions: list[str] | None = None  # EP-DC-08 approve → APPROVED only (10 §7.2.4)
+    defaults: list[dict[str, Any]] | None = None  # EP-AI-18 registry defaults only (10 §7.2.5)
 
 
 class Envelope[T](BaseModel):
@@ -47,6 +49,7 @@ class Page[T]:
     unread_count: int | None = None
     pending_count: int | None = None
     counts: dict[str, int] | None = None
+    defaults: list[dict[str, Any]] | None = None
 
 
 def page_meta(*, total: int, limit: int, offset: int) -> Pagination:
@@ -71,5 +74,6 @@ def to_envelope(result: object) -> object:
         meta.unread_count = result.unread_count
         meta.pending_count = result.pending_count
         meta.counts = result.counts
+        meta.defaults = result.defaults
         return Envelope[object](data=list(result.items), meta=meta)
     return Envelope[object](data=result, meta=build_meta())

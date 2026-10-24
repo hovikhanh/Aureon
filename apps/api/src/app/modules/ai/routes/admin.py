@@ -14,7 +14,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Query, Response
 
-from app.core.deps import Principal, require_permission
+from app.core.deps import DbSession, Principal, require_permission
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
@@ -29,6 +29,8 @@ from app.modules.ai.schemas.admin import (
     RoleCode,
     ToolCallLogOut,
 )
+from app.modules.ai.services.agent_service import AgentService
+from app.modules.ai.services.policy_service import PolicyService
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai-admin"])
 
@@ -39,14 +41,17 @@ To = Annotated[datetime | None, Query(alias="to")]
 
 
 # ---------- EP-AI-16/17 agents ----------
-@router.get("/agents", response_model=list[AIAgentOut], summary="EP-AI-16 AI agents")
-async def list_agents(user: AiUser) -> Any:
-    not_implemented("EP-AI-16", "T-646")
+@router.get(
+    "/agents", response_model=list[AIAgentOut], summary="EP-AI-16 AI agents",
+    response_model_exclude_unset=True,  # `month_spend_usd` key absent for non-admin (10 §7.2.5)
+)  # fmt: skip
+async def list_agents(user: AiUser, db: DbSession) -> Any:
+    return await AgentService(db).list(user)
 
 
 @router.patch("/agents/{code}", response_model=AIAgentOut, summary="EP-AI-17 Update AI agent")
-async def patch_agent(code: str, body: AgentPatchIn, admin: AiAdmin) -> Any:
-    not_implemented("EP-AI-17", "T-646")
+async def patch_agent(code: str, body: AgentPatchIn, admin: AiAdmin, db: DbSession) -> Any:
+    return await AgentService(db).patch(admin, code, body)
 
 
 # ---------- EP-AI-18..21 autonomy policies ----------
@@ -55,29 +60,36 @@ async def patch_agent(code: str, body: AgentPatchIn, admin: AiAdmin) -> Any:
     summary="EP-AI-18 Autonomy policies",
 )  # fmt: skip
 async def list_policies(
-    admin: AiAdmin,
+    admin: AiAdmin, db: DbSession,
     page: Annotated[PageParams, Depends(page_params("tool_name", "updated_at"))],
     tool_name: str | None = None, agent_profile_code: str | None = None,
     role_code: RoleCode | None = None, is_active: bool | None = None,
     include_deleted: bool = False,
 ) -> Any:  # fmt: skip
-    not_implemented("EP-AI-18", "T-646")
+    return await PolicyService(db).list(
+        page, tool_name=tool_name, agent_profile_code=agent_profile_code, role_code=role_code,
+        is_active=is_active, include_deleted=include_deleted,
+    )  # fmt: skip
 
 
 @router.post(
     "/autonomy-policies", response_model=AutonomyPolicyOut, status_code=201,
     summary="EP-AI-19 Create autonomy policy",
 )  # fmt: skip
-async def create_policy(body: AutonomyPolicyCreateIn, admin: AiAdmin, idem: Idem) -> Any:
-    not_implemented("EP-AI-19", "T-646")
+async def create_policy(
+    body: AutonomyPolicyCreateIn, admin: AiAdmin, idem: Idem, db: DbSession
+) -> Any:
+    return await PolicyService(db).create(admin, body)
 
 
 @router.patch(
     "/autonomy-policies/{policy_id}", response_model=AutonomyPolicyOut,
     summary="EP-AI-20 Update autonomy policy",
 )  # fmt: skip
-async def patch_policy(policy_id: uuid.UUID, body: AutonomyPolicyPatchIn, admin: AiAdmin) -> Any:
-    not_implemented("EP-AI-20", "T-646")
+async def patch_policy(
+    policy_id: uuid.UUID, body: AutonomyPolicyPatchIn, admin: AiAdmin, db: DbSession
+) -> Any:
+    return await PolicyService(db).patch(admin, policy_id, body)
 
 
 @router.delete(
@@ -85,9 +97,13 @@ async def patch_policy(policy_id: uuid.UUID, body: AutonomyPolicyPatchIn, admin:
     summary="EP-AI-21 Delete autonomy policy",
 )  # fmt: skip
 async def delete_policy(
-    policy_id: uuid.UUID, admin: AiAdmin, reason: Annotated[str, Query(min_length=1)]
+    policy_id: uuid.UUID,
+    admin: AiAdmin,
+    db: DbSession,
+    reason: Annotated[str, Query(min_length=1)],
 ) -> Response:
-    not_implemented("EP-AI-21", "T-646")
+    await PolicyService(db).delete(admin, policy_id, reason)
+    return Response(status_code=204)
 
 
 # ---------- EP-AI-22/23 logs ----------

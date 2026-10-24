@@ -38,6 +38,8 @@ from app.core.model_gateway.types import (
     Message as GwMessage,
 )
 from app.modules.ai.models import Conversation, Message, ToolCallLog
+from app.modules.ai.services.agent_catalog import CHAT_AGENT
+from app.modules.ai.services.agent_service import AgentService
 from app.modules.ai.services.demo_replay import (
     DemoAnswer,
     build_answer,
@@ -46,11 +48,11 @@ from app.modules.ai.services.demo_replay import (
 )
 from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
 from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
-from app.modules.ai.tools import advertisable_for, get_tool, tool_kind
+from app.modules.ai.tools import get_tool, tool_kind
 
 MAX_TOOL_CALLS = 8
 HISTORY_PAIRS = 10  # FR-AI-05: last 10 message pairs
-AGENT_CODE = "assistant"
+AGENT_CODE = CHAT_AGENT  # M1.6 R-DEC-71: `ceo` for every role (old rows keep `assistant`)
 
 SYSTEM_VI = (
     "Bạn là trợ lý điều hành của Aureon. Trả lời bằng tiếng Việt, ngắn gọn, dựa trên dữ liệu "
@@ -105,7 +107,7 @@ class ChatService:
             demo = await build_answer(executor, entry, locale) if entry else None
             if demo is not None:
                 return await self._finish_replay(user, conv, user_msg, demo)
-        tool_specs = self._tool_specs(user, guard.classification)
+        tool_specs = await self._tool_specs(user, guard.classification)
         system = SYSTEM_VI if locale == "vi" else SYSTEM_EN
         # T-309: the model never sees level-4 PII; level-3 contacts become stable EMP-/CLI- codes.
         # (The user's own message is persisted verbatim; only the model context is scrubbed.)
@@ -249,9 +251,12 @@ class ChatService:
         )  # fmt: skip
         await self.db.flush()
 
-    def _tool_specs(self, user: Principal, classification: str) -> list[ToolSpec]:
+    async def _tool_specs(self, user: Principal, classification: str) -> list[ToolSpec]:
+        """Agent `allowed_tools` ∩ the asker's permissions (FR-ADM-03); disabled agent → none."""
         ceiling = "INTERNAL" if classification in ("CONFIDENTIAL", "SECRET") else None
-        tools = advertisable_for(user.permissions, max_classification=ceiling)
+        tools = await AgentService(self.db).effective_tools(
+            AGENT_CODE, user.permissions, max_classification=ceiling
+        )
         return [
             ToolSpec(name=t.name, description=t.description, parameters=t.parameters or _EMPTY)
             for t in tools

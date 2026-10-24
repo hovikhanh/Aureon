@@ -177,3 +177,21 @@ async def test_turn_persists_conversation_message_toolcall(db_session) -> None:
         )
     ).scalar_one()
     assert tool_logs >= 1
+
+
+async def test_chat_advertises_only_agent_tools_m16(db_session) -> None:
+    """TC-M16-06: tools sent to the model = agent `ceo` allowed_tools ∩ caller permissions."""
+    from sqlalchemy import update
+
+    from app.modules.ai.models import AgentProfile
+
+    gw = ScriptedGateway(ChatResponse(content="ok", provider="fixture", model="x"))
+    await ChatService(db_session, gw).chat(principal("CEO"), "Tổng quan?", locale="vi")
+    sent = {t.name for t in gw.requests[0].tools}
+    assert "TOOL-get_finance_dashboard" in sent
+    assert "TOOL-list_tasks" not in sent  # CEO may, but agent `ceo` does not hold it
+    await db_session.execute(update(AgentProfile).where(AgentProfile.code == "ceo")
+                             .values(is_enabled=False))  # fmt: skip
+    gw2 = ScriptedGateway(ChatResponse(content="ok", provider="fixture", model="x"))
+    await ChatService(db_session, gw2).chat(principal("CEO"), "Tổng quan?", locale="vi")
+    assert gw2.requests[0].tools == ()

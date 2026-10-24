@@ -43,7 +43,7 @@ from app.modules.ai.services.autonomy import resolve_level
 from app.modules.platform.services.approval_service import ApprovalService
 
 UNDO_WINDOW = timedelta(hours=24)  # DEC-134 (AI actions; IDP STP = 7 days)
-DEFAULT_AGENT = "assistant"
+DEFAULT_AGENT = "ceo"  # M1.6 R-DEC-71 (v2.1 `assistant` kept on old rows)
 
 
 class UndoExpiredError(AppError):

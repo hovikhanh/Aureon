@@ -283,13 +283,14 @@ async def test_conversation_messages_returns_turn(db_session) -> None:
 
 
 # ---------- autonomy policy row override ----------
-async def test_autonomy_policy_row_overrides_default(db_session) -> None:
+async def test_autonomy_policy_row_overrides_default(db_session, ceiling_l3) -> None:
     from app.modules.ai.models import AutonomyPolicy
     from app.modules.ai.services.autonomy import resolve_level
 
     db_session.add(
         AutonomyPolicy(
             action_name="ACT-create_task",
+            tool_name="TOOL-create_task",
             role_code="CEO",
             max_amount=None,
             currency=None,
@@ -646,7 +647,7 @@ async def test_ep114_insights_list_and_dismiss_over_http(api, db_session) -> Non
 
 
 # ---------- action_service: reject-after-execute, confirm-while-pending, SSE tool path ----------
-async def test_reject_non_proposed_conflicts(db_session) -> None:
+async def test_reject_non_proposed_conflicts(db_session, ceiling_l3) -> None:
     from app.core.errors import ConflictStateError
 
     svc = ActionService(db_session)

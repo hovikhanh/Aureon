@@ -3,12 +3,13 @@
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
-from app.modules.ai.models import AIAction, Insight, ModelCallLog
+from app.modules.ai.models import AgentProfile, AIAction, AutonomyPolicy, Insight, ModelCallLog
 
 
 class AIActionRepository(BaseRepository[AIAction]):
@@ -90,3 +91,74 @@ class ModelCallLogRepository:
 def month_start(now: datetime | None = None) -> datetime:
     n = now or datetime.now(UTC)
     return n.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+class AgentProfileRepository(BaseRepository[AgentProfile]):
+    """ENT-AIAgent (`ai.agent_profiles`) — tenant-scoped config (R-DEC-71)."""
+
+    model = AgentProfile
+
+    async def by_code(self, code: str) -> AgentProfile | None:
+        stmt = self._scoped(select(AgentProfile)).where(AgentProfile.code == code)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def all(self) -> Sequence[AgentProfile]:
+        stmt = self._scoped(select(AgentProfile)).order_by(AgentProfile.code)
+        return (await self.db.execute(stmt)).scalars().all()
+
+    async def max_level(self, code: str) -> str | None:
+        stmt = self._scoped(select(AgentProfile.max_autonomy_level)).where(
+            AgentProfile.code == code
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+
+class AutonomyPolicyRepository(BaseRepository[AutonomyPolicy]):
+    """ENT-AutonomyPolicy — tenant-scoped, soft-deleted (R-DEC-73)."""
+
+    model = AutonomyPolicy
+
+    async def active_for(self, action_name: str) -> Sequence[AutonomyPolicy]:
+        stmt = self._scoped(select(AutonomyPolicy)).where(
+            AutonomyPolicy.action_name == action_name,
+            AutonomyPolicy.is_active.is_(True),
+            AutonomyPolicy.deleted_at.is_(None),
+        )
+        return (await self.db.execute(stmt)).scalars().all()
+
+    async def live(self, policy_id: uuid.UUID) -> AutonomyPolicy | None:
+        stmt = self._scoped(select(AutonomyPolicy)).where(
+            AutonomyPolicy.id == policy_id, AutonomyPolicy.deleted_at.is_(None)
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def key_taken(
+        self, action: str, agent: str | None, role: str | None, amount: int | None,
+        *, exclude: uuid.UUID | None = None,
+    ) -> bool:  # fmt: skip
+        stmt = self._scoped(select(AutonomyPolicy.id)).where(
+            AutonomyPolicy.action_name == action,
+            AutonomyPolicy.agent_profile_code.is_not_distinct_from(agent),
+            AutonomyPolicy.role_code.is_not_distinct_from(role),
+            AutonomyPolicy.max_amount.is_not_distinct_from(amount),
+            AutonomyPolicy.deleted_at.is_(None),
+        )
+        if exclude is not None:
+            stmt = stmt.where(AutonomyPolicy.id != exclude)
+        return (await self.db.execute(stmt)).first() is not None
+
+    async def page(
+        self, *, filters: dict[str, Any], include_deleted: bool, sort_by: str, order: str,
+        limit: int, offset: int,
+    ) -> tuple[Sequence[AutonomyPolicy], int]:  # fmt: skip
+        stmt = self._scoped(select(AutonomyPolicy))
+        if not include_deleted:
+            stmt = stmt.where(AutonomyPolicy.deleted_at.is_(None))
+        for name, val in filters.items():
+            if val is not None:
+                stmt = stmt.where(getattr(AutonomyPolicy, name) == val)
+        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar()
+        col = getattr(AutonomyPolicy, sort_by)
+        stmt = stmt.order_by(col.asc() if order == "asc" else col.desc(), AutonomyPolicy.id)
+        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
+        return rows, int(total or 0)
