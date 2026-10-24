@@ -120,14 +120,17 @@ KPIS: tuple[tuple[str, str, str | None, str, str, float, tuple[float, float, flo
 KPI_PERIODS = ("2026-07", "2026-08", "2026-09")
 
 # D09 OKR Q4/2026 (ends 31/12 — ≥ 3 weeks after 20/10, UC-04). (code, title, dept, KRs) with
-# KR = (title, unit, baseline, target, current, confidence). OKR-SAL's 2nd KR is at risk
-# (progress 20 % at ~22 % of the quarter, confidence LOW) → UC-04.
+# KR = (title, unit, baseline, target, current, confidence). Current = the latest check-in
+# (`CHECK_INS`). R-DEC-55 at 20/10 (expected 20,65 % → behind plan < 14,46 %): only OKR-SAL's
+# 2nd KR is at risk (2,58 → 2,52: declining + LOW) → UC-04. M1.4 (T-631): "Runway" and
+# "ABC Insight beta" raised LOW → MEDIUM with a check-in above the behind-plan line (beta is
+# tracked as % of the launch checklist, 0 → 100).
 OKRS: tuple[tuple[str, str, str | None, tuple[tuple[str, str, float, float, float, str], ...]],
             ...] = (
     ("OKR-CO", "Tăng trưởng có lãi, giữ dòng tiền an toàn", None, (
         ("Doanh thu Q4 đạt 85 tỷ", "tỷ VND", 0, 85, 16.5, "MEDIUM"),
-        ("Runway ≥ 6 tháng cuối quý", "tháng", 5.25, 6, 5.25, "LOW"),
-        ("Biên lợi nhuận gộp ≥ 20%", "%", 18.2, 20, 18.4, "MEDIUM"))),
+        ("Runway ≥ 6 tháng cuối quý", "tháng", 5.25, 6, 5.4, "MEDIUM"),
+        ("Biên lợi nhuận gộp ≥ 20%", "%", 18.2, 20, 18.5, "MEDIUM"))),
     ("OKR-SAL", "Mở rộng khách hàng lớn", "SAL", (
         ("Ký 6 hợp đồng khách hàng lớn", "hợp đồng", 0, 6, 2, "MEDIUM"),
         ("Pipeline trọng số ≥ 3x chỉ tiêu", "x", 2.4, 3.0, 2.52, "LOW"),
@@ -144,7 +147,49 @@ OKRS: tuple[tuple[str, str, str | None, tuple[tuple[str, str, float, float, floa
     ("OKR-PRD", "ABC Order thành kênh chính", "PRD", (
         ("35% đơn hàng qua ABC Order", "%", 30, 35, 33, "HIGH"),
         ("≤ 1 sự cố nghiêm trọng / tháng", "sự cố", 2, 1, 1, "HIGH"),
-        ("Ra mắt ABC Insight beta", "mốc", 0, 1, 0, "LOW"))),
+        ("Ra mắt ABC Insight beta", "%", 0, 100, 25, "MEDIUM"))),
+)  # fmt: skip
+
+# D07 (T-631, 08 §3): 1 Strategy 2026–2027 → 4 SO (pillar C/F/U/O). (code, title, pillar, dept,
+# owner email, weight %, root KPIs, objectives, initiative, projects). SO progress = its
+# initiative's (05 §2.6) → SEI unchanged (75 %).
+STRATEGY = ("STR-2026-2027", "Tăng trưởng bền vững 2026–2027", date(2026, 1, 1),
+            date(2028, 1, 1))  # fmt: skip
+STRATEGIC_OBJECTIVES: tuple[tuple[str, str, str, str, str, int, tuple[str, ...],
+                                  tuple[str, ...], str, tuple[str, ...]], ...] = (
+    ("SO-01", "Tăng trưởng doanh thu từ khách hàng lớn", "C", "SAL", "sales@abc.demo", 30,
+     ("KPI-CO-01",), ("OKR-SAL",), "INI-01", ("PRJ-CRM", "PRJ-KA", "PRJ-HN")),
+    ("SO-02", "Lợi nhuận và dòng tiền lành mạnh", "F", "FIN", "cfo@abc.demo", 25,
+     ("KPI-CO-02",), ("OKR-CO", "OKR-FIN"), "INI-02", ("PRJ-ERP",)),
+    ("SO-03", "Sản phẩm số dẫn dắt tăng trưởng", "U", "PRD", "cpo@abc.demo", 25,
+     ("KPI-PRD-01", "KPI-PRD-02"), ("OKR-PRD",), "INI-03", ("PRJ-ORD4", "PRJ-DATA")),
+    ("SO-04", "Vận hành và dịch vụ xuất sắc", "O", "SVC", "hr@abc.demo", 20,
+     ("KPI-SVC-01", "KPI-SVC-02", "KPI-HR-01", "KPI-ADM-01"), ("OKR-SVC", "OKR-HR"), "INI-04",
+     ("PRJ-WMS", "PRJ-CARE")),
+)  # fmt: skip
+
+# D10 check-ins (T-631): (OKR, KR index, value, confidence, local day, by email | None = CEO,
+# note). 11 check-ins on 10 KRs within 7 days of 20/10 → G2 = (12 KPI + 10 KR) / (12 + 15) =
+# 81,5 %; each writes a KRMeasurement. UC-04 KR twice (2,58 → 2,52); EMP checks in her own KR.
+UC04_KR = ("OKR-SAL", 1)
+EMP_KR = ("OKR-SVC", 1)
+CHECK_INS: tuple[tuple[str, int, float, str, date, str | None, str], ...] = (
+    ("OKR-SAL", 1, 2.58, "LOW", date(2026, 10, 6), "sales@abc.demo",
+     "Hai cơ hội lớn lùi sang Q1/2027"),
+    ("OKR-SAL", 1, 2.52, "LOW", date(2026, 10, 16), "sales@abc.demo",
+     "Mất cơ hội ngân hàng ABB; thiếu presales cho 3 hồ sơ thầu"),
+    ("OKR-SAL", 0, 2, "MEDIUM", date(2026, 10, 14), "sales@abc.demo", "Đã ký 2/6 hợp đồng"),
+    ("OKR-CO", 0, 16.5, "MEDIUM", date(2026, 10, 15), None, "Doanh thu tháng 10 tạm tính"),
+    ("OKR-CO", 1, 5.4, "MEDIUM", date(2026, 10, 15), "cfo@abc.demo",
+     "Giãn lịch trả nhà cung cấp 30 ngày"),
+    ("OKR-CO", 2, 18.5, "MEDIUM", date(2026, 10, 14), "cfo@abc.demo", "Biên gộp tháng 9"),
+    ("OKR-FIN", 0, 45, "MEDIUM", date(2026, 10, 15), "cfo@abc.demo", "Đã thu 3 khoản quá hạn"),
+    ("OKR-SVC", 0, 96, "HIGH", date(2026, 10, 13), "manager@abc.demo", "SLA tuần 41"),
+    ("OKR-SVC", 1, 1.9, "MEDIUM", date(2026, 10, 16), "employee@abc.demo",
+     "Tuyến Bình Dương còn chậm 0,3 ngày"),
+    ("OKR-PRD", 0, 33, "HIGH", date(2026, 10, 16), "cpo@abc.demo", "ABC Order tháng 10"),
+    ("OKR-PRD", 2, 25, "MEDIUM", date(2026, 10, 16), "cpo@abc.demo",
+     "Xong thiết kế dữ liệu; còn tích hợp"),
 )  # fmt: skip
 
 # D12 — giao ban tháng 10 (UC-02/06): ≥ 3 decisions, ≥ 5 action items (= meeting tasks T-01,
