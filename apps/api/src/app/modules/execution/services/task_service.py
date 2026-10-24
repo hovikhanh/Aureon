@@ -40,6 +40,7 @@ from app.modules.execution.schemas.tasks import (
 from app.modules.execution.services import scope
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
 from app.modules.execution.services.initiative_service import InitiativeService
+from app.modules.execution.services.task_notify import notify_task
 from app.modules.execution.services.task_rules import (
     CLOSED,
     MAX_DEPENDENCY_DEPTH,
@@ -203,6 +204,8 @@ class TaskService(ExecBase):
             "parent_task_id": _s(t.parent_task_id), "task_source": t.task_source,
             "source_ref_kind": (t.source_ref or {}).get("kind"),
         })  # fmt: skip
+        await notify_task(self.db, t, kind="task_assigned", title="Bạn được giao việc mới",
+                          to=(t.assignee_id,), actor=user.user_id)  # fmt: skip
         return out
 
     async def _emit(self, event_type: str, t: Task, extra: dict[str, Any]) -> None:
@@ -265,14 +268,20 @@ class TaskService(ExecBase):
         if "due_date" in data and data["due_date"] != t.due_date:
             data["overdue_notified_at"] = None  # re-arm EVT-execution.task_overdue
         data = {k: v for k, v in data.items() if k not in NOT_NULL or v is not None}
-        old_initiative, old_status = t.initiative_id, t.status
+        old_initiative, old_status, old_assignee = t.initiative_id, t.status, t.assignee_id
         await self.tasks.update(t, expected_version=expected, updated_by=user.user_id, **data)
         await self._progress(old_initiative, t.initiative_id)
         await self.db.refresh(t)
         out = await self.out(t)
         await self.audit("task_update", "tasks", t.id, before, out)
+        if t.assignee_id is not None and t.assignee_id != old_assignee:
+            await notify_task(self.db, t, kind="task_assigned", title="Bạn được giao việc mới",
+                              to=(t.assignee_id,), actor=user.user_id)  # fmt: skip
         if t.status == "done" and old_status != "done":
             await self._completed(t)
+            # R-DEC-46: tell whoever assigned it (`owner_id`), kind `system`
+            await notify_task(self.db, t, kind="system", title="Việc bạn giao đã hoàn thành",
+                              to=(t.owner_id,), actor=user.user_id)  # fmt: skip
         return out
 
     async def _completed(self, t: Task) -> None:
@@ -425,6 +434,8 @@ class TaskService(ExecBase):
                 after={"days_late": (as_of - t.due_date).days if t.due_date else None},
                 actor=Actor(type="SYSTEM"),
             )  # fmt: skip
+            await notify_task(self.db, t, kind="reminder", title="Việc đã quá hạn",
+                              to=(t.assignee_id, t.owner_id), actor=None)  # fmt: skip
             found.append(t.id)
         await self.db.flush()
         return found

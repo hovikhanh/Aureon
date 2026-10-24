@@ -123,7 +123,37 @@ class ApprovalService:
             "target_id": _s(req.target_id or req.ai_action_id),
             "department_id": _s(req.department_id), "due_at": req.due_at.isoformat(),
         })  # fmt: skip
+        await self._notify(await self._approvers(req, rule), req, "approval_requested",
+                           "Có yêu cầu chờ bạn duyệt")  # fmt: skip
         return req
+
+    async def _approvers(self, req: ApprovalRequest, rule: ApprovalRule) -> list[uuid.UUID]:
+        """Users eligible for the current step in scope (R-DEC-45/46); a department rule with
+        no MGR there falls back to `escalate_to_role_code` (e.g. DIR)."""
+        from app.modules.auth.services.auth_service import AuthService
+
+        auth = AuthService(self.db)
+        roles = step_roles(rule, req.step)
+        users: list[uuid.UUID] = []
+        for role in roles:
+            dept = req.department_id if role in _DEPT_SCOPED else None
+            if role in _DEPT_SCOPED and dept is None:
+                continue
+            users += await auth.users_with_roles([role], department_id=dept)
+        if not users and rule.escalate_to_role_code:
+            users = await auth.users_with_roles([rule.escalate_to_role_code])
+        return [u for u in users if u != req.requested_by]
+
+    async def _notify(
+        self, users: Sequence[uuid.UUID], req: ApprovalRequest, kind: str, title: str
+    ) -> None:
+        from app.modules.platform.services.notification_service import NotificationService
+
+        await NotificationService(self.db).notify_users(
+            users, kind=kind, title=title, body=f"approval.{req.target_kind}.title",
+            link=f"/work/approvals?id={req.id}", ref_schema="platform",
+            ref_table="approval_requests", ref_id=req.id,
+        )  # fmt: skip
 
     async def rule(self, code: str) -> ApprovalRule:
         """Rule by code; the known defaults (`RULE_DEFAULTS`) are created lazily (05 §2.5)."""
@@ -231,6 +261,12 @@ class ApprovalService:
                 await self._approve(req, approver, rule, on_approved)
         await self._publish("platform.approval_decided", req, rule,
                             {"decision": decision, "status": req.status})  # fmt: skip
+        if req.status == "PENDING":  # moved to step 2 → the next approvers
+            await self._notify(await self._approvers(req, rule), req, "approval_requested",
+                               "Có yêu cầu chờ bạn duyệt")  # fmt: skip
+        else:
+            await self._notify([req.requested_by], req, "approval_decided",
+                               "Yêu cầu của bạn đã được xử lý")  # fmt: skip
         return (await self.outs([req], [rule]))[0]
 
     # ---------- internals ----------

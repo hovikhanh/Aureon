@@ -220,6 +220,15 @@ class AuthService:
             return None
         return user.id
 
+    async def user_id_for_ref(self, ref: uuid.UUID | None) -> uuid.UUID | None:
+        """Task people refs are an employee id or (no employee record) a user id (R-DEC-41)."""
+        if ref is None:
+            return None
+        if (uid := await self.user_id_for_employee(ref)) is not None:
+            return uid
+        user = await self.users.get(ref)
+        return user.id if user is not None and user.is_active else None
+
     async def user_names(self, user_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, str]:
         """Public `{user_id: full_name}` (EP-WF-01 `requested_by_name`)."""
         return await self.users.names(list(set(user_ids)))
