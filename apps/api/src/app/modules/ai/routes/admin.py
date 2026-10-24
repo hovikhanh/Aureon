@@ -51,7 +51,9 @@ async def list_agents(user: AiUser, db: DbSession) -> Any:
 
 @router.patch("/agents/{code}", response_model=AIAgentOut, summary="EP-AI-17 Update AI agent")
 async def patch_agent(code: str, body: AgentPatchIn, admin: AiAdmin, db: DbSession) -> Any:
-    return await AgentService(db).patch(admin, code, body)
+    out = await AgentService(db).patch(admin, code, body)
+    await db.commit()
+    return out
 
 
 # ---------- EP-AI-18..21 autonomy policies ----------
@@ -79,7 +81,9 @@ async def list_policies(
 async def create_policy(
     body: AutonomyPolicyCreateIn, admin: AiAdmin, idem: Idem, db: DbSession
 ) -> Any:
-    return await PolicyService(db).create(admin, body)
+    out = await PolicyService(db).create(admin, body)
+    await db.commit()
+    return out
 
 
 @router.patch(
@@ -89,7 +93,9 @@ async def create_policy(
 async def patch_policy(
     policy_id: uuid.UUID, body: AutonomyPolicyPatchIn, admin: AiAdmin, db: DbSession
 ) -> Any:
-    return await PolicyService(db).patch(admin, policy_id, body)
+    out = await PolicyService(db).patch(admin, policy_id, body)
+    await db.commit()
+    return out
 
 
 @router.delete(
@@ -103,6 +109,7 @@ async def delete_policy(
     reason: Annotated[str, Query(min_length=1)],
 ) -> Response:
     await PolicyService(db).delete(admin, policy_id, reason)
+    await db.commit()
     return Response(status_code=204)
 
 

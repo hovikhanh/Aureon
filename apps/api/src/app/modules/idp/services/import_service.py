@@ -177,12 +177,17 @@ async def _check_unique_email(
     if not any(f["name"] == "email" and (f.get("target") or {}).get("action") == target
                for f in fields):  # fmt: skip
         return
+
+    def email_of(r: CheckedRow) -> str:
+        return str(r.values.get("email") or "").strip().lower()
+
+    taken = await HrService(db).emails_taken({e for r in rows if (e := email_of(r))})
     seen: set[str] = set()
     for r in rows:
-        email = str(r.values.get("email") or "").strip().lower()
+        email = email_of(r)
         if not email:
             continue
-        if email in seen or await HrService(db).email_taken(email):
+        if email in seen or email in taken:
             r.errors.append(row_error("email", "DUPLICATE"))  # level 3: no value echoed
         seen.add(email)
 

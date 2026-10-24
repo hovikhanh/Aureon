@@ -178,6 +178,11 @@ class HrService:
         """A live employee already uses `email` (ACT-create_employee row check, ids only)."""
         return await self.employees.by_email(email) is not None
 
+    async def emails_taken(self, emails: set[str]) -> set[str]:
+        """Batch form of `email_taken` (C5 preview, ≤ 5000 rows): the lower-cased e-mails of
+        `emails` already used by a live employee — one query, ids/e-mails never logged."""
+        return await self.employees.emails_in_use({e.strip().lower() for e in emails if e})
+
     async def position_id_by_title(self, department_id: uuid.UUID, title: str) -> uuid.UUID | None:
         pos = await self.positions.by_title(department_id, title)
         return pos.id if pos is not None else None
@@ -191,9 +196,9 @@ class HrService:
                           manager_id: uuid.UUID) -> int:  # fmt: skip
         """#4 second pass: `manager_id` once every employee of the roster exists (EP-HR-04).
         Returns the employee's new `version` (undo conflict baseline, R-DEC-63)."""
-        obj = await self.get_employee_row(user, employee_id)
-        out = await self.update_employee(user, employee_id, EmployeeUpdate(manager_id=manager_id),
-                                         int(obj.version))  # fmt: skip
+        obj = await self.import_employee_row(user, employee_id)
+        out = await self._update_row(user, obj, EmployeeUpdate(manager_id=manager_id),
+                                     int(obj.version))  # fmt: skip
         return out.version
 
     # ---------- EP-81 departments ----------
@@ -363,6 +368,19 @@ class HrService:
         self._employee_scope(user, obj)
         return obj
 
+    async def import_employee_row(self, user: Principal, id_: uuid.UUID) -> Employee:
+        """Action Registry access (ACT-create_employee manager pass / undo / conflict check).
+        ADM (`hr:admin`, R-DEC-30 structure only) reaches only rows a C5 import created
+        (`source_document_id` set — UC-07 onboarding, R-DEC-79); other roles: record scope."""
+        if user.role not in STRUCTURE_ONLY_ROLES:
+            return await self.get_employee_row(user, id_)
+        obj = await self.employees.get(id_)
+        if obj is None:
+            raise NotFoundError("employee not found")
+        if obj.source_document_id is None:
+            raise deny("hr records", role=user.role)
+        return obj
+
     async def get_employee(self, user: Principal, id_: uuid.UUID) -> EmployeeOut:
         return await self._out(user, await self.get_employee_row(user, id_))
 
@@ -465,7 +483,11 @@ class HrService:
     async def update_employee(
         self, user: Principal, id_: uuid.UUID, body: EmployeeUpdate, expected: int
     ) -> EmployeeOut:
-        obj = await self.get_employee_row(user, id_)
+        return await self._update_row(user, await self.get_employee_row(user, id_), body, expected)
+
+    async def _update_row(
+        self, user: Principal, obj: Employee, body: EmployeeUpdate, expected: int
+    ) -> EmployeeOut:
         old_status = obj.status
         before = employee_out(obj, (await self._out(user, obj)).title, user=None)
         data = body.model_dump(exclude_unset=True, exclude={"version", "effective_from"})
@@ -502,8 +524,12 @@ class HrService:
         await self._lifecycle_events(obj, old_status)
         return out
 
-    async def delete_employee(self, user: Principal, id_: uuid.UUID) -> None:
-        obj = await self.get_employee_row(user, id_)
+    async def delete_employee(
+        self, user: Principal, id_: uuid.UUID, *, from_import: bool = False
+    ) -> None:
+        """EP-HR soft delete; `from_import=True` = ACT-create_employee undo (structural access)."""
+        get = self.import_employee_row if from_import else self.get_employee_row
+        obj = await get(user, id_)
         before = employee_out(obj, None, user=None)
         obj.updated_by = user.user_id
         await self.org.close_current(obj.id, today(), actor=user.user_id)  # T-612

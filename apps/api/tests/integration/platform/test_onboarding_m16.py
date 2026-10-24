@@ -213,3 +213,13 @@ async def test_review_is_derived_done_when_org_import_commits(api: ApiClient, db
     # finish only needs company/org_import/users; the derived review shows done meanwhile
     s = await _step(api, "reopen_step", "review")
     assert s["steps"]["review"]["status"] == "in_progress"  # explicit state wins
+
+
+async def test_patch_commits_the_request_transaction(api: ApiClient, db_session: Any) -> None:
+    """T-650 regression: EP-ADM-14 must commit (the real stack lost every transition)."""
+    from unittest.mock import AsyncMock, patch
+
+    with patch.object(db_session, "commit", AsyncMock()) as commit:
+        r = await _patch(api, action="start")
+    assert r.status_code == 200
+    commit.assert_awaited_once()

@@ -274,7 +274,7 @@ async def _emp_run(db: AsyncSession, user: Principal, p: Any, ctx: ActionContext
 
 async def _emp_undo(db: AsyncSession, user: Principal, outcome: ActionOutcome) -> None:
     id_, _ = _first_id(outcome)
-    await HrService(db).delete_employee(user, id_)  # soft delete + closes the assignment
+    await HrService(db).delete_employee(user, id_, from_import=True)  # soft delete + assignment
 
 
 register(ActionDef(

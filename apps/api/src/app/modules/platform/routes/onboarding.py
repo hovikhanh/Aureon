@@ -29,4 +29,6 @@ async def get_onboarding(user: Reader, db: DbSession) -> Any:
     "/onboarding", response_model=OnboardingStateOut, summary="EP-ADM-14 Onboarding action"
 )
 async def patch_onboarding(body: OnboardingPatchIn, admin: Admin, db: DbSession) -> Any:
-    return await OnboardingService(db).apply(admin, body)
+    out = await OnboardingService(db).apply(admin, body)
+    await db.commit()  # state + audit (+ outbox on finish) in one transaction
+    return out

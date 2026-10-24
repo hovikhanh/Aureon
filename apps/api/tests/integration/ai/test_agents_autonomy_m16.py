@@ -10,7 +10,7 @@ import uuid
 from typing import Any
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
 from app.core.deps import Principal
 from app.core.errors import ValidationError
@@ -55,7 +55,13 @@ def _policy(**kw: Any) -> AutonomyPolicy:
 
 
 async def _events(db: Any, event_type: str) -> list[OutboxEvent]:
-    rows = await db.execute(select(OutboxEvent).where(OutboxEvent.event_type == event_type))
+    """Events of this test's (rolled-back) transaction only — `now()` is the transaction start,
+    so rows committed earlier on the dev DB (e.g. the real-stack E2E) are ignored."""
+    rows = await db.execute(
+        select(OutboxEvent)
+        .where(OutboxEvent.event_type == event_type, OutboxEvent.created_at >= func.now())
+        .order_by(OutboxEvent.created_at, OutboxEvent.id)
+    )
     return list(rows.scalars().all())
 
 
@@ -282,8 +288,12 @@ async def test_policy_crud_and_rules(api: ApiClient, db_session) -> None:
         AuditLog.action.like("ai.autonomy_policy_%")))).scalars()}  # fmt: skip
     assert actions == {"ai.autonomy_policy_create", "ai.autonomy_policy_update",
                        "ai.autonomy_policy_delete"}  # fmt: skip
-    changes = [e.payload for e in await _events(db_session, "ai.policy_changed")]
-    assert len(changes) == 4 and all(p["change"] == "autonomy_policy" for p in changes)
+    changes = [
+        e.payload
+        for e in await _events(db_session, "ai.policy_changed")
+        if e.payload.get("change") == "autonomy_policy"
+    ]
+    assert len(changes) == 4
     assert all("reason" not in p for p in changes)
 
 
@@ -325,3 +335,14 @@ async def test_tools_catalog_agents_and_effective_level(api: ApiClient) -> None:
     assert {t["name"] for t in only["data"]} <= {n for n, t in rows.items()
                                                   if "reporting" in t["agents"]}  # fmt: skip
     assert only["data"]
+
+
+async def test_patch_agent_commits(api: ApiClient, db_session) -> None:
+    """T-650 regression: EP-AI-17 must commit the request transaction."""
+    from unittest.mock import AsyncMock, patch
+
+    with patch.object(db_session, "commit", AsyncMock()) as commit:
+        r = await api.call("PATCH", "/ai/agents/task", "ADM",
+                           json={"reason": "tune", "version": 1, "is_enabled": False})  # fmt: skip
+    assert r.status_code == 200, r.text
+    commit.assert_awaited_once()

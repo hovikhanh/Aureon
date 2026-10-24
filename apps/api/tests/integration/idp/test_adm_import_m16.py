@@ -83,3 +83,48 @@ async def test_dir_o_commits_adm_roster(api: ApiClient, db_session, idp_store) -
     out = await _approve(api, db_session, doc, ("O",))
     assert out["status"] == "COMMITTED"
     assert await HrService(db_session).department_id_by_code("PB-" + tag) is not None
+
+
+async def test_adm_commits_and_undoes_roster_with_manager(
+    api: ApiClient, db_session, idp_store
+) -> None:
+    """T-650 regression (UC-07): ADM (structure only, R-DEC-30) commits its own approved roster —
+    incl. the manager pass — and undoes it; it still cannot read other employee records."""
+    tag, uid = uuid.uuid4().hex[:6].upper(), uuid.uuid4()
+    rows = [["PB-" + tag, "Phòng " + tag, "Trưởng phòng", "H-" + tag, "Nguyễn A", None,
+             "01/02/2024", "active", None],
+            ["PB-" + tag, "Phòng " + tag, "Chuyên viên", "S-" + tag, "Trần B", "H-" + tag,
+             "01/03/2024", "active", None]]  # fmt: skip
+    files = [("file", ("ds.xlsx", _xlsx(rows, tag=tag), XLSX))]
+
+    def h(idem: bool = True) -> dict[str, str]:
+        return api.headers("ADMIN", idem=idem, user_id=uid)
+
+    r = await api.http.post("/api/v1/data-capture/imports", files=files,
+                            data={"document_type": "HR_ROSTER"}, headers=h())  # fmt: skip
+    p = r.json()["data"]
+    sub = await api.http.post(f"/api/v1/data-capture/imports/{p['batch_id']}/submit",
+                              headers=h(), json={"version": p["version"]})  # fmt: skip
+    doc = str(sub.json()["data"]["document"]["id"])
+    rev, base = uuid.uuid4(), f"/api/v1/idp/documents/{doc}"
+    rh = api.headers("REVIEWER", idem=True, user_id=rev)
+    for path in ("review/open", "review/approve"):
+        ok = await api.http.post(f"{base}/{path}", json={}, headers=rh)
+        assert ok.status_code == 200, ok.text
+    version = ok.json()["data"]["document"]["version"]
+    commit = await api.http.post(f"/api/v1/data-capture/documents/{doc}/commit",
+                                 json={"version": version}, headers=h())  # fmt: skip
+    assert commit.status_code == 200, commit.text
+    hr = HrService(db_session)
+    sub_id = await hr.employee_id_by_code("S-" + tag)
+    head_id = await hr.employee_id_by_code("H-" + tag)
+    assert sub_id and head_id
+    row = await hr.employees.get(sub_id)
+    assert row is not None and row.manager_id == head_id
+    seeded = (await api.call("GET", "/hr/employees", "CEO", params={"limit": 1})).json()["data"][0]
+    assert (await api.call("GET", f"/hr/employees/{seeded['id']}", "ADMIN")).status_code == 403
+    body = {"reason": "x", "reason_code": "mistake"}
+    undo = await api.http.post(f"/api/v1/data-capture/documents/{doc}/undo", json=body,
+                               headers=h())  # fmt: skip
+    assert undo.status_code == 200, undo.text
+    assert await hr.employee_id_by_code("S-" + tag) is None
