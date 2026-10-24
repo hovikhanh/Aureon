@@ -132,6 +132,7 @@ Human đã chốt 6 quyết định nền (chọn mặc định đề xuất). �
 - OQ-13-06 (R-DEC-54/68): mã metric G2 = `METRIC-STR-01`, G3 = `METRIC-DQ-02` (nhóm `CAP` không thuộc tập NHÓM skeleton nên không dùng); SEI giữ `METRIC-RSK-06`; DQ theo domain là breakdown của `METRIC-DQ-01`. Đã đăng ký ở skeleton §10 + 03 §4.
 - OQ-13-07 (R-DEC-76/78): chấp nhận ADM `idp:write` scope `s`; UC-07 ở M1 không gồm knowledge base (D14 → M3.4); trần autonomy L2 (`AI_AUTONOMY_CEILING`) — test L3 v2.1 sửa theo trần, **không skip**.
 - OQ-13-08 (còn lại, giữ phương án bản nháp — chọn nếu human duyệt): StrategicObjective bảng riêng (R-DEC-50); không thêm notification kind cho goal (R-DEC-59: `alert`/`reminder`); khóa kỳ KPI giữ `409`, luồng duyệt mở khóa vào backlog; C1 trường trọng yếu ghi thẳng khi người nhập có quyền đích (R-DEC-65); retention `idp.import_rows` bằng job purge hằng ngày; `/lineage/*` route ở module `idp`; duyệt hai bên khi nâng autonomy và ngân sách AI theo phòng ban hoãn M3.4; không tool AI ghi nhân sự ở P0.
+- OQ-13-09 (non-blocking, phát sinh T-625): picker đồng nghiệp cho EMP/DIR ngoài khối O (EP-ORG-24 `/org/tree` → `403`) — đề xuất mở `members[]` mức 2 phòng mình; chốt ở M2.x. Tạm thời (M1.3): "Đề nghị chuyển người" của EMP nhập ID nhân viên thủ công (validate UUID, BE kiểm tồn tại); tiêu đề/diff phê duyệt hiện tên khi người xem đọc được `members[]`, ngược lại mã rút gọn.
 
 ## 3. Quyết định mở từ BRD §21.1 — CHỜ CEO (không blocking cho docs P0)
 

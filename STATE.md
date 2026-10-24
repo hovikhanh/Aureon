@@ -10,6 +10,29 @@
 | Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
 
+## M1.3 — D11/D04 (chuỗi auto) — DONE `[full-test pending]` (2026-10-24, nhánh `v3/m1.3-work`)
+| Task | Commit | Nội dung |
+|---|---|---|
+| T-619S | `38c9067` | Spec lock M1.3–M1.6 (R-DEC-38..79 resolved) |
+| T-619C | `96a1dfc` | Contract `/work/*` `/workflow/*` + stub 501 + shared-types |
+| T-619 | `f929ded` | Claim `employee_id` (R-DEC-41), migration `0014`, sub-task 1 cấp, dependency chặn vòng/done |
+| T-620 | `5d01df2` | Workload `weekly_grid` (EP-TASK-18), project progress/late, milestone EP-TASK-14..17 |
+| T-621 | `163d357` | Event `execution.task_created/task_completed` + `task_overdue.days_late` |
+| T-622 | `57c0446` | Migration `0015`, rule từ DB, inbox EP-WF-01/02, EP-WF-03, `RULE-task_reassign` + EP-TASK-19 |
+| T-623 | `84c93f3` | Notification in-tx (task_assigned/reminder/system, approval_requested/decided) |
+| T-624 | `3009231` | Seed dependency/sub-task/source_ref/milestone, 1 `task_reassign` PENDING ở SVC |
+| T-625F | `86aae84`, `9dfaf00` (merge `300c92c`) | FE SCR-42/43/55/56/57 trên mock |
+| T-625 | `43d96c6` | Nối FE↔BE (title_key/params theo BE, `?id=`, claim `employee_id` trong mock) + E2E real `work.spec.ts` + `support/work_e2e.py` |
+
+**Kiểm tra (2026-10-24):** ruff/format/mypy sạch · pytest **877** passed · Vitest **205** · Playwright mock **41/41** ·
+real **69/69** (stack riêng: API host :4100 + Celery worker/beat (Redis db 6–8) trên DB `aureon_m1x`, web `next start` :3200,
+Mailpit dùng chung :8025). TC-M13-01..14 = Implemented (Passed sau full test cuối chuỗi).
+**Quyết định chính:** BE là nguồn sự thật cho `ApprovalRequestOut` — FE ghép tên từ `members[]` (người không đọc được → mã rút gọn);
+EMP nhập ID nhân viên khi đề nghị chuyển (OQ-13-09 ghi vào 13, chốt M2.x); heatmap 3 quá tải kiểm bằng CEO (MGR SVC không có người quá tải).
+**Nợ / lưu ý:** DB `aureon_m1x` phải truncate + seed lại sau T-624 (seed execution bỏ qua khi đã có task SEED → thiếu dependency/milestone/approval);
+`next start` cũ sau rebuild trả 400 chunk tĩnh → khởi động lại sau mỗi build; mock project đôi khi timeout lần compile đầu (`next dev`), chạy lại xanh;
+audit log append-only nên cleanup E2E chỉ soft-delete task/approval.
+
 ## M1.1 — Nền build v3 (09 §6.2) — đã làm
 | Task | Commit | Nội dung |
 |---|---|---|
