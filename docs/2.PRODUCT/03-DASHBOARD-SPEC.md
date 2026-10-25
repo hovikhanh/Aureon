@@ -137,9 +137,12 @@ Cố định, có công thức + ngưỡng cảnh báo, dùng chung cho Dashboar
 | Con người | DT/nhân sự; CP nhân sự/DT | theo kỳ | lệch > 15% kế hoạch | P1 | (chi tiết hóa ở đợt code — R-DEC-09) |
 | Chiến lược | **Strategy Execution Index** | % initiative đúng tiến độ (trọng số) | < 70% | P0 | Cảnh báo khi index < 70% → RISKS + widget chiến lược Executive; drill-down tới initiative trễ. |
 | Dữ liệu | **Data Quality Score** | Đầy đủ/chính xác/kịp thời/nhất quán | < 80/100 | P0 | Cảnh báo khi DQ Score < 80/100 → AI gắn cảnh báo "kết luận dựa trên dữ liệu chất lượng thấp" (FR-DATA-02). |
+| Chiến lược | **KPI/OKR cập nhật đúng kỳ** — `METRIC-STR-01` (cổng G2, đề xuất R-DEC-54 — Spec lock M1.4) | (#KPI-kỳ đo đúng hạn + #KR check-in đúng hạn) / (#KPI-kỳ đến hạn + #KR active); grace `GOALS_KPI_GRACE_DAYS`, check-in ≤ `GOALS_KR_CHECKIN_MAX_AGE_DAYS` | < 80% (critical < 60%) | P0 | Cảnh báo khi < 80% → PERFORMANCE; drill-down danh sách KPI/KR trễ (05 §2.6). |
+| Dữ liệu | **Bản ghi mới vào qua tài liệu/NL** — `METRIC-DQ-02` (cổng G3, đề xuất R-DEC-68 — Spec lock M1.5) | Bản ghi đích tạo trong tháng có nguồn `IDP`/`IMPORT`/`AI` ÷ tổng bản ghi tạo trong tháng (tập bảng whitelist lineage; C1 form không tính) | < 60% (critical < 40%) | P0 | Cảnh báo khi < 60% → DATA; drill-down theo kênh/doc type. |
 
 - **Grounding:** mọi giá trị hiển thị là `MetricValue` tính sẵn, có `lineage_url` (FR-DATA-04, FR-DATA-06); dashboard/AI không tính lúc request.
 - **Ngưỡng là cấu hình** (không hard-code); doanh nghiệp tinh chỉnh được, mặc định theo bảng trên.
+- **Mã đã cấp (Spec lock M1.3–M1.6, đề xuất):** `METRIC-STR-01` (G2) và `METRIC-DQ-02` (G3) đăng ký ở skeleton §10. Strategy Execution Index giữ mã nền `METRIC-RSK-06` tới T-701 (M2.1, bảng ánh xạ 32 METRIC); Data Quality Score theo domain là breakdown của `METRIC-DQ-01` (không cấp mã riêng).
 
 > `METRIC-*` cụ thể + mã alert 1-1 cấp khi chi tiết hóa ở đợt code (00/14, R-DEC-09). Ngưỡng freshness (SLA_FRESHNESS_*) tách khỏi SLA vận hành (08). Danh sách chỉ số nguồn: `TRACEABILITY-SKELETON.md` §10.
 
@@ -207,6 +210,7 @@ Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuy
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.0.1 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §4 thêm dòng `METRIC-STR-01` (G2, R-DEC-54) và `METRIC-DQ-02` (G3, R-DEC-68) + ghi chú mã đã cấp (SEI giữ `METRIC-RSK-06`, DQ theo domain = breakdown `METRIC-DQ-01`).
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 bám BRD §12 + §11.8 + §13.1 (docs-first, R-DEC-09): mô tả hành vi + ràng buộc 12 năng lực CEO Assistant (§2); cấu trúc đầy đủ 7 khối Daily Briefing + bảng nguồn + ví dụ + tiêu chí chấp nhận UC-01 + luồng F1 (§3); ngữ nghĩa alert 1-1 cho từng chỉ số P0 (§4); mô tả 9 phần insight + ví dụ (§5); widget cụ thể cho 3 cấp dashboard theo `SOURCE-UIUX.md` §6.1 (§1.1); vòng đời Decision Log 30/60/90 (§7); bảng UC liên quan + tiêu chí (§8); thêm OQ-03-03/04. METRIC-* + mã alert cụ thể giữ hoãn đợt code.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

@@ -77,7 +77,9 @@ class MilestoneUpdate(Patch):
 
 class MilestoneOut(Out):
     initiative_id: uuid.UUID | None
+    project_id: uuid.UUID | None = None  # EP-TASK-14..17 (milestone per project)
     title: str
     due_date: date
     status: str
     done_at: datetime | None
+    late: bool | None = None  # `planned` and past `due_date` (R-DEC-49), computed at read

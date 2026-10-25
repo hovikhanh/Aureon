@@ -110,6 +110,7 @@ class ProjectCreate(BaseModel):
     status: ProjectStatus = "planned"
     budget_amount: int | None = Field(default=None, ge=0)
     currency: str = Field(default="VND", pattern=r"^[A-Z]{3}$")
+    initiative_id: uuid.UUID | None = None  # EP-TASK-10 (05 §2.5)
 
 
 class ProjectUpdate(Patch):
@@ -122,6 +123,7 @@ class ProjectUpdate(Patch):
     actual_end_date: date | None = None
     status: ProjectStatus | None = None
     budget_amount: int | None = Field(default=None, ge=0)
+    initiative_id: uuid.UUID | None = None  # EP-TASK-12: link / unlink Initiative → Project
 
 
 class ProjectOut(Out):
@@ -135,3 +137,10 @@ class ProjectOut(Out):
     status: str
     budget_amount: int | None
     currency: str
+    # `initiative_id` = column (0014); progress/planned/late/… computed at read (R-DEC-49).
+    initiative_id: uuid.UUID | None = None
+    progress_pct: float | None = None
+    planned_pct: float | None = None
+    late: bool | None = None
+    open_tasks: int | None = None
+    overdue_tasks: int | None = None

@@ -36,7 +36,7 @@ describe("mock authorize", () => {
     expect(login.permissions).toEqual(claims.permissions);
     expect(claims.scope_pillars).toEqual([...u.scope_pillars].sort());
     expect(claims.email).toBe(email);
-    expect(Object.keys(claims).sort()).toEqual(["department_id", "email", "name", "permissions", "role", "scope_pillars", "sub"]);
+    expect(Object.keys(claims).sort()).toEqual(["department_id", "email", "employee_id", "name", "permissions", "role", "scope_pillars", "sub"]);
   });
 
   it("scope pillars of the 4 DIR accounts follow 08 §2.1", () => {

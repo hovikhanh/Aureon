@@ -23,7 +23,7 @@ async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSessio
     await make_task(api, due_date="2041-03-25")  # not yet due at AS_OF
     m = await make(api, "/execution/meetings", {"title": "h", "held_at": "2041-03-01T08:00:00Z"})
     await make_task(api, due_date="2041-03-07", meeting_id=m["id"], task_source="meeting")
-    p = await make(api, "/execution/projects", {
+    p = await make(api, "/work/projects", {
         "code": uniq("PRJ"), "name": "p", "owner_id": str(emp), "status": "active",
         "start_date": "2041-01-01", "due_date": "2041-03-31"})  # fmt: skip
     await make_task(api, project_id=p["id"], due_date="2041-04-30")

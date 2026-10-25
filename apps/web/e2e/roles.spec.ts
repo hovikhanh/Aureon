@@ -116,8 +116,9 @@ test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open",
   await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
   await page.getByTestId("nav-work").click();
   await expect(page).toHaveURL(/\/work$/);
+  await expect(page.getByTestId("work-tab-board")).toBeVisible();
   await page.goto("/work/approvals");
-  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-43");
+  await expect(page.getByTestId("approvals")).toBeVisible();
   await page.getByTestId("nav-ask").click();
   await expect(page.getByTestId("chat-input")).toBeVisible();
 });

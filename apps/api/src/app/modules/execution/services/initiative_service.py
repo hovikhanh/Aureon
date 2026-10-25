@@ -8,6 +8,7 @@
 """
 
 import uuid
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -33,8 +34,9 @@ from app.modules.execution.schemas.initiatives import (
     MilestoneUpdate,
 )
 from app.modules.execution.services import scope
-from app.modules.execution.services.base import ExecBase, not_found, now_utc
+from app.modules.execution.services.base import ExecBase, not_found, now_utc, today
 from app.modules.execution.services.meeting_service import _c19
+from app.modules.execution.services.project_rules import milestone_late
 
 RULE = "FR-INI-01"
 
@@ -50,9 +52,10 @@ def initiative_out(i: Initiative) -> InitiativeOut:
     )  # fmt: skip
 
 
-def milestone_out(m: Milestone) -> MilestoneOut:
-    return MilestoneOut(**_c19(m), initiative_id=m.initiative_id, title=m.title,
-                        due_date=m.due_date, status=m.status, done_at=m.done_at)  # fmt: skip
+def milestone_out(m: Milestone, as_of: date | None = None) -> MilestoneOut:
+    return MilestoneOut(**_c19(m), initiative_id=m.initiative_id, project_id=m.project_id,
+                        title=m.title, due_date=m.due_date, status=m.status, done_at=m.done_at,
+                        late=milestone_late(m.status, m.due_date, as_of or today()))  # fmt: skip
 
 
 def share_done(statuses: list[str], done: str = "done", skip: str | None = None) -> Decimal:

@@ -43,6 +43,8 @@ EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "auth.user_access_changed",
         "hr.org_structure_changed",
+        "execution.task_created",  # M1.3 R-DEC-47 (BRD `task.created`)
+        "execution.task_completed",  # M1.3 R-DEC-47 (BRD `task.completed`)
     }
 )
 

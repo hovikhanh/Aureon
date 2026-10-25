@@ -22,11 +22,18 @@ from app.modules.execution.repositories import (
     ProjectRepository,
     TaskRepository,
 )
-from app.modules.execution.services.initiative_service import share_done
+from app.modules.execution.services.project_rules import (
+    LATE_GAP_PCT,
+    is_late,
+    linear_progress,
+    planned,
+    progress,
+)
 from app.modules.execution.services.workload import load_tasks, rows_from
 
+__all__ = ["LATE_GAP_PCT", "linear_progress"]  # re-exported (tests / RSK-06)
+
 MAX_RECORDS = 50
-LATE_GAP_PCT = Decimal(10)  # METRIC-OPS-02
 SEI_ON_TRACK_RATIO = Decimal("0.9")  # METRIC-RSK-06 (DEC-226)
 
 
@@ -38,15 +45,6 @@ def pct(part: int | Decimal, whole: int | Decimal) -> float | None:
 
 def refs(table: str, ids: Iterable[object]) -> tuple[RecordRef, ...]:
     return tuple(RecordRef("execution", table, str(i)) for i in list(ids)[:MAX_RECORDS])
-
-
-def linear_progress(start: date, end: date, as_of: date) -> Decimal:
-    """Planned % complete at `as_of`, linear over `[start, end]`, clamped to 0..100."""
-    if as_of >= end:
-        return Decimal(100)
-    if as_of <= start:
-        return Decimal(0)
-    return Decimal((as_of - start).days * 100) / Decimal((end - start).days)
 
 
 def on_time(t: Task) -> bool:
@@ -89,11 +87,8 @@ def ops02(projects: Sequence[Project], tasks: Sequence[Task], as_of: date,
         by_project.setdefault(t.project_id, []).append(t.status)
     late = []
     for p in projects:
-        if p.start_date is None or p.planned_end_date is None:
-            continue
-        planned = linear_progress(p.start_date, p.planned_end_date, as_of)
-        actual = share_done(by_project.get(p.id, []), skip="cancelled")
-        if planned - actual > LATE_GAP_PCT:
+        plan = planned(p.start_date, p.planned_end_date, as_of)
+        if plan is not None and is_late(plan, progress(by_project.get(p.id, []))):
             late.append(p.id)
     return reading("METRIC-OPS-02", pct(len(late), len(projects)), key,
                    refs("projects", late), "no running projects")  # fmt: skip

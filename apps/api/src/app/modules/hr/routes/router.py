@@ -28,6 +28,7 @@ from app.modules.hr.schemas import (
     EmployeeOut,
     EmployeeStatus,
     EmployeeUpdate,
+    EmployeeWorkloadOut,
     HiringPlanCreate,
     HiringPlanOut,
     HiringPlanUpdate,
@@ -35,7 +36,6 @@ from app.modules.hr.schemas import (
     HrDashboardOut,
     SalaryCreate,
     SalaryOut,
-    WorkloadOut,
 )
 from app.modules.hr.services.dashboard_service import HrDashboardService
 from app.modules.hr.services.hiring_service import HiringPlanService, plan_out
@@ -79,7 +79,7 @@ async def hr_dashboard(db: Db, user: Querier, period: PeriodQ, response: Respons
 
 
 # ---------- EP-87 workload (METRIC-HR-03) ----------
-@router.get("/hr/workload", response_model=list[WorkloadOut])
+@router.get("/hr/workload", response_model=list[EmployeeWorkloadOut])
 async def hr_workload(
     db: Db, user: Querier, period: PeriodQ, department_id: uuid.UUID | None = None
 ) -> Any:

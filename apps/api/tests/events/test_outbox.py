@@ -39,7 +39,10 @@ def test_registry_has_28_events() -> None:
     assert len(EVENT_TYPES) == 28
     assert all("." in e and not e.startswith("EVT-") for e in EVENT_TYPES)
     # M1.2 (R-DEC-35): extension set lives beside the 28 base types, never inside them.
-    assert EXTENSION_EVENT_TYPES == {"hr.org_structure_changed", "auth.user_access_changed"}
+    assert EXTENSION_EVENT_TYPES == {
+        "hr.org_structure_changed", "auth.user_access_changed",
+        "execution.task_created", "execution.task_completed",  # M1.3 R-DEC-47
+    }  # fmt: skip
     assert not EVENT_TYPES & EXTENSION_EVENT_TYPES
     assert all(is_registered(e) for e in EXTENSION_EVENT_TYPES)
 

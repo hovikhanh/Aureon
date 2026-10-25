@@ -127,6 +127,16 @@ class EmployeeRepository(BaseRepository[Employee]):
         stmt = self._live().where(Employee.id == employee_id).with_for_update()
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
+    async def live_ids(self, ids: Sequence[uuid.UUID]) -> set[uuid.UUID]:
+        """Ids among `ids` of live, non-terminated employees (ids only — no PII)."""
+        if not ids:
+            return set()
+        stmt = self._scoped(select(Employee.id)).where(
+            Employee.id.in_(list(ids)), Employee.deleted_at.is_(None),
+            Employee.status != "terminated",
+        )  # fmt: skip
+        return set((await self.db.execute(stmt)).scalars())
+
     async def by_email(self, email: str) -> Employee | None:
         stmt = self._live().where(Employee.email == email)
         return (await self.db.execute(stmt)).scalar_one_or_none()

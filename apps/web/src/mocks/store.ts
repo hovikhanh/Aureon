@@ -6,6 +6,7 @@ import { SNAPSHOT, mockId, type MockClaims, type SnapshotMetric } from "./fixtur
 import { resetOrgStore } from "./org";
 import { resetAdminStore } from "./admin";
 import { resetAudit } from "./audit";
+import { resetWorkStore } from "./work-store";
 
 export interface MockAlert {
   id: string;
@@ -79,6 +80,7 @@ export function resetMockStore(): void {
   resetOrgStore();
   resetAdminStore();
   resetAudit();
+  resetWorkStore();
 }
 
 // ---- scope (mirror of dashboard_service.visible_pillars / metric_visible, R-DEC-12a) ----

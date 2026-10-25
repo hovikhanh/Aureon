@@ -10,7 +10,7 @@ from app.core.tenant import TenantContextMiddleware
 from app.modules.ai.routes.router import router as ai_router
 from app.modules.auth.routes.router import module_router as auth_router
 from app.modules.dashboard.routes.router import router as dashboard_router
-from app.modules.execution.routes.router import router as execution_router
+from app.modules.execution.routes.router import module_router as execution_router
 from app.modules.finance.routes.router import router as finance_router
 from app.modules.hr.routes.router import router as hr_router
 from app.modules.idp.routes.router import router as idp_router

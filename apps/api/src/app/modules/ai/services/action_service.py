@@ -143,7 +143,7 @@ class ActionService:
         return self._to_out(action)
 
     async def execute_approved(self, approver: Principal, action_id: uuid.UUID) -> None:
-        """Execute an action whose 2-sided approval just finalised (called by EP-125).
+        """Execute an action whose 2-sided approval just finalised (called by EP-WF-03).
 
         Runs in the approval's transaction (04 §10.4). The approver's `Principal` is the actor;
         the write still re-checks `<domain>:write` at commit time inside the executor.
@@ -175,7 +175,7 @@ class ActionService:
         if act is None:
             raise NotFoundError(f"unknown action {action.action_name}")
         try:
-            outcome = await act.run(self.db, user, dict(action.input))
+            outcome = await act.run(self.db, user, dict(action.input), action.id)
         except AppError:
             raise
         except Exception as exc:  # pragma: no cover - defensive
@@ -258,7 +258,9 @@ class ActionService:
         )  # fmt: skip
 
 
-async def _execute_approved_ai_action(db: Any, approver: Any, action_id: uuid.UUID) -> None:
+async def _execute_approved_ai_action(
+    db: Any, approver: Any, action_id: uuid.UUID, _payload: dict[str, Any]
+) -> None:
     """Approval hook for `target_kind="ai_action"` — run the action when its approval finalises.
 
     Registered in `core.approval_hooks` so `platform` can execute an `ai` action on `APPROVED`

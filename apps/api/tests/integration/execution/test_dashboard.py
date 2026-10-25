@@ -30,7 +30,7 @@ async def test_execution_dashboard(api: ApiClient, db_session: AsyncSession) -> 
     await db_session.execute(update(Task).where(Task.id.in_(ids)).values(created_at=back))
     await db_session.execute(update(Task).where(Task.id == ids[0])
                              .values(status="done", done_at=back))  # fmt: skip
-    await make(api, "/execution/projects", {
+    await make(api, "/work/projects", {
         "code": f"P-{uuid.uuid4().hex[:6]}", "name": "Late", "owner_id": str(alice),
         "status": "active", "start_date": str(start - timedelta(days=60)),
         "due_date": str(start + timedelta(days=10)), **base,

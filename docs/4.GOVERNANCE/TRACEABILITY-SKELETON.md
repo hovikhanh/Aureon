@@ -149,6 +149,8 @@ MVP: UC-01, UC-02, UC-03, UC-06, UC-07 (+ UC-04 P0).
 Nhóm Tài chính / Khách hàng / Vận hành / Con người / Chiến lược / Dữ liệu. P0: tăng trưởng DT & %kế hoạch, cash runway (<6 tháng), chênh lệch ngân sách (>10%), pipeline coverage (<3x), win rate & chu kỳ bán hàng, hoàn thành đúng hạn (<80%), dự án trễ (>20%), thực thi quyết định (<70%), quá tải (>10%), **Strategy Execution Index** (<70%), **Data Quality Score** (<80/100). P1: biên lợi nhuận, DSO/DPO, công nợ quá hạn, NRR/churn, tập trung DT, CAC/LTV/NPS, nghỉ việc, DT/nhân sự.
 
 > Mã `METRIC-*` cụ thể sẽ cấp ở file 00/03 khi viết; registry này chốt **danh sách chỉ số nguồn** từ BRD, chưa gán số.
+>
+> **Mã đã cấp (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** `METRIC-STR-01` "KPI/OKR cập nhật đúng kỳ" (cổng G2, R-DEC-54); `METRIC-DQ-02` "Bản ghi mới vào qua tài liệu/NL" (cổng G3, R-DEC-68). Strategy Execution Index giữ mã nền `METRIC-RSK-06` tới T-701; DQ theo domain = breakdown `METRIC-DQ-01`.
 
 ## 11. Entity cốt lõi (BRD §13.2) — 13 nhóm
 
@@ -205,6 +207,7 @@ Q1–Q6: **đã chốt** (13 §1 — R-DEC-05..10). Còn mở (CEO, không block
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.1 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §10 đăng ký mã `METRIC-STR-01` (G2, R-DEC-54) và `METRIC-DQ-02` (G3, R-DEC-68).
 - **Change 1.1.0 (human duyệt 2026-10-23 — đợt code, R-DEC-19/25):** quy ước ID đợt code: SCR giữ số v2.1 + mới từ SCR-40; EP domain code; `T-6xx..9xx`; `TC-M<x><y>-NN`; nhãn phase `M1.0`–`M3.5`.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Vòng mở rộng spec-level P0 — ghi nhận nhãn nội bộ một file (`DD-`/`G1..G4`/`GR-`/`INJ-`/`AUT-`) dùng trong 08/09/14; bổ sung `AGT-*` vào quy ước ID; phân biệt "ID liên-file" (cập nhật skeleton trước) vs "nhãn nội bộ một file". Không đổi tập P0 hay quyết định Q1–Q6.

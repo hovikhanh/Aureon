@@ -43,6 +43,14 @@ async def test_l3_action_auto_executes_with_24h_undo_window(db_session) -> None:
     assert out.result_refs and out.result_refs[0]["table"] == "execution.tasks"
     assert out.undo_deadline is not None
     assert out.undo_deadline - datetime.now(UTC) > timedelta(hours=23)
+    # provenance (05 §2.5): task_source "ai" + source_ref → the ENT-AIAction
+    from sqlalchemy import select
+
+    from app.modules.execution.models import Task
+
+    tid = uuid.UUID(out.result_refs[0]["id"])
+    t = (await db_session.execute(select(Task).where(Task.id == tid))).scalar_one()
+    assert (t.task_source, t.source_ref) == ("ai", {"kind": "ai_action", "id": str(out.id)})
 
 
 async def test_undo_reverses_within_window(db_session) -> None:

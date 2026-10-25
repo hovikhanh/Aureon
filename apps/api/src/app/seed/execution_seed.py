@@ -4,11 +4,13 @@ Strategy tree (1 company objective → 4 initiatives), 10 projects, tasks for 25
 (workload source of HR-03), the October "giao ban" meeting with 3 decisions whose action items
 are the meeting tasks, a 12-KPI tree with 3 monthly measurements (band from `kpi_rules`) and
 6 OKRs Q4/2026 with 15 KRs (progress from `kpi_rules`). `created_at` is explicit so workload
-windows are deterministic. Idempotent: skipped when SEED tasks already exist.
+windows are deterministic. M1.3 (T-624): dependencies, a sub-task, `source_ref` (decision /
+document), project milestones (1 late in PRJ-ERP) and 1 PENDING `task_reassign` approval in SVC.
+Idempotent: skipped when SEED tasks already exist.
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -23,9 +25,11 @@ from app.modules.execution.models import (
     KpiMeasurement,
     KpiTarget,
     Meeting,
+    Milestone,
     Objective,
     Project,
     Task,
+    TaskDependency,
 )
 from app.modules.execution.services import kpi_rules
 from app.seed import exec_data as X
@@ -89,7 +93,9 @@ def _tasks(owner: uuid.UUID) -> list[Task]:
              blocked_reason="Chờ phê duyệt ngân sách" if t.status == "blocked" else None,
              estimate_hours=t.hours, is_critical=False, meeting_id=mid if t.meeting else None,
              decision_id=seed_uuid("decision", str(n % 3)) if t.meeting else None,
-             task_source="meeting" if t.meeting else "manual", created_at=X.CREATED, **SEED)
+             task_source="meeting" if t.meeting else "manual", created_at=X.CREATED,
+             source_ref={"kind": "decision", "id": str(seed_uuid("decision", str(n % 3)))}
+             if t.meeting else None, **SEED)
         for n, t in enumerate(X.tasks())
     ]  # fmt: skip
     for code, _, dept, *_, done, total in X.PROJECTS:
@@ -101,7 +107,55 @@ def _tasks(owner: uuid.UUID) -> list[Task]:
                  created_at=X.CREATED - timedelta(days=30), **SEED)
             for i in range(total)
         ]  # fmt: skip
+    by_key = {r.id: r for r in rows}
+    for child, parent in X.SUBTASKS:  # R-DEC-42
+        by_key[seed_uuid("task", child)].parent_task_id = seed_uuid("task", parent)
+    for key, doc, page in X.DOCUMENT_TASKS:
+        t = by_key[seed_uuid("task", key)]
+        t.task_source = "document"
+        t.source_ref = {"kind": "document", "id": str(seed_uuid("source_document", doc)),
+                        "page": page}  # fmt: skip
     return rows
+
+
+def _links(_owner: uuid.UUID) -> list[Any]:
+    """M1.3: dependencies (R-DEC-43) + project milestones (R-DEC-49)."""
+    rows: list[Any] = [
+        TaskDependency(id=seed_uuid("task_dependency", f"{a}>{b}"), task_id=seed_uuid("task", a),
+                       depends_on_task_id=seed_uuid("task", b), **SEED)
+        for a, b in X.DEPENDENCIES
+    ]  # fmt: skip
+    rows += [
+        Milestone(id=seed_uuid("milestone", f"{code}:{title}"),
+                  project_id=seed_uuid("project", code), title=title, due_date=due,
+                  status=status, created_at=X.CREATED,
+                  done_at=datetime(done.year, done.month, done.day, 9, tzinfo=UTC)
+                  if done else None, **SEED)
+        for code, title, due, status, done in X.MILESTONES
+    ]  # fmt: skip
+    return rows
+
+
+async def _reassign_request(db: AsyncSession) -> int:
+    """1 PENDING `task_reassign` in SVC (EP-TASK-19 → EP-WF-01 MGR inbox) via the public
+    service (real rule + audit) with `emit=False`: no outbox / notification when seeding
+    (R-DEC-47). Needs the auth seed."""
+    from app.modules.auth.services.auth_service import AuthService
+    from app.modules.platform.services.approval_service import ApprovalService
+
+    key, to, reason = X.REASSIGN
+    requester = X.ASSIGNEES[0]
+    uid = await AuthService(db).user_id_for_employee(emp_id(requester.code))
+    if uid is None:
+        return 0
+    await ApprovalService(db).create_for_task_reassign(
+        task_id=seed_uuid("task", key), department_id=_dept(requester.dept), requested_by=uid,
+        payload={"task_id": str(seed_uuid("task", key)),
+                 "from_assignee_id": str(emp_id(requester.code)),
+                 "to_assignee_id": str(emp_id(to.code)), "reason": reason, "task_version": 1},
+        emit=False,
+    )  # fmt: skip
+    return 1
 
 
 def _kpis(owner: uuid.UUID) -> list[Any]:
@@ -151,10 +205,10 @@ async def seed_execution(db: AsyncSession, owner: uuid.UUID | None) -> dict[str,
     if owner is None or int((await db.execute(has)).scalar_one()):
         return {"execution": 0}
     total = 0
-    for build in (_strategy, _meeting, _tasks, _kpis, _okrs):
+    for build in (_strategy, _meeting, _tasks, _links, _kpis, _okrs):
         rows = build(owner)
         for row in rows:
             db.add(row)
             await db.flush()
         total += len(rows)
-    return {"execution": total}
+    return {"execution": total, "approval_requests": await _reassign_request(db)}

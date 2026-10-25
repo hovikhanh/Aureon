@@ -1,4 +1,5 @@
-"""EP-44 tasks (T-131, T-133): CRUD, 7-status transitions (DEC-147), overdue job.
+"""EP-TASK-01..05 tasks (T-131, T-133, T-619): CRUD, 7-status transitions (DEC-147), sub-task
+one level (R-DEC-42), `source_ref` (05 §2.5), dependency gate on `done` (R-DEC-43), overdue job.
 
 `detect_overdue_tasks(db, as_of)` is the daily job body: open tasks with `due_date < as_of`
 publish `EVT-execution.task_overdue` once — `overdue_notified_at` marks the task; moving
@@ -6,30 +7,59 @@ publish `EVT-execution.task_overdue` once — `overdue_notified_at` marks the ta
 """
 
 import uuid
-from datetime import date
+from collections.abc import Sequence
+from datetime import UTC, date
 from typing import Any
 
 from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.approval_hooks import register_approval_hook
 from app.core.audit import Actor, record_audit
 from app.core.deps import Principal
-from app.core.errors import BusinessRuleError, ConflictStateError
+from app.core.directory import live_employee_ids
+from app.core.errors import BusinessRuleError, ConflictStateError, DuplicateResourceError
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
-from app.modules.execution.models import Task
-from app.modules.execution.repositories import OPEN_TASK_STATUSES, TaskRepository
-from app.modules.execution.schemas.tasks import TaskCreate, TaskOut, TaskUpdate
+from app.modules.execution.models import Task, TaskDependency
+from app.modules.execution.repositories import (
+    OPEN_TASK_STATUSES,
+    TaskDependencyRepository,
+    TaskRepository,
+)
+from app.modules.execution.schemas.tasks import (
+    ReassignRequestCreate,
+    SourceRef,
+    TaskBriefOut,
+    TaskCreate,
+    TaskDependenciesOut,
+    TaskDependencyCreate,
+    TaskDependencyOut,
+    TaskOut,
+    TaskUpdate,
+)
 from app.modules.execution.services import scope
 from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
 from app.modules.execution.services.initiative_service import InitiativeService
-from app.modules.execution.services.task_rules import can_transition, is_overdue
+from app.modules.execution.services.task_notify import notify_task
+from app.modules.execution.services.task_rules import (
+    CLOSED,
+    MAX_DEPENDENCY_DEPTH,
+    can_transition,
+    find_cycle,
+    is_overdue,
+    source_kind_matches,
+)
+from app.modules.platform.schemas import ApprovalRequestOut
+from app.modules.platform.services.approval_service import ApprovalService
 
 RULE = "FR-TASK-01"
 NOT_NULL = frozenset({"title", "priority", "status", "is_critical"})
 
 
-def task_out(t: Task, as_of: date | None = None) -> TaskOut:
+def task_out(
+    t: Task, as_of: date | None = None, *, subtasks: int = 0, blockers: int = 0
+) -> TaskOut:
     return TaskOut(
         id=t.id, version=t.version, source=t.source, data_classification=t.data_classification,
         created_at=t.created_at, updated_at=t.updated_at, title=t.title,
@@ -40,14 +70,31 @@ def task_out(t: Task, as_of: date | None = None) -> TaskOut:
         actual_hours=num(t.actual_hours), evidence=t.evidence, project_id=t.project_id,
         initiative_id=t.initiative_id, milestone_id=t.milestone_id, meeting_id=t.meeting_id,
         decision_id=t.decision_id, key_result_id=t.key_result_id, kpi_id=t.kpi_id,
-        parent_id=t.parent_id, is_critical=t.is_critical, task_source=t.task_source,
+        parent_task_id=t.parent_task_id, is_critical=t.is_critical, task_source=t.task_source,
+        source_ref=SourceRef.model_validate(t.source_ref) if t.source_ref else None,
         source_document_id=t.source_document_id,
         overdue=is_overdue(t.status, t.due_date, as_of or today()),
+        subtask_count=subtasks, depends_on_open=blockers,
     )  # fmt: skip
 
 
+def _s(v: uuid.UUID | None) -> str | None:
+    return str(v) if v is not None else None
+
+
 def _own(user: Principal) -> list[ColumnElement[bool]]:
-    return [Task.owner_id == user.user_id, Task.assignee_id == user.user_id]
+    me = scope.self_ids(user)
+    return [Task.owner_id.in_(me), Task.assignee_id.in_(me)]
+
+
+def _check_source(source_ref: dict[str, Any] | None, task_source: str) -> None:
+    """05 §2.5: `source_ref.kind` must agree with `task_source` → else 422."""
+    if source_ref is not None and not source_kind_matches(source_ref["kind"], task_source):
+        raise BusinessRuleError(
+            "source_ref.kind does not match task_source",
+            details={"field": "source_ref", "kind": source_ref["kind"],
+                     "task_source": task_source, "rule": RULE},
+        )  # fmt: skip
 
 
 def _check_dates(start: date | None, due: date | None) -> None:
@@ -61,15 +108,39 @@ class TaskService(ExecBase):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db)
         self.tasks = TaskRepository(db)
+        self.deps = TaskDependencyRepository(db)
+
+    async def outs(self, items: Sequence[Task], as_of: date | None = None) -> list[TaskOut]:
+        """`TaskOut` + `subtask_count` / `depends_on_open` (EP-TASK-03) in two grouped queries."""
+        ids = [t.id for t in items]
+        subs = await self.tasks.count_by(Task.parent_task_id, ids)
+        blockers = await self.deps.open_blockers(ids)
+        day = as_of or today()
+        return [task_out(t, day, subtasks=subs.get(t.id, 0), blockers=blockers.get(t.id, 0))
+                for t in items]  # fmt: skip
+
+    async def out(self, t: Task) -> TaskOut:
+        return (await self.outs([t]))[0]
 
     async def list_tasks(
         self, user: Principal, page: PageParams, *, filters: dict[str, Any],
-        overdue: bool | None,
+        overdue: bool | None, statuses: Sequence[str] | None = None, mine: bool = False,
+        due_from: date | None = None, due_to: date | None = None, source_kind: str | None = None,
     ) -> tuple[list[TaskOut], int]:  # fmt: skip
         where: list[ColumnElement[bool]] = []
         pred = scope.predicate(user, "read", dept=Task.department_id, own=_own(user))
         if pred is not None:
             where.append(pred)
+        if statuses:
+            where.append(Task.status.in_(statuses))
+        if mine:  # R-DEC-41: assignee = employee id (or legacy user id)
+            where.append(Task.assignee_id.in_(scope.self_ids(user)))
+        if due_from is not None:
+            where.append(Task.due_date >= due_from)
+        if due_to is not None:
+            where.append(Task.due_date <= due_to)
+        if source_kind is not None:
+            where.append(Task.source_ref["kind"].astext == source_kind)
         as_of = today()
         if overdue is True:
             where += [Task.due_date < as_of, Task.status.in_(OPEN_TASK_STATUSES)]
@@ -80,34 +151,77 @@ class TaskService(ExecBase):
             limit=page.limit, offset=page.offset, sort_by=page.sort_by, order=page.order,
             filters={k: v for k, v in filters.items() if v is not None}, where=where,
         )  # fmt: skip
-        return [task_out(t, as_of) for t in items], total
+        return await self.outs(items, as_of), total
 
     async def get(self, user: Principal, id_: uuid.UUID, action: str = "read") -> Task:
+        """Read by id outside scope → 404 (10 §7.2.2); write outside scope → 403."""
         t = await self.tasks.get(id_)
         if t is None:
             raise not_found("task")
-        scope.check(user, action, dept=t.department_id, owners=(t.owner_id, t.assignee_id),
-                    what="task")  # fmt: skip
+        owners = (t.owner_id, t.assignee_id)
+        if action == "read" and not scope.allowed(user, "read", dept=t.department_id,
+                                                  owners=owners):  # fmt: skip
+            raise not_found("task")
+        scope.check(user, action, dept=t.department_id, owners=owners, what="task")
         return t
+
+    async def _check_parent(
+        self, user: Principal, parent_id: uuid.UUID | None, child: Task | None
+    ) -> None:
+        """R-DEC-42: one level — the parent has no parent; a task with sub-tasks has no parent.
+        The parent must be readable by the caller: missing / outside read scope → 404 (10 §7.2.2,
+        same as EP-TASK-03); the one-level rules stay 422."""
+        if parent_id is None:
+            return
+        rule = {"field": "parent_task_id", "rule": "R-DEC-42"}
+        if child is not None and parent_id == child.id:
+            raise BusinessRuleError("task cannot be its own parent", details=rule)
+        parent = await self.get(user, parent_id)  # 404 if missing / not readable
+        if parent.parent_task_id is not None:
+            raise BusinessRuleError("parent task is already a sub-task", details=rule)
+        if child is not None and (await self.tasks.count_by(Task.parent_task_id, [child.id])):
+            raise BusinessRuleError("task with sub-tasks cannot become a sub-task", details=rule)
 
     async def create(self, user: Principal, body: TaskCreate) -> TaskOut:
         data = body.model_dump(mode="python")
         data["owner_id"] = data["owner_id"] or user.user_id
         if scope.level(user, "write") == "o" and data["assignee_id"] is None:
-            data["assignee_id"] = user.user_id
+            data["assignee_id"] = scope.self_assignee(user)
         scope.require_self(user, data["owner_id"], data["assignee_id"], field="assignee_id")
         data["department_id"] = scope.pin_department(user, data["department_id"])
         _check_dates(data["start_date"], data["due_date"])
+        _check_source(data["source_ref"], data["task_source"])
         self._status_fields(data, None, data["status"])
-        await self.require_refs(data, RULE, parent_id=Task)
+        await self.require_refs(data, RULE)
+        await self._check_parent(user, data["parent_task_id"], None)
         if data["evidence"] is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
+        if data["source_ref"] is not None:
+            data["source_ref"] = body.source_ref.model_dump(mode="json", exclude_none=True)  # type: ignore[union-attr]
         t = await self.tasks.create(**data, source="MANUAL", created_by=user.user_id)
         await self._progress(t.initiative_id)
         await self.db.refresh(t)
-        out = task_out(t)
+        out = await self.out(t)
         await self.audit("task_create", "tasks", t.id, after=out)
+        await self._emit("execution.task_created", t, {
+            "parent_task_id": _s(t.parent_task_id), "task_source": t.task_source,
+            "source_ref_kind": (t.source_ref or {}).get("kind"),
+        })  # fmt: skip
+        await notify_task(self.db, t, kind="task_assigned", title="Bạn được giao việc mới",
+                          to=(t.assignee_id,), actor=user.user_id)  # fmt: skip
         return out
+
+    async def _emit(self, event_type: str, t: Task, extra: dict[str, Any]) -> None:
+        """Outbox event in the caller's tx (10 §9.2, R-DEC-47) — ids only, no `title`/PII."""
+        payload = {
+            "task_id": str(t.id), "assignee_id": _s(t.assignee_id),
+            "department_id": _s(t.department_id), "project_id": _s(t.project_id),
+            "due_date": t.due_date.isoformat() if t.due_date else None, **extra,
+        }  # fmt: skip
+        await publish_in_tx(
+            self.db, event_type=event_type, producer="execution", aggregate_schema="execution",
+            aggregate_table="tasks", aggregate_id=t.id, payload=payload,
+        )  # fmt: skip
 
     @staticmethod
     def _status_fields(data: dict[str, Any], current: Task | None, status: str) -> None:
@@ -132,41 +246,189 @@ class TaskService(ExecBase):
             data["done_at"] = None
 
     async def update(
-        self, user: Principal, id_: uuid.UUID, body: TaskUpdate, expected: int
-    ) -> TaskOut:
-        t = await self.get(user, id_, "write")
-        before = task_out(t)
+        self, user: Principal, id_: uuid.UUID, body: TaskUpdate, expected: int, *,
+        approved: bool = False,
+    ) -> TaskOut:  # fmt: skip
+        """`approved=True` only from an approval hook: the decider already passed
+        `approval_service.can_decide` (e.g. DIR fallback outside the task's department), so the
+        row write scope is not re-checked — the approval is the authority (R-DEC-45)."""
+        t = await self._approved_target(id_) if approved else await self.get(user, id_, "write")
+        before = await self.out(t)
         data = body.model_dump(mode="python", exclude_unset=True, exclude={"version"})
         scope.require_self(user, data.get("owner_id"), data.get("assignee_id"), field="assignee_id")
         if "department_id" in data:
             data["department_id"] = scope.pin_department(user, data["department_id"])
         _check_dates(data.get("start_date", t.start_date), data.get("due_date", t.due_date))
+        if "source_ref" in data or "task_source" in data:
+            _check_source(data.get("source_ref", t.source_ref), t.task_source)
         if "status" in data or "blocked_reason" in data:
             self._status_fields(data, t, data.get("status") or t.status)
-        if data.get("parent_id") == t.id:
-            raise BusinessRuleError("task cannot be its own parent",
-                                    details={"field": "parent_id", "rule": RULE})  # fmt: skip
-        await self.require_refs(data, RULE, parent_id=Task)
+        if data.get("status") == "done" and t.status != "done":
+            await self._require_unblocked(user, t)
+        if "parent_task_id" in data:
+            await self._check_parent(user, data["parent_task_id"], t)
+        await self.require_refs(data, RULE)
         if data.get("evidence") is not None:
             data["evidence"] = [dict(e) for e in data["evidence"]]
+        if data.get("source_ref") is not None:
+            data["source_ref"] = body.source_ref.model_dump(mode="json", exclude_none=True)  # type: ignore[union-attr]
         if "due_date" in data and data["due_date"] != t.due_date:
             data["overdue_notified_at"] = None  # re-arm EVT-execution.task_overdue
         data = {k: v for k, v in data.items() if k not in NOT_NULL or v is not None}
-        old_initiative = t.initiative_id
+        old_initiative, old_status, old_assignee = t.initiative_id, t.status, t.assignee_id
         await self.tasks.update(t, expected_version=expected, updated_by=user.user_id, **data)
         await self._progress(old_initiative, t.initiative_id)
         await self.db.refresh(t)
-        out = task_out(t)
+        out = await self.out(t)
         await self.audit("task_update", "tasks", t.id, before, out)
+        if t.assignee_id is not None and t.assignee_id != old_assignee:
+            await notify_task(self.db, t, kind="task_assigned", title="Bạn được giao việc mới",
+                              to=(t.assignee_id,), actor=user.user_id)  # fmt: skip
+        if t.status == "done" and old_status != "done":
+            await self._completed(t)
+            # R-DEC-46: tell whoever assigned it (`owner_id`), kind `system`
+            await notify_task(self.db, t, kind="system", title="Việc bạn giao đã hoàn thành",
+                              to=(t.owner_id,), actor=user.user_id)  # fmt: skip
         return out
+
+    async def _approved_target(self, id_: uuid.UUID) -> Task:
+        t = await self.tasks.get(id_)
+        if t is None:
+            raise ConflictStateError("task no longer exists", details={"task_id": str(id_)})
+        return t
+
+    async def _completed(self, t: Task) -> None:
+        """`execution.task_completed` (R-DEC-47); `on_time` = same rule as METRIC-OPS-01."""
+        done_at = t.done_at or now_utc()
+        on_time = t.due_date is not None and done_at.astimezone(UTC).date() <= t.due_date
+        await self._emit("execution.task_completed", t,
+                         {"done_at": done_at.isoformat(), "on_time": on_time})  # fmt: skip
+
+    async def _require_unblocked(self, user: Principal, t: Task) -> None:
+        """R-DEC-43: `done` only when every `depends_on` task is `done`/`cancelled` → else 422
+        `details.blocking=[{task_id, title, status}]`, filtered to blockers the caller may read
+        (an unreadable blocker still blocks, it is just not disclosed)."""
+        open_ids = await self.deps.open_blocker_ids(t.id)
+        if not open_ids:
+            return
+        found = {x.id: x for x in await self.tasks.by_ids(open_ids)}
+        blocking = [{"task_id": str(b.id), "title": b.title, "status": b.status}
+                    for bid in open_ids if (b := found.get(bid)) is not None
+                    and scope.allowed(user, "read", dept=b.department_id,
+                                      owners=(b.owner_id, b.assignee_id))]  # fmt: skip
+        raise BusinessRuleError(
+            "task still blocked by open dependencies",
+            details={"rule": "FR-TASK-02", "blocking": blocking},
+        )
 
     async def delete(self, user: Principal, id_: uuid.UUID) -> None:
         t = await self.get(user, id_, "write")
-        before = task_out(t)
+        if await self.tasks.count_by(Task.parent_task_id, [t.id]):
+            raise BusinessRuleError(
+                "task still has sub-tasks", details={"reason": "has_subtasks", "rule": "R-DEC-42"}
+            )
+        before = await self.out(t)
+        for dep in await self.deps.touching(t.id):  # soft-delete the task's edges (EP-TASK-05)
+            dep.updated_by = user.user_id
+            await self.deps.soft_delete(dep)
         t.updated_by = user.user_id
         await self.tasks.soft_delete(t)
         await self._progress(t.initiative_id)
         await self.audit("task_delete", "tasks", t.id, before=before)
+
+    # ---------- EP-TASK-06..08 dependencies (FR-TASK-02, R-DEC-43) ----------
+    def _brief(
+        self, user: Principal, dep: TaskDependency, other: uuid.UUID, found: dict[uuid.UUID, Task]
+    ) -> TaskBriefOut:
+        t = found.get(other)
+        if t is None or not scope.allowed(user, "read", dept=t.department_id,
+                                          owners=(t.owner_id, t.assignee_id)):  # fmt: skip
+            return TaskBriefOut(dependency_id=dep.id, task_id=other, restricted=True)
+        return TaskBriefOut(
+            dependency_id=dep.id, task_id=t.id, title=t.title, status=t.status,
+            due_date=t.due_date, overdue=is_overdue(t.status, t.due_date, today()),
+            assignee_id=t.assignee_id,
+        )  # fmt: skip
+
+    async def list_dependencies(self, user: Principal, id_: uuid.UUID) -> TaskDependenciesOut:
+        t = await self.get(user, id_)
+        edges = await self.deps.touching(t.id)
+        others = [d.depends_on_task_id if d.task_id == t.id else d.task_id for d in edges]
+        found = {x.id: x for x in await self.tasks.by_ids(others)}  # one query (no N+1)
+        depends_on: list[TaskBriefOut] = []
+        blocks: list[TaskBriefOut] = []
+        for dep, other in zip(edges, others, strict=True):
+            (depends_on if dep.task_id == t.id else blocks).append(
+                self._brief(user, dep, other, found)
+            )
+        return TaskDependenciesOut(depends_on=depends_on, blocks=blocks)
+
+    async def add_dependency(
+        self, user: Principal, id_: uuid.UUID, body: TaskDependencyCreate
+    ) -> TaskDependencyOut:
+        t = await self.get(user, id_, "write")
+        target = body.depends_on_task_id
+        if target == t.id:
+            cycle = [str(t.id), str(t.id)]
+            raise BusinessRuleError(
+                "task cannot depend on itself", details={"rule": "FR-TASK-02", "cycle": cycle}
+            )
+        await self.get(user, target)  # 404 if missing / other tenant / not readable
+        await self.tasks.lock(t.id, target)
+        if await self.deps.find(t.id, target) is not None:
+            raise DuplicateResourceError("dependency already exists",
+                                         details={"depends_on_task_id": str(target)})  # fmt: skip
+        path = await self._cycle(target, t.id)
+        if path is not None:
+            raise BusinessRuleError("dependency would create a cycle",
+                                    details={"rule": "FR-TASK-02",
+                                             "cycle": [str(c) for c in path]})  # fmt: skip
+        dep = await self.deps.create(
+            task_id=t.id, depends_on_task_id=target, dependency_type=body.dependency_type,
+            source="MANUAL", created_by=user.user_id,
+        )  # fmt: skip
+        await self.db.refresh(dep)
+        out = TaskDependencyOut.model_validate(dep)
+        await self.audit("task_dependency_create", "task_dependencies", dep.id, after=out)
+        return out
+
+    async def _cycle(self, start: uuid.UUID, target: uuid.UUID) -> list[uuid.UUID] | None:
+        """BFS from `start` along `depends_on` (level by level, depth ≤ 50) looking for `target`."""
+        edges: dict[uuid.UUID, list[uuid.UUID]] = {}
+        frontier, seen = [start], {start}
+        for _ in range(MAX_DEPENDENCY_DEPTH):
+            if not frontier:
+                break
+            nxt: list[uuid.UUID] = []
+            for e in await self.deps.edges_from(frontier):
+                edges.setdefault(e.task_id, []).append(e.depends_on_task_id)
+                if e.depends_on_task_id not in seen:
+                    seen.add(e.depends_on_task_id)
+                    nxt.append(e.depends_on_task_id)
+            frontier = nxt
+        else:
+            if frontier:
+                raise BusinessRuleError("dependency chain too deep",
+                                        details={"rule": "FR-TASK-02",
+                                                 "max_depth": MAX_DEPENDENCY_DEPTH})  # fmt: skip
+        try:
+            return find_cycle(start, target, edges)
+        except ValueError as exc:  # pragma: no cover — edges were collected within the limit
+            raise BusinessRuleError(
+                "dependency chain too deep", details={"rule": "FR-TASK-02"}
+            ) from exc
+
+    async def remove_dependency(
+        self, user: Principal, id_: uuid.UUID, dependency_id: uuid.UUID
+    ) -> None:
+        t = await self.get(user, id_, "write")
+        dep = await self.deps.get(dependency_id)
+        if dep is None or dep.task_id != t.id:
+            raise not_found("dependency")
+        before = TaskDependencyOut.model_validate(dep)
+        dep.updated_by = user.user_id
+        await self.deps.soft_delete(dep)
+        await self.audit("task_dependency_delete", "task_dependencies", dep.id, before=before)
 
     async def _progress(self, *initiative_ids: uuid.UUID | None) -> None:
         """Initiative `progress_pct` falls back to task completion (DEC-225)."""
@@ -184,6 +446,7 @@ class TaskService(ExecBase):
                 "assignee_id": str(t.assignee_id) if t.assignee_id else None,
                 "department_id": str(t.department_id) if t.department_id else None,
                 "due_date": t.due_date.isoformat() if t.due_date else None,
+                "days_late": (as_of - t.due_date).days if t.due_date else None,  # M1.3
             }
             await publish_in_tx(
                 self.db, event_type="execution.task_overdue", producer="execution",
@@ -196,9 +459,66 @@ class TaskService(ExecBase):
                 after={"days_late": (as_of - t.due_date).days if t.due_date else None},
                 actor=Actor(type="SYSTEM"),
             )  # fmt: skip
+            await notify_task(self.db, t, kind="reminder", title="Việc đã quá hạn",
+                              to=(t.assignee_id, t.owner_id), actor=None)  # fmt: skip
             found.append(t.id)
         await self.db.flush()
         return found
+
+    # ---------- EP-TASK-19 reassign request (R-DEC-45) ----------
+    async def request_reassign(
+        self, user: Principal, id_: uuid.UUID, body: ReassignRequestCreate
+    ) -> ApprovalRequestOut:
+        """EMP asks to move their task to someone else; the department MGR approves (EP-WF-03).
+
+        MGR/DIR/CEO who may write the task change the assignee directly → 422."""
+        if scope.level(user, "write") != "o":
+            await self.get(user, id_, "write")  # out of scope → 403
+            raise BusinessRuleError("direct reassign allowed for this role",
+                                    details={"reason": "direct_reassign_allowed"})  # fmt: skip
+        t = await self.get(user, id_)
+        await self.tasks.lock(t.id)  # serialise concurrent requests → the 2nd one sees PENDING
+        await self.db.refresh(t)
+        if t.status in CLOSED:
+            raise ConflictStateError(f"task is {t.status}", details={"status": t.status})
+        await self._check_reassignee(t, body.to_assignee_id)
+        payload = {
+            "task_id": str(t.id), "from_assignee_id": _s(t.assignee_id),
+            "to_assignee_id": str(body.to_assignee_id), "reason": body.reason,
+            "task_version": t.version,
+        }  # fmt: skip
+        return await ApprovalService(self.db).create_for_task_reassign(
+            task_id=t.id, department_id=t.department_id, requested_by=user.user_id,
+            payload=payload,
+        )  # fmt: skip
+
+    async def _check_reassignee(self, t: Task, to: uuid.UUID) -> None:
+        """`to_assignee_id` = a live employee (hr public lookup, `core.directory`) other than the
+        current assignee → else 422 `field=to_assignee_id`."""
+        if to == t.assignee_id:
+            raise BusinessRuleError(
+                "to_assignee_id is already the assignee",
+                details={"field": "to_assignee_id", "reason": "same_assignee"},
+            )
+        if to not in await live_employee_ids(self.db, [to]):
+            raise BusinessRuleError(
+                "to_assignee_id is not an employee",
+                details={"field": "to_assignee_id", "reason": "not_found"},
+            )
+
+
+async def _apply_approved_reassign(
+    db: Any, approver: Any, task_id: uuid.UUID, payload: dict[str, Any]
+) -> None:
+    """Approval hook `task_reassign` (R-DEC-45): same tx as the final approve. The task must
+    still be at the version seen when the request was made — else 409 and the whole decide
+    rolls back (request stays PENDING)."""
+    version = int(payload["task_version"])
+    body = TaskUpdate(assignee_id=uuid.UUID(str(payload["to_assignee_id"])), version=version)
+    await TaskService(db).update(approver, task_id, body, version, approved=True)
+
+
+register_approval_hook("task_reassign", _apply_approved_reassign)
 
 
 async def detect_overdue_tasks(db: AsyncSession, as_of: date) -> list[uuid.UUID]:

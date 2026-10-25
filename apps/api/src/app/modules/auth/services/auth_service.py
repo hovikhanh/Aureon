@@ -7,6 +7,7 @@ written via `core.audit.record_audit` (T-007): `auth.login`, `auth.logout`,
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -32,6 +33,16 @@ from app.modules.auth.schemas import TokenOut, UserOut
 class ClientInfo:
     user_agent: str | None = None
     ip_address: str | None = None
+
+
+@dataclass(frozen=True)
+class ApproverRef:
+    """Public DTO — who may be routed an approval (no PII beyond ids)."""
+
+    user_id: uuid.UUID
+    role: str
+    department_id: uuid.UUID | None
+    scope_pillars: frozenset[str]
 
 
 class AuthService:
@@ -82,6 +93,7 @@ class AuthService:
             department_id=user.department_id,
             tenant_id=DEFAULT_TENANT_ID,  # single-tenant MVP (R-DEC-07/13)
             scope_pillars=tuple(user.scope_pillars),  # R-DEC-12a — khối phụ trách của DIR
+            employee_id=user.employee_id,  # R-DEC-41
             now=now,
         )
         raw = new_refresh_token()
@@ -207,6 +219,58 @@ class AuthService:
         if user is None or not user.is_active or user.is_service_account:
             return None
         return user.email, user.locale
+
+    async def user_id_for_employee(self, employee_id: uuid.UUID | None) -> uuid.UUID | None:
+        """Public employee → active user id (R-DEC-46 notifications). `None` when the employee
+        has no (active) account — callers skip the notification and log at info level."""
+        if employee_id is None:
+            return None
+        user = await self.users.by_employee(employee_id)
+        if user is None or not user.is_active:
+            return None
+        return user.id
+
+    async def user_id_for_ref(self, ref: uuid.UUID | None) -> uuid.UUID | None:
+        """Task people refs are an employee id or (no employee record) a user id (R-DEC-41)."""
+        if ref is None:
+            return None
+        if (uid := await self.user_id_for_employee(ref)) is not None:
+            return uid
+        user = await self.users.get(ref)
+        return user.id if user is not None and user.is_active else None
+
+    async def user_names(self, user_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, str]:
+        """Public `{user_id: full_name}` (EP-WF-01 `requested_by_name`)."""
+        return await self.users.names(list(set(user_ids)))
+
+    async def users_with_roles(
+        self, role_codes: Sequence[str], *, department_id: uuid.UUID | None = None
+    ) -> list[uuid.UUID]:
+        """Public: active (non-service) users holding one of `role_codes`, optionally in a
+        department — approval notification recipients (R-DEC-45/46)."""
+        from sqlalchemy import select
+
+        roles = (await self.db.execute(select(Role.id).where(Role.code.in_(role_codes)))).scalars()
+        users = await self.users.active_by_roles(list(roles), department_id)
+        return [u.id for u in users]
+
+    async def approver_candidates(self, role_codes: Sequence[str]) -> list[ApproverRef]:
+        """Public: active (non-service) users holding one of `role_codes` with their role,
+        department and `scope_pillars` — filtered by `approval_service.can_decide` (R-DEC-45)."""
+        from sqlalchemy import select
+
+        rows = await self.db.execute(select(Role.id, Role.code).where(Role.code.in_(role_codes)))
+        codes = {rid: code for rid, code in rows.all()}
+        users = await self.users.active_by_roles(list(codes), None)
+        return [ApproverRef(user_id=u.id, role=codes[u.role_id], department_id=u.department_id,
+                            scope_pillars=frozenset(u.scope_pillars or ()))
+                for u in users]  # fmt: skip
+
+    async def departments_with_role(self, role_code: str) -> set[uuid.UUID]:
+        """Public: departments having at least one active user of `role_code` (R-DEC-45 — a
+        department without MGR falls back to the rule's `escalate_to_role_code`)."""
+        return {r.department_id for r in await self.approver_candidates([role_code])
+                if r.department_id is not None}  # fmt: skip
 
     async def find_user_by_role(
         self, role_code: str, *, department_id: uuid.UUID | None = None

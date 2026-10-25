@@ -1344,6 +1344,31 @@
    ]
   }
  ],
+ "dependencies": [
+  {
+   "depends_on": "PRJ-ERP-3",
+   "task": "PRJ-ERP-4"
+  },
+  {
+   "depends_on": "PRJ-ERP-4",
+   "task": "PRJ-ERP-5"
+  },
+  {
+   "depends_on": "PRJ-HN-1",
+   "task": "PRJ-HN-2"
+  },
+  {
+   "depends_on": "PRJ-ERP-3",
+   "task": "T-16"
+  }
+ ],
+ "document_tasks": [
+  {
+   "document": "HD-ERP-2026-07",
+   "page": 3,
+   "task": "PRJ-ERP-0"
+  }
+ ],
  "employees": [
   {
    "code": "NV-0001",
@@ -2954,7 +2979,7 @@
    "pillar": null,
    "status": "ok",
    "unit": "SCORE",
-   "value": 88.7
+   "value": 89.2
   },
   {
    "code": "METRIC-FIN-01",
@@ -3155,6 +3180,44 @@
    "status": "ok",
    "unit": "PCT",
    "value": 75.0
+  }
+ ],
+ "milestones": [
+  {
+   "due_date": "2026-10-15",
+   "project": "PRJ-ERP",
+   "status": "planned",
+   "title": "Go-live kho HCM"
+  },
+  {
+   "due_date": "2026-11-30",
+   "project": "PRJ-ERP",
+   "status": "planned",
+   "title": "Go-live toàn hệ thống"
+  },
+  {
+   "due_date": "2026-09-30",
+   "project": "PRJ-HN",
+   "status": "done",
+   "title": "Ký hợp đồng thuê mặt bằng"
+  },
+  {
+   "due_date": "2027-03-15",
+   "project": "PRJ-HN",
+   "status": "planned",
+   "title": "Khai trương chi nhánh"
+  },
+  {
+   "due_date": "2026-08-31",
+   "project": "PRJ-CRM",
+   "status": "done",
+   "title": "Làm sạch dữ liệu 50 khách lớn"
+  },
+  {
+   "due_date": "2026-11-20",
+   "project": "PRJ-CRM",
+   "status": "planned",
+   "title": "Chuyển quy trình chăm sóc lên CRM"
   }
  ],
  "okrs": [
@@ -3424,6 +3487,13 @@
    "tasks_total": 5
   }
  ],
+ "reassign_request": {
+  "department": "SVC",
+  "from": "NV-0046",
+  "status": "PENDING",
+  "task": "T-L000",
+  "to": "NV-0045"
+ },
  "reference_date": "2026-10-20",
  "role_permissions": {
   "ADM": [
@@ -3669,6 +3739,12 @@
    "pillars": [],
    "role_ref": "ROLE-AI",
    "scope_rules": {}
+  }
+ ],
+ "subtasks": [
+  {
+   "parent": "PRJ-CRM-4",
+   "task": "PRJ-CRM-5"
   }
  ],
  "tasks": [

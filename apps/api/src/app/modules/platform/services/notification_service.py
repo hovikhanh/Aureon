@@ -10,7 +10,9 @@ Inbox endpoints EP-NTF-01..05 use the caller's own id only (R-DEC-31).
 
 from __future__ import annotations
 
+import logging
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +31,8 @@ from app.modules.platform.schemas import (
     NotificationPreferenceOut,
     PreferenceItem,
 )
+
+log = logging.getLogger(__name__)
 
 ALL_KINDS: tuple[str, ...] = (
     "alert", "review_assigned", "review_escalated", "task_assigned", "approval_requested",
@@ -78,6 +82,23 @@ class NotificationService:
         self.db.add(notif)
         await self.db.flush()
         return notif.id
+
+    async def notify_users(
+        self, recipients: Iterable[uuid.UUID | None], *, skip: Iterable[uuid.UUID | None] = (),
+        kind: str, title: str, body: str, link: str, ref_schema: str, ref_table: str,
+        ref_id: uuid.UUID,
+    ) -> list[uuid.UUID]:  # fmt: skip
+        """One notification per distinct recipient user id, minus `skip` (R-DEC-46)."""
+        out: list[uuid.UUID] = []
+        skipped = {s for s in skip if s is not None}
+        for uid in dict.fromkeys(r for r in recipients if r is not None):
+            if uid in skipped:
+                continue
+            out.append(await self.create(
+                recipient_id=uid, kind=kind, title=title, body=body, link=link,
+                ref_schema=ref_schema, ref_table=ref_table, ref_id=ref_id,
+            ))  # fmt: skip
+        return out
 
     # ---------- EP-NTF-01..03 inbox ----------
     async def inbox(

@@ -14,6 +14,9 @@ import { metricVisible, sessionFor } from "./store";
 import { ORG_ROUTES } from "./org";
 import { ADMIN_ROUTES } from "./admin";
 import { listAudit } from "./audit";
+import { WORK_ROUTES } from "./work";
+import { PROJECT_ROUTES } from "./work-projects";
+import { WORKFLOW_ROUTES } from "./workflow";
 
 export interface MockRequest {
   method: string;
@@ -101,6 +104,10 @@ export const ROUTES: readonly Route[] = [
   { method: "GET", pattern: "/platform/audit-logs", permission: "platform:read", handler: listAudit },
   ...ORG_ROUTES,
   ...ADMIN_ROUTES,
+  // M1.3 work (T-625F): tasks, projects, milestones, workload, approvals.
+  ...WORK_ROUTES,
+  ...PROJECT_ROUTES,
+  ...WORKFLOW_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

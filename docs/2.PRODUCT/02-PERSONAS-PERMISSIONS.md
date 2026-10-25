@@ -79,6 +79,7 @@ Các FR-ADM dưới đây là **spec hành vi P0** của domain D02 Administrati
 
 - **Default deny** (P08): quyền không được cấp tường minh thì bị từ chối; quyền được kiểm tra ở **mọi** tool call của AI trước khi thực thi (AI-R08).
 - Nguồn truy nguyên: FR-ADM-01..08 (BRD §5.2); NFR-SEC-02/03/04.
+- **Ghi chú ma trận (đề xuất R-DEC-76 — Spec lock M1.6, chờ human duyệt):** ROLE-ADM thêm `idp:read` + `idp:write` scope `s` — chỉ doc type #4 (Sơ đồ tổ chức/DS nhân sự) và chỉ ghi entity cơ cấu (`hr:admin`) + nhân viên cơ bản không lương (`ACT-create_employee` khai any-of `hr:write | hr:admin`, R-DEC-61); cột mức 4 trong file bị bỏ + cảnh báo; doc type khác → `403 FORBIDDEN_SCOPE`. Phục vụ UC-07 (actor = Admin).
 
 ## 5. Phân loại dữ liệu 4 mức → chính sách model/cloud (FR-ADM-05)
 
@@ -188,6 +189,7 @@ Ngưỡng và người duyệt theo loại hành động. "Không cho phép" = A
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.0.2 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §4 thêm ghi chú ma trận R-DEC-76 (ROLE-ADM `idp:read` + `idp:write` scope `s` cho import cơ cấu UC-07).
 - **Change 1.0.1 (đề xuất — M1.2, human duyệt R-DEC-30/36 2026-10-23):** §2 thêm ghi chú quyền cơ cấu `hr:admin` (CEO/ADM/DIR-O), ADM `hr:read` scope `s` chỉ cơ cấu, ADM không cấp ROLE-CEO.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng spec-level P0 bám canonical: §1 bảng stakeholder + ánh xạ role; §4 mô tả hành vi + ràng buộc từng FR-ADM-01..08; §5 4 mức phân loại → chính sách model/cloud + quy tắc fallback + field-level mask; §6 định nghĩa từng Autonomy L0–L4 kèm ví dụ hành vi + phân loại tool READ/WRITE/APPROVAL/EXECUTION + nhãn UI; §7 Approval Matrix đủ ngưỡng theo loại hành động; §9.1 liệt kê 12 nguyên tắc governance §17.1, §9.2 nội dung audit + ví dụ audit trail §14.2, §9.3 tuân thủ VN (NĐ 13, NĐ 123, ghi âm họp, chữ ký số, an ninh mạng); thêm OQ-02-04. Không field-level DB / T-* / TC-* (R-DEC-09).

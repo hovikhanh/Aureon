@@ -36,7 +36,9 @@ def _tables(engine: Engine) -> set[str]:
     sql = text(
         "SELECT table_schema || '.' || table_name FROM information_schema.tables "
         "WHERE table_schema = ANY(:s) AND table_type = 'BASE TABLE' "
-        "AND table_name <> 'alembic_version'"
+        "AND table_name <> 'alembic_version' "
+        # migration bookkeeping (e.g. `execution._m13_assignee_backfill`, 05 §2.5) is not a model
+        "AND table_name NOT LIKE '\\_%'"
     )
     with engine.connect() as c:
         return set(c.execute(sql, {"s": list(SCHEMAS)}).scalars())

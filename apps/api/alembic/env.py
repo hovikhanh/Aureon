@@ -40,10 +40,18 @@ def _active_schemas() -> tuple[str, ...]:
     return picked
 
 
+# Migration bookkeeping tables that live in a module schema but have no model (05 §12.2):
+# `execution._m13_assignee_backfill` keeps the 0014 assignee mapping for its downgrade.
+MIGRATION_ONLY_TABLES = frozenset({("execution", "_m13_assignee_backfill")})
+
+
 def include_name(name: str | None, type_: str, parent_names: dict[str, Any]) -> bool:
-    """Reflection side: only module schemas (v1 leftovers in `public` are ignored)."""
+    """Reflection side: only module schemas (v1 leftovers in `public` are ignored), minus the
+    migration-only bookkeeping tables (autogenerate must not propose dropping them)."""
     if type_ == "schema":
         return name in _active_schemas()
+    if type_ == "table":
+        return (parent_names.get("schema_name"), name) not in MIGRATION_ONLY_TABLES
     return True
 
 
@@ -53,6 +61,8 @@ def include_object(
     """Metadata side: keep only tables (and their children) in the active schemas."""
     table = obj if type_ == "table" else getattr(obj, "table", None)
     schema = getattr(table, "schema", None)
+    if (schema, getattr(table, "name", None)) in MIGRATION_ONLY_TABLES:
+        return False
     return schema is None or schema in _active_schemas()
 
 

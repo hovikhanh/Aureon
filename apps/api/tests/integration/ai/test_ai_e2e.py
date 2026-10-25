@@ -465,7 +465,7 @@ async def test_finance_action_opens_approval_and_executes_on_hook(db_session) ->
 
     with pytest.raises(ConflictStateError):
         await svc.confirm(requester, out.id)
-    # drive the 2-sided approval; the EP-125 hook executes the AI action on final APPROVE
+    # drive the 2-sided approval; the EP-WF-03 hook executes the AI action on final APPROVE
     asvc = ApprovalService(db_session)
 
     async def _hook(req):

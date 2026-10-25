@@ -1,4 +1,6 @@
-"""HTTP routes for `platform` (10 §4): EP-56 dead letters (list + replay).
+"""HTTP routes for `platform` (10 §4): EP-52 audit log, EP-56 dead letters (list + replay).
+
+Approval decide moved to `/workflow/*` (`routes/workflow.py`, EP-WF-03 — R-DEC-40).
 
 The brief named `POST /admin/dlq/{id}/retry`; 10 EP-56 (contract source) is
 `GET /platform/dead-letters` + `POST /platform/dead-letters/{id}/replay`, `platform:admin`.
@@ -10,22 +12,17 @@ from typing import Annotated, Literal
 
 from fastapi import Depends, Query, status
 
-from app.core.approval_hooks import get_approval_hook
 from app.core.deps import DbSession, Principal, require_permission
 from app.core.envelope import Page
-from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
-from app.modules.platform.models import ApprovalRequest
 from app.modules.platform.routes.notifications import router as notifications_router
+from app.modules.platform.routes.workflow import router as workflow_router
 from app.modules.platform.schemas import (
-    ApprovalRequestOut,
     AuditLogOut,
     DeadLetterOut,
-    DecideIn,
     ReplayOut,
 )
-from app.modules.platform.services.approval_service import ApprovalService
 from app.modules.platform.services.audit_query import AuditQueryService
 from app.modules.platform.services.platform_service import PlatformService
 
@@ -33,7 +30,6 @@ router = EnvelopeRouter(prefix="/platform", tags=["platform"])
 
 PlatformReader = Annotated[Principal, Depends(require_permission("platform", "read"))]
 PlatformAdmin = Annotated[Principal, Depends(require_permission("platform", "admin"))]
-PlatformApprover = Annotated[Principal, Depends(require_permission("platform", "approve"))]
 DeadLetterPage = Annotated[PageParams, Depends(page_params())]
 
 
@@ -94,34 +90,9 @@ async def replay_dead_letter(id: uuid.UUID, _: PlatformAdmin, svc: Service) -> R
     return await svc.replay_dead_letter(id)
 
 
-@router.post(
-    "/approvals/{id}/decide", response_model=ApprovalRequestOut, summary="EP-125 Decide approval"
-)
-async def decide_approval(
-    id: uuid.UUID, body: DecideIn, approver: PlatformApprover, db: DbSession, idem: Idem
-) -> ApprovalRequestOut:
-    """Decide one step. On the final APPROVE, execute the linked target in the same transaction.
-
-    The target executor is resolved from `core.approval_hooks` (the owning module registers it at
-    import time) so `platform` never imports it (DEC-125, no module cycle) — the AI action runs in
-    this transaction (04 §10.4).
-    """
-
-    async def _on_approved(req: ApprovalRequest) -> None:
-        if req.ai_action_id is None:
-            return
-        hook = get_approval_hook("ai_action")
-        if hook is not None:
-            await hook(db, approver, req.ai_action_id)
-
-    out = await ApprovalService(db).decide(
-        approver, id, decision=body.decision, reason=body.reason, on_approved=_on_approved
-    )
-    await db.commit()
-    return out
-
-
 # M1.2 T-616: EP-NTF-01..05 `/notifications` (token only, R-DEC-31) in the same module router.
 module_router = EnvelopeRouter(tags=["platform"])
 module_router.include_router(router)
 module_router.include_router(notifications_router)
+# M1.3 T-619C: `/workflow/*` (EP-WF-01..03, R-DEC-40) — replaces `/platform/approvals/*`.
+module_router.include_router(workflow_router)

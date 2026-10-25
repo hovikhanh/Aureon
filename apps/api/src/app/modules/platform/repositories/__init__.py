@@ -14,6 +14,7 @@ from app.core.tenant import require_tenant
 from app.modules.platform.models import (
     Alert,
     ApprovalRequest,
+    ApprovalRule,
     AuditLog,
     DataLineage,
     Metric,
@@ -147,6 +148,48 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest]):
     async def locked(self, request_id: uuid.UUID) -> ApprovalRequest | None:
         stmt = self._scoped(select(ApprovalRequest)).where(ApprovalRequest.id == request_id)
         return (await self.db.execute(stmt.with_for_update())).scalar_one_or_none()
+
+    async def pending_for(self, target_kind: str, target_id: uuid.UUID) -> ApprovalRequest | None:
+        stmt = self._live().where(
+            ApprovalRequest.target_kind == target_kind, ApprovalRequest.target_id == target_id,
+            ApprovalRequest.status == "PENDING",
+        )  # fmt: skip
+        return (await self.db.execute(stmt.limit(1))).scalars().first()
+
+    async def where_one(self, *clauses: ColumnElement[bool]) -> ApprovalRequest | None:
+        stmt = self._live().where(*clauses)
+        return (await self.db.execute(stmt.limit(1))).scalars().first()
+
+    async def count_where(self, *clauses: ColumnElement[bool]) -> int:
+        stmt = select(func.count()).select_from(ApprovalRequest).where(*clauses)
+        stmt = self._scoped(stmt).where(ApprovalRequest.deleted_at.is_(None))
+        return int((await self.db.execute(stmt)).scalar_one())
+
+
+class ApprovalRuleRepository(BaseRepository[ApprovalRule]):
+    """Global config catalog (not tenant-scoped)."""
+
+    model = ApprovalRule
+
+    async def by_code(self, code: str) -> ApprovalRule | None:
+        stmt = select(ApprovalRule).where(ApprovalRule.code == code)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def by_ids(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, ApprovalRule]:
+        if not ids:
+            return {}
+        rows = await self.db.execute(select(ApprovalRule).where(ApprovalRule.id.in_(ids)))
+        return {r.id: r for r in rows.scalars()}
+
+    async def insert_if_absent(self, **values: Any) -> None:
+        """`INSERT … ON CONFLICT (code) DO NOTHING` — lazy default rules (05 §2.5)."""
+        from sqlalchemy.dialects.postgresql import insert
+
+        stmt = insert(ApprovalRule).values(id=uuid.uuid4(), **values)
+        await self.db.execute(stmt.on_conflict_do_nothing(index_elements=["code"]))
+
+    async def all_rules(self) -> Sequence[ApprovalRule]:
+        return (await self.db.execute(select(ApprovalRule))).scalars().all()
 
 
 class MetricValueRepository(BaseRepository[MetricValue]):
