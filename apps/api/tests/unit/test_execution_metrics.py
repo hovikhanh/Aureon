@@ -77,8 +77,10 @@ def ini(weight: int, progress: int, start: date = date(2037, 1, 1)) -> Initiativ
 
 def test_rsk06_sei() -> None:
     # expected ≈ 38.4% → on-track threshold ≈ 34.5%
-    r = m.rsk06([ini(30, 40), ini(70, 10)], D, KEY)
-    assert r.code == "METRIC-RSK-06" and r.value == 30.0 and len(r.records) == 2
+    on, late = ini(30, 40), ini(70, 10)
+    r = m.rsk06([on, late], D, KEY)
+    assert r.code == "METRIC-RSK-06" and r.value == 30.0
+    assert [x.id for x in r.records] == [str(late.id)]  # drill-down = late initiatives (T-630)
     assert m.rsk06([ini(0, 40), ini(0, 10)], D, KEY).value == 50.0  # equal weights
     none = m.rsk06([], D, KEY)
     assert none.value is None and none.status_reason == "no active initiatives"

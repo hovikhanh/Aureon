@@ -30,6 +30,7 @@ from app.modules.platform.services.metric_store import MetricStore, seed_catalog
 from app.seed.auth_seed import AI_AGENT, DEMO_USERS, seed_auth
 from app.seed.execution_seed import seed_execution
 from app.seed.finance_seed import seed_finance
+from app.seed.goals_seed import seed_goals
 from app.seed.hr_seed import seed_hr
 from app.seed.org_data import DEPARTMENTS
 from app.seed.product_seed import seed_product
@@ -64,6 +65,7 @@ async def _seed_all(db: AsyncSession) -> None:
     await seed_product(db, owner)
     await seed_risk(db, owner)
     await seed_execution(db, owner)
+    await seed_goals(db, owner)
 
 
 @pytest.fixture
@@ -141,7 +143,7 @@ async def test_tc_m11_07_uc_datasets_and_health_targets(seeded: AsyncSession) ->
     assert await _count(seeded, Project) == 10 and depts >= 5
 
     m = await _metrics(seeded)
-    assert all(v is not None for v, _ in m.values()) and len(m) == 32
+    assert all(v is not None for v, _ in m.values()) and len(m) == 33
     # 08 §5 — main alert runway 🔴, overload 🟠, coverage 🟠, revenue vs plan 🟠, budget 🟠
     # (FIN-06 ~8 %, human decision 2026-10-23: amber under the catalog thresholds warn 0 / crit 10).
     assert m["METRIC-FIN-03"] == (5.3, "RED")
@@ -283,3 +285,70 @@ async def test_tc_m13_11_seed_links_milestones_reassign(seeded: AsyncSession) ->
         status=None, rule_code=None, target_kind=None,
     )  # fmt: skip
     assert [i.rule_code for i in items] == [RULE_TASK_REASSIGN] and pending == 1
+
+
+async def test_tc_m14_16_goal_layer(seeded: AsyncSession) -> None:
+    """TC-M14-16 (T-631): Strategy → 4 SO, KPIEvaluation 3 periods, UC-03, UC-04, G2."""
+    from app.modules.execution.models import (
+        CheckIn,
+        Initiative,
+        KpiEvaluation,
+        KrMeasurement,
+        StrategicObjective,
+        Strategy,
+    )
+    from app.seed.goals_seed import kr_id
+
+    strategies = (await seeded.execute(select(Strategy).where(
+        Strategy.deleted_at.is_(None)))).scalars().all()  # fmt: skip
+    assert [(s.code, s.name, s.status) for s in strategies] == [
+        ("STR-2026-2027", "Tăng trưởng bền vững 2026–2027", "active")
+    ]
+    sos = (await seeded.execute(select(StrategicObjective).where(
+        StrategicObjective.deleted_at.is_(None)))).scalars().all()  # fmt: skip
+    assert sorted(s.pillar or "" for s in sos) == ["C", "F", "O", "U"]
+    assert {s.strategy_id for s in sos} == {strategies[0].id}
+    so_ids = {s.id for s in sos}
+    inis = (await seeded.execute(select(Initiative))).scalars().all()
+    assert len(inis) == 4 and {i.strategic_objective_id for i in inis} == so_ids
+    roots = await _count(seeded, Kpi, Kpi.strategic_objective_id.in_(so_ids))
+    assert roots >= 4 and await _count(seeded, Objective, Objective.strategic_objective_id.in_(
+        so_ids)) == 6  # fmt: skip
+    assert await _count(seeded, Project, Project.initiative_id.is_not(None)) >= 8
+    assert await _count(seeded, Objective, Objective.deleted_at.is_(None),
+                        Objective.period_key == "2026") == 0  # fmt: skip
+    # 12 KPI × 3 periods evaluated; UC-03 KPI-SAL-01 declining to CRITICAL 65 %
+    assert await _count(seeded, KpiEvaluation) == 36
+    q = select(KpiEvaluation).join(Kpi, Kpi.id == KpiEvaluation.kpi_id)
+    q = q.where(Kpi.code == "KPI-SAL-01").order_by(KpiEvaluation.period_key)
+    sal = (await seeded.execute(q)).scalars().all()
+    assert [float(e.achievement_pct) for e in sal] == [90.0, 76.6667, 65.0]
+    assert [e.band for e in sal] == ["NEAR", "BELOW", "CRITICAL"]
+    assert sal[2].previous_band == "BELOW" and all(e.measured_on_time for e in sal)
+    # UC-04 — the only at-risk KR, two measurements 2,58 → 2,52, ≥ 21 days left
+    at_risk = (await seeded.execute(select(KeyResult).where(
+        KeyResult.at_risk.is_(True)))).scalars().all()  # fmt: skip
+    assert [k.id for k in at_risk] == [kr_id("OKR-SAL", 1)]
+    uc04 = at_risk[0]
+    assert uc04.title == "Pipeline trọng số ≥ 3x chỉ tiêu" and uc04.confidence == "LOW"
+    assert uc04.at_risk_reasons == ["declining", "low_confidence"]
+    ms = (await seeded.execute(select(KrMeasurement).where(
+        KrMeasurement.key_result_id == uc04.id)
+        .order_by(KrMeasurement.measured_at))).scalars().all()  # fmt: skip
+    assert [float(m.value) for m in ms] == [2.58, 2.52]
+    assert float(ms[1].progress_pct) == 20.0 and float(ms[1].previous_progress_pct) == 30.0
+    assert (date(2026, 12, 31) - AS_OF).days >= 21
+    lows = await _count(seeded, KeyResult, KeyResult.confidence == "LOW")
+    assert lows == 1
+    # ~10 check-ins, one by employee@ on her own KR
+    n = int((await seeded.execute(select(func.count()).select_from(CheckIn))).scalar_one())
+    assert 10 <= n <= 12
+    emp = (await seeded.execute(select(User).where(User.email == "employee@abc.demo"))).scalar_one()
+    mine = (await seeded.execute(select(CheckIn).where(CheckIn.user_id == emp.id))).scalars().all()
+    assert len(mine) == 1
+    kr = await seeded.get(KeyResult, mine[0].key_result_id)
+    assert kr is not None and kr.owner_id == emp.id
+    # G2 measured (not N/A) — 08 §4 / R-DEC-54
+    m = await _metrics(seeded)
+    assert m["METRIC-STR-01"] == (81.5, "GREEN")
+    assert m["METRIC-RSK-06"] == (75.0, "GREEN")

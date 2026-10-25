@@ -33,7 +33,8 @@ AFFECTS: dict[str, set[str]] = {
     "execution.task_overdue": {"execution"},
     "execution.task_created": {"execution"},  # R-DEC-47 — OPS-01 / HR-03
     "execution.task_completed": {"execution"},  # R-DEC-47 — OPS-01 / OPS-02
-    "execution.kpi_measured": {"execution"},
+    "execution.kpi_measured": {"execution"},  # M1.4 → platform.on_goal_event (G2 + SEI)
+    "execution.okr_checked_in": {"execution"},  # M1.4 R-DEC-56 — G2 (METRIC-STR-01)
     "idp.document_committed": {"finance", "sales", "hr", "product", "risk", "execution"},
     "idp.document_rolled_back": {"finance", "sales", "hr", "product", "risk", "execution"},
 }
@@ -43,8 +44,12 @@ async def recompute_for(session: AsyncSession, event: EventEnvelope) -> None:
     await MetricStore(session).recompute(business_today(), AFFECTS[event.event_type])
 
 
+# M1.4 goal events have their own consumer (10 §9.2 R-DEC-56), so they dedupe apart from tasks
+GOAL_EVENTS: tuple[str, ...] = ("execution.kpi_measured", "execution.okr_checked_in")
+
+
 def _group(prefix: str) -> tuple[str, ...]:
-    return tuple(sorted(e for e in AFFECTS if e.startswith(prefix)))
+    return tuple(sorted(e for e in AFFECTS if e.startswith(prefix) and e not in GOAL_EVENTS))
 
 
 @consumer("platform.on_finance_event", *_group("finance."))
@@ -74,6 +79,11 @@ async def on_risk_event(session: AsyncSession, event: EventEnvelope) -> None:
 
 @consumer("platform.on_execution_event", *_group("execution."))
 async def on_execution_event(session: AsyncSession, event: EventEnvelope) -> None:
+    await recompute_for(session, event)
+
+
+@consumer("platform.on_goal_event", *GOAL_EVENTS)
+async def on_goal_event(session: AsyncSession, event: EventEnvelope) -> None:
     await recompute_for(session, event)
 
 

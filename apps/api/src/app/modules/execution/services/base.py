@@ -21,6 +21,7 @@ from app.modules.execution.models import (
     Milestone,
     Objective,
     Project,
+    StrategicObjective,
     Task,
 )
 
@@ -34,6 +35,7 @@ REFS: dict[str, type[BusinessModel]] = {
     "milestone_id": Milestone,
     "kpi_id": Kpi,
     "objective_id": Objective,
+    "strategic_objective_id": StrategicObjective,
 }
 
 
@@ -77,6 +79,15 @@ class ExecBase:
                 raise BusinessRuleError(
                     f"{field} does not exist", details={"field": field, "rule": rule}
                 )
+
+    @staticmethod
+    def require_root_link(data: dict[str, Any], parent_field: str, rule: str) -> None:
+        """05 §2.6 CHECK: only a root (no parent) links to a StrategicObjective → 422 not 500."""
+        if data.get(parent_field) is not None and data.get("strategic_objective_id") is not None:
+            raise BusinessRuleError(
+                "only a root record links to a strategic objective",
+                details={"field": "strategic_objective_id", "rule": rule},
+            )
 
     async def require_unique(
         self, model: type[BusinessModel], column: str, value: Any, exclude: Any

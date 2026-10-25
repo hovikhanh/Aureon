@@ -37,9 +37,9 @@ test.describe("IA v3 sidebar per role (TC-M11-12)", { tag: "@mock" }, () => {
 
   test("a not-yet-built item shows the 'Sắp có' frame", async ({ page }) => {
     await login(page, "employee@abc.demo");
-    await page.getByTestId("nav-goals").click();
-    await expect(page).toHaveURL(/\/goals$/);
-    await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-41");
+    await page.getByTestId("nav-meetings").click();
+    await expect(page).toHaveURL(/\/meetings$/);
+    await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-44");
     await expect(page.getByTestId("coming-soon")).toContainText("Sắp có");
   });
 

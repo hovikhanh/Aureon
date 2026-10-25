@@ -8,6 +8,7 @@ import importlib.util
 import pkgutil
 
 CONSUMER_MODULES = (
+    "app.modules.execution.events.consumers",
     "app.modules.finance.events.consumers",
     "app.modules.platform.events.consumers",
     "app.modules.risk.events.consumers",

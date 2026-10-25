@@ -1,12 +1,20 @@
-"""Execution metric provider (03 §2.2, §2.5) — METRIC-OPS-01..03, METRIC-HR-03, METRIC-RSK-06.
+"""Execution metric provider (03 §2.2, §2.5, §4) — METRIC-OPS-01..03, METRIC-HR-03,
+METRIC-RSK-06 (SEI) and METRIC-STR-01 (G2 "KPI/OKR cập nhật đúng kỳ", R-DEC-54).
 
 All company scope, `period_key = YYYY-MM` of `as_of`; `value=None` (+ `status_reason`) when
 there is nothing to measure. Status is left to the catalog thresholds. Window: tasks with
 `due_date` in `[month start, as_of]` (tasks that have come due — DEC-226); cancelled tasks
 are not counted. OPS-02 actual progress = share of `done` among the project's non-cancelled
 tasks (05 `projects` has no progress column — DEC-226).
+
+G2 (05 §2.6): `pct(#on-time KPI-periods + #on-time KRs, #due KPI-periods + #active KRs)`. Due
+KPI-period = the most recent period of each `active` KPI whose `end + GOALS_KPI_GRACE_DAYS` has
+passed; on time = its KPIEvaluation `measured_on_time`. Active KR = KR of an `active` objective
+whose period contains `as_of`; on time = `last_checked_in_at ≥ as_of −
+GOALS_KR_CHECKIN_MAX_AGE_DAYS`. `records` = late KPIs + KRs; SEI `records` = late initiatives.
 """
 
+import uuid
 from collections.abc import Iterable, Sequence
 from datetime import UTC, date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -14,13 +22,23 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import month_key, month_range
+from app.core.config import get_config
 from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
-from app.modules.execution.models import Initiative, Project, Task
+from app.modules.execution.models import Initiative, KeyResult, Kpi, Project, Task
 from app.modules.execution.repositories import (
     InitiativeRepository,
+    KeyResultRepository,
+    KpiEvaluationRepository,
+    KpiRepository,
     ProjectRepository,
     TaskRepository,
+)
+from app.modules.execution.services.at_risk import current_objectives
+from app.modules.execution.services.kpi_rules import (
+    last_ended_period,
+    local_day,
+    period_bounds,
 )
 from app.modules.execution.services.project_rules import (
     LATE_GAP_PCT,
@@ -102,6 +120,12 @@ def hr03(tasks: Sequence[Task], as_of: date, key: str) -> MetricReading:
                    "no assigned open tasks")  # fmt: skip
 
 
+def sei_on_track(i: Initiative, as_of: date) -> bool:
+    """SEI rule (DEC-226): progress ≥ 0.9 × linear plan — also EP-STR-01 `on_track`."""
+    expected = linear_progress(i.start_date, i.planned_end_date, as_of)
+    return Decimal(i.progress_pct) >= expected * SEI_ON_TRACK_RATIO
+
+
 def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricReading:
     if not initiatives:
         return reading("METRIC-RSK-06", None, key, (), "no active initiatives")
@@ -110,11 +134,49 @@ def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricRea
         weights = [Decimal(1)] * len(initiatives)
     hit = Decimal(0)
     for i, w in zip(initiatives, weights, strict=True):
-        expected = linear_progress(i.start_date, i.planned_end_date, as_of)
-        if Decimal(i.progress_pct) >= expected * SEI_ON_TRACK_RATIO:
+        if sei_on_track(i, as_of):
             hit += w
+    late = (i.id for i in initiatives if not sei_on_track(i, as_of))
     return reading("METRIC-RSK-06", pct(hit, sum(weights)), key,
-                   refs("initiatives", (i.id for i in initiatives)), "")  # fmt: skip
+                   refs("initiatives", late), "")  # fmt: skip
+
+
+def due_period(period_type: str, as_of: date, grace_days: int) -> str:
+    """Most recent period whose `end + grace` is ≤ `as_of` (a due KPI-period, R-DEC-54)."""
+    key = last_ended_period(period_type, as_of)
+    if as_of < period_bounds(key)[1] + timedelta(days=grace_days):
+        key = last_ended_period(period_type, period_bounds(key)[0])
+    return key
+
+
+def str01(
+    kpi_periods: Sequence[tuple[uuid.UUID, str]], on_time_kpis: set[tuple[uuid.UUID, str]],
+    krs: Sequence[KeyResult], as_of: date, max_age_days: int, key: str,
+) -> MetricReading:  # fmt: skip
+    """G2: `kpi_periods` = due `(kpi, period)`; `on_time_kpis` = those measured on time."""
+    late_kpis = [k for k, p in kpi_periods if (k, p) not in on_time_kpis]
+    oldest = as_of - timedelta(days=max_age_days)
+    late_krs = [
+        r.id
+        for r in krs
+        if r.last_checked_in_at is None or local_day(r.last_checked_in_at) < oldest
+    ]
+    due = len(kpi_periods) + len(krs)
+    records = (*refs("kpis", late_kpis), *refs("key_results", late_krs))[:MAX_RECORDS]
+    return reading("METRIC-STR-01", pct(due - len(late_kpis) - len(late_krs), due), key,
+                   records, "no active KPIs or key results")  # fmt: skip
+
+
+async def load_str01(db: AsyncSession, as_of: date, key: str) -> MetricReading:
+    cfg = get_config()
+    kpis = await KpiRepository(db).where(Kpi.status == "active", order=Kpi.code)
+    pairs = [(k.id, due_period(k.period_type, as_of, cfg.goals_kpi_grace_days)) for k in kpis]
+    evs = await KpiEvaluationRepository(db).for_pairs(pairs)
+    objs = [o.id for o in await current_objectives(db, as_of)]
+    krs = (await KeyResultRepository(db).where(KeyResult.objective_id.in_(objs),
+                                               order=KeyResult.id) if objs else [])  # fmt: skip
+    return str01(pairs, {p for p, e in evs.items() if e.measured_on_time}, krs, as_of,
+                 cfg.goals_kr_checkin_max_age_days, key)  # fmt: skip
 
 
 @metric_provider("execution")
@@ -132,6 +194,7 @@ async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
         ops03(due, key),
         hr03(await load_tasks(db, None, as_of), as_of, key),
         rsk06(await InitiativeRepository(db).in_flight(start, end), as_of, key),
+        await load_str01(db, as_of, key),
     ]
 
 

@@ -47,6 +47,10 @@ const SUB_ROUTES: readonly RouteRule[] = [
   // M1.3 (06 §3.4, R-DEC-48): SCR-55/56 projects (EMP: projects with own tasks), SCR-57 workload
   { prefix: "/work/projects", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { prefix: "/work/workload", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:query"] },
+  // M1.4 (06 §3.4): SCR-58 KPI detail, SCR-59 Objective detail, SCR-60 check-ins (EMP: own scope — the API filters)
+  { prefix: "/goals/kpis", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { prefix: "/goals/objectives", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { prefix: "/goals/check-ins", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { prefix: "/data/review", roles: ["REV", "DIR", "MGR", "CEO"], anyOf: ["idp:approve"] },
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"] },
@@ -123,4 +127,16 @@ export function visibleWorkTabs(role: string, perms: readonly string[]): WorkTab
 /** Every human role lands on Trang chủ (SCR-40); the AI actor has no UI. */
 export function landingFor(role: string, perms: readonly string[]): string {
   return canAccess("/home", role, perms) ? "/home" : "/403";
+}
+
+/** Tab bar of `/goals` (06 §3.4 Spec lock M1.4): Cây mục tiêu (SCR-41) · Check-in (SCR-60). */
+export type GoalsTabKey = "tree" | "checkins";
+export interface GoalsTab extends AccessRule { key: GoalsTabKey; href: string; scr: string }
+export const GOALS_TABS: readonly GoalsTab[] = [
+  { key: "tree", href: "/goals", scr: "SCR-41", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  { key: "checkins", href: "/goals/check-ins", scr: "SCR-60", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+];
+
+export function visibleGoalsTabs(role: string, perms: readonly string[]): GoalsTab[] {
+  return GOALS_TABS.filter((tab) => allowed(tab, role, perms));
 }

@@ -97,6 +97,6 @@ async def test_seed_product_risk_execution_populate_all_metrics(db_session: Asyn
         .where(MetricValue.is_current.is_(True), MetricValue.scope_type == "company",
                MetricValue.value.is_not(None))
     )).scalar_one()  # fmt: skip
-    assert valued == 32
+    assert valued == 33  # + METRIC-STR-01 (M1.4)
     open_alerts = select(func.count()).select_from(Alert).where(Alert.status == "OPEN")
     assert (await db_session.execute(open_alerts)).scalar_one() >= 13  # 08 §5 v3 (DEC-231 sup.)

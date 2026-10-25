@@ -170,7 +170,16 @@ def _kpis(owner: uuid.UUID) -> list[Any]:
         for period, actual in zip(X.KPI_PERIODS, actuals, strict=True):
             tid = seed_uuid("kpi_target", f"{code}:{period}")
             ach = kpi_rules.achievement_pct(direction, Decimal(str(actual)), Decimal(str(target)))
-            rows.append(KpiTarget(id=tid, kpi_id=kid, period_key=period, target=target, **SEED))
+            rows.append(
+                KpiTarget(
+                    id=tid,
+                    kpi_id=kid,
+                    period_key=period,
+                    target=target,
+                    valid_from=kpi_rules.period_bounds(period)[0],
+                    **SEED,
+                )
+            )
             rows.append(KpiMeasurement(
                 id=seed_uuid("kpi_measurement", f"{code}:{period}"), kpi_id=kid,
                 period_key=period, actual_value=actual, achievement_pct=ach,

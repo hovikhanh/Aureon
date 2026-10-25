@@ -1249,6 +1249,107 @@
    "valid_to": "2026-09-09"
   }
  ],
+ "check_ins": [
+  {
+   "by": "sales@abc.demo",
+   "confidence": "LOW",
+   "date": "2026-10-06",
+   "key_result": 1,
+   "note": "Hai cơ hội lớn lùi sang Q1/2027",
+   "okr": "OKR-SAL",
+   "value": 2.58
+  },
+  {
+   "by": "sales@abc.demo",
+   "confidence": "LOW",
+   "date": "2026-10-16",
+   "key_result": 1,
+   "note": "Mất cơ hội ngân hàng ABB; thiếu presales cho 3 hồ sơ thầu",
+   "okr": "OKR-SAL",
+   "value": 2.52
+  },
+  {
+   "by": "sales@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-14",
+   "key_result": 0,
+   "note": "Đã ký 2/6 hợp đồng",
+   "okr": "OKR-SAL",
+   "value": 2
+  },
+  {
+   "by": "ceo@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-15",
+   "key_result": 0,
+   "note": "Doanh thu tháng 10 tạm tính",
+   "okr": "OKR-CO",
+   "value": 16.5
+  },
+  {
+   "by": "cfo@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-15",
+   "key_result": 1,
+   "note": "Giãn lịch trả nhà cung cấp 30 ngày",
+   "okr": "OKR-CO",
+   "value": 5.4
+  },
+  {
+   "by": "cfo@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-14",
+   "key_result": 2,
+   "note": "Biên gộp tháng 9",
+   "okr": "OKR-CO",
+   "value": 18.5
+  },
+  {
+   "by": "cfo@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-15",
+   "key_result": 0,
+   "note": "Đã thu 3 khoản quá hạn",
+   "okr": "OKR-FIN",
+   "value": 45
+  },
+  {
+   "by": "manager@abc.demo",
+   "confidence": "HIGH",
+   "date": "2026-10-13",
+   "key_result": 0,
+   "note": "SLA tuần 41",
+   "okr": "OKR-SVC",
+   "value": 96
+  },
+  {
+   "by": "employee@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-16",
+   "key_result": 1,
+   "note": "Tuyến Bình Dương còn chậm 0,3 ngày",
+   "okr": "OKR-SVC",
+   "value": 1.9
+  },
+  {
+   "by": "cpo@abc.demo",
+   "confidence": "HIGH",
+   "date": "2026-10-16",
+   "key_result": 0,
+   "note": "ABC Order tháng 10",
+   "okr": "OKR-PRD",
+   "value": 33
+  },
+  {
+   "by": "cpo@abc.demo",
+   "confidence": "MEDIUM",
+   "date": "2026-10-16",
+   "key_result": 2,
+   "note": "Xong thiết kế dữ liệu; còn tích hợp",
+   "okr": "OKR-PRD",
+   "value": 25
+  }
+ ],
  "company": "Công ty TNHH TM&DV ABC",
  "departments": [
   {
@@ -2757,6 +2858,48 @@
    "team": "ADM-OFF"
   }
  ],
+ "initiatives": [
+  {
+   "code": "INI-01",
+   "department": "SAL",
+   "pillar": "C",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 74,
+   "start_date": "2026-01-01",
+   "title": "Tăng trưởng doanh thu 15%",
+   "weight_pct": 30
+  },
+  {
+   "code": "INI-02",
+   "department": "FIN",
+   "pillar": "F",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 70,
+   "start_date": "2026-04-01",
+   "title": "Giảm DSO xuống 45 ngày",
+   "weight_pct": 25
+  },
+  {
+   "code": "INI-03",
+   "department": "PRD",
+   "pillar": "U",
+   "planned_end_date": "2027-03-31",
+   "progress_pct": 30,
+   "start_date": "2026-06-01",
+   "title": "Ra mắt ABC Insight",
+   "weight_pct": 25
+  },
+  {
+   "code": "INI-04",
+   "department": "SVC",
+   "pillar": "O",
+   "planned_end_date": "2026-12-31",
+   "progress_pct": 58,
+   "start_date": "2026-07-01",
+   "title": "Chuẩn hóa quy trình bảo trì",
+   "weight_pct": 20
+  }
+ ],
  "kpis": [
   {
    "code": "KPI-CO-01",
@@ -2768,6 +2911,7 @@
     "2026-09": 25.5
    },
    "name": "Doanh thu thuần (tỷ)",
+   "parent": null,
    "target": 27.0,
    "unit": "tỷ VND"
   },
@@ -2781,6 +2925,7 @@
     "2026-09": 18.2
    },
    "name": "Biên lợi nhuận gộp (%)",
+   "parent": null,
    "target": 20.0,
    "unit": "%"
   },
@@ -2794,6 +2939,7 @@
     "2026-09": 3.9
    },
    "name": "Doanh số mới khách hàng lớn (tỷ)",
+   "parent": "KPI-CO-01",
    "target": 6.0,
    "unit": "tỷ VND"
   },
@@ -2807,6 +2953,7 @@
     "2026-09": 10
    },
    "name": "Số cơ hội mới",
+   "parent": "KPI-CO-01",
    "target": 12,
    "unit": "cơ hội"
   },
@@ -2820,6 +2967,7 @@
     "2026-09": 96
    },
    "name": "Tỷ lệ bảo trì đúng SLA (%)",
+   "parent": null,
    "target": 95,
    "unit": "%"
   },
@@ -2833,6 +2981,7 @@
     "2026-09": 1.9
    },
    "name": "Thời gian giao hàng TB (ngày)",
+   "parent": null,
    "target": 2.0,
    "unit": "ngày"
   },
@@ -2846,6 +2995,7 @@
     "2026-09": 45
    },
    "name": "DSO (ngày)",
+   "parent": "KPI-CO-02",
    "target": 45,
    "unit": "ngày"
   },
@@ -2859,6 +3009,7 @@
     "2026-09": 12.0
    },
    "name": "Chi phí vận hành / doanh thu (%)",
+   "parent": "KPI-CO-02",
    "target": 12,
    "unit": "%"
   },
@@ -2872,6 +3023,7 @@
     "2026-09": 31
    },
    "name": "Thời gian tuyển dụng TB (ngày)",
+   "parent": null,
    "target": 30,
    "unit": "ngày"
   },
@@ -2885,6 +3037,7 @@
     "2026-09": 33
    },
    "name": "Đơn hàng qua ABC Order (%)",
+   "parent": null,
    "target": 35,
    "unit": "%"
   },
@@ -2898,6 +3051,7 @@
     "2026-09": 1
    },
    "name": "Sự cố nghiêm trọng / tháng",
+   "parent": null,
    "target": 2,
    "unit": "sự cố"
   },
@@ -2911,6 +3065,7 @@
     "2026-09": 92
    },
    "name": "Hồ sơ số hóa đúng hạn (%)",
+   "parent": null,
    "target": 90,
    "unit": "%"
   }
@@ -3180,6 +3335,14 @@
    "status": "ok",
    "unit": "PCT",
    "value": 75.0
+  },
+  {
+   "code": "METRIC-STR-01",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 81.5
   }
  ],
  "milestones": [
@@ -3235,8 +3398,8 @@
     },
     {
      "baseline": 5.25,
-     "confidence": "LOW",
-     "current": 5.25,
+     "confidence": "MEDIUM",
+     "current": 5.4,
      "target": 6,
      "title": "Runway ≥ 6 tháng cuối quý",
      "unit": "tháng"
@@ -3244,7 +3407,7 @@
     {
      "baseline": 18.2,
      "confidence": "MEDIUM",
-     "current": 18.4,
+     "current": 18.5,
      "target": 20,
      "title": "Biên lợi nhuận gộp ≥ 20%",
      "unit": "%"
@@ -3379,11 +3542,11 @@
     },
     {
      "baseline": 0,
-     "confidence": "LOW",
-     "current": 0,
-     "target": 1,
+     "confidence": "MEDIUM",
+     "current": 25,
+     "target": 100,
      "title": "Ra mắt ABC Insight beta",
-     "unit": "mốc"
+     "unit": "%"
     }
    ],
    "period_key": "2026-Q4",
@@ -3741,6 +3904,96 @@
    "scope_rules": {}
   }
  ],
+ "strategy": {
+  "code": "STR-2026-2027",
+  "name": "Tăng trưởng bền vững 2026–2027",
+  "period_end": "2028-01-01",
+  "period_start": "2026-01-01",
+  "strategic_objectives": [
+   {
+    "code": "SO-01",
+    "department": "SAL",
+    "initiative": "INI-01",
+    "kpis": [
+     "KPI-CO-01"
+    ],
+    "objectives": [
+     "OKR-SAL"
+    ],
+    "owner": "sales@abc.demo",
+    "pillar": "C",
+    "projects": [
+     "PRJ-CRM",
+     "PRJ-KA",
+     "PRJ-HN"
+    ],
+    "title": "Tăng trưởng doanh thu từ khách hàng lớn",
+    "weight_pct": 30
+   },
+   {
+    "code": "SO-02",
+    "department": "FIN",
+    "initiative": "INI-02",
+    "kpis": [
+     "KPI-CO-02"
+    ],
+    "objectives": [
+     "OKR-CO",
+     "OKR-FIN"
+    ],
+    "owner": "cfo@abc.demo",
+    "pillar": "F",
+    "projects": [
+     "PRJ-ERP"
+    ],
+    "title": "Lợi nhuận và dòng tiền lành mạnh",
+    "weight_pct": 25
+   },
+   {
+    "code": "SO-03",
+    "department": "PRD",
+    "initiative": "INI-03",
+    "kpis": [
+     "KPI-PRD-01",
+     "KPI-PRD-02"
+    ],
+    "objectives": [
+     "OKR-PRD"
+    ],
+    "owner": "cpo@abc.demo",
+    "pillar": "U",
+    "projects": [
+     "PRJ-ORD4",
+     "PRJ-DATA"
+    ],
+    "title": "Sản phẩm số dẫn dắt tăng trưởng",
+    "weight_pct": 25
+   },
+   {
+    "code": "SO-04",
+    "department": "SVC",
+    "initiative": "INI-04",
+    "kpis": [
+     "KPI-SVC-01",
+     "KPI-SVC-02",
+     "KPI-HR-01",
+     "KPI-ADM-01"
+    ],
+    "objectives": [
+     "OKR-SVC",
+     "OKR-HR"
+    ],
+    "owner": "hr@abc.demo",
+    "pillar": "O",
+    "projects": [
+     "PRJ-WMS",
+     "PRJ-CARE"
+    ],
+    "title": "Vận hành và dịch vụ xuất sắc",
+    "weight_pct": 20
+   }
+  ]
+ },
  "subtasks": [
   {
    "parent": "PRJ-CRM-4",

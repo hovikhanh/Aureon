@@ -1,4 +1,4 @@
-"""Schema `execution` — 14 tables (05 §4.7). Column groups follow 05 §2.1."""
+"""Schema `execution` (05 §4.7 + M1.3 §2.5 + M1.4 §2.6). Column groups follow 05 §2.1."""
 
 import uuid
 from datetime import date, datetime
@@ -12,15 +12,16 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     SmallInteger,
-    UniqueConstraint,
+    Text,
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base_model import BusinessModel, LogModel
+from app.core.base_model import BusinessModel, LogModel, TenantMixin
 from app.core.columns import currency, fk, measure, money, pct, schema_args, sr, txt
 from app.core.enums import CONFIDENCE_BAND, DATA_CLASSIFICATION, PERIOD_TYPE, PILLAR, pg_enum
 
@@ -53,6 +54,7 @@ INITIATIVE_STATUS = pg_enum(
 MILESTONE_STATUS = pg_enum(S, "milestone_status", "planned", "done", "missed")
 TRANSCRIPT_STATUS = pg_enum(S, "transcript_status", "UPLOADED", "PROCESSED", "FAILED")
 TASK_DEPENDENCY_TYPE = pg_enum(S, "task_dependency_type", "finish_to_start")  # 05 §2.5
+STRATEGY_STATUS = pg_enum(S, "strategy_status", "draft", "active", "closed")  # 05 §2.6
 
 MODULE_ENUMS: tuple[ENUM, ...] = (
     DECISION_STATUS,
@@ -71,6 +73,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
     MILESTONE_STATUS,
     TRANSCRIPT_STATUS,
     TASK_DEPENDENCY_TYPE,
+    STRATEGY_STATUS,
 )
 
 
@@ -253,12 +256,65 @@ class TaskDependency(BusinessModel):
     )
 
 
+# ---------- Strategy (05 §2.6, R-DEC-50) ----------
+class Strategy(BusinessModel):
+    """ENT-Strategy — "≤ 1 `active` overlapping per tenant" is checked in the service."""
+
+    __tablename__ = "strategies"
+    __table_args__ = (
+        CheckConstraint("period_end > period_start", name="period_end_after_start"),
+        Index("uq_strategies_code_live", "code", unique=True,
+              postgresql_where=text("deleted_at IS NULL")),
+        {"schema": S},
+    )  # fmt: skip
+
+    code: Mapped[str] = txt()
+    name: Mapped[str] = txt()
+    vision: Mapped[str | None] = txt(nullable=True)
+    mission: Mapped[str | None] = txt(nullable=True)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    status: Mapped[str] = mapped_column(STRATEGY_STATUS, nullable=False)
+
+
+class StrategicObjective(BusinessModel):
+    """ENT-StrategicObjective — parent of root KPI / root Objective / Initiative (R-DEC-50).
+
+    `progress_pct` is system-computed (05 §2.6): weighted mean of live initiatives' progress
+    (weights `weight_pct`, all 0 → plain mean); no initiative → mean of directly linked
+    objectives; none → 0.
+    """
+
+    __tablename__ = "strategic_objectives"
+    __table_args__ = (
+        CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
+        Index("uq_strategic_objectives_code_live", "code", unique=True,
+              postgresql_where=text("deleted_at IS NULL")),
+        Index("ix_strategic_objectives_strategy_id_sort_order", "strategy_id", "sort_order"),
+        {"schema": S},
+    )  # fmt: skip
+
+    strategy_id: Mapped[uuid.UUID] = fk(f"{S}.strategies.id")
+    code: Mapped[str] = txt()
+    title: Mapped[str] = txt()
+    description: Mapped[str | None] = txt(nullable=True)
+    pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    department_id: Mapped[uuid.UUID | None] = sr()
+    weight_pct: Mapped[Any] = pct(nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    status: Mapped[str] = mapped_column(OKR_STATUS, nullable=False)
+    progress_pct: Mapped[Any] = pct(nullable=False)
+
+
 # ---------- OKR ----------
 class Objective(BusinessModel):
     __tablename__ = "objectives"
     __table_args__ = (
         CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
         CheckConstraint("score BETWEEN 0 AND 1", name="score_0_1"),
+        CheckConstraint("parent_id IS NULL OR strategic_objective_id IS NULL", name="so_root_only"),
         {"schema": S},
     )
 
@@ -276,6 +332,9 @@ class Objective(BusinessModel):
     progress_pct: Mapped[Any] = pct(nullable=False)
     score: Mapped[Any] = mapped_column(Numeric(3, 2), nullable=True)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
 
 
 class KeyResult(BusinessModel):
@@ -296,6 +355,13 @@ class KeyResult(BusinessModel):
     status: Mapped[str] = mapped_column(OKR_STATUS, nullable=False)
     confidence: Mapped[str | None] = mapped_column(CONFIDENCE_BAND, nullable=True)
     weight_pct: Mapped[Any] = pct(nullable=False)
+    # M1.4 (05 §2.6, R-DEC-55): at-risk flag computed by the service, never by request.
+    at_risk: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    at_risk_since: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    at_risk_reasons: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'")
+    )
+    last_checked_in_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
 
 
 class Initiative(BusinessModel):
@@ -311,7 +377,10 @@ class Initiative(BusinessModel):
     code: Mapped[str] = txt(unique=True)
     title: Mapped[str] = txt()
     description: Mapped[str | None] = txt(nullable=True)
-    objective_id: Mapped[uuid.UUID] = fk(f"{S}.objectives.id")
+    objective_id: Mapped[uuid.UUID | None] = fk(f"{S}.objectives.id", nullable=True)
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
     pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)
     owner_id: Mapped[uuid.UUID] = sr(nullable=False)
     department_id: Mapped[uuid.UUID | None] = sr()
@@ -344,6 +413,9 @@ class Kpi(BusinessModel):
     __tablename__ = "kpis"
     __table_args__ = (
         CheckConstraint("weight_pct BETWEEN 0 AND 100", name="weight_pct_0_100"),
+        CheckConstraint(
+            "parent_kpi_id IS NULL OR strategic_objective_id IS NULL", name="so_root_only"
+        ),
         {"schema": S},
     )
 
@@ -363,10 +435,15 @@ class Kpi(BusinessModel):
     owner_id: Mapped[uuid.UUID] = sr(nullable=False)
     department_id: Mapped[uuid.UUID | None] = sr()
     status: Mapped[str] = mapped_column(OKR_STATUS, nullable=False)
+    strategic_objective_id: Mapped[uuid.UUID | None] = fk(
+        f"{S}.strategic_objectives.id", nullable=True
+    )
+    pillar: Mapped[str | None] = mapped_column(PILLAR, nullable=True)  # DIR khối scope (R-DEC-57)
 
 
 class KpiTarget(BusinessModel):
-    """ENT-KPITarget — per-period target + evaluation bands (DEC-147)."""
+    """ENT-KPITarget — per-period target + evaluation bands (DEC-147), effective-dated
+    `[valid_from, valid_to)` inside its period (R-DEC-52): ≤ 1 current version (`valid_to` NULL)."""
 
     __tablename__ = "kpi_targets"
     __table_args__ = (
@@ -375,7 +452,7 @@ class KpiTarget(BusinessModel):
             "kpi_id",
             "period_key",
             unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
+            postgresql_where=text("deleted_at IS NULL AND valid_to IS NULL"),
         ),
         {"schema": S},
     )
@@ -395,11 +472,41 @@ class KpiTarget(BusinessModel):
         Numeric(7, 4), nullable=False, server_default=text("150")
     )
     locked_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str | None] = txt(nullable=True)
+
+
+class KpiEvaluation(BusinessModel):
+    """ENT-KPIEvaluation (R-DEC-53) — 1 row per KPI × period, upserted on measure / target set."""
+
+    __tablename__ = "kpi_evaluations"
+    __table_args__ = (
+        Index(
+            "uq_kpi_evaluations_kpi_id_period_key", "kpi_id", "period_key", unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        {"schema": S},
+    )  # fmt: skip
+
+    kpi_id: Mapped[uuid.UUID] = fk(f"{S}.kpis.id")
+    period_key: Mapped[str] = txt()
+    kpi_target_id: Mapped[uuid.UUID] = fk(f"{S}.kpi_targets.id")
+    measurement_id: Mapped[uuid.UUID] = fk(f"{S}.kpi_measurements.id")
+    actual_value: Mapped[Any] = measure(nullable=False)
+    target: Mapped[Any] = measure(nullable=False)
+    achievement_pct: Mapped[Any] = pct(nullable=False)
+    band: Mapped[str] = mapped_column(KPI_BAND, nullable=False)
+    previous_band: Mapped[str | None] = mapped_column(KPI_BAND, nullable=True)
+    gap_value: Mapped[Any] = measure(nullable=False)
+    measured_on_time: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    locked_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
 
 
 # ---------- append-only ----------
-class CheckIn(LogModel):
-    """ENT-CheckIn — append-only (05 §2.1): no C19, no `deleted_at`."""
+class CheckIn(LogModel, TenantMixin):
+    """ENT-CheckIn — append-only (05 §2.1): no C19, no `deleted_at`; `tenant_id` (R-DEC-51)."""
 
     __tablename__ = "check_ins"
     __table_args__ = (
@@ -419,18 +526,18 @@ class CheckIn(LogModel):
     user_id: Mapped[uuid.UUID] = sr(nullable=False)
 
 
-class KpiMeasurement(LogModel):
-    """ENT-KPIMeasurement — append-only (05 §2.1): no C19, no `deleted_at`.
-
-    05 states UQ `(kpi_id, period_key) WHERE deleted_at IS NULL`, but the group has no
-    `deleted_at` → implemented as a plain (non-partial) unique constraint.
-    """
+class KpiMeasurement(LogModel, TenantMixin):
+    """ENT-KPIMeasurement — append-only history (R-DEC-51): one row per measurement, the
+    period value is the latest row (scored in `kpi_evaluations`). No C19, no `deleted_at`."""
 
     __tablename__ = "kpi_measurements"
     __table_args__ = (
-        UniqueConstraint("kpi_id", "period_key", name="uq_kpi_measurements_kpi_id_period_key"),
+        Index(
+            "ix_kpi_measurements_kpi_id_period_key_measured_at",
+            "kpi_id", "period_key", text("measured_at DESC"),
+        ),
         {"schema": S},
-    )
+    )  # fmt: skip
 
     kpi_id: Mapped[uuid.UUID] = fk(f"{S}.kpis.id")
     period_key: Mapped[str] = txt()
@@ -441,3 +548,34 @@ class KpiMeasurement(LogModel):
     locked_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     measured_at: Mapped[datetime] = mapped_column(TS, nullable=False)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+    measured_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    data_source: Mapped[str] = mapped_column(
+        KPI_DATA_SOURCE, nullable=False, server_default=text("'manual'")
+    )
+    note: Mapped[str | None] = txt(nullable=True)
+    check_in_id: Mapped[uuid.UUID | None] = fk(f"{S}.check_ins.id", nullable=True)
+
+
+class KrMeasurement(LogModel, TenantMixin):
+    """ENT-KRMeasurement (R-DEC-53) — one row per KR check-in (`check_in_id` NULL = backfill /
+    seed); the numeric series of D09 ("KR giảm", UC-04)."""
+
+    __tablename__ = "kr_measurements"
+    __table_args__ = (
+        Index("ix_kr_measurements_key_result_id_measured_at", "key_result_id",
+              text("measured_at DESC")),
+        {"schema": S},
+    )  # fmt: skip
+
+    key_result_id: Mapped[uuid.UUID] = fk(f"{S}.key_results.id")
+    check_in_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{S}.check_ins.id", ondelete="RESTRICT"),
+        nullable=True, unique=True,
+    )  # fmt: skip
+    period_key: Mapped[str] = txt()
+    value: Mapped[Any] = measure(nullable=False)
+    progress_pct: Mapped[Any] = pct(nullable=False)
+    previous_progress_pct: Mapped[Any] = pct()
+    confidence: Mapped[str] = mapped_column(CONFIDENCE_BAND, nullable=False)
+    measured_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    measured_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

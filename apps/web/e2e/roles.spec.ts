@@ -123,11 +123,11 @@ test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open",
   await expect(page.getByTestId("chat-input")).toBeVisible();
 });
 
-test("EMP: personal scope — goals/work frames, no approvals, no admin", async ({ page }) => {
+test("EMP: personal scope — goals tree, work, no approvals, no admin", async ({ page }) => {
   await login(page, "employee@abc.demo");
   await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
   await page.getByTestId("nav-goals").click();
-  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-41");
+  await expect(page.getByTestId("goals-tree")).toHaveAttribute("data-scr", "SCR-41");
   await expect(page.getByTestId("nav-admin")).toHaveCount(0);
   for (const denied of ["/work/approvals", "/admin", "/business/finance/invoices"]) {
     await page.goto(denied);

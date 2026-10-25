@@ -10,6 +10,38 @@
 | Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
 
+## M1.4 — D07–D10 (chuỗi auto) — DONE `[full-test pending]` (2026-10-24, nhánh `v3/m1.4-goals`)
+| Task | Commit | Nội dung |
+|---|---|---|
+| T-626S | `38c9067` | Spec lock M1.3–M1.6 (R-DEC-50..59 cho M1.4) |
+| T-626C | `e5bc81d` | Contract `/goals/*` `/kpis/*` `/objectives/*` `/key-results/*` + stub 501, gỡ `/execution/{kpis,objectives,check-ins,initiatives}` |
+| T-626 | `46b2c0b` | Strategy + StrategicObjective, migration `0016` + backfill, `goal_scope` khung |
+| T-627 | `2e5bebb` | KPITarget effective-dated, KPIMeasurement lịch sử, KPIEvaluation, KRMeasurement (migration `0017`) |
+| T-628 | `ad9886a` | EP-STR/KPI/OKR/PRF thay stub, `/goals/tree` một lượt query, check-ins due |
+| T-629 | `8e8e5b6` | Event `kpi_measured/kpi_below_threshold/okr_checked_in/okr_at_risk`, consumer `execution.on_goal_alert`, job at-risk + nhắc check-in |
+| T-630 | `80a0e96` | `METRIC-STR-01` (G2) + SEI drill-down |
+| T-631 | `78513ee`, `369b887` | Seed Strategy/4 SO/INI/check-in (UC-03 KPI-SAL-01 CRITICAL, UC-04 đúng 1 KR at-risk) |
+| T-632 | `4166c6e` | Scope R-DEC-57 (cây con phòng ban, DIR theo pillar, EMP của mình + tổ tiên restricted) |
+| T-626F..T-628F | `9147b64`, `51937d2`, `1e0069d`, `ba75ab6`, `4991db8` | FE SCR-41/58/59/60 trên mock |
+| T-633 | `0fd0294`, `0508cd1` (review) | Nối FE↔BE: mock goals seed **từ `seed_snapshot.json`** (Strategy STR-2026-2027, SO-01..04, INI theo SO, KPI cha, owner/check-in như seed BE), E2E real `goals.spec.ts` + `support/goals_e2e.py` |
+
+**Kiểm tra (2026-10-24):** ruff/format/mypy sạch · pytest **946** (945 + 1 flaky `risk/test_replay_scope.py::test_idempotent_replays`
+xanh khi chạy lại riêng) · Vitest **253** · Playwright mock **47/47** · real **72/72** (stack riêng: API :4200 + Celery worker/beat
+(Redis db 9–11, `SMTP_HOST=localhost:1025`) trên DB `aureon_m14`, web `next start` :3300). TC-M14-01..18 = Implemented.
+**Quyết định chính:** BE là nguồn sự thật — mock goals bỏ dữ liệu bịa (SO-C/F/U/O, KPI EMP, đổi target giữa kỳ, CONFIDENCE_FIX);
+EMP chỉ sở hữu KR "Giao hàng TB ≤ 1,8 ngày" (không KPI) như seed thật; `details.reason` lỗi bổ sung ở BE (`period_locked`, `kr_count`)
+thay vì đổi FE — không thêm mã lỗi.
+**Nợ / lưu ý:** `next dev` (mock) và `next start` (real) dùng chung `apps/web/.next` → chạy mock xong phải build lại trước khi chạy real;
+worker cần `SMTP_HOST` (Mailpit) cho test e-mail M1.2/M1.3; stack riêng phải đặt `E2E_API_URL` (mặc định :4000 — cleanup `admin-org` mở khóa nhầm API); `check_ins` append-only ở API nên cleanup E2E xóa ở DB rồi chạy lại `seed_goals`.
+
+**review: 7 finding, đã sửa 6, nợ #7** (2026-10-24, commit `0508cd1`):
+#1 MAJOR `/goals/tree` bỏ KR của EMP nằm dưới Objective ngoài scope → cây EMP rỗng (sửa `_Forest` anchor + KR thấy được dưới Objective restricted, test);
+#2 MAJOR contract `details` thiếu `reason` (`period_locked` đo/target kỳ khóa, `kr_count` kích hoạt/thêm KR) mà FE `goalErrorKey` dựa vào (bổ sung BE + test);
+#3 MAJOR mock: `previous_progress_pct` lấy từ cột KR thay vì KRMeasurement trước (BE) → null khi chưa có lần đo;
+#4 mock consumer `on_goal_alert`: người nhận/tiêu đề lệch BE (KR → owner KR + owner Objective + MGR phòng; KPI → owner + MGR/DIR; tiêu đề `KPI <code> <band> kỳ <kỳ>` / `KR có rủi ro kỳ <kỳ>`);
+#5 mock EP-KPI-09: EMP ngoài scope nhận `FORBIDDEN_ROLE` trước scope (BE: scope trước) ; #6 mock xóa Objective còn KR cascade (BE `409`), `details` xung đột xóa KPI/Objective/Initiative theo BE (`kpi_id`/`objective_id`/`initiative_id`).
+**Nợ #7:** `AtRiskService.daily` / `checkin_reminder` gọi `refresh`/`user_id_for_ref` từng KR (N+1 trong job nền, ~10 KR ở seed) — gom truy vấn khi số KR lớn (M2.x).
+
 ## M1.3 — D11/D04 (chuỗi auto) — DONE `[full-test pending]` (2026-10-24, nhánh `v3/m1.3-work`)
 | Task | Commit | Nội dung |
 |---|---|---|

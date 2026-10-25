@@ -1,4 +1,4 @@
-"""T-133 — EP-45 initiatives + milestones, system-computed progress (TC-EXE-005)."""
+"""T-133 / T-626C — EP-STR-12..21 initiatives + milestones, computed progress (TC-EXE-005)."""
 
 import uuid
 from typing import Any
@@ -11,6 +11,7 @@ from tests.integration.execution.helpers import (
     as_user,
     audit_actions,
     make,
+    make_strategic_objective,
     make_task,
     patch,
     uniq,
@@ -20,10 +21,12 @@ pytestmark = pytest.mark.integration
 
 
 async def make_initiative(api: ApiClient, owner: Any, **kw: Any) -> dict[str, Any]:
-    o = await make(api, "/execution/objectives", {
+    o = await make(api, "/objectives", {
         "title": "o", "owner_id": str(owner), "period_key": "2037"})  # fmt: skip
-    return await make(api, "/execution/initiatives", {
+    so = await make_strategic_objective(api)
+    return await make(api, "/goals/initiatives", {
         "code": uniq("INI"), "title": "Mở chi nhánh Đà Nẵng", "objective_id": o["id"],
+        "strategic_objective_id": so["id"],
         "owner_id": str(owner), "start_date": "2037-01-01", "planned_end_date": "2037-12-31",
         "weight_pct": 30, "pillar": "S", **kw})  # fmt: skip
 
@@ -36,7 +39,7 @@ async def test_initiative_milestones_progress(api: ApiClient, db_session: AsyncS
     owner, dept = uuid.uuid4(), uuid.uuid4()
     ini = await make_initiative(api, owner, department_id=str(dept), status="active")
     iid = ini["id"]
-    url = f"/execution/initiatives/{iid}"
+    url = f"/goals/initiatives/{iid}"
     assert ini["progress_pct"] == 0 and ini["currency"] == "VND"
     # no milestones → task completion
     t1 = await make_task(api, initiative_id=iid, status="done")
@@ -66,7 +69,7 @@ async def test_initiative_milestones_progress(api: ApiClient, db_session: AsyncS
     assert (await get(api, url))["progress_pct"] == 100
     assert (await api.call("GET", f"{url}/milestones/{m1['id']}", "CEO")).status_code == 404
     other = await make_initiative(api, owner)
-    cross = await api.call("GET", f"/execution/initiatives/{other['id']}/milestones/{m2['id']}",
+    cross = await api.call("GET", f"/goals/initiatives/{other['id']}/milestones/{m2['id']}",
                            "CEO")  # fmt: skip
     assert cross.status_code == 404
     # initiative still referenced
@@ -74,7 +77,7 @@ async def test_initiative_milestones_progress(api: ApiClient, db_session: AsyncS
     # moving a task off the initiative recomputes both
     mv = await patch(api, f"/work/tasks/{t1['id']}", 1, initiative_id=other["id"])
     assert mv.status_code == 200
-    assert (await get(api, f"/execution/initiatives/{other['id']}"))["progress_pct"] == 100
+    assert (await get(api, f"/goals/initiatives/{other['id']}"))["progress_pct"] == 100
     acts = await audit_actions(db_session, m1["id"])
     assert "execution.milestone_delete" in acts and "execution.milestone_create" in acts
 
@@ -83,32 +86,34 @@ async def test_initiative_crud_scope_filters(api: ApiClient, db_session: AsyncSe
     owner, dept = uuid.uuid4(), uuid.uuid4()
     ini = await make_initiative(api, owner, department_id=str(dept), budget_amount=10**9)
     iid = ini["id"]
-    dup = await api.call("POST", "/execution/initiatives", "CEO", json={
+    dup = await api.call("POST", "/goals/initiatives", "CEO", json={
         "code": ini["code"], "title": "x", "objective_id": ini["objective_id"],
+        "strategic_objective_id": ini["strategic_objective_id"],
         "owner_id": str(owner), "start_date": "2037-01-01",
         "planned_end_date": "2037-02-01"})  # fmt: skip
     assert dup.status_code == 409
-    bad = await api.call("POST", "/execution/initiatives", "CEO", json={
+    bad = await api.call("POST", "/goals/initiatives", "CEO", json={
         "code": uniq("INI"), "title": "x", "objective_id": str(uuid.uuid4()),
+        "strategic_objective_id": ini["strategic_objective_id"],
         "owner_id": str(owner), "start_date": "2037-01-01",
         "planned_end_date": "2037-02-01"})  # fmt: skip
     assert bad.status_code == 422
-    rev = await patch(api, f"/execution/initiatives/{iid}", 1, planned_end_date="2036-01-01")
+    rev = await patch(api, f"/goals/initiatives/{iid}", 1, planned_end_date="2036-01-01")
     assert rev.status_code == 422
-    up = await patch(api, f"/execution/initiatives/{iid}", 1, status="at_risk", code=uniq("INI"),
+    up = await patch(api, f"/goals/initiatives/{iid}", 1, status="at_risk", code=uniq("INI"),
                      title=None, weight_pct=40)  # fmt: skip
     assert up.status_code == 200 and up.json()["data"]["weight_pct"] == 40
-    flt = await api.call("GET", "/execution/initiatives", "MANAGER", department_id=dept, params={
+    flt = await api.call("GET", "/goals/initiatives", "MANAGER", department_id=dept, params={
         "objective_id": ini["objective_id"], "status": "at_risk", "pillar": "S"})  # fmt: skip
     assert [x["id"] for x in flt.json()["data"]] == [iid]
-    assert (await as_user(api, "GET", f"/execution/initiatives/{iid}", "EMP",
+    assert (await as_user(api, "GET", f"/goals/initiatives/{iid}", "EMP",
                           owner)).status_code == 200  # fmt: skip
-    stranger = await as_user(api, "GET", f"/execution/initiatives/{iid}/milestones",
+    stranger = await as_user(api, "GET", f"/goals/initiatives/{iid}/milestones",
                              "EMP", uuid.uuid4())  # fmt: skip
     assert stranger.status_code == 403
-    mgr = await patch(api, f"/execution/initiatives/{iid}", 2, role="MANAGER",
+    mgr = await patch(api, f"/goals/initiatives/{iid}", 2, role="MANAGER",
                       department_id=str(uuid.uuid4()))  # fmt: skip
     assert mgr.status_code == 403
-    assert (await api.call("DELETE", f"/execution/initiatives/{iid}", "CEO")).status_code == 204
-    assert (await api.call("GET", f"/execution/initiatives/{iid}", "CEO")).status_code == 404
+    assert (await api.call("DELETE", f"/goals/initiatives/{iid}", "CEO")).status_code == 204
+    assert (await api.call("GET", f"/goals/initiatives/{iid}", "CEO")).status_code == 404
     assert "execution.initiative_delete" in await audit_actions(db_session, iid)

@@ -1,4 +1,7 @@
-"""EP-45 sub-resources — initiatives + milestones (T-133, 10 §4.4, 05 ENT-Initiative)."""
+"""EP-STR-12..21 initiatives + milestones (10 §7.2.3, 05 §2.6; v2.1 EP-45, T-133).
+
+Milestone DTOs are shared with the project milestones EP-TASK-14..17 (`/work/*`).
+"""
 
 import uuid
 from datetime import date, datetime
@@ -19,7 +22,8 @@ class InitiativeCreate(BaseModel):
     code: str = Field(min_length=1, max_length=50)
     title: str = Field(min_length=1, max_length=500)
     description: str | None = Field(default=None, max_length=10000)
-    objective_id: uuid.UUID
+    strategic_objective_id: uuid.UUID  # EP-STR-13: required (R-DEC-50)
+    objective_id: uuid.UUID | None = None  # contributing OKR, optional
     pillar: Pillar | None = None
     owner_id: uuid.UUID
     department_id: uuid.UUID | None = None
@@ -36,6 +40,7 @@ class InitiativeUpdate(Patch):
     title: str | None = Field(default=None, min_length=1, max_length=500)
     description: str | None = Field(default=None, max_length=10000)
     objective_id: uuid.UUID | None = None
+    strategic_objective_id: uuid.UUID | None = None
     pillar: Pillar | None = None
     owner_id: uuid.UUID | None = None
     department_id: uuid.UUID | None = None
@@ -50,7 +55,8 @@ class InitiativeOut(Out):
     code: str
     title: str
     description: str | None
-    objective_id: uuid.UUID
+    objective_id: uuid.UUID | None
+    strategic_objective_id: uuid.UUID | None
     pillar: str | None
     owner_id: uuid.UUID
     department_id: uuid.UUID | None

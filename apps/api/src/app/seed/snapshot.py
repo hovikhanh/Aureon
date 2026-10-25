@@ -103,8 +103,13 @@ def _execution() -> dict[str, Any]:
         ],
         "kpis": [
             {"code": c, "name": n, "department": d, "unit": u, "direction": dr, "target": tg,
-             "measurements": dict(zip(X.KPI_PERIODS, a, strict=True))}
-            for c, n, d, u, dr, tg, a, _ in X.KPIS
+             "measurements": dict(zip(X.KPI_PERIODS, a, strict=True)), "parent": par}
+            for c, n, d, u, dr, tg, a, par in X.KPIS
+        ],
+        "initiatives": [
+            {"code": c, "title": t, "pillar": p, "department": d, "start_date": s.isoformat(),
+             "planned_end_date": e.isoformat(), "progress_pct": pr, "weight_pct": w}
+            for c, t, p, d, s, e, pr, w in X.INITIATIVES
         ],
         "okrs": [
             {"code": c, "title": t, "department": d, "period_key": "2026-Q4",
@@ -113,6 +118,17 @@ def _execution() -> dict[str, Any]:
                              for k, u, b, tg, cur, conf in krs]}
             for c, t, d, krs in X.OKRS
         ],
+        "strategy": {"code": X.STRATEGY[0], "name": X.STRATEGY[1],
+                     "period_start": X.STRATEGY[2].isoformat(),
+                     "period_end": X.STRATEGY[3].isoformat(),
+                     "strategic_objectives": [
+                         {"code": c, "title": t, "pillar": p, "department": d, "owner": o,
+                          "weight_pct": w, "kpis": list(k), "objectives": list(ob),
+                          "initiative": i, "projects": list(pr)}
+                         for c, t, p, d, o, w, k, ob, i, pr in X.STRATEGIC_OBJECTIVES]},
+        "check_ins": [{"okr": o, "key_result": i, "value": v, "confidence": c,
+                       "date": d.isoformat(), "by": by or "ceo@abc.demo", "note": n}
+                      for o, i, v, c, d, by, n in X.CHECK_INS],
         "meeting": {"title": X.MEETING_TITLE, "held_at": X.MEETING_AT.isoformat(),
                     "decisions": [c for c, _, _ in X.DECISIONS]},
         "dependencies": [{"task": a, "depends_on": b} for a, b in X.DEPENDENCIES],

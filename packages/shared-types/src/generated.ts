@@ -326,14 +326,25 @@ export type ChatRequestIn = {
 };
 
 export type CheckInCreate = {
-  key_result_id?: string | null;
-  kpi_id?: string | null;
   value: number | string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   note?: string | null;
   blocker?: string | null;
   support_needed?: string | null;
   next_action?: string | null;
+};
+
+export type CheckInDueOut = {
+  target_type: "key_result" | "kpi";
+  target_id: string;
+  title: string;
+  unit: string;
+  current_value: number | null;
+  target: number;
+  confidence: ("HIGH" | "MEDIUM" | "LOW") | null;
+  last_checked_in_at: string | null;
+  due: boolean;
+  prefill?: null;
 };
 
 export type CheckInOut = {
@@ -349,6 +360,10 @@ export type CheckInOut = {
   next_action: string | null;
   checked_in_at: string;
   user_id: string;
+  target_type?: ("key_result" | "kpi") | null;
+  target_title?: string | null;
+  department_id?: string | null;
+  kr_measurement?: KrMeasurementBrief | null;
 };
 
 export type ChurnPoint = {
@@ -906,6 +921,11 @@ export type Envelope_ForecastOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_GoalTreeOut_ = {
+  data: GoalTreeOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_HealthOut_ = {
   data: HealthOut;
   meta?: Meta | null;
@@ -953,6 +973,11 @@ export type Envelope_KillSwitchOut_ = {
 
 export type Envelope_KpiOut_ = {
   data: KpiOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_KpiTargetOut_ = {
+  data: KpiTargetOut;
   meta?: Meta | null;
 };
 
@@ -1111,6 +1136,16 @@ export type Envelope_ScenarioOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_StrategicObjectiveOut_ = {
+  data: StrategicObjectiveOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_StrategyOut_ = {
+  data: StrategyOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_TargetOut_ = {
   data: TargetOut;
   meta?: Meta | null;
@@ -1201,6 +1236,11 @@ export type Envelope_list_CashPositionOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_CheckInDueOut__ = {
+  data: CheckInDueOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_CheckInOut__ = {
   data: CheckInOut[];
   meta?: Meta | null;
@@ -1281,6 +1321,11 @@ export type Envelope_list_InitiativeOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_InitiativeProjectOut__ = {
+  data: InitiativeProjectOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_InsightOut__ = {
   data: InsightOut[];
   meta?: Meta | null;
@@ -1296,8 +1341,23 @@ export type Envelope_list_KeyResultOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_KpiEvaluationOut__ = {
+  data: KpiEvaluationOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_KpiOut__ = {
   data: KpiOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_KpiTargetOut__ = {
+  data: KpiTargetOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_KrMeasurementOut__ = {
+  data: KrMeasurementOut[];
   meta?: Meta | null;
 };
 
@@ -1413,6 +1473,16 @@ export type Envelope_list_SalaryOut__ = {
 
 export type Envelope_list_StageHistoryOut__ = {
   data: StageHistoryOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_StrategicObjectiveOut__ = {
+  data: StrategicObjectiveOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_StrategyOut__ = {
+  data: StrategyOut[];
   meta?: Meta | null;
 };
 
@@ -1687,6 +1757,11 @@ export type FunctionCallOut = {
   latency_ms: number;
 };
 
+export type GoalTreeOut = {
+  strategies?: StrategyNode[];
+  unaligned?: UnalignedOut;
+};
+
 export type HTTPValidationError = {
   detail?: ValidationError[];
 };
@@ -1789,11 +1864,32 @@ export type HrImpact = {
   headcount_delta?: number | null;
 };
 
+export type IniNode = {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  restricted?: boolean;
+  status?: string | null;
+  progress_pct?: number | null;
+  start_date?: string | null;
+  planned_end_date?: string | null;
+  on_track?: boolean | null;
+  projects?: IniProjectNode[];
+};
+
+export type IniProjectNode = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+};
+
 export type InitiativeCreate = {
   code: string;
   title: string;
   description?: string | null;
-  objective_id: string;
+  strategic_objective_id: string;
+  objective_id?: string | null;
   pillar?: ("F" | "O" | "C" | "U" | "S") | null;
   owner_id: string;
   department_id?: string | null;
@@ -1815,7 +1911,8 @@ export type InitiativeOut = {
   code: string;
   title: string;
   description: string | null;
-  objective_id: string;
+  objective_id: string | null;
+  strategic_objective_id: string | null;
   pillar: string | null;
   owner_id: string;
   department_id: string | null;
@@ -1828,12 +1925,23 @@ export type InitiativeOut = {
   currency: string;
 };
 
+export type InitiativeProjectOut = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  start_date: string | null;
+  planned_end_date: string | null;
+  owner_id: string;
+};
+
 export type InitiativeUpdate = {
   version?: number | null;
   code?: string | null;
   title?: string | null;
   description?: string | null;
   objective_id?: string | null;
+  strategic_objective_id?: string | null;
   pillar?: ("F" | "O" | "C" | "U" | "S") | null;
   owner_id?: string | null;
   department_id?: string | null;
@@ -1970,6 +2078,10 @@ export type KeyResultOut = {
   confidence: string | null;
   weight_pct: number;
   progress_pct: number;
+  at_risk?: boolean;
+  at_risk_since?: string | null;
+  at_risk_reasons?: ("declining" | "low_confidence" | "behind_plan")[];
+  last_checked_in_at?: string | null;
 };
 
 export type KeyResultUpdate = {
@@ -2016,6 +2128,53 @@ export type KpiCreate = {
   initiative_id?: string | null;
   department_id?: string | null;
   status?: "draft" | "active" | "closed";
+  strategic_objective_id?: string | null;
+  pillar?: ("F" | "O" | "C" | "U" | "S") | null;
+};
+
+export type KpiEvaluationBrief = {
+  period_key: string;
+  actual_value: number;
+  target: number;
+  achievement_pct: number;
+  band: "CRITICAL" | "BELOW" | "NEAR" | "MEETS" | "EXCEEDS";
+  previous_band: ("CRITICAL" | "BELOW" | "NEAR" | "MEETS" | "EXCEEDS") | null;
+  evaluated_at: string;
+};
+
+export type KpiEvaluationOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  kpi_id: string;
+  period_key: string;
+  kpi_target_id: string;
+  measurement_id: string;
+  actual_value: number;
+  target: number;
+  achievement_pct: number;
+  band: "CRITICAL" | "BELOW" | "NEAR" | "MEETS" | "EXCEEDS";
+  previous_band: ("CRITICAL" | "BELOW" | "NEAR" | "MEETS" | "EXCEEDS") | null;
+  gap_value: number;
+  measured_on_time: boolean;
+  evaluated_at: string;
+  locked_at: string | null;
+};
+
+export type KpiNode = {
+  id: string;
+  code?: string | null;
+  name?: string | null;
+  restricted?: boolean;
+  unit?: string | null;
+  direction?: ("HIGHER_IS_BETTER" | "LOWER_IS_BETTER" | "WITHIN_RANGE" | "BINARY") | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  latest_evaluation?: KpiEvaluationBrief | null;
+  children?: KpiNode[];
 };
 
 export type KpiOut = {
@@ -2041,6 +2200,42 @@ export type KpiOut = {
   initiative_id: string | null;
   department_id: string | null;
   status: string;
+  strategic_objective_id?: string | null;
+  pillar?: string | null;
+  latest_evaluation?: KpiEvaluationBrief | null;
+};
+
+export type KpiTargetCreate = {
+  period_key: string;
+  target: number | string;
+  baseline?: number | string | null;
+  minimum?: number | string | null;
+  stretch?: number | string | null;
+  band_thresholds?: Record<string, number> | null;
+  score_cap_pct?: number | string | null;
+  valid_from?: string | null;
+  reason?: string | null;
+};
+
+export type KpiTargetOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  kpi_id: string;
+  period_key: string;
+  baseline: number | null;
+  minimum: number | null;
+  target: number;
+  stretch: number | null;
+  band_thresholds: Record<string, number>;
+  score_cap_pct: number;
+  locked_at: string | null;
+  valid_from: string;
+  valid_to: string | null;
+  reason: string | null;
 };
 
 export type KpiUpdate = {
@@ -2059,6 +2254,42 @@ export type KpiUpdate = {
   initiative_id?: string | null;
   department_id?: string | null;
   status?: ("draft" | "active" | "closed") | null;
+  strategic_objective_id?: string | null;
+  pillar?: ("F" | "O" | "C" | "U" | "S") | null;
+};
+
+export type KrMeasurementBrief = {
+  value: number;
+  progress_pct: number;
+  previous_progress_pct: number | null;
+};
+
+export type KrMeasurementOut = {
+  id: string;
+  created_at: string;
+  key_result_id: string;
+  check_in_id: string | null;
+  period_key: string;
+  value: number;
+  progress_pct: number;
+  previous_progress_pct: number | null;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  measured_at: string;
+  measured_by: string | null;
+};
+
+export type KrNode = {
+  id: string;
+  title: string;
+  unit: string;
+  baseline: number;
+  target: number;
+  current_value: number | null;
+  progress_pct: number;
+  confidence: ("HIGH" | "MEDIUM" | "LOW") | null;
+  at_risk: boolean;
+  last_checked_in_at: string | null;
+  owner_id: string;
 };
 
 export type LoginIn = {
@@ -2079,6 +2310,8 @@ export type MeasurementCreate = {
   period_key: string;
   actual_value: number | string;
   source_document_id?: string | null;
+  data_source?: "manual" | "document" | "automated" | "ai_assisted";
+  note?: string | null;
 };
 
 export type MeasurementOut = {
@@ -2093,6 +2326,10 @@ export type MeasurementOut = {
   locked_at: string | null;
   measured_at: string;
   source_document_id: string | null;
+  measured_by?: string | null;
+  data_source?: string | null;
+  note?: string | null;
+  check_in_id?: string | null;
 };
 
 export type MeetingCreate = {
@@ -2319,6 +2556,21 @@ export type NotificationPreferenceOut = {
   is_default: boolean;
 };
 
+export type ObjNode = {
+  id: string;
+  title?: string | null;
+  restricted?: boolean;
+  period_key?: string | null;
+  level?: string | null;
+  status?: string | null;
+  progress_pct?: number | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  at_risk_kr_count?: number | null;
+  key_results?: KrNode[];
+  children?: ObjNode[];
+};
+
 export type ObjectiveCreate = {
   title: string;
   owner_id: string;
@@ -2332,6 +2584,7 @@ export type ObjectiveCreate = {
   pillar?: ("F" | "O" | "C" | "U" | "S") | null;
   status?: "draft" | "active" | "closed";
   source_document_id?: string | null;
+  strategic_objective_id?: string | null;
 };
 
 export type ObjectiveOut = {
@@ -2355,6 +2608,8 @@ export type ObjectiveOut = {
   progress_pct: number;
   score: number | null;
   source_document_id: string | null;
+  strategic_objective_id?: string | null;
+  at_risk_kr_count?: number;
 };
 
 export type ObjectiveUpdate = {
@@ -2371,6 +2626,7 @@ export type ObjectiveUpdate = {
   pillar?: ("F" | "O" | "C" | "U" | "S") | null;
   status?: ("draft" | "active" | "closed") | null;
   score?: number | string | null;
+  strategic_objective_id?: string | null;
 };
 
 export type OnTimePoint = {
@@ -2979,6 +3235,21 @@ export type RunwayWhatIfOut = {
   sources: app__modules__finance__schemas__SourceRefOut[];
 };
 
+export type SONode = {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  restricted?: boolean;
+  pillar?: ("F" | "O" | "C" | "U" | "S") | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  progress_pct?: number | null;
+  status?: string | null;
+  kpis?: KpiNode[];
+  objectives?: ObjNode[];
+  initiatives?: IniNode[];
+};
+
 export type SalaryCreate = {
   effective_date: string;
   base_salary: number;
@@ -3082,6 +3353,105 @@ export type StatusChange = {
   to_status: "proposed" | "identified" | "assessed" | "mitigating" | "monitoring" | "accepted" | "closed" | "rejected";
   reason?: string | null;
   owner_id?: string | null;
+};
+
+export type StrategicObjectiveCreate = {
+  strategy_id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  pillar?: ("F" | "O" | "C" | "U" | "S") | null;
+  owner_id: string;
+  department_id?: string | null;
+  weight_pct?: number | string;
+  sort_order?: number | null;
+};
+
+export type StrategicObjectiveOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  strategy_id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  pillar: string | null;
+  owner_id: string;
+  department_id: string | null;
+  weight_pct: number;
+  sort_order: number;
+  status: string;
+  progress_pct: number;
+  kpi_count?: number | null;
+  objective_count?: number | null;
+  initiative_count?: number | null;
+};
+
+export type StrategicObjectiveUpdate = {
+  version?: number | null;
+  code?: string | null;
+  title?: string | null;
+  description?: string | null;
+  pillar?: ("F" | "O" | "C" | "U" | "S") | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  weight_pct?: number | string | null;
+  sort_order?: number | null;
+  status?: ("draft" | "active" | "closed") | null;
+};
+
+export type StrategyCreate = {
+  code: string;
+  name: string;
+  vision?: string | null;
+  mission?: string | null;
+  period_start: string;
+  period_end: string;
+  owner_id: string;
+  status?: "draft" | "active" | "closed";
+};
+
+export type StrategyNode = {
+  id: string;
+  code?: string | null;
+  name?: string | null;
+  restricted?: boolean;
+  status?: ("draft" | "active" | "closed") | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  owner_id?: string | null;
+  strategic_objectives?: SONode[];
+};
+
+export type StrategyOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  name: string;
+  vision: string | null;
+  mission: string | null;
+  period_start: string;
+  period_end: string;
+  owner_id: string;
+  status: string;
+};
+
+export type StrategyUpdate = {
+  version?: number | null;
+  name?: string | null;
+  vision?: string | null;
+  mission?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  owner_id?: string | null;
+  status?: ("draft" | "active" | "closed") | null;
 };
 
 export type TargetCreate = {
@@ -3339,6 +3709,11 @@ export type TurnoverPoint = {
   turnover_rate_pct: number;
 };
 
+export type UnalignedOut = {
+  kpis?: KpiNode[];
+  objectives?: ObjNode[];
+};
+
 export type UndoActionIn = {
   reason?: string | null;
 };
@@ -3589,14 +3964,6 @@ export interface ApiOperations {
     request: void;
     response: Envelope_MetricDetail_;
   };
-  "GET /api/v1/execution/check-ins": {
-    request: void;
-    response: Envelope_list_CheckInOut__;
-  };
-  "POST /api/v1/execution/check-ins": {
-    request: CheckInCreate;
-    response: Envelope_CheckInOut_;
-  };
   "GET /api/v1/execution/dashboard": {
     request: void;
     response: Envelope_ExecutionDashboardOut_;
@@ -3617,74 +3984,6 @@ export interface ApiOperations {
     request: DecisionUpdate;
     response: Envelope_DecisionOut_;
   };
-  "GET /api/v1/execution/initiatives": {
-    request: void;
-    response: Envelope_list_InitiativeOut__;
-  };
-  "POST /api/v1/execution/initiatives": {
-    request: InitiativeCreate;
-    response: Envelope_InitiativeOut_;
-  };
-  "DELETE /api/v1/execution/initiatives/{initiative_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/initiatives/{initiative_id}": {
-    request: void;
-    response: Envelope_InitiativeOut_;
-  };
-  "PATCH /api/v1/execution/initiatives/{initiative_id}": {
-    request: InitiativeUpdate;
-    response: Envelope_InitiativeOut_;
-  };
-  "GET /api/v1/execution/initiatives/{initiative_id}/milestones": {
-    request: void;
-    response: Envelope_list_MilestoneOut__;
-  };
-  "POST /api/v1/execution/initiatives/{initiative_id}/milestones": {
-    request: MilestoneCreate;
-    response: Envelope_MilestoneOut_;
-  };
-  "DELETE /api/v1/execution/initiatives/{initiative_id}/milestones/{milestone_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/initiatives/{initiative_id}/milestones/{milestone_id}": {
-    request: void;
-    response: Envelope_MilestoneOut_;
-  };
-  "PATCH /api/v1/execution/initiatives/{initiative_id}/milestones/{milestone_id}": {
-    request: MilestoneUpdate;
-    response: Envelope_MilestoneOut_;
-  };
-  "GET /api/v1/execution/kpis": {
-    request: void;
-    response: Envelope_list_KpiOut__;
-  };
-  "POST /api/v1/execution/kpis": {
-    request: KpiCreate;
-    response: Envelope_KpiOut_;
-  };
-  "DELETE /api/v1/execution/kpis/{kpi_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/kpis/{kpi_id}": {
-    request: void;
-    response: Envelope_KpiOut_;
-  };
-  "PATCH /api/v1/execution/kpis/{kpi_id}": {
-    request: KpiUpdate;
-    response: Envelope_KpiOut_;
-  };
-  "GET /api/v1/execution/kpis/{kpi_id}/measurements": {
-    request: void;
-    response: Envelope_list_MeasurementOut__;
-  };
-  "POST /api/v1/execution/kpis/{kpi_id}/measurements": {
-    request: MeasurementCreate;
-    response: Envelope_MeasurementOut_;
-  };
   "GET /api/v1/execution/meetings": {
     request: void;
     response: Envelope_list_MeetingOut__;
@@ -3704,46 +4003,6 @@ export interface ApiOperations {
   "PATCH /api/v1/execution/meetings/{meeting_id}": {
     request: MeetingUpdate;
     response: Envelope_MeetingOut_;
-  };
-  "GET /api/v1/execution/objectives": {
-    request: void;
-    response: Envelope_list_ObjectiveOut__;
-  };
-  "POST /api/v1/execution/objectives": {
-    request: ObjectiveCreate;
-    response: Envelope_ObjectiveOut_;
-  };
-  "DELETE /api/v1/execution/objectives/{objective_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/objectives/{objective_id}": {
-    request: void;
-    response: Envelope_ObjectiveOut_;
-  };
-  "PATCH /api/v1/execution/objectives/{objective_id}": {
-    request: ObjectiveUpdate;
-    response: Envelope_ObjectiveOut_;
-  };
-  "GET /api/v1/execution/objectives/{objective_id}/key-results": {
-    request: void;
-    response: Envelope_list_KeyResultOut__;
-  };
-  "POST /api/v1/execution/objectives/{objective_id}/key-results": {
-    request: KeyResultCreate;
-    response: Envelope_KeyResultOut_;
-  };
-  "DELETE /api/v1/execution/objectives/{objective_id}/key-results/{kr_id}": {
-    request: void;
-    response: void;
-  };
-  "GET /api/v1/execution/objectives/{objective_id}/key-results/{kr_id}": {
-    request: void;
-    response: Envelope_KeyResultOut_;
-  };
-  "PATCH /api/v1/execution/objectives/{objective_id}/key-results/{kr_id}": {
-    request: KeyResultUpdate;
-    response: Envelope_KeyResultOut_;
   };
   "GET /api/v1/finance/budgets": {
     request: void;
@@ -3881,6 +4140,102 @@ export interface ApiOperations {
     request: void;
     response: Envelope_RunwayWhatIfOut_;
   };
+  "GET /api/v1/goals/check-ins": {
+    request: void;
+    response: Envelope_list_CheckInOut__;
+  };
+  "GET /api/v1/goals/check-ins/due": {
+    request: void;
+    response: Envelope_list_CheckInDueOut__;
+  };
+  "GET /api/v1/goals/initiatives": {
+    request: void;
+    response: Envelope_list_InitiativeOut__;
+  };
+  "POST /api/v1/goals/initiatives": {
+    request: InitiativeCreate;
+    response: Envelope_InitiativeOut_;
+  };
+  "DELETE /api/v1/goals/initiatives/{initiative_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/goals/initiatives/{initiative_id}": {
+    request: void;
+    response: Envelope_InitiativeOut_;
+  };
+  "PATCH /api/v1/goals/initiatives/{initiative_id}": {
+    request: InitiativeUpdate;
+    response: Envelope_InitiativeOut_;
+  };
+  "GET /api/v1/goals/initiatives/{initiative_id}/milestones": {
+    request: void;
+    response: Envelope_list_MilestoneOut__;
+  };
+  "POST /api/v1/goals/initiatives/{initiative_id}/milestones": {
+    request: MilestoneCreate;
+    response: Envelope_MilestoneOut_;
+  };
+  "DELETE /api/v1/goals/initiatives/{initiative_id}/milestones/{milestone_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/goals/initiatives/{initiative_id}/milestones/{milestone_id}": {
+    request: void;
+    response: Envelope_MilestoneOut_;
+  };
+  "PATCH /api/v1/goals/initiatives/{initiative_id}/milestones/{milestone_id}": {
+    request: MilestoneUpdate;
+    response: Envelope_MilestoneOut_;
+  };
+  "GET /api/v1/goals/initiatives/{initiative_id}/projects": {
+    request: void;
+    response: Envelope_list_InitiativeProjectOut__;
+  };
+  "GET /api/v1/goals/strategic-objectives": {
+    request: void;
+    response: Envelope_list_StrategicObjectiveOut__;
+  };
+  "POST /api/v1/goals/strategic-objectives": {
+    request: StrategicObjectiveCreate;
+    response: Envelope_StrategicObjectiveOut_;
+  };
+  "DELETE /api/v1/goals/strategic-objectives/{so_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/goals/strategic-objectives/{so_id}": {
+    request: void;
+    response: Envelope_StrategicObjectiveOut_;
+  };
+  "PATCH /api/v1/goals/strategic-objectives/{so_id}": {
+    request: StrategicObjectiveUpdate;
+    response: Envelope_StrategicObjectiveOut_;
+  };
+  "GET /api/v1/goals/strategies": {
+    request: void;
+    response: Envelope_list_StrategyOut__;
+  };
+  "POST /api/v1/goals/strategies": {
+    request: StrategyCreate;
+    response: Envelope_StrategyOut_;
+  };
+  "DELETE /api/v1/goals/strategies/{strategy_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/goals/strategies/{strategy_id}": {
+    request: void;
+    response: Envelope_StrategyOut_;
+  };
+  "PATCH /api/v1/goals/strategies/{strategy_id}": {
+    request: StrategyUpdate;
+    response: Envelope_StrategyOut_;
+  };
+  "GET /api/v1/goals/tree": {
+    request: void;
+    response: Envelope_GoalTreeOut_;
+  };
   "GET /api/v1/health": {
     request: void;
     response: Envelope_HealthOut_;
@@ -4017,6 +4372,78 @@ export interface ApiOperations {
     request: MergeIn;
     response: Envelope_MergeOut_;
   };
+  "DELETE /api/v1/key-results/{kr_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/key-results/{kr_id}": {
+    request: void;
+    response: Envelope_KeyResultOut_;
+  };
+  "PATCH /api/v1/key-results/{kr_id}": {
+    request: KeyResultUpdate;
+    response: Envelope_KeyResultOut_;
+  };
+  "GET /api/v1/key-results/{kr_id}/check-ins": {
+    request: void;
+    response: Envelope_list_CheckInOut__;
+  };
+  "POST /api/v1/key-results/{kr_id}/check-ins": {
+    request: CheckInCreate;
+    response: Envelope_CheckInOut_;
+  };
+  "GET /api/v1/key-results/{kr_id}/measurements": {
+    request: void;
+    response: Envelope_list_KrMeasurementOut__;
+  };
+  "GET /api/v1/kpis": {
+    request: void;
+    response: Envelope_list_KpiOut__;
+  };
+  "POST /api/v1/kpis": {
+    request: KpiCreate;
+    response: Envelope_KpiOut_;
+  };
+  "DELETE /api/v1/kpis/{kpi_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/kpis/{kpi_id}": {
+    request: void;
+    response: Envelope_KpiOut_;
+  };
+  "PATCH /api/v1/kpis/{kpi_id}": {
+    request: KpiUpdate;
+    response: Envelope_KpiOut_;
+  };
+  "GET /api/v1/kpis/{kpi_id}/check-ins": {
+    request: void;
+    response: Envelope_list_CheckInOut__;
+  };
+  "POST /api/v1/kpis/{kpi_id}/check-ins": {
+    request: CheckInCreate;
+    response: Envelope_CheckInOut_;
+  };
+  "GET /api/v1/kpis/{kpi_id}/evaluations": {
+    request: void;
+    response: Envelope_list_KpiEvaluationOut__;
+  };
+  "GET /api/v1/kpis/{kpi_id}/measurements": {
+    request: void;
+    response: Envelope_list_MeasurementOut__;
+  };
+  "POST /api/v1/kpis/{kpi_id}/measurements": {
+    request: MeasurementCreate;
+    response: Envelope_MeasurementOut_;
+  };
+  "GET /api/v1/kpis/{kpi_id}/targets": {
+    request: void;
+    response: Envelope_list_KpiTargetOut__;
+  };
+  "POST /api/v1/kpis/{kpi_id}/targets": {
+    request: KpiTargetCreate;
+    response: Envelope_KpiTargetOut_;
+  };
   "GET /api/v1/notifications": {
     request: void;
     response: Envelope_list_NotificationOut__;
@@ -4036,6 +4463,34 @@ export interface ApiOperations {
   "POST /api/v1/notifications/{notification_id}/read": {
     request: void;
     response: Envelope_NotificationOut_;
+  };
+  "GET /api/v1/objectives": {
+    request: void;
+    response: Envelope_list_ObjectiveOut__;
+  };
+  "POST /api/v1/objectives": {
+    request: ObjectiveCreate;
+    response: Envelope_ObjectiveOut_;
+  };
+  "DELETE /api/v1/objectives/{objective_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/objectives/{objective_id}": {
+    request: void;
+    response: Envelope_ObjectiveOut_;
+  };
+  "PATCH /api/v1/objectives/{objective_id}": {
+    request: ObjectiveUpdate;
+    response: Envelope_ObjectiveOut_;
+  };
+  "GET /api/v1/objectives/{objective_id}/key-results": {
+    request: void;
+    response: Envelope_list_KeyResultOut__;
+  };
+  "POST /api/v1/objectives/{objective_id}/key-results": {
+    request: KeyResultCreate;
+    response: Envelope_KeyResultOut_;
   };
   "GET /api/v1/org/assignments": {
     request: void;

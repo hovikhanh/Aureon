@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SNAPSHOT, type RoleCode } from "@/mocks/fixtures";
 import { LEGACY_ROUTES, legacyRedirect } from "./legacy-routes";
-import { ROUTE_RULES, WORK_TABS, canAccess, landingFor, safeCallback, visibleNav, visibleWorkTabs } from "./permissions";
+import { ROUTE_RULES, WORK_TABS, canAccess, landingFor, safeCallback, visibleGoalsTabs, visibleNav, visibleWorkTabs } from "./permissions";
 
 /** The real JWT permission matrix of each role (exported from the BE by the seed snapshot). */
 const perms = (r: RoleCode) => SNAPSHOT.role_permissions[r];
@@ -66,7 +66,9 @@ describe("route guard (06 §3.4)", () => {
     ["/admin/audit", "ADM", true], ["/admin/audit", "CEO", false], ["/admin", "CEO", true],
     ["/work/projects", "EMP", true], ["/work/projects/abc", "MGR", true], ["/work/projects", "REV", false],
     ["/work/workload", "MGR", true], ["/work/workload", "DIR", true], ["/work/workload", "EMP", false], ["/work/workload", "ADM", false],
-    ["/goals", "REV", false], ["/ask", "AI", false], ["/403", "EMP", true],
+    ["/goals", "REV", false], ["/goals", "EMP", true], ["/goals/kpis/abc", "EMP", true], ["/goals/kpis/abc", "ADM", false],
+    ["/goals/objectives/abc", "DIR", true], ["/goals/objectives/abc", "REV", false], ["/goals/check-ins", "EMP", true], ["/goals/check-ins", "ADM", false],
+    ["/ask", "AI", false], ["/403", "EMP", true],
   ] as const)("%s as %s → %s", (path, role, ok) => {
     expect(canAccess(path, role, perms(role))).toBe(ok);
   });
@@ -74,6 +76,16 @@ describe("route guard (06 §3.4)", () => {
   it("every human role lands on /home; the AI actor has no UI", () => {
     for (const r of ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"] as const) expect(landingFor(r, perms(r))).toBe("/home");
     expect(landingFor("AI", perms("AI"))).toBe("/403");
+  });
+});
+
+describe("/goals tabs per role (06 §3.4 M1.4)", () => {
+  it.each(["CEO", "DIR", "MGR", "EMP"] as const)("%s sees tree + check-ins", (role) => {
+    expect(visibleGoalsTabs(role, perms(role)).map((t) => t.key)).toEqual(["tree", "checkins"]);
+    for (const tab of visibleGoalsTabs(role, perms(role))) expect(canAccess(tab.href, role, perms(role)), tab.href).toBe(true);
+  });
+  it.each(["REV", "ADM"] as const)("%s sees no goals tab", (role) => {
+    expect(visibleGoalsTabs(role, perms(role))).toEqual([]);
   });
 });
 
