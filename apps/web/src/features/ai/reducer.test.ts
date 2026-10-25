@@ -25,3 +25,12 @@ describe("chat stream reducer", () => {
     ]);
   });
 });
+
+describe("done.suggested_actions (T-645F, TC-M16-19)", () => {
+  it("keeps the ActionCards of the done event", () => {
+    const action = { id: "a1", action_name: "ACT-create_task", autonomy_level: "L2", status: "proposed", on_behalf_of: "u1", input_preview: { title: "X" } };
+    const r = applyEvent(empty, { event: "done", data: { answer: "ok", suggested_actions: [action], warnings: [] } });
+    expect(r.msg.actions).toEqual([action]);
+    expect(applyEvent(empty, { event: "done", data: { answer: "ok" } }).msg.actions).toEqual([]);
+  });
+});

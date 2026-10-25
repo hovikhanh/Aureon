@@ -86,6 +86,7 @@ function createUser(req: MockRequest) {
   checkGrant(req.claims, String(b.role_code), b.scope_pillars);
   const email = String(b.email).toLowerCase();
   if (userStore().some((u) => u.email === email)) throw new MockHttpError(409, "DUPLICATE_RESOURCE", "email exists", { field: "email" });
+  if (b.employee_id && userStore().some((u) => u.employee_id === b.employee_id)) throw new MockHttpError(409, "DUPLICATE_RESOURCE", "employee already has a user", { field: "employee_id" });
   const now = new Date().toISOString();
   const u: MockUser = {
     id: mockId("user", `${email}:${Date.now()}`), email, full_name: String(b.full_name), role_id: roleId(String(b.role_code)),

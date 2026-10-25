@@ -1,14 +1,81 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: M1.1 DONE (nền build v3) — chờ human review/PR
+## Status: M1.3→M1.6 DONE — full test chuỗi XANH (T-652, 2026-10-25) — 4 PR xếp chồng chờ human review
 
 | Field | Value |
 |---|---|
-| Last updated | 2026-10-23 (Asia/Saigon) |
+| Last updated | 2026-10-25 (Asia/Saigon) |
 | Dòng sản phẩm | **Aureon v3 — AI-EOS** (chính thức duy nhất). v2.1 archived (`docs/_archive/v2.1/`) |
 | Branch | `v3/m1.1-foundation` (local, **chưa push**) ← `ai-eos`; `main` giữ nền v2.1 demo |
 | Phase | **M1.1 DONE** (T-601→T-609 ☑, T-610 chờ PR) · P1 DONE — refactor 10 role F.O.C.U.S → 7 role BRD + AI Agent; +`tenant_id`; +`scope_pillars`; review Autonomy L0–L3 (L4 khóa) + kill switch |
 | Gates | A ✅ · B ✅ (0 DEC open+blocking) · C ✅ (14 §1.5 TC-M11-01..15 Passed) |
+
+## T-652 — Đóng mốc M1: full test chuỗi M1.3→M1.6 — PASSED (2026-10-25)
+Chạy trên đỉnh chuỗi `v3/m1.6-ai-onboarding` (chứa M1.3→M1.6), DB riêng (không đụng demo `aureon`).
+| Bước | Kết quả |
+|---|---|
+| Gate DoD `pnpm lint && pnpm typecheck && pnpm test && ruff && mypy && pytest && contract:validate` | ✅ exit 0 — Vitest 321 · mypy 348 file · pytest 1213 passed · contract 34 |
+| `pytest --cov=app` | TOTAL 96% · service mọi module ≥ 90% · nhóm bảo mật ≥ 93% (14 §1.3 đạt) · FE coverage chưa đo (cần DEC `@vitest/coverage-v8`) |
+| Alembic | DB mới `aureon_final`: `upgrade head` → `downgrade -1` ×8 (0021→0013) → `upgrade head` sạch |
+| Playwright real | **75/75** — stack riêng API :4500 + Celery worker (`-Q default,idp,events`)/beat Redis db 5–7 + `next start` :3600 trên `aureon_final` (seed sạch + `seed_review_doc.py`) |
+| Playwright mock | **60/60** (`E2E_MOCK_PORT=3170`) |
+| 14 | TC-M13-* … TC-M16-* (74 dòng) → **Passed 2026-10-25** · 09 T-652 ☑ |
+
+**Ghi chú môi trường (rút ra khi chạy T-652):**
+- Shell của harness kế thừa `DATABASE_URL=…/aureon` (+ REDIS/CELERY, `MODEL_GATEWAY_MODE=live`) ghi đè `.env` → mọi lệnh phải `set -a; . ./.env; set +a` (sự cố M1.5: migration 0018–0020 + seed lỡ chạy vào DB demo — đã `downgrade 0013` + `demo_reset.sh -y` từ `main`, verify 7 phòng/154 NV, API :4000 health 200).
+- Script support e2e (`seed_review_doc.py`, `goals_e2e.py`…) đọc `.env` gốc → stack riêng đặt `E2E_ENV_FILE=var/<x>.env` (thêm ở T-652, `support/seed.ts`); `E2E_API_URL` phải có hậu tố `/api/v1`; web `API_URL` thì **không** có `/api/v1`.
+- Lần real đầu fail 6–7 spec IDP/goals do script support ghi nhầm DB worktree (chưa có `E2E_ENV_FILE`) + dữ liệu bẩn từ lượt trước → reseed sạch rồi chạy lại 75/75.
+- Sau reboot WSL, port-forward Docker Desktop có thể reset kết nối → `docker restart` container (dữ liệu giữ).
+
+## M1.6 — D26 AI Platform + UC-07 (chuỗi auto) — DONE `[full-test pending]` (2026-10-25, nhánh `v3/m1.6-ai-onboarding`)
+| Task | Commit | Nội dung |
+|---|---|---|
+| T-644S | `a528d48`, `38c9067` | Spec lock M1.3–M1.6 (R-DEC-70..79 cho M1.6) |
+| (contract) | `58d13ba` | Contract EP-AI-16..23, EP-ADM-13/14 + stub 501, `ToolOut` 13 metadata, shared-types |
+| T-644 | `08261ae` | Tool Registry 13 metadata, 4 loại (COMPUTE→READ+`compute`), kiểm lúc nạp, `brd_name` |
+| T-646 | `e463b77` | Migration `0021_ai_platform_m16`, 6 agent P0, EP-AI-16..21, `resolve_level` trần L2 + agent + policy, kill switch validate agent + `ai.policy_changed` |
+| T-647 | `7de8378` | Audit mọi tool/model call (`request_id`/`tenant_id`/`user_id`/`ai_action_id`, scrub `arguments`), EP-AI-22/23, EP-AI-15 `group_by=agent` |
+| T-645 | `42aabea` | 10 tool mới (4 READ qua service public, 6 WRITE → ACT; `ACT-update_task`/`ACT-assign_task`) + undo snapshot |
+| T-645b | `3bf7bd3` | Chat WRITE → `propose()` (L0 từ chối / L1 gợi ý / L2 thẻ), `suggested_actions`, warning kill switch, ai_eval "tạo task" |
+| T-648 | `20543fa` | Onboarding EP-ADM-13/14 state machine + progress suy ra + `platform.onboarding_completed` |
+| T-644F..T-648F | `8302384`, `b8d231c`, `795366a` | SCR-64 AI Control Center, SCR-65 logs, `KillSwitchBanner`, `ActionCard`/`UndoToast`, SCR-66 wizard (mock) |
+| nối FE↔BE | `8048768`, `657a1e3` | review onboarding derive-on-read, chỉ người hỏi confirm/reject/undo, 3 route ghi thiếu commit, ADM roster C5 |
+| T-649 | `78bb141` | Roster mẫu UC-07 + `onboarding.state=completed` cho ABC |
+| T-650 | `459ad2e` | E2E UC-07 real (`onboarding-real.spec.ts`, `support/onboarding_e2e.py`) |
+| T-651 | `4a90190`, `602de41` | Review M1.6 + dọn nợ M1 (dưới) |
+
+**Kiểm tra (2026-10-25, T-651):** ruff/format/mypy sạch · pytest **1213** passed (0 fail, `MODEL_GATEWAY_MODE=fixture`, `--cov`) ·
+Vitest **321** · contract **34** · Playwright mock **60/60** + real **75/75** (T-650, trước review) ; sau review chạy lại
+`ai-control.spec.ts` mock 7/7 (:3170) · `alembic downgrade -1 && upgrade head` (0021↔0020) sạch.
+**Coverage (14 §1.3):** backend **96,3%**; services mỗi module ≥ 90% (ai 95,8 · auth 90,4 · dashboard 90,0 · execution 95,7 ·
+finance 97,2 · hr 92,4 · idp 93,9 · platform 96,9 · product 99,3 · risk 98,6 · sales 99,2); bảo mật: auth 94,1 · RBAC/scope 97,9 ·
+PII 97,5 · Action Registry 93,4 · autonomy/kill switch 96,9. Dưới 80% (file lẻ, không thuộc nhóm ngưỡng): `core/health.py` 77%,
+`idp/services/schema_registry.py` 68%. FE coverage **chưa đo**: không có `@vitest/coverage-v8` (thêm = dependency mới → DEC).
+TC-M16-01..24 = Implemented.
+**Quyết định chính:** migration `0021_ai_platform_m16`; R-DEC-76 (ADM `idp` scope `s`) đã kéo về M1.5; undo snapshot của ACT
+lưu trong `ai_actions.result_refs[0]._undo` (05 §2.8 không đổi cột; `public_refs` gỡ khỏi `AIActionOut` + `ToolCallLog`);
+kiểm khối (pillar) nằm trong `ActionDef.permitted` (R-DEC-30/12a); `core/onboarding` registry (hr/auth/execution/idp đăng ký
+nguồn progress — platform không import module); bước `review` của onboarding **derive-on-read** từ trạng thái COMMITTED của
+import C5 (không thêm event/consumer); email trùng ở roster #4 = **row error `DUPLICATE`** (preview batch 1 query + ACT validate);
+`HrService.import_employee_row` cho ADM — chỉ chạm nhân sự có `source_document_id` (do C5 import tạo) cho manager pass / undo /
+version conflict; ADM vẫn `403` với hồ sơ khác, DTO vẫn qua `mask_fields` (không mở lương/mức 4).
+**Review M1.6 (T-651, `4a90190`):** #1 MAJOR — chat dispatch mọi tool model gọi miễn người hỏi đủ quyền, kể cả tool **không được
+quảng bá** (ngoài `allowed_tools` agent `ceo`, agent bị tắt, vượt trần classification CONFIDENTIAL) → model/prompt injection gọi
+được tool ngoài tập; sửa: chỉ dispatch tên trong tập đã gửi model, còn lại `ToolCallLog error/AI_TOOL_NOT_AVAILABLE`, không tạo
+thẻ (test `test_model_call_outside_advertised_tools_is_refused_m16`). #2 MINOR — `propose()` không kiểm quyền ACT → có thể tạo
+thẻ người hỏi không bao giờ confirm được; sửa: `act.permitted(user)` trước (test `..._cannot_confirm_m16`). #3 gap test
+TC-M16-09 → `test_ai_control_rbac_m16.py`. Trước đó (`657a1e3`): **3 lỗi route ghi thiếu `db.commit()`** (EP-ADM-14, EP-AI-17,
+EP-AI-19..21 — fixture integration dùng chung session rollback nên không lộ) → test kiến trúc `tests/architecture/test_route_commit.py`.
+Đã soát: lọc tool theo permissions trước khi gửi model; tool chạy bằng `Principal` người hỏi in-process; tool ghi cần `ai:write`
++ quyền đích; trần L2 + kill switch WRITE_OFF/L0; ToolCallLog/ModelCallLog không lưu prompt thô (`prompt_sha256`), `arguments`
+qua `strip_for_model` + `scrub_for_model`; chỉ người hỏi confirm/reject/undo (`FORBIDDEN_SCOPE`); `_undo` không ra API/log;
+onboarding optimistic `version` + audit (+ outbox khi finish) cùng tx; payload `ai.policy_changed` không PII/reason; email check
+batch (không N+1); mock khớp BE (`8048768`).
+**Nợ / lưu ý:** DB dev seed trước `11e442b` còn schema doc type `PLAN_KPI_OKR` cũ — DB mới chạy `0019` đã đúng → không cần migration;
+`ACT-create_department` không có cột `organization` (một tổ chức/tenant); `_emp_validate` truy vấn email từng dòng (preview đã
+batch; commit ≤ 5000 dòng chấp nhận); `ToolExecutor` READ record tool trả `ValueError`→`AI_INVALID_ARGUMENT` nội bộ; agent v2.1
+`assistant` còn trên dòng cũ (FE nhãn i18n `aiAdmin.queue.legacyAgent`); FE coverage cần DEC dependency; `schema_registry.py` 68%.
+**Môi trường:** như M1.5 (`set -a; . ./.env; set +a` + kiểm `aureon_m16`, `MODEL_GATEWAY_MODE=fixture`); full `pytest --cov` ~16 phút.
 
 ## M1.5 — D03 Data Capture (chuỗi auto) — DONE `[full-test pending]` (2026-10-25, nhánh `v3/m1.5-capture`)
 | Task | Commit | Nội dung |

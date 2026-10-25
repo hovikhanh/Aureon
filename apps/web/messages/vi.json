@@ -256,7 +256,8 @@
     "openLineage": "Xem nguồn gốc",
     "warning": {
       "AI_NO_DATA_AVAILABLE": "Không có dữ liệu để trả lời câu này.",
-      "default": "Lưu ý: {code}"
+      "default": "Lưu ý: {code}",
+      "kill_switch": "Kill switch đang bật — AI không soạn thao tác."
     },
     "truncated": "Câu trả lời bị cắt ngắn.",
     "suggestions": {
@@ -488,6 +489,15 @@
     "dataCapture": {
       "title": "Cấu hình nhập liệu",
       "body": "Loại tài liệu, ExtractionSchema, quy tắc kiểm tra."
+    },
+    "ai": {
+      "title": "AI Control Center",
+      "body": "Kill switch, agent, mức tự chủ, Tool Registry, log & chi phí."
+    },
+    "onboarding": {
+      "title": "Onboarding doanh nghiệp",
+      "body": "Wizard 6 bước: doanh nghiệp → cơ cấu → user → KPI.",
+      "pending": "Chưa hoàn tất"
     }
   },
   "adminCommon": {
@@ -1414,7 +1424,8 @@
       "department_name": "Phòng ban",
       "manager_code": "Quản lý trực tiếp",
       "team_code": "Mã team",
-      "team_name": "Team"
+      "team_name": "Team",
+      "email": "Email"
     },
     "errors": {
       "required": "Bắt buộc nhập",
@@ -1621,6 +1632,379 @@
         "fieldName": "Tên trường",
         "send": "Gửi"
       }
+    }
+  },
+  "aiAdmin": {
+    "title": "AI Control Center",
+    "subtitle": "Kill switch, agent, mức tự chủ và Tool Registry",
+    "openLogs": "Xem log & chi phí",
+    "openInM3": "Mở ở M3",
+    "conflict": "Dữ liệu đã đổi, tải lại",
+    "tabs": {
+      "overview": "Tổng quan",
+      "agents": "Agent",
+      "autonomy": "Autonomy",
+      "tools": "Tool Registry"
+    },
+    "level": {
+      "L0": "Chỉ thông tin",
+      "L1": "AI gợi ý",
+      "L2": "AI soạn",
+      "L3": "AI đã làm"
+    },
+    "reason": {
+      "above_ceiling": "Vượt trần tự chủ M1 (L2)",
+      "above_tool_max": "Vượt mức tối đa của tool",
+      "critical_field": "Thao tác có trường trọng yếu — không được hạ xuống dưới L2",
+      "not_configurable": "Tool này không cấu hình được mức tự chủ",
+      "execution_max_l2": "Tool EXECUTION tối đa L2",
+      "invalid_tool": "Tool không hợp lệ cho agent"
+    },
+    "kill": {
+      "title": "Kill switch",
+      "on": "Đang bật — AI bị dừng",
+      "off": "Đang tắt — AI hoạt động bình thường",
+      "error": "Không tải được trạng thái kill switch",
+      "mode": "Chế độ",
+      "modes": {
+        "WRITE_OFF": "Tạm dừng ghi (WRITE_OFF)",
+        "L0": "Chỉ trả lời (L0)"
+      },
+      "scope": "Phạm vi",
+      "scopeAll": "Tất cả agent",
+      "lastChange": "Thay đổi gần nhất",
+      "changedAt": "lúc {at}",
+      "reason": "Lý do",
+      "turnOff": "Tắt kill switch",
+      "turnOn": "Dừng AI khẩn cấp",
+      "agentsRequired": "Chọn ít nhất một agent hoặc \"Tất cả\".",
+      "dialogOn": "Dừng AI khẩn cấp",
+      "dialogOnBody": "AI sẽ không tự ghi dữ liệu; mọi đề xuất cần người xác nhận. Thao tác được ghi audit.",
+      "dialogOff": "Tắt kill switch",
+      "dialogOffBody": "AI trở lại mức tự chủ theo chính sách. Vui lòng ghi lý do.",
+      "onToast": "Đã dừng AI khẩn cấp",
+      "offToast": "Đã tắt kill switch"
+    },
+    "ceiling": {
+      "title": "Mức tự chủ tối đa: {level} (M1)",
+      "hint": "trần hệ thống, chỉ đọc"
+    },
+    "queue": {
+      "title": "Hàng chờ AI soạn",
+      "error": "Không tải được hàng chờ",
+      "open": "Xem danh sách",
+      "empty": "Không có thẻ nào đang chờ.",
+      "filterAgent": "Lọc theo agent",
+      "allAgents": "Mọi agent",
+      "mine": "Của bạn",
+      "forOther": "Phục vụ người khác (chỉ xem)",
+      "legacyAgent": "Trợ lý (v2.1)"
+    },
+    "cost": {
+      "title": "Chi phí AI tháng này",
+      "error": "Không tải được chi phí",
+      "used": "${used} / ${budget}",
+      "warning": "sắp chạm ngân sách",
+      "danger": "vượt ngân sách",
+      "link": "Xem chi tiết chi phí"
+    },
+    "agents": {
+      "error": "Không tải được danh sách agent",
+      "edit": "Sửa",
+      "enabled": "Đang bật",
+      "disabled": "Đang tắt",
+      "killed": "Đang bị kill switch",
+      "noBudget": "Theo ngân sách chung",
+      "saved": "Đã lưu agent",
+      "budgetInvalid": "Ngân sách phải là số ≥ 0",
+      "editHint": "Đổi bật/tắt, mức tự chủ tối đa, ngân sách, tool được dùng. Bắt buộc ghi lý do.",
+      "col": {
+        "name": "Agent",
+        "tools": "Số tool",
+        "max": "Mức tối đa",
+        "effective": "Hiệu lực",
+        "budget": "Ngân sách tháng (USD)",
+        "spend": "Đã dùng",
+        "status": "Trạng thái"
+      }
+    },
+    "autonomy": {
+      "error": "Không tải được ma trận tự chủ",
+      "hint": "Chỉ tool WRITE/EXECUTION. Ghi đè theo agent, role hoặc ngưỡng tiền.",
+      "new": "Thêm ghi đè",
+      "add": "ghi đè",
+      "capped": "hạ theo trần M1",
+      "everyone": "Mọi người",
+      "forRole": "role {role}",
+      "forAgent": "agent {agent}",
+      "upTo": "≤ {amount}",
+      "delete": "Xóa ghi đè",
+      "deleteTitle": "Xóa dòng ghi đè?",
+      "deleteBody": "Tool trở về mức mặc định. Thao tác được ghi audit.",
+      "deleted": "Đã xóa ghi đè",
+      "saved": "Đã lưu chính sách",
+      "editTitle": "Sửa ghi đè",
+      "dialogHint": "Mức hiệu lực = min(chính sách, trần M1, mức tối đa của agent).",
+      "agent": "Agent (tùy chọn)",
+      "role": "Role (tùy chọn)",
+      "any": "— Bất kỳ —",
+      "level": "Mức",
+      "maxLevel": "Mức tối đa",
+      "amount": "Ngưỡng tiền (VND, tùy chọn)",
+      "active": "Đang áp dụng",
+      "col": {
+        "tool": "Tool",
+        "default": "Mặc định",
+        "overrides": "Ghi đè"
+      }
+    },
+    "tools": {
+      "loading": "Đang tải…",
+      "error": "Không tải được Tool Registry",
+      "filter": {
+        "kind": "Loại",
+        "allKinds": "Mọi loại",
+        "domain": "Domain",
+        "allDomains": "Mọi domain",
+        "agent": "Agent",
+        "allAgents": "Mọi agent",
+        "mine": "Chỉ tool tôi dùng được"
+      },
+      "columns": "Cột",
+      "count": "{shown}/{total} tool",
+      "yes": "Có",
+      "no": "Không",
+      "frozen": "P1 — đóng băng",
+      "col": {
+        "name": "Tên",
+        "kind": "Loại",
+        "domain": "Domain",
+        "description": "Mô tả",
+        "permission": "Quyền",
+        "risk_level": "Rủi ro",
+        "data_scope": "Phạm vi dữ liệu",
+        "data_classification": "Phân loại",
+        "autonomy": "Tự chủ",
+        "approval_required": "Cần duyệt",
+        "reversible": "Hoàn tác được",
+        "audit_required": "Ghi audit",
+        "cost_estimate": "Chi phí ước tính",
+        "owner": "Chủ sở hữu",
+        "endpoint_ref": "EP tham chiếu",
+        "brd_name": "Tên BRD",
+        "agents": "Agent dùng",
+        "input_schema": "input_schema",
+        "output_schema": "output_schema"
+      }
+    }
+  },
+  "killSwitch": {
+    "banner": {
+      "WRITE_OFF": "AI đang tạm dừng ghi dữ liệu — các đề xuất cần bạn xác nhận",
+      "L0": "AI chỉ trả lời, không soạn thao tác"
+    },
+    "scopeAll": "Áp dụng cho mọi agent",
+    "scopeAgents": "Áp dụng cho: {agents}",
+    "open": "Mở AI Control Center"
+  },
+  "aiAction": {
+    "level": {
+      "L0": "Chỉ thông tin",
+      "L1": "AI gợi ý",
+      "L2": "AI soạn",
+      "L3": "AI đã làm"
+    },
+    "name": {
+      "create_task": "Tạo việc",
+      "update_task": "Cập nhật việc",
+      "create_invoice": "Tạo hóa đơn",
+      "record_expense": "Ghi chi phí",
+      "upsert_deal": "Cập nhật cơ hội bán hàng",
+      "record_decision": "Ghi quyết định",
+      "record_kr_checkin": "Check-in KR",
+      "upsert_kpi": "Cập nhật KPI"
+    },
+    "status": {
+      "proposed": "Chờ xác nhận",
+      "confirmed": "Đã xác nhận",
+      "executed": "Đã thực hiện",
+      "rejected": "Đã từ chối",
+      "undone": "Đã hoàn tác",
+      "failed": "Lỗi"
+    },
+    "field": {
+      "title": "Tiêu đề",
+      "due_date": "Hạn",
+      "assignee": "Người nhận",
+      "priority": "Ưu tiên",
+      "status": "Trạng thái",
+      "amount": "Số tiền",
+      "total_amount": "Tổng tiền",
+      "customer": "Khách hàng",
+      "currency": "Tiền tệ",
+      "decision": "Quyết định",
+      "description": "Mô tả"
+    },
+    "confirm": "Xác nhận",
+    "edit": "Sửa trước khi xác nhận",
+    "reject": "Từ chối",
+    "cancel": "Hủy",
+    "rejectReason": "Lý do từ chối",
+    "doItMyself": "Tự làm",
+    "error": "Không thực hiện được thao tác",
+    "executed": "AI đã thực hiện thao tác bạn xác nhận",
+    "rejected": "Đã từ chối thẻ",
+    "undone": "Đã hoàn tác",
+    "undoExpired": "Đã quá hạn hoàn tác"
+  },
+  "aiLogs": {
+    "title": "Log AI & chi phí",
+    "subtitle": "Tool call, model call và chi phí theo request_id",
+    "back": "← AI Control Center",
+    "tabs": {
+      "tool": "Tool call",
+      "model": "Model call",
+      "cost": "Chi phí"
+    },
+    "from": "Từ ngày",
+    "to": "Đến ngày",
+    "requestId": "request_id",
+    "auditLink": "Xem audit (SCR-14)",
+    "error": "Không tải được dữ liệu",
+    "empty": "Không có bản ghi trong khoảng này.",
+    "copy": "Sao chép request_id",
+    "copied": "Đã sao chép",
+    "filterBy": "Lọc theo request_id này",
+    "total": "{total} bản ghi",
+    "prev": "Trước",
+    "next": "Sau",
+    "arguments": "Tham số (đã lọc PII)",
+    "results": "Nguồn kết quả",
+    "actionLink": "Mở thẻ AIAction",
+    "fallbackFrom": "từ {from}",
+    "period": "Tháng",
+    "groupBy": "Nhóm theo",
+    "budget": "Đã dùng {used} / ${budget} ({pct})",
+    "group": {
+      "provider": "Provider",
+      "model": "Model",
+      "task_kind": "Loại tác vụ",
+      "agent": "Agent",
+      "user": "Người dùng"
+    },
+    "col": {
+      "time": "Thời gian",
+      "user": "Người được phục vụ",
+      "agent": "Agent",
+      "tool": "Tool",
+      "kind": "Loại",
+      "status": "Trạng thái",
+      "level": "Mức tự chủ",
+      "latency": "Độ trễ",
+      "request": "request_id",
+      "model": "Provider / model",
+      "fallback": "Fallback",
+      "tokens": "Token vào/ra",
+      "cost": "Chi phí (USD)",
+      "hash": "prompt_sha256"
+    },
+    "cost": {
+      "key": "Nhóm",
+      "calls": "Số lượt",
+      "tokens": "Token vào/ra",
+      "cost": "Chi phí (USD)",
+      "errorRate": "Tỷ lệ lỗi",
+      "p95": "p95"
+    }
+  },
+  "onboarding": {
+    "title": "Onboarding doanh nghiệp",
+    "hint": "Đưa doanh nghiệp lên Aureon trong 1 ngày: thông tin công ty → cơ cấu → người dùng → KPI/OKR.",
+    "intro": "Wizard 6 bước. Tiến độ được lưu sau mỗi bước — tải lại trang sẽ tiếp tục đúng bước đang làm.",
+    "start": "Bắt đầu onboarding",
+    "skip": "Bỏ qua",
+    "skipped": "bỏ qua",
+    "continue": "Tiếp tục",
+    "saveContinue": "Lưu và tiếp tục",
+    "clock": "Đã {time} giờ",
+    "clockHint": "Mục tiêu hoàn tất trong 1 ngày (xanh ≤ 8 giờ, vàng ≤ 24 giờ, đỏ > 24 giờ)",
+    "template": "Tải file mẫu",
+    "upload": "Tải file lên",
+    "uploadAgain": "Tải file khác",
+    "importDone": "Đã gửi {n} dòng hợp lệ.",
+    "sensitiveDropped": "Cột nhạy cảm đã bỏ qua: {cols}",
+    "steps": {
+      "company": "Thông tin doanh nghiệp",
+      "org_import": "Sơ đồ tổ chức / nhân sự",
+      "review": "Rà soát",
+      "users": "Tạo người dùng",
+      "goals_import": "Import KPI/OKR",
+      "finish": "Hoàn tất"
+    },
+    "company": {
+      "hint": "Thông tin pháp lý của doanh nghiệp.",
+      "code": "Mã doanh nghiệp",
+      "name": "Tên doanh nghiệp",
+      "legalName": "Tên pháp lý",
+      "taxCode": "Mã số thuế",
+      "required": "Bắt buộc nhập.",
+      "taxInvalid": "Mã số thuế gồm 10 số (hoặc 10 số-3 số)."
+    },
+    "org_import": {
+      "hint": "Tải file mẫu hoặc file danh sách nhân sự của doanh nghiệp (.xlsx/.csv). AI gợi ý ghép cột, bạn có thể sửa."
+    },
+    "goals_import": {
+      "hint": "Tùy chọn: import kế hoạch KPI/OKR (.xlsx/.csv).",
+      "notAllowed": "Bước này do CEO/Director thực hiện. Bạn có thể bỏ qua — CEO mở wizard sẽ thấy bước đang chờ."
+    },
+    "review": {
+      "hint": "Xem trước cơ cấu sẽ tạo và các dòng lỗi. Tài liệu import được duyệt rồi ghi vào hệ thống (hoàn tác trong 7 ngày).",
+      "noImport": "Chưa có file import — quay lại bước 2.",
+      "waiting": "Tài liệu đang chờ người duyệt. Trang sẽ tự cập nhật.",
+      "approved": "Đã duyệt — ghi dữ liệu vào cơ cấu tổ chức.",
+      "commit": "Ghi vào hệ thống",
+      "committed": "Đã ghi cơ cấu tổ chức.",
+      "undo": "Hoàn tác import",
+      "rejected": "Tài liệu bị từ chối hoặc đã hoàn tác.",
+      "reimport": "Import lại",
+      "planned": "Cơ cấu sẽ tạo",
+      "errors": "Dòng lỗi",
+      "real": "Cơ cấu hiện tại",
+      "people": "{n} người"
+    },
+    "users": {
+      "hint": "Chọn nhân viên cần tài khoản, nhập email và mật khẩu ban đầu. Tạo tối đa {max} dòng mỗi lượt; dòng lỗi không chặn dòng khác.",
+      "needCeo": "Chưa có tài khoản CEO — chỉ CEO được cấp vai trò CEO.",
+      "pick": "Chọn",
+      "pickRow": "Chọn {name}",
+      "employee": "Nhân viên",
+      "head": "trưởng phòng",
+      "role": "Vai trò",
+      "emailOf": "Email của {name}",
+      "passwordOf": "Mật khẩu ban đầu của {name}",
+      "generate": "Sinh mật khẩu ngẫu nhiên",
+      "result": "Kết quả",
+      "ok": "Đã tạo",
+      "emailInvalid": "Email không hợp lệ.",
+      "created": "Đã tạo {n} người dùng.",
+      "create": "Tạo {n} người dùng",
+      "enough": "Đủ — tiếp tục",
+      "tooMany": "Chỉ tạo {max} dòng đầu trong lượt này.",
+      "empty": "Mọi nhân viên đã có tài khoản."
+    },
+    "finish": {
+      "departments": "Phòng ban",
+      "employees": "Nhân viên",
+      "withoutUser": "Nhân viên chưa có tài khoản",
+      "users": "Người dùng theo vai trò",
+      "kpis": "KPI",
+      "objectives": "Mục tiêu OKR",
+      "time": "Thời gian",
+      "button": "Hoàn tất",
+      "done": "Onboarding đã hoàn tất.",
+      "missing": "Chưa xong bước bắt buộc: {step}",
+      "toHome": "Mở dashboard đầu tiên",
+      "toOrg": "Xem cơ cấu tổ chức"
     }
   }
 }

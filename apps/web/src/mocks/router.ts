@@ -19,6 +19,8 @@ import { PROJECT_ROUTES } from "./work-projects";
 import { WORKFLOW_ROUTES } from "./workflow";
 import { GOALS_ROUTES } from "./goals";
 import { CAPTURE_ROUTES } from "./capture";
+import { AI_ADMIN_ROUTES } from "./ai_admin";
+import { ONBOARDING_ROUTES } from "./onboarding";
 
 export interface MockRequest {
   method: string;
@@ -113,6 +115,9 @@ export const ROUTES: readonly Route[] = [
   // M1.4 goals (T-626F..T-628F): strategy tree, KPI, OKR, check-ins.
   ...GOALS_ROUTES,
   ...CAPTURE_ROUTES,
+  // M1.6 AI Control Center + actions (T-644F..T-647F)
+  ...AI_ADMIN_ROUTES,
+  ...ONBOARDING_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

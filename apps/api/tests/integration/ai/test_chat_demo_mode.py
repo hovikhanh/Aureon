@@ -126,3 +126,24 @@ async def test_no_permission_no_replay(db_session, demo_on) -> None:
     )  # fmt: skip
     turn = await ChatService(db_session, _NoModel()).chat(hr, "Doanh thu Q3?")
     assert turn.replayed is None
+
+
+async def test_sse_and_replay_write_audited_tool_logs_m16(api, demo_on, db_session) -> None:
+    """TC-M16-10/11 (T-647): demo replay over SSE logs every tool with the request id, L0."""
+    from sqlalchemy import select
+
+    from app.modules.ai.models import ToolCallLog
+
+    rid = str(uuid.uuid4())
+    r = await api.call(
+        "POST", "/ai/chat/stream", role="CEO",
+        headers=api.headers("CEO", idem=True) | {"X-Request-Id": rid},
+        json={"message": "Dự báo Q4?"},
+    )  # fmt: skip
+    assert r.status_code == 200
+    logs = (await db_session.execute(select(ToolCallLog).where(
+        ToolCallLog.request_id == uuid.UUID(rid)))).scalars().all()  # fmt: skip
+    assert logs
+    for lg in logs:
+        assert (lg.autonomy_level, lg.agent_profile_code, lg.tool_kind) == ("L0", "ceo", "READ")
+        assert lg.user_id is not None and lg.message_id is not None

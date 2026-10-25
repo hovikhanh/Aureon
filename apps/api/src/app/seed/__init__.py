@@ -3,7 +3,8 @@
 Seed v3 (T-603b, 08 §2–§5, R-DEC-23): 7 roles + 10 demo users + the AI actor, company ABC
 (7 departments, ~150 employees), finance / sales / execution data for UC-01/02/03/04/06/07,
 product & risk kept (frozen, R-DEC-16) and owned by the CEO, M1.4 goal layer (T-631),
-metric catalog (33) + recompute.
+metric catalog (34) + recompute, 6 P0 AI agents (M1.6 R-DEC-71, no autonomy policy rows —
+registry defaults apply), `onboarding.state = completed` for ABC (T-649).
 `python -m app.seed.snapshot` exports `seed_snapshot.json` for the mock FE (T-604).
 """
 
@@ -27,11 +28,13 @@ from app.modules.idp.services.schema_registry import (
     ensure_seed_type,
 )
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
+from app.seed.ai_seed import seed_agents
 from app.seed.auth_seed import SeedReport, seed_auth
 from app.seed.execution_seed import seed_execution
 from app.seed.finance_seed import seed_finance
 from app.seed.goals_seed import seed_goals
 from app.seed.hr_seed import seed_hr
+from app.seed.onboarding_seed import seed_onboarding
 from app.seed.product_seed import seed_product
 from app.seed.risk_seed import seed_risk
 from app.seed.sales_seed import seed_sales
@@ -88,6 +91,10 @@ async def run() -> SeedReport:
         logging.info(
             "seed hr.late_hiring: %d", len(await detect_delayed_hiring_plans(session, today))
         )
+        for outcome, n in (await seed_agents(session)).items():  # M1.6 R-DEC-71
+            logging.info("seed ai.agents %s: %d", outcome, n)
+        adm = await _user(session, "admin@abc.demo")  # T-649: ABC already onboarded (R-DEC-79)
+        logging.info("seed platform.onboarding: %s", await seed_onboarding(session, adm))
         logging.info("seed platform.metrics: %d", await seed_catalog(session))
         load_metric_providers()
         logging.info("seed platform.recompute: %s", await MetricStore(session).recompute(today))

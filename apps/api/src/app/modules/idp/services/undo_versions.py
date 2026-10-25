@@ -28,7 +28,7 @@ async def _read(db: AsyncSession, user: Principal, table: str, id_: uuid.UUID) -
         case "hr.positions":
             return await StructureService(db).get_position(user, id_)
         case "hr.employees":
-            return await HrService(db).get_employee_row(user, id_)
+            return await HrService(db).import_employee_row(user, id_)
         case "execution.objectives":
             return await OkrService(db).get_objective(user, id_)
         case "execution.key_results":

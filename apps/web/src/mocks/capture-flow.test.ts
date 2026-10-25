@@ -27,6 +27,17 @@ const upload = (name: string, claims: C, size = 31_000) => call("/data-capture/i
 
 beforeEach(() => resetMockStore());
 
+describe("C5 import UC-07 onboarding roster (T-649, TC-M16-22 mock)", () => {
+  it("ABC_DanhSachNhanSu_Onboarding.xlsx → 27 = 24 valid + 3 errors (manager, date, duplicate email), ADM without salary", async () => {
+    const pv = (await upload("ABC_DanhSachNhanSu_Onboarding.xlsx", ADM)).json.data;
+    expect(pv.summary).toEqual({ rows_total: 27, rows_valid: 24, rows_invalid: 3 });
+    expect(pv.column_mapping["Email"].field).toBe("email");
+    const bad = await call(`/data-capture/imports/${pv.batch_id}/rows?status=invalid&order=asc`, ADM);
+    expect(bad.json.data.flatMap((r: { errors: { field: string; rule_code: string }[] }) => r.errors.map((e) => `${e.field}:${e.rule_code}`)))
+      .toEqual(["manager_code:MASTER_NOT_FOUND", "hire_date:DATE_FORMAT", "email:DUPLICATE"]);
+  });
+});
+
 describe("C5 import DOC-06 (EP-DC-17..22)", () => {
   it("previews with suggested type + mapping, rows/errors, error file, submit", async () => {
     const up = await upload("DOC-06-danh-sach-nhan-su.xlsx", HRD);

@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 export function rootEnv(): Record<string, string> {
-  const file = path.join(ROOT, ".env");
+  // E2E_ENV_FILE: a separate real stack (own DB/Redis) points the support scripts at its env file.
+  const file = process.env.E2E_ENV_FILE ? path.resolve(ROOT, process.env.E2E_ENV_FILE) : path.join(ROOT, ".env");
   if (!existsSync(file)) return {};
   const out: Record<string, string> = {};
   for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {

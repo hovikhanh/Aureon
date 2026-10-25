@@ -3,31 +3,54 @@
 Aggregates `ENT-ModelCallLog` over a window into `{ budget_usd, used_usd, used_pct, rows }`.
 Cost is stored as `estimated_cost_micro_usd` (integer micro-USD, no float drift); the summary
 converts to USD only at the edge. `group_by` supports the keys backed by columns in v2.0
-(`provider | model | task_kind | user`); department / agent / classification budgets are deferred
-to v2.1 (DEC-150). An 80% spend trips `warn_80pct`; ≥100% trips `over_budget` (the chat path
+(`provider | model | task_kind | user | agent`; `agent` + `period=YYYY-MM` = M1.6 EP-AI-15).
+An 80% spend trips `warn_80pct`; ≥100% trips `over_budget` (the chat path
 returns `429 AI_QUOTA_EXCEEDED` — ModelGateway budget guard). Caller supplies the window; the
 default is the current calendar month.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import Float, Integer, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
+from app.core.errors import BadRequestError
+from app.core.tenant import require_tenant
 from app.modules.ai.models import ModelCallLog
 from app.modules.ai.schemas import CostRowOut, CostSummaryOut
 
-GroupBy = Literal["provider", "model", "task_kind", "user"]
+GroupBy = Literal["provider", "model", "task_kind", "user", "agent"]
 _GROUP_COLUMN = {
     "provider": ModelCallLog.provider,
     "model": ModelCallLog.model,
     "task_kind": ModelCallLog.task_kind,
     "user": ModelCallLog.user_id,
+    "agent": ModelCallLog.agent_profile_code,  # M1.6 (EP-AI-15)
 }
+_PERIOD = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
+
+
+def period_window(period: str | None, now: datetime | None = None) -> tuple[datetime, datetime]:
+    """EP-AI-15 `period=YYYY-MM` → `[month start, month end)` (current month → up to now).
+
+    Bad format → `400`.
+    """
+    now = now or datetime.now(UTC)
+    if period is None:
+        return month_start(now), now
+    m = _PERIOD.match(period)
+    if m is None:
+        raise BadRequestError("period must be YYYY-MM", details={"param": "period"})
+    start = datetime(int(m.group(1)), int(m.group(2)), 1, tzinfo=UTC)
+    nxt = (start + timedelta(days=32)).replace(day=1)
+    return start, min(nxt - timedelta(microseconds=1), now)
+
+
 _MICRO = 1_000_000
 
 
@@ -63,7 +86,11 @@ class CostService:
                     0,
                 ).label("p95_ms"),
             )
-            .where(ModelCallLog.created_at >= start, ModelCallLog.created_at <= end)
+            .where(
+                ModelCallLog.created_at >= start,
+                ModelCallLog.created_at <= end,
+                ModelCallLog.tenant_id == require_tenant(),
+            )
             .group_by(key_col)
             .order_by(func.sum(ModelCallLog.estimated_cost_micro_usd).desc())
         )
@@ -94,3 +121,15 @@ class CostService:
             warn_80pct=used >= budget * 0.8 > 0,
             rows=rows,
         )
+
+    async def spend_by_agent(self, *, start: datetime | None = None) -> dict[str, float]:
+        """Month-to-date USD per `agent_profile_code` (EP-AI-16 `month_spend_usd`, FR-AIQ-05)."""
+        start = start or month_start(datetime.now(UTC))
+        stmt = (
+            select(ModelCallLog.agent_profile_code,
+                   func.coalesce(func.sum(ModelCallLog.estimated_cost_micro_usd), 0))
+            .where(ModelCallLog.created_at >= start, ModelCallLog.tenant_id == require_tenant(),
+                   ModelCallLog.agent_profile_code.is_not(None))
+            .group_by(ModelCallLog.agent_profile_code)
+        )  # fmt: skip
+        return {str(k): int(v) / _MICRO for k, v in (await self.db.execute(stmt)).all()}

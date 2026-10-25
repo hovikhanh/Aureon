@@ -29,7 +29,20 @@ def principal(role: str, user_id: uuid.UUID | None = None) -> Principal:
 
 
 # ---------- T-304: lifecycle + undo ----------
-async def test_l3_action_auto_executes_with_24h_undo_window(db_session) -> None:
+async def test_ceiling_l2_caps_seed_l3_to_a_proposed_card(db_session) -> None:
+    """R-DEC-72: seed default L3 (ACT-create_task) → effective L2 at the M1 ceiling."""
+    svc = ActionService(db_session)
+    out = await svc.propose(
+        principal("CEO"), action_name="ACT-create_task", tool_name="TOOL-create_task",
+        input_data={"title": "AI task from meeting", "status": "todo"},
+        idempotency_key="act-l2-cap-1",
+    )  # fmt: skip
+    assert out.autonomy_level == "L2"
+    assert out.status == "proposed"
+    assert out.result_refs in (None, [])
+
+
+async def test_l3_action_auto_executes_with_24h_undo_window(db_session, ceiling_l3) -> None:
     svc = ActionService(db_session)
     ceo = principal("CEO")
     out = await svc.propose(
@@ -53,7 +66,7 @@ async def test_l3_action_auto_executes_with_24h_undo_window(db_session) -> None:
     assert (t.task_source, t.source_ref) == ("ai", {"kind": "ai_action", "id": str(out.id)})
 
 
-async def test_undo_reverses_within_window(db_session) -> None:
+async def test_undo_reverses_within_window(db_session, ceiling_l3) -> None:
     svc = ActionService(db_session)
     ceo = principal("CEO")
     out = await svc.propose(
@@ -72,7 +85,7 @@ async def test_undo_reverses_within_window(db_session) -> None:
     assert task.deleted_at is not None
 
 
-async def test_undo_past_window_is_expired(db_session) -> None:
+async def test_undo_past_window_is_expired(db_session, ceiling_l3) -> None:
     svc = ActionService(db_session)
     ceo = principal("CEO")
     out = await svc.propose(
@@ -184,22 +197,21 @@ async def test_kill_switch_l0_blocks_preparation(db_session) -> None:
     assert level == "L0"
 
 
-async def test_kill_switch_per_agent_scope(db_session) -> None:
-    # engage only for agent "reporter" — the default "assistant" stays L3
+async def test_kill_switch_per_agent_scope(db_session, ceiling_l3) -> None:
+    # engage only for agent "reporting" — "ceo" stays L3 (ceiling L3 = M3.2 config)
     await KillSwitchService(db_session).set(
         principal("ADM"),
-        KillSwitchIn(enabled=True, mode="WRITE_OFF", agents=["reporter"], reason="scoped"),
+        KillSwitchIn(enabled=True, mode="L0", agents=["reporting"], reason="scoped"),
     )
-    assistant = await resolve_level(
-        db_session, action_name="ACT-create_task", role="CEO", amount=None,
-        agent_code="assistant",
+    ceo = await resolve_level(
+        db_session, action_name="ACT-create_task", role="CEO", amount=None, agent_code="ceo",
     )  # fmt: skip
-    reporter = await resolve_level(
+    reporting = await resolve_level(
         db_session, action_name="ACT-create_task", role="CEO", amount=None,
-        agent_code="reporter",
+        agent_code="reporting",
     )  # fmt: skip
-    assert assistant == "L3"
-    assert reporter == "L2"
+    assert ceo == "L3"
+    assert reporting == "L0"
 
 
 # ---------- T-307: outcome verification 24h/7d ----------
@@ -230,7 +242,7 @@ async def test_proposed_action_seeds_verification_baseline(db_session) -> None:
     assert action.verification["baseline_status"] == "critical"
 
 
-async def test_verification_sweep_measures_against_current_metric(db_session) -> None:
+async def test_verification_sweep_measures_against_current_metric(db_session, ceiling_l3) -> None:
     from app.modules.ai.services.verification import verify_action_outcomes
     from app.modules.platform.services.metric_query import MetricQueryService
 
@@ -268,3 +280,14 @@ async def test_kill_switch_status_roundtrip(db_session) -> None:
     )
     st = await svc.status()
     assert st.enabled is True and st.mode == "WRITE_OFF"
+
+
+async def test_propose_refuses_card_the_asker_cannot_confirm_m16(db_session) -> None:
+    """M1.6 review: no ACT structure card for a role outside `hr:admin` (R-DEC-61) — `propose`
+    applies the ACT's own permission + pillar check (`ActionDef.permitted`) up front."""
+    with pytest.raises(PermissionDeniedError):
+        await ActionService(db_session).propose(
+            principal("EMP"), action_name="ACT-create_department",
+            tool_name="TOOL-create_department",
+            input_data={"code": "X-REV", "name": "Review"}, idempotency_key="act-perm-1",
+        )  # fmt: skip

@@ -5,8 +5,9 @@
 #   3. clear object storage (local IDP store var/idp-storage + MinIO buckets)
 #   4. purge Celery queues + restart worker/beat
 #   5. put 1 INVOICE in NEEDS_REVIEW (fixture extraction, no live LLM)
-#   6. verify (seed v3, T-603b): 7 departments · 154 employees · 10 demo users + AI actor ·
-#      33 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW; then export seed_snapshot.json (mock FE)
+#   6. verify (seed v3, T-603b/T-649): 7 departments · 154 employees · 10 demo users + AI actor ·
+#      34 metrics · 14 OPEN alerts · 1 NEEDS_REVIEW · 6 AI agents · 0 autonomy policies ·
+#      onboarding completed; then export seed_snapshot.json (mock FE)
 # Usage: ./scripts/demo_reset.sh [-y] [--host]
 #   -y      skips the confirmation prompt
 #   --host  runs Python on the host venv even when the api container is up (the image does not
@@ -82,15 +83,21 @@ emps=$(psql_q "SELECT count(*) FROM hr.employees WHERE deleted_at IS NULL")
 metrics=$(psql_q "SELECT count(*) FROM platform.metrics")
 alerts=$(psql_q "SELECT count(*) FROM platform.alerts WHERE status = 'OPEN'")
 review=$(psql_q "SELECT count(*) FROM idp.source_documents WHERE status = 'NEEDS_REVIEW' AND deleted_at IS NULL")
+agents=$(psql_q "SELECT count(*) FROM ai.agent_profiles")
+policies=$(psql_q "SELECT count(*) FROM ai.autonomy_policies")
+onboarding=$(psql_q "SELECT value->>'status' FROM platform.system_settings WHERE key = 'onboarding.state'")
 ok=1
 check() { if [[ "$2" == "$3" ]]; then echo "  ✔ $1: $2"; else echo "  ✗ $1: $2 (expected $3)"; ok=0; fi; }
 check "departments" "$depts" 7
 check "employees" "$emps" 154
 check "demo users" "$users" 10
 check "AI actor" "$ai" 1
-check "metrics" "$metrics" 32
-check "open alerts" "$alerts" 13
+check "metrics" "$metrics" 34
+check "open alerts" "$alerts" 14
 check "invoices NEEDS_REVIEW" "$review" 1
+check "AI agents" "$agents" 6
+check "autonomy policies" "$policies" 0
+check "onboarding" "$onboarding" completed
 echo "  (all users: $(psql_q 'SELECT count(*) FROM auth.users') — existing sessions must log in again)"
 [[ $ok == 1 ]] || { echo "✗ demo reset verification failed" >&2; exit 1; }
 PYTHONPATH="$ROOT/apps/api/src:$ROOT/apps/api" "$ROOT/.venv/bin/python" -m app.seed.snapshot

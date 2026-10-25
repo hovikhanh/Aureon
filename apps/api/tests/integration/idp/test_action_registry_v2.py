@@ -52,8 +52,9 @@ async def _count(db: Any, sql_table: str) -> int:
                .scalar_one())  # fmt: skip
 
 
-async def test_registry_has_the_twelve_acts() -> None:
-    assert len(action_names()) == 12
+async def test_registry_has_the_fourteen_acts() -> None:
+    """12 M1.5 ACTs + `ACT-update_task` / `ACT-assign_task` (M1.6, OQ-09-07)."""
+    assert len(action_names()) == 14
     assert get_action("ACT-create_employee").required_permission == ("hr:write", "hr:admin")  # type: ignore[union-attr]
     assert get_action("ACT-create_invoice").is_finance  # type: ignore[union-attr]
 

@@ -9,6 +9,8 @@ import { resetAudit } from "./audit";
 import { resetWorkStore } from "./work-store";
 import { resetCaptureStore } from "./capture-store";
 import { resetGoalStore } from "./goals-store";
+import { resetAiAdminStore } from "./ai-admin-store";
+import { resetOnboardingStore } from "./onboarding";
 
 export interface MockAlert {
   id: string;
@@ -85,6 +87,8 @@ export function resetMockStore(): void {
   resetWorkStore();
   resetGoalStore();
   resetCaptureStore();
+  resetAiAdminStore();
+  resetOnboardingStore();
 }
 
 // ---- scope (mirror of dashboard_service.visible_pillars / metric_visible, R-DEC-12a) ----

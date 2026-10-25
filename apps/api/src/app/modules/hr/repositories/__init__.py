@@ -143,8 +143,16 @@ class EmployeeRepository(BaseRepository[Employee]):
         return set((await self.db.execute(stmt)).scalars())
 
     async def by_email(self, email: str) -> Employee | None:
-        stmt = self._live().where(Employee.email == email)
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        stmt = self._live().where(func.lower(Employee.email) == email.lower())
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
+    async def emails_in_use(self, emails: set[str]) -> set[str]:
+        """Lower-cased `emails` already used by a live employee — one query."""
+        if not emails:
+            return set()
+        col = func.lower(Employee.email)
+        stmt = self._live().with_only_columns(col).where(col.in_(sorted(emails)))
+        return {str(e) for e in (await self.db.execute(stmt)).scalars()}
 
     async def code_taken(self, code: str, exclude: uuid.UUID | None = None) -> bool:
         stmt = self._live().where(Employee.employee_code == code)

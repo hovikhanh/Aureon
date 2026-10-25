@@ -25,6 +25,7 @@ from app.core.errors import ai_error
 from app.core.idempotency import Idem
 from app.core.model_gateway.errors import SecretDataBlockedError
 from app.core.routing import EnvelopeRouter
+from app.modules.ai.routes.admin import router as admin_router
 from app.modules.ai.schemas import (
     AIActionOut,
     ChatAnswerOut,
@@ -40,14 +41,14 @@ from app.modules.ai.schemas import (
     ToolOut,
     UndoActionIn,
 )
+from app.modules.ai.services import tool_catalog
 from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
-from app.modules.ai.services.cost_service import CostService
+from app.modules.ai.services.cost_service import CostService, period_window
 from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
-from app.modules.ai.tools import advertisable_for, all_tools, available_for
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai"])
 
@@ -72,13 +73,13 @@ def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
         "answer": turn.answer,
         "sources": [s.as_dict() for s in turn.sources],
         "function_calls": turn.function_calls,
-        "suggested_actions": [],
+        "suggested_actions": turn.suggested_actions,
         "truncated": turn.truncated,
         "warnings": turn.warnings,
     }
 
 
-@router.post("/chat", response_model=ChatAnswerOut, summary="EP-110 AI chat (sync)")
+@router.post("/chat", response_model=ChatAnswerOut, summary="EP-AI-01 AI chat (sync)")
 async def chat(
     body: ChatRequestIn, user: AiUser, db: DbSession, gateway: ChatGateway, idem: Idem
 ) -> ChatAnswerOut:
@@ -95,7 +96,7 @@ async def chat(
     return ChatAnswerOut.model_validate(_turn_payload(turn))
 
 
-@router.post("/chat/stream", summary="EP-111 AI chat (SSE)", response_class=Response)
+@router.post("/chat/stream", summary="EP-AI-02 AI chat (SSE)", response_class=Response)
 async def chat_stream(
     body: ChatRequestIn, user: AiUser, db: DbSession, gateway: ChatGateway, idem: Idem
 ) -> StreamingResponse:
@@ -150,7 +151,7 @@ async def chat_stream(
             "answer": turn.answer,
             "sources": [s.as_dict() for s in turn.sources],
             "function_calls": turn.function_calls,
-            "suggested_actions": [],
+            "suggested_actions": turn.suggested_actions,
             "truncated": turn.truncated,
             "warnings": turn.warnings,
             "usage": {"tokens_in": turn.tokens_in, "tokens_out": turn.tokens_out},
@@ -163,14 +164,14 @@ async def chat_stream(
     )
 
 
-@router.get("/conversations", response_model=list[ConversationOut], summary="EP-112 Conversations")
+@router.get("/conversations", response_model=list[ConversationOut], summary="EP-AI-03 Chats")
 async def list_conversations(user: AiUser, db: DbSession) -> list[ConversationOut]:
     return await ConversationService(db).list_for_user(user)
 
 
 @router.get(
     "/conversations/{conversation_id}/messages",
-    response_model=list[MessageOut], summary="EP-112 Messages",
+    response_model=list[MessageOut], summary="EP-AI-04 Messages",
 )  # fmt: skip
 async def list_messages(
     conversation_id: uuid.UUID, user: AiUser, db: DbSession
@@ -178,7 +179,7 @@ async def list_messages(
     return await ConversationService(db).messages(user, conversation_id)
 
 
-@router.get("/insights", response_model=list[InsightOut], summary="EP-114 Insights")
+@router.get("/insights", response_model=list[InsightOut], summary="EP-AI-05 Insights")
 async def list_insights(
     user: AiUser,
     db: DbSession,
@@ -190,7 +191,7 @@ async def list_insights(
 
 
 @router.post(
-    "/insights/{insight_id}/dismiss", response_model=InsightOut, summary="EP-114 Dismiss insight"
+    "/insights/{insight_id}/dismiss", response_model=InsightOut, summary="EP-AI-06 Dismiss insight"
 )
 async def dismiss_insight(
     insight_id: uuid.UUID, user: AiUser, db: DbSession, idem: Idem
@@ -200,19 +201,22 @@ async def dismiss_insight(
     return out
 
 
-@router.get("/actions", response_model=list[AIActionOut], summary="EP-115 AI actions")
+@router.get("/actions", response_model=list[AIActionOut], summary="EP-AI-07 AI actions")
 async def list_actions(
-    user: AiUser, db: DbSession, status: str | None = None, autonomy_level: str | None = None
-) -> list[AIActionOut]:
-    return await ActionService(db).list_for(user, status=status, autonomy_level=autonomy_level)
+    user: AiUser, db: DbSession, status: str | None = None, autonomy_level: str | None = None,
+    agent_profile_code: str | None = None,
+) -> list[AIActionOut]:  # fmt: skip
+    return await ActionService(db).list_for(
+        user, status=status, autonomy_level=autonomy_level, agent_profile_code=agent_profile_code
+    )
 
 
-@router.get("/actions/{action_id}", response_model=AIActionOut, summary="EP-115 AI action")
+@router.get("/actions/{action_id}", response_model=AIActionOut, summary="EP-AI-08 AI action")
 async def get_action_ep(action_id: uuid.UUID, user: AiUser, db: DbSession) -> AIActionOut:
     return await ActionService(db).get(user, action_id)
 
 
-@router.post("/actions/{action_id}/confirm", response_model=AIActionOut, summary="EP-115 Confirm")
+@router.post("/actions/{action_id}/confirm", response_model=AIActionOut, summary="EP-AI-09 Confirm")
 async def confirm_action(
     action_id: uuid.UUID, body: ConfirmActionIn, user: AiWriter, db: DbSession, idem: Idem
 ) -> AIActionOut:
@@ -221,7 +225,7 @@ async def confirm_action(
     return out
 
 
-@router.post("/actions/{action_id}/reject", response_model=AIActionOut, summary="EP-115 Reject")
+@router.post("/actions/{action_id}/reject", response_model=AIActionOut, summary="EP-AI-10 Reject")
 async def reject_action(
     action_id: uuid.UUID, body: RejectActionIn, user: AiWriter, db: DbSession, idem: Idem
 ) -> AIActionOut:
@@ -230,7 +234,7 @@ async def reject_action(
     return out
 
 
-@router.post("/actions/{action_id}/undo", response_model=AIActionOut, summary="EP-116 Undo")
+@router.post("/actions/{action_id}/undo", response_model=AIActionOut, summary="EP-AI-11 Undo")
 async def undo_action(
     action_id: uuid.UUID, body: UndoActionIn, user: AiWriter, db: DbSession, idem: Idem
 ) -> AIActionOut:
@@ -239,12 +243,12 @@ async def undo_action(
     return out
 
 
-@router.get("/kill-switch", response_model=KillSwitchOut, summary="EP-118 Kill switch status")
+@router.get("/kill-switch", response_model=KillSwitchOut, summary="EP-AI-12 Kill switch status")
 async def kill_switch_status(user: AiUser, db: DbSession) -> KillSwitchOut:
     return await KillSwitchService(db).status()
 
 
-@router.put("/kill-switch", response_model=KillSwitchOut, summary="EP-118 Set kill switch")
+@router.put("/kill-switch", response_model=KillSwitchOut, summary="EP-AI-13 Set kill switch")
 async def set_kill_switch(
     body: KillSwitchIn, admin: AiAdmin, db: DbSession, idem: Idem
 ) -> KillSwitchOut:
@@ -253,32 +257,29 @@ async def set_kill_switch(
     return out
 
 
-@router.get("/tools", response_model=list[ToolOut], summary="EP-119 Tools")
-async def list_tools(user: AiUser) -> list[ToolOut]:
-    advertised = {t.name for t in advertisable_for(user.permissions)}
-    avail = {t.name for t in available_for(user.permissions)}
-    return [
-        ToolOut(
-            name=t.name,
-            kind=t.kind,
-            autonomy_default=t.autonomy_default,
-            available=t.name in avail and t.name in advertised,
-            data_scope=t.data_scope,
-            classification=t.classification,
-            reversible=t.reversible_label,
-            cost_estimate=t.cost_estimate,
-        )
-        for t in all_tools()
-    ]
+@router.get("/tools", response_model=list[ToolOut], summary="EP-AI-14 Tool Registry")
+async def list_tools(
+    user: AiUser,
+    db: DbSession,
+    kind: Literal["READ", "WRITE", "APPROVAL", "EXECUTION"] | None = None,
+    domain: str | None = None,
+    agent: str | None = None,
+    available_only: bool = False,
+) -> list[ToolOut]:
+    return await tool_catalog.list_tools(
+        db, user, kind=kind, domain=domain, agent=agent, available_only=available_only
+    )
 
 
-@router.get("/usage", response_model=CostSummaryOut, summary="EP-119 AI usage & cost")
+@router.get("/usage", response_model=CostSummaryOut, summary="EP-AI-15 AI usage & cost")
 async def ai_usage(
     admin: AiAdmin,
     db: DbSession,
-    group_by: Literal["provider", "model", "task_kind", "user"] = "provider",
+    group_by: Literal["provider", "model", "task_kind", "user", "agent"] = "provider",
+    period: str | None = None,
 ) -> CostSummaryOut:
-    return await CostService(db).usage(group_by=group_by)
+    start, end = period_window(period)
+    return await CostService(db).usage(group_by=group_by, start=start, end=end)
 
 
 def _words(text: str) -> list[str]:
@@ -287,3 +288,9 @@ def _words(text: str) -> list[str]:
 
 def _chunks(text: str, size: int = 48) -> list[str]:
     return [text[i : i + size] for i in range(0, len(text), size)] or [""]
+
+
+# M1.6 bước C: AI Control Center EP-AI-16..23 (`routes/admin.py`, 10 §7.2.5).
+module_router = EnvelopeRouter()
+module_router.include_router(router)
+module_router.include_router(admin_router)

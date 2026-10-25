@@ -15,6 +15,7 @@ card (the person is the actor) — it only stops L3 auto-execute.
 
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,6 +30,7 @@ from app.core.errors import (
     ConflictStateError,
     NotFoundError,
     PermissionDeniedError,
+    ScopeDeniedError,
 )
 from app.modules.ai.models import AIAction
 from app.modules.ai.repositories import AIActionRepository
@@ -40,10 +42,17 @@ from app.modules.ai.services.action_registry import (
     is_finance_action,
 )
 from app.modules.ai.services.autonomy import resolve_level
+from app.modules.ai.services.tool_audit import log_tool_call, request_uuid
 from app.modules.platform.services.approval_service import ApprovalService
 
 UNDO_WINDOW = timedelta(hours=24)  # DEC-134 (AI actions; IDP STP = 7 days)
-DEFAULT_AGENT = "assistant"
+DEFAULT_AGENT = "ceo"  # M1.6 R-DEC-71 (v2.1 `assistant` kept on old rows)
+UNDO_KEY = "_undo"  # internal undo state inside `result_refs[0]` (never returned by the API)
+
+
+def public_refs(refs: Any) -> list[dict[str, Any]]:
+    """`result_refs` as exposed by `AIActionOut` / tool logs — without the undo state."""
+    return [{k: v for k, v in dict(r).items() if k != UNDO_KEY} for r in (refs or [])]
 
 
 class UndoExpiredError(AppError):
@@ -69,6 +78,8 @@ class ActionService:
         act = get_action(action_name)
         if act is None:
             raise NotFoundError(f"unknown action {action_name}")
+        if not act.permitted(user):  # M1.6 review: no card the asker could never confirm
+            raise PermissionDeniedError(f"missing {' | '.join(act.required_permission)}")
         level = await resolve_level(
             self.db, action_name=action_name, role=user.role, amount=amount,
             agent_code=agent_code,
@@ -84,16 +95,26 @@ class ActionService:
             action_name=action_name, tool_name=tool_name, agent_profile_code=agent_code,
             autonomy_level=level, status="proposed", on_behalf_of=user.user_id,
             message_id=message_id, input=input_data, idempotency_key=idempotency_key,
-            source="AI", verification=verification,
+            source="AI", verification=verification, request_id=request_uuid(),
         )  # fmt: skip
         self.db.add(action)
         await self.db.flush()
         await self._audit(action, "ai.action_proposed")
+        started = time.monotonic()
 
         if level == "L3":
             await self._execute(user, action)
         elif level == "L2" and is_finance_action(action_name) and amount is not None:
             await self._maybe_open_approval(user, action, amount)
+        if tool_name is not None:  # T-647: the WRITE tool call that created the card
+            await log_tool_call(
+                self.db, tool_name=tool_name, arguments=input_data,
+                status="error" if action.status == "failed" else "ok",
+                latency_ms=int((time.monotonic() - started) * 1000), agent_code=agent_code,
+                user_id=user.user_id, autonomy_level=level, message_id=message_id,
+                result_refs=public_refs(action.result_refs), ai_action_id=action.id,
+                approval_request_id=action.approval_request_id,
+            )  # fmt: skip
         return self._to_out(action)
 
     # ---------- confirm / reject (EP-115) ----------
@@ -101,24 +122,26 @@ class ActionService:
         self, user: Principal, action_id: uuid.UUID, *, edited_input: dict[str, Any] | None = None
     ) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_write(user, action)
         if action.status != "proposed":
             raise ConflictStateError("action is not awaiting confirmation")
-        self._require_write(user, action)
         if action.approval_request_id is not None:
             raise ConflictStateError("action awaits approval; decide the request first")
         if edited_input is not None:
             action.input = edited_input
         await self._execute(user, action)
+        await self._audit(action, "ai.action_confirm")  # EP-AI-09 (10 §7.2.5)
         return self._to_out(action)
 
     async def reject(self, user: Principal, action_id: uuid.UUID, *, reason: str) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_owner(user, action)  # only the asker decides the card (EP-AI-10)
         if action.status != "proposed":
             raise ConflictStateError("only a proposed action can be rejected")
         action.status = "rejected"
         action.why = reason
         await self.db.flush()
-        await self._audit(action, "ai.action_rejected", metadata={"reason": reason})
+        await self._audit(action, "ai.action_reject", metadata={"reason": reason})
         return self._to_out(action)
 
     # ---------- undo (EP-116) ----------
@@ -126,11 +149,11 @@ class ActionService:
         self, user: Principal, action_id: uuid.UUID, *, reason: str | None = None
     ) -> AIActionOut:
         action = await self._locked(action_id)
+        self._require_write(user, action)
         if action.status != "executed":
             raise ConflictStateError("only an executed action can be undone")
         if action.undo_deadline is None or action.undo_deadline < datetime.now(UTC):
             raise UndoExpiredError("undo window (24h) has passed")
-        self._require_write(user, action)
         act = get_action(action.action_name)
         if act is None or not act.reversible:
             raise ConflictStateError("action is not reversible")
@@ -155,16 +178,19 @@ class ActionService:
 
     # ---------- reads ----------
     async def list_for(
-        self, user: Principal, *, status: str | None = None, autonomy_level: str | None = None
-    ) -> list[AIActionOut]:
+        self, user: Principal, *, status: str | None = None, autonomy_level: str | None = None,
+        agent_profile_code: str | None = None,
+    ) -> list[AIActionOut]:  # fmt: skip
+        """EP-AI-07: own cards; `ai:admin` → whole tenant (SCR-64 queue, 10 §7.2.5)."""
         rows = await AIActionRepository(self.db).list_for_user(
-            user.user_id, status=status, autonomy_level=autonomy_level
-        )
+            None if user.has("ai:admin") else user.user_id, status=status,
+            autonomy_level=autonomy_level, agent_profile_code=agent_profile_code,
+        )  # fmt: skip
         return [self._to_out(a) for a in rows]
 
     async def get(self, user: Principal, action_id: uuid.UUID) -> AIActionOut:
         action = await self._get(action_id)
-        if action.on_behalf_of != user.user_id:
+        if action.on_behalf_of != user.user_id and not user.has("ai:admin"):
             raise NotFoundError("action not found")
         return self._to_out(action)
 
@@ -191,11 +217,19 @@ class ActionService:
         now = datetime.now(UTC)
         action.status = "executed"
         action.executed_at = now
-        # `ai_actions.result_refs` keeps its v2.1 shape `{type, id, table: "<schema>.<table>"}`
+        # `ai_actions.result_refs` keeps its v2.1 shape `{type, id, table: "<schema>.<table>"}`;
+        # T-645: the first ref also carries the ACT undo state (`snapshot` of the overwritten
+        # fields + `target_version` the write left) — `ai_actions` has no snapshot column
+        # (05 §2.8 "không đổi cột"); `_to_out` never exposes these keys.
         action.result_refs = [
-            {"type": "record", "id": r["id"], "table": f"{r['schema']}.{r['table']}"}
+            {"type": "record", "id": r["id"], "table": f"{r['schema']}.{r['table']}",
+             **({"reused": True} if r.get("reused") else {})}
             for r in outcome.result_refs
-        ]
+        ]  # fmt: skip
+        if action.result_refs and (outcome.snapshot is not None or outcome.target_version):
+            action.result_refs[0] |= {
+                UNDO_KEY: {"snapshot": outcome.snapshot, "target_version": outcome.target_version}
+            }
         action.undo_deadline = now + UNDO_WINDOW if act.reversible else None
         await self.db.flush()
         await self._audit(action, "ai.action_executed")
@@ -208,13 +242,19 @@ class ActionService:
         action.approval_request_id = req.id
         await self.db.flush()
 
+    @staticmethod
+    def _require_owner(user: Principal, action: AIAction) -> None:
+        if action.on_behalf_of != user.user_id:  # only the asker decides the card (TC-M16-18)
+            raise ScopeDeniedError("action belongs to another user")
+
     def _require_write(self, user: Principal, action: AIAction) -> None:
+        self._require_owner(user, action)
         if not user.has("ai:write"):
             raise PermissionDeniedError("missing ai:write")
         act = get_action(action.action_name)
-        domain = act.module if act else None
-        if domain and not user.has(f"{domain}:write"):
-            raise PermissionDeniedError(f"missing {domain}:write")
+        # the ACT's own any-of permission (`execution:write`, `hr:admin` for structure — R-DEC-61)
+        if act is not None and not act.permitted(user):
+            raise PermissionDeniedError(f"missing {' | '.join(act.required_permission)}")
 
     async def _undo_from_refs(self, user: Principal, action: AIAction) -> None:
         """Reverse through the Action Registry v2 `undo` of the ACT (R-DEC-60) from the stored
@@ -224,8 +264,11 @@ class ActionService:
             return
         try:
             refs = [{"schema": r["table"].split(".")[0], "table": r["table"].split(".")[-1],
-                     "id": r["id"]} for r in action.result_refs]  # fmt: skip
-            await act.undo(self.db, user, ActionOutcome(refs))
+                     "id": r["id"], "reused": bool(r.get("reused"))}
+                    for r in action.result_refs]  # fmt: skip
+            state = action.result_refs[0].get(UNDO_KEY) or {}
+            await act.undo(self.db, user, ActionOutcome(
+                refs, state.get("snapshot"), state.get("target_version")))  # fmt: skip
         except NotFoundError:
             return  # already gone
 
@@ -259,9 +302,11 @@ class ActionService:
             autonomy_level=a.autonomy_level,
             status=a.status,
             input_preview=dict(a.input) if a.input else {},
-            result_refs=list(a.result_refs or []), on_behalf_of=a.on_behalf_of,
+            result_refs=public_refs(a.result_refs), on_behalf_of=a.on_behalf_of,
             approval_request_id=a.approval_request_id, executed_at=a.executed_at,
             undo_deadline=a.undo_deadline, can_undo=can_undo,
+            agent_profile_code=a.agent_profile_code,
+            request_id=str(a.request_id) if a.request_id else None, created_at=a.created_at,
         )  # fmt: skip
 
 

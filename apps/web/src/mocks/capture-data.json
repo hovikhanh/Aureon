@@ -78,5 +78,37 @@
    ["2026-Q4", "Số hóa bán hàng", "40% đơn hàng qua ABC Order", "%", "28", "40", "NV-0108", "KPI-PRD-01", "Đơn hàng qua ABC Order (%)", "40"],
    ["2026-Q4", "Số hóa bán hàng", "Không quá 1 sự cố nghiêm trọng / tháng", "sự cố", "3", "1", "NV-0108", "KPI-PRD-02", "Sự cố nghiêm trọng / tháng", "1"]
   ]}
+ ]},
+ "onboard": {"file": "ABC_DanhSachNhanSu_Onboarding.xlsx", "sheets": [
+  {"name": "Nhân sự", "rows": [
+   ["Mã phòng ban", "Phòng ban", "Chức danh", "Mã NV", "Họ tên", "Quản lý trực tiếp", "Ngày vào làm", "Trạng thái", "Email", "Lương"],
+   ["OB-BGD", "Ban Giám đốc", "Tổng Giám đốc", "OB0001", "Trần Văn Bình", "", "02/02/2025", "active", "ob0001@abc-e2e.demo", "12500000"],
+   ["OB-BGD", "Ban Giám đốc", "Chuyên viên Ban Giám đốc", "OB0002", "Lê Văn Chi", "OB0001", "03/03/2025", "active", "ob0002@abc-e2e.demo", "13000000"],
+   ["OB-KD", "Kinh doanh", "Trưởng phòng Kinh doanh", "OB0003", "Phạm Văn Dũng", "OB0001", "04/04/2025", "active", "ob0003@abc-e2e.demo", "13500000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0004", "Hoàng Văn Giang", "OB0003", "05/05/2025", "active", "ob0004@abc-e2e.demo", "14000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0005", "Vũ Văn Hà", "OB0003", "06/06/2025", "active", "ob0005@abc-e2e.demo", "14500000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0006", "Đặng Văn Khánh", "OB0003", "07/07/2025", "active", "ob0006@abc-e2e.demo", "15000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0007", "Bùi Văn Linh", "OB0003", "08/08/2025", "active", "ob0007@abc-e2e.demo", "15500000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0008", "Nguyễn Văn Minh", "OB0003", "09/09/2025", "active", "ob0008@abc-e2e.demo", "16000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0009", "Trần Văn Nam", "OB0003", "10/01/2025", "active", "ob0009@abc-e2e.demo", "12000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0010", "Lê Văn Oanh", "OB0003", "11/02/2025", "active", "ob0010@abc-e2e.demo", "12500000"],
+   ["OB-VH", "Vận hành", "Trưởng phòng Vận hành", "OB0011", "Phạm Văn Phúc", "OB0001", "12/03/2025", "active", "ob0011@abc-e2e.demo", "13000000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0012", "Hoàng Văn Quân", "OB0011", "13/04/2025", "active", "ob0012@abc-e2e.demo", "13500000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0013", "Vũ Văn Sơn", "OB0011", "14/05/2025", "active", "ob0013@abc-e2e.demo", "14000000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0014", "Đặng Văn Thảo", "OB0011", "15/06/2025", "active", "ob0014@abc-e2e.demo", "14500000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0015", "Bùi Văn Uyên", "OB0011", "16/07/2025", "active", "ob0015@abc-e2e.demo", "15000000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0016", "Nguyễn Văn Vy", "OB0011", "17/08/2025", "active", "ob0016@abc-e2e.demo", "15500000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0017", "Trần Văn Xuân", "OB0011", "18/09/2025", "active", "ob0017@abc-e2e.demo", "16000000"],
+   ["OB-TC", "Tài chính — Kế toán", "Trưởng phòng Tài chính — Kế toán", "OB0018", "Lê Văn Yến", "OB0001", "19/01/2025", "active", "ob0018@abc-e2e.demo", "12000000"],
+   ["OB-TC", "Tài chính — Kế toán", "Chuyên viên Tài chính — Kế toán", "OB0019", "Phạm Văn Hưng", "OB0018", "20/02/2025", "active", "ob0019@abc-e2e.demo", "12500000"],
+   ["OB-TC", "Tài chính — Kế toán", "Chuyên viên Tài chính — Kế toán", "OB0020", "Hoàng Văn Lộc", "OB0018", "21/03/2025", "active", "ob0020@abc-e2e.demo", "13000000"],
+   ["OB-TC", "Tài chính — Kế toán", "Chuyên viên Tài chính — Kế toán", "OB0021", "Vũ Văn Mai", "OB0018", "22/04/2025", "active", "ob0021@abc-e2e.demo", "13500000"],
+   ["OB-NS", "Nhân sự", "Trưởng phòng Nhân sự", "OB0022", "Đặng Văn Nga", "OB0001", "23/05/2025", "active", "ob0022@abc-e2e.demo", "14000000"],
+   ["OB-NS", "Nhân sự", "Chuyên viên Nhân sự", "OB0023", "Bùi Văn Tâm", "OB0022", "24/06/2025", "active", "ob0023@abc-e2e.demo", "14500000"],
+   ["OB-NS", "Nhân sự", "Chuyên viên Nhân sự", "OB0024", "Nguyễn Văn An", "OB0022", "25/07/2025", "active", "ob0024@abc-e2e.demo", "15000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0901", "Tạ Văn Lực", "OB9999", "01/09/2025", "active", "ob0901@abc-e2e.demo", "13000000"],
+   ["OB-VH", "Vận hành", "Chuyên viên Vận hành", "OB0902", "Kiều Thị Hiền", "OB0011", "31/02/2025", "active", "ob0902@abc-e2e.demo", "11000000"],
+   ["OB-KD", "Kinh doanh", "Chuyên viên Kinh doanh", "OB0903", "Lương Văn Tú", "OB0003", "01/10/2025", "active", "ob0003@abc-e2e.demo", "12500000"]
+  ]}
  ]}
 }

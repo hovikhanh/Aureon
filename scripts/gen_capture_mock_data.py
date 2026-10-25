@@ -1,5 +1,5 @@
-"""Export the demo workbooks DOC-06 / DOC-07 (`data/`, from `scripts/gen_demo_docs.py`) as the
-mock BFF C5 content `apps/web/src/mocks/capture-data.json` (T-643): every sheet, cells as text
+"""Export the demo workbooks DOC-06 / DOC-07 / UC-07 roster (`data/`, from `gen_demo_docs.py`) as
+the mock BFF C5 content `apps/web/src/mocks/capture-data.json` (T-643): every sheet, cells as text
 (blank → ""), so the mock import parses the same rows as the real API (48/45/3 for DOC-06).
 
 Run: uv run python scripts/gen_capture_mock_data.py
@@ -13,7 +13,11 @@ from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "apps" / "web" / "src" / "mocks" / "capture-data.json"
-FILES = {"hr": "DOC-06-danh-sach-nhan-su.xlsx", "kpi": "DOC-07-kpi-okr-q4-2026.xlsx"}
+FILES = {
+    "hr": "DOC-06-danh-sach-nhan-su.xlsx",
+    "kpi": "DOC-07-kpi-okr-q4-2026.xlsx",
+    "onboard": "ABC_DanhSachNhanSu_Onboarding.xlsx",
+}  # UC-07 (T-649)
 
 
 def cell(v: object) -> str:

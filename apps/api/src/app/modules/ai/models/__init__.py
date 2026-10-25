@@ -23,12 +23,20 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base_model import BusinessModel, ConfigModel, LogModel, SoftDeleteMixin
+from app.core.base_model import (
+    DEFAULT_TENANT_ID,
+    BusinessModel,
+    ConfigModel,
+    LogModel,
+    SoftDeleteMixin,
+    TenantMixin,
+)
 from app.core.columns import fk, money, schema_args, sr, txt
 from app.core.enums import (
     ALERT_SEVERITY,
@@ -45,6 +53,7 @@ TS = DateTime(timezone=True)
 # ---------- enums owned by `ai` (05 §6; ai.autonomy_level lives in core/enums.py) ----------
 MESSAGE_SENDER = pg_enum(S, "message_sender", "user", "assistant", "system")
 TOOL_CALL_STATUS = pg_enum(S, "tool_call_status", "ok", "error", "forbidden", "timeout")
+TOOL_KIND = pg_enum(S, "tool_kind", "READ", "WRITE", "APPROVAL", "EXECUTION")  # 0021, R-DEC-70
 FEEDBACK_RATING = pg_enum(S, "feedback_rating", "up", "down")
 INSIGHT_KIND = pg_enum(S, "insight_kind", "anomaly", "trend", "risk", "recommendation", "briefing")
 INSIGHT_STATUS = pg_enum(S, "insight_status", "active", "dismissed", "expired")
@@ -63,7 +72,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
 
 
 # ---------- config ----------
-class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
+class AutonomyPolicy(ConfigModel, TenantMixin, SoftDeleteMixin):
     """ENT-AutonomyPolicy — config + soft delete (spec UQ is partial on `deleted_at IS NULL`).
 
     "L4 cấm bằng CK": `ai.autonomy_level` has no L4 value, so the enum itself forbids it.
@@ -75,19 +84,26 @@ class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
         # 05 writes the key as COALESCE(role_code::text,'*'), COALESCE(max_amount,-1); PG rejects
         # it (enum→text cast is not IMMUTABLE). NULLS NOT DISTINCT (PG15+) is the equivalent:
         # NULL role / NULL amount each act as one value. Proposed DEC, T-003 report.
+        # M1.6 (05 §2.8): key gains tenant + agent; NULL agent/role/amount = one value each.
         Index(
-            "uq_autonomy_policies_action_role_amount",
+            "uq_autonomy_policies_tenant_action_agent_role_amount",
+            "tenant_id",
             "action_name",
+            "agent_profile_code",
             "role_code",
             "max_amount",
             unique=True,
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
+        CheckConstraint("level <= max_level", name="level_le_max"),
         {"schema": S},
     )
 
     action_name: Mapped[str] = txt()
+    tool_name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    agent_profile_code: Mapped[str | None] = txt(nullable=True)  # NULL = every agent
+    reason: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     role_code: Mapped[str | None] = mapped_column(ROLE_CODE, nullable=True)
     max_amount: Mapped[int | None] = money(nullable=True)
     currency: Mapped[str | None] = mapped_column(CHAR(3), nullable=True)
@@ -96,13 +112,20 @@ class AutonomyPolicy(ConfigModel, SoftDeleteMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
 
-class AgentProfile(ConfigModel):
-    """ENT-AIAgentProfile — config, no `deleted_at` (disable = `is_enabled = false`)."""
+class AgentProfile(ConfigModel, TenantMixin):
+    """ENT-AIAgent ≡ ENT-AIAgentProfile (R-DEC-71) — config, no `deleted_at` (disable =
+    `is_enabled = false`). Catalog fixed at P0: 6 agents seeded, no create/delete API."""
 
     __tablename__ = "agent_profiles"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="uq_agent_profiles_tenant_code"),
+        {"schema": S},
+    )
 
-    code: Mapped[str] = txt(unique=True)
+    code: Mapped[str] = txt()
+    agent_ref: Mapped[str] = txt(unique=True)  # AGT-* (00 §4 registry)
+    description_vi: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    description_en: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     name_vi: Mapped[str] = txt()
     name_en: Mapped[str] = txt()
     allowed_tools: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
@@ -146,10 +169,25 @@ class ToolCallLog(LogModel):
     """ENT-ToolCallLog — append-only."""
 
     __tablename__ = "tool_call_logs"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        Index("ix_tool_call_logs_tenant_created", "tenant_id", text("created_at DESC")),
+        {"schema": S},
+    )
 
-    message_id: Mapped[uuid.UUID] = fk(f"{S}.messages.id")
+    # M1.6 (05 §2.8, R-DEC-74): log tenant column (no TenantMixin), request/user/action links.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, server_default=text(f"'{DEFAULT_TENANT_ID}'")
+    )
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip
+    user_id: Mapped[uuid.UUID | None] = sr()  # soft ref auth.users (served person)
+    ai_action_id: Mapped[uuid.UUID | None] = fk(f"{S}.ai_actions.id", nullable=True)
+    error_code: Mapped[str | None] = txt(nullable=True)
+    result_refs: Mapped[Any] = mapped_column(JSONB, nullable=False,
+                                             server_default=text("'[]'::jsonb"))  # fmt: skip
+    message_id: Mapped[uuid.UUID | None] = fk(f"{S}.messages.id", nullable=True)
     tool_name: Mapped[str] = txt()
+    tool_kind: Mapped[str] = mapped_column(TOOL_KIND, nullable=False)
     arguments: Mapped[Any] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(TOOL_CALL_STATUS, nullable=False)
     http_status: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
@@ -181,8 +219,19 @@ class ModelCallLog(LogModel):
     """ENT-ModelCallLog — append-only; only `prompt_sha256`, never the raw prompt."""
 
     __tablename__ = "model_call_logs"
-    __table_args__ = schema_args(S)
+    __table_args__ = (
+        Index("ix_model_call_logs_tenant_created", "tenant_id", text("created_at DESC")),
+        {"schema": S},
+    )
 
+    # M1.6 (05 §2.8, R-DEC-74): log tenant column (no TenantMixin, like outbox), request id,
+    # agent for `group_by=agent` / per-agent budget.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, server_default=text(f"'{DEFAULT_TENANT_ID}'")
+    )
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip
+    agent_profile_code: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     caller_module: Mapped[str] = txt()
     task_kind: Mapped[str] = txt()
     provider: Mapped[str] = txt()
@@ -249,6 +298,8 @@ class AIAction(BusinessModel):
     source_document_id: Mapped[uuid.UUID | None] = sr()
     input: Mapped[Any] = mapped_column(JSONB, nullable=False)
     result_refs: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True,
+                                                         index=True)  # fmt: skip  # M1.6
     idempotency_key: Mapped[str] = txt(unique=True)
     executed_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     undo_deadline: Mapped[datetime | None] = mapped_column(TS, nullable=True)
