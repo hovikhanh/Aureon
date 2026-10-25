@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { DEMO_ACCOUNTS } from "../src/lib/demo-accounts";
+import { waitForHydration } from "./fixtures";
 import { MOCK_LOGIN_PASSWORD } from "./support/mock";
 import { rootEnv } from "./support/seed";
 
@@ -38,6 +39,7 @@ export function isMockProject(): boolean {
 async function submit(page: Page): Promise<void> {
   await page.getByRole("button", { name: /Đăng nhập|Sign in/ }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await waitForHydration(page); // full load via window.location.assign — not through page.goto
 }
 
 /** SCR-13 demo dropdown (T-610c): pick → both fields are filled with real values → submit. */

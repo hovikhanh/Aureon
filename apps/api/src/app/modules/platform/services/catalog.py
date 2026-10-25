@@ -100,7 +100,10 @@ CATALOG: tuple[MetricDef, ...] = (
               "PERCENT", LO, 80, 60, "execution",
               ("execution.kpi_measured", "execution.okr_checked_in")),
     MetricDef("METRIC-DQ-01", None, "Data Quality Score", "Data quality score", "SCORE", LO, 80,
-              60, "platform", ("idp.document_committed",)),
+              60, "platform", ("idp.document_committed", "idp.document_rolled_back")),
+    MetricDef("METRIC-DQ-02", None, "Bản ghi mới vào qua tài liệu/NL",
+              "New records captured from documents/NL", "PERCENT", LO, 60, 40, "capture",
+              ("idp.document_committed", "idp.document_rolled_back")),
 )  # fmt: skip
 
 BY_CODE = {m.code: m for m in CATALOG}

@@ -8,6 +8,7 @@ import { API_BASE, isMockMode } from "@/lib/server-env";
 import { clearSession, persistToken, readToken } from "@/lib/session-token";
 import { decodeMockToken } from "@/mocks/auth";
 import { handleMock } from "@/mocks/router";
+import { resetMockStore } from "@/mocks/store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,11 +20,20 @@ const UNAUTH = { error: { code: "UNAUTHENTICATED", message: "no session", detail
 
 /** T-604: API_MODE=mock → in-process mock router (no backend); claims from the mock token. */
 async function mock(req: NextRequest, path: string[]): Promise<Response> {
+  // E2E hook, mock mode only (API_MODE=mock is refused in production; never forwarded to the API):
+  // fresh demo state per Playwright test — the in-memory store lives as long as `next dev`.
+  if (req.method === "POST" && path.join("/") === "__mock/reset") {
+    resetMockStore();
+    return new NextResponse(null, { status: 204 });
+  }
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "auth not configured", details: {} } }, { status: 500 });
   const token = await getToken({ req, secret });
   const claims = decodeMockToken(token?.accessToken);
   if (!claims) return NextResponse.json(UNAUTH, { status: 401 });
+  if ((req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) {
+    return handleMock({ method: req.method, path: `/${path.join("/")}`, query: req.nextUrl.searchParams, headers: req.headers, body: await multipartBody(req), claims });
+  }
   const raw = ["GET", "HEAD"].includes(req.method) ? "" : await req.text();
   let body: unknown = undefined;
   try {
@@ -32,6 +42,16 @@ async function mock(req: NextRequest, path: string[]): Promise<Response> {
     return NextResponse.json({ error: { code: "BAD_REQUEST", message: "invalid JSON body", details: {} } }, { status: 400 });
   }
   return handleMock({ method: req.method, path: `/${path.join("/")}`, query: req.nextUrl.searchParams, headers: req.headers, body, claims });
+}
+
+/** Mock-only: multipart upload (EP-DC-01 `files`, EP-DC-17 `file`) → file metadata (+ CSV text) for the mock router. */
+async function multipartBody(req: NextRequest): Promise<Record<string, unknown>> {
+  const form = await req.formData();
+  const meta = async (f: File) => ({ name: f.name, size: f.size, type: f.type, ...(f.name.toLowerCase().endsWith(".csv") && f.size < 1_000_000 ? { text: await f.text() } : {}) });
+  const files = await Promise.all(form.getAll("files").filter((f): f is File => typeof f !== "string").map(meta));
+  const one = form.get("file");
+  const docType = form.get("document_type");
+  return { files, file: one && typeof one !== "string" ? await meta(one) : null, document_type: typeof docType === "string" && docType ? docType : null };
 }
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {

@@ -39,4 +39,16 @@ export const qk = {
   krCheckIns: (id: string) => ["goals", "kr", id, "check-ins"] as const,
   checkInsDue: () => ["goals", "check-ins", "due"] as const,
   checkInFeed: (params: Record<string, unknown>) => ["goals", "check-ins", "feed", params] as const,
+  // M1.5 capture (T-635F..T-638F) — everything under "capture" so one invalidate refreshes inbox + detail
+  captureInbox: (params: Record<string, unknown>) => ["capture", "inbox", params] as const,
+  captureForm: (type: string) => ["capture", "form", type] as const,
+  captureImport: (id: string) => ["capture", "import", id] as const,
+  captureImportRows: (id: string, params: Record<string, unknown>) => ["capture", "import", id, "rows", params] as const,
+  captureActions: (id: string) => ["capture", "actions", id] as const,
+  captureSource: (id: string, page: number) => ["capture", "source", id, page] as const,
+  captureDocTypes: () => ["capture", "document-types"] as const,
+  captureSchemas: (params: Record<string, unknown>) => ["capture", "schemas", params] as const,
+  captureRules: (params: Record<string, unknown>) => ["capture", "rules", params] as const,
+  captureIncidents: (params: Record<string, unknown>) => ["capture", "incidents", params] as const,
+  lineage: (entity: string, id: string) => ["lineage", entity, id] as const,
 };

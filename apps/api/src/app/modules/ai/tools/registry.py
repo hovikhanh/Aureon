@@ -291,7 +291,7 @@ _READ_TOOLS: tuple[ToolDef, ...] = (
     ),
     _read(
         "TOOL-get_source_document",
-        "EP-25",
+        "EP-DC-02",
         "idp:read",
         risk="medium",
         scope="idp:record",
@@ -404,7 +404,7 @@ _WRITE_TOOLS: tuple[ToolDef, ...] = (
     ),
     _write(
         "TOOL-submit_document",
-        "EP-22",
+        "EP-DC-01",
         "idp",
         "idp:write",
         risk="medium",

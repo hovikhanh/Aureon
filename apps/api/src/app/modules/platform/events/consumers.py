@@ -35,8 +35,24 @@ AFFECTS: dict[str, set[str]] = {
     "execution.task_completed": {"execution"},  # R-DEC-47 — OPS-01 / OPS-02
     "execution.kpi_measured": {"execution"},  # M1.4 → platform.on_goal_event (G2 + SEI)
     "execution.okr_checked_in": {"execution"},  # M1.4 R-DEC-56 — G2 (METRIC-STR-01)
-    "idp.document_committed": {"finance", "sales", "hr", "product", "risk", "execution"},
-    "idp.document_rolled_back": {"finance", "sales", "hr", "product", "risk", "execution"},
+    "idp.document_committed": {
+        "finance",
+        "sales",
+        "hr",
+        "product",
+        "risk",
+        "execution",
+        "platform",
+    },  # + DQ-01 per domain (R-DEC-68)
+    "idp.document_rolled_back": {
+        "finance",
+        "sales",
+        "hr",
+        "product",
+        "risk",
+        "execution",
+        "platform",
+    },
 }
 
 
@@ -90,3 +106,14 @@ async def on_goal_event(session: AsyncSession, event: EventEnvelope) -> None:
 @consumer("platform.on_idp_event", *_group("idp."))
 async def on_idp_event(session: AsyncSession, event: EventEnvelope) -> None:
     await recompute_for(session, event)
+
+
+# M1.5 R-DEC-68 (10 §8.3 `platform.capture_share`; named `on_` per bus rule E7): METRIC-DQ-02
+# recomputed apart from the domain metrics. DQ-01 (`platform.dq_recompute` in 10) rides on
+# `platform.on_idp_event` via AFFECTS above.
+CAPTURE_EVENTS: tuple[str, ...] = ("idp.document_committed", "idp.document_rolled_back")
+
+
+@consumer("platform.on_capture_share", *CAPTURE_EVENTS)
+async def on_capture_share(session: AsyncSession, event: EventEnvelope) -> None:
+    await MetricStore(session).recompute(business_today(), {"capture"})

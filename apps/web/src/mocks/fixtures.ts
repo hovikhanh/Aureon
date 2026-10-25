@@ -79,3 +79,14 @@ export function claimsFor(user: SnapshotUser): MockClaims {
     employee_id: user.employee ? mockId("employee", user.employee) : null,
   };
 }
+
+/**
+ * R-DEC-76 (resolved 2026-10-24): ADM gets `idp:read` + `idp:write` (scope `s`, HR_ROSTER only —
+ * enforced BE-side) for SCR-63 / C5 org import. The BE permission matrix + snapshot export catch
+ * up in M1.5; until the snapshot carries them, the mock overlays them here (idempotent).
+ */
+for (const p of ["idp:read", "idp:write"]) {
+  const adm = SNAPSHOT.role_permissions.ADM;
+  if (!adm.includes(p)) adm.push(p);
+}
+SNAPSHOT.role_permissions.ADM.sort();

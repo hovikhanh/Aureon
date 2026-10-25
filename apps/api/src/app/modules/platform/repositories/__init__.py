@@ -17,6 +17,7 @@ from app.modules.platform.models import (
     ApprovalRule,
     AuditLog,
     DataLineage,
+    DqDomainScore,
     Metric,
     MetricValue,
     Notification,
@@ -345,3 +346,56 @@ class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
             NotificationPreference.user_id == user_id
         )
         return {p.kind: p for p in (await self.db.execute(stmt)).scalars().all()}
+
+
+class LineageRepository(BaseRepository[DataLineage]):
+    """ENT-DataLineage record links (R-DEC-64) — append-only except `revoked_at` on undo."""
+
+    model = DataLineage
+
+    async def for_target(self, schema: str, table: str, target_id: uuid.UUID) -> list[DataLineage]:
+        stmt = self._scoped(select(DataLineage)).where(
+            DataLineage.link_kind == "RECORD_FROM_FIELD", DataLineage.target_schema == schema,
+            DataLineage.target_table == table, DataLineage.target_id == target_id,
+        )  # fmt: skip
+        order = (DataLineage.revoked_at.is_not(None), DataLineage.created_at.desc())
+        return list((await self.db.execute(stmt.order_by(*order))).scalars())
+
+    async def revoke_for_actions(self, action_ids: Sequence[uuid.UUID], at: datetime) -> int:
+        if not action_ids:
+            return 0
+        stmt = update(DataLineage).where(
+            DataLineage.tenant_id == require_tenant(),
+            DataLineage.document_action_id.in_(list(action_ids)),
+            DataLineage.revoked_at.is_(None),
+        )
+        res = await self.db.execute(stmt.values(revoked_at=at))
+        return int(getattr(res, "rowcount", 0) or 0)
+
+
+class DqDomainScoreRepository:
+    """`platform.dq_domain_scores` — one row per (tenant, domain, month), upserted."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def upsert(self, domain: str, period_key: str, **values: Any) -> None:
+        from sqlalchemy.dialects.postgresql import insert
+
+        row = {"tenant_id": require_tenant(), "domain": domain, "period_key": period_key,
+               **values}  # fmt: skip
+        stmt = insert(DqDomainScore).values(id=uuid.uuid4(), **row)
+        await self.db.execute(stmt.on_conflict_do_update(
+            index_elements=["tenant_id", "domain", "period_key"],
+            set_={**values, "updated_at": func.now()},
+        ))  # fmt: skip
+
+    async def for_period(self, period_key: str) -> Sequence[DqDomainScore]:
+        stmt = (
+            select(DqDomainScore)
+            .where(
+                DqDomainScore.tenant_id == require_tenant(), DqDomainScore.period_key == period_key
+            )
+            .order_by(DqDomainScore.domain)
+        )
+        return (await self.db.execute(stmt)).scalars().all()

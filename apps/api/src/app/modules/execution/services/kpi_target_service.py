@@ -189,6 +189,24 @@ class KpiTargetService(ExecBase):
         await self.signal_band(k, await self.evaluate(k, body.period_key, source=source))
         return out
 
+    async def revert(self, target_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
+        """Undo of ACT-upsert_kpi_target (Action Registry v2, M1.5), caller's transaction:
+        soft-delete the version the ACT opened, reopen the one it closed, re-score the period.
+        Locked period → 409."""
+        t = await self.targets.get(target_id)
+        if t is None:
+            raise not_found("KPI target")
+        k = await self.lock_kpi(t.kpi_id)
+        versions = list(await self.targets.versions(k.id, t.period_key))
+        self.require_open(versions, t.period_key)
+        before = target_out(t)
+        prev = next((v for v in versions if v.valid_to == t.valid_from and v.id != t.id), None)
+        await self.targets.soft_delete(t)
+        if prev is not None:
+            await self.targets.update(prev, valid_to=None, updated_by=user_id)
+        await self.audit("kpi_target_revert", "kpi_targets", t.id, before=before)
+        await self.signal_band(k, await self.evaluate(k, t.period_key))
+
     async def evaluate(
         self, k: Kpi, period_key: str, source: str = "MANUAL", exclude: uuid.UUID | None = None
     ) -> Scored:

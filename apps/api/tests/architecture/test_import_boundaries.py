@@ -198,3 +198,16 @@ def test_execution_reads_org_tree_only_through_core() -> None:
 
     importlib.import_module("app.modules.hr")
     assert org_scope._PROVIDER, "hr did not register the department subtree provider"
+
+
+def test_capture_boundaries_m15() -> None:
+    """TC-M15-08 (R-DEC-60): after the gateway split `idp` does not import `ai` (the AI side
+    re-exports the Action Registry: `ai → idp` only); `platform` does not import `idp`; ACTs
+    reach hr/execution/finance only through their public layers (checked above)."""
+    graph = _module_graph()
+    assert "ai" not in graph["idp"]
+    assert "idp" in graph["ai"]
+    assert "idp" not in graph["platform"]
+    acts = APP / "modules" / "idp" / "services" / "actions"
+    targets = {_target(n)[0] for p in _py_files(acts) for n, _ in _imports(p) if _target(n)}  # type: ignore[index]
+    assert {"hr", "execution", "finance"} <= targets

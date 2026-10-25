@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { login } from "./helpers";
 import { rootEnv } from "./support/seed";
 

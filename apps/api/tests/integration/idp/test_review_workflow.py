@@ -27,6 +27,7 @@ from app.modules.idp.services.review_service import QueueFilters, ReviewService
 from app.modules.idp.services.sla_service import SlaService
 from app.modules.idp.services.upload_service import UploadFile, UploadService
 from tests.integration.idp import sample_docs as s
+from tests.integration.idp.critical_helpers import confirm_critical
 
 pytestmark = pytest.mark.integration
 
@@ -38,6 +39,14 @@ def _reviewer(dept: uuid.UUID | None = None, uid: uuid.UUID | None = None) -> Pr
         permissions=frozenset(ROLE_PERMISSIONS["REV"]),
         department_id=dept,
     )
+
+
+def _committer(dept: uuid.UUID | None = None) -> Principal:
+    """Approver that also holds the INVOICE target permission (`finance:write`, R-DEC-61)."""
+    return Principal(
+        user_id=uuid.uuid4(), role="DIR", permissions=frozenset(ROLE_PERMISSIONS["DIR"]),
+        department_id=dept, scope_pillars=("F",),
+    )  # fmt: skip
 
 
 def _file(name: str, mime: str, data: bytes) -> UploadFile:
@@ -82,7 +91,7 @@ async def test_queue_returns_needs_review_documents(db_session, idp_store) -> No
     assert {i.document_id for i in items} == set(ids)
     first = items[0]
     assert first.status == "NEEDS_REVIEW"
-    assert first.critical_fields_count == 3  # subtotal, vat_amount, total_amount
+    assert first.critical_fields_count == 4  # subtotal, vat, total + seller_tax_code (R-DEC-69)
     assert first.confidence_avg is not None
     assert first.age_hours >= 0
     assert first.due_at is not None  # pipeline created the ASSIGN row with an SLA clock
@@ -105,18 +114,33 @@ async def test_queue_department_scoping(db_session, idp_store) -> None:
     dept_a, dept_b = uuid.uuid4(), uuid.uuid4()
     owner_a = _reviewer(dept=dept_a)
     await _ingest_invoice(db_session, owner_a)
-    # a reviewer in another department sees nothing
-    _, total_b = await ReviewService(db_session).queue(
+    # a manager of another department sees nothing (department scope, 04 §8.2)
+    mgr_b = Principal(
+        user_id=uuid.uuid4(), role="MGR",
+        permissions=frozenset(ROLE_PERMISSIONS["MGR"]), department_id=dept_b,
+    )  # fmt: skip
+    _, total_b = await ReviewService(db_session).queue(mgr_b, PageParams(), QueueFilters())
+    assert total_b == 0
+    # a REV of another department sees it through the `REV` role pool it is assigned to
+    # (10 §7.2.4 scope table: REV = "hàng chờ được phân")
+    _, total_rev = await ReviewService(db_session).queue(
         _reviewer(dept=dept_b), PageParams(), QueueFilters()
     )
-    assert total_b == 0
-    # admin / no-department sees it
+    assert total_rev == 1
+    # a no-department reviewer sees it
+    no_dept = Principal(
+        user_id=uuid.uuid4(), role="REV",
+        permissions=frozenset(ROLE_PERMISSIONS["REV"]), department_id=None,
+    )  # fmt: skip
+    _, total_nd = await ReviewService(db_session).queue(no_dept, PageParams(), QueueFilters())
+    assert total_nd == 1
+    # ADM (R-DEC-76 scope `s`) sees only #4 HR_ROSTER documents — not this invoice
     admin = Principal(
         user_id=uuid.uuid4(), role="ADM",
         permissions=frozenset(ROLE_PERMISSIONS["ADM"]), department_id=None,
     )  # fmt: skip
     _, total_admin = await ReviewService(db_session).queue(admin, PageParams(), QueueFilters())
-    assert total_admin == 1
+    assert total_admin == 0
     # CEO seeded into another department still sees the whole company (02 §2)
     ceo = Principal(
         user_id=uuid.uuid4(), role="CEO",
@@ -133,7 +157,12 @@ async def test_detail_shows_fields_validation_lineage(db_session, idp_store) -> 
     detail = await ReviewService(db_session).detail(user, doc_id)
     assert len(detail.fields) == 8
     critical = [f for f in detail.fields if f.is_critical]
-    assert {f.field_name for f in critical} == {"subtotal", "vat_amount", "total_amount"}
+    assert {f.field_name for f in critical} == {
+        "subtotal",
+        "vat_amount",
+        "total_amount",
+        "seller_tax_code",
+    }
     # every field carries lineage (source_location with page)
     for f in detail.fields:
         assert "page" in f.source_location or "kind" in f.source_location
@@ -219,10 +248,10 @@ async def test_lock_blocks_other_reviewer(db_session, idp_store) -> None:
 async def test_approve_commits_finance_invoice(db_session, idp_store) -> None:
     from app.modules.finance.models import Invoice
 
-    user = _reviewer()
+    user = _committer()
     doc_id = await _ingest_invoice(db_session, user)
-    await ReviewService(db_session).open(user, doc_id)
-    out = await CommitService(db_session).approve(user, doc_id, comment="looks good")
+    await confirm_critical(db_session, user, doc_id)
+    out = (await CommitService(db_session).approve(user, doc_id, comment="looks good")).out
     assert out.document.status == "COMMITTED"
     assert out.undo_deadline is not None
     assert len(out.actions) == 1
@@ -239,7 +268,7 @@ async def test_approve_commits_finance_invoice(db_session, idp_store) -> None:
 async def test_approve_uses_corrected_value(db_session, idp_store) -> None:
     from app.modules.finance.models import Invoice
 
-    user = _reviewer()
+    user = _committer()
     doc_id = await _ingest_invoice(db_session, user)
     svc = ReviewService(db_session)
     await svc.open(user, doc_id)
@@ -249,7 +278,8 @@ async def test_approve_uses_corrected_value(db_session, idp_store) -> None:
         doc_id,
         FieldPatchIn(fields=[FieldCorrectionIn(field_id=num.id, value="0009999")]),
     )
-    out = await CommitService(db_session).approve(user, doc_id)
+    await confirm_critical(db_session, user, doc_id, opened=True)
+    out = (await CommitService(db_session).approve(user, doc_id)).out
     inv = (
         await db_session.execute(
             select(Invoice).where(Invoice.id == uuid.UUID(out.actions[0].ids[0]))
@@ -315,7 +345,7 @@ async def test_reassign_requires_reason(db_session, idp_store) -> None:
 
 # ------------------------------------------------------------ T-411 merge
 async def test_merge_nests_children_under_parent(db_session, idp_store) -> None:
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
     b = await _ingest_invoice(db_session, user)
     parent, children = await ReviewService(db_session).merge(user, [a, b], primary_id=a)
@@ -411,9 +441,10 @@ async def test_approve_other_doctype_is_metadata_only(db_session, idp_store) -> 
     if doc.status == "AUTO_APPROVED":  # OTHER may route either way; force a review state
         doc.status = "NEEDS_REVIEW"
         await db_session.flush()
-    out = await CommitService(db_session).approve(user, doc_id)
-    assert out.document.status == "COMMITTED"
-    assert out.actions == []
+    res = await CommitService(db_session).approve(user, doc_id)
+    assert res.pending_permissions == []
+    assert res.out.document.status == "COMMITTED"
+    assert res.out.actions == []
 
 
 async def test_approve_version_conflict(db_session, idp_store) -> None:
@@ -450,10 +481,12 @@ async def test_commit_invoice_duplicate_number_rejected(db_session, idp_store) -
     """A finance business-rule failure surfaces as ACTION_REJECTED (04 §10, IDP-E11)."""
     from app.core.errors import ActionRejectedError
 
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
+    await confirm_critical(db_session, user, a)
     await CommitService(db_session).approve(user, a)  # first commit wins the number UQ
     b = await _ingest_invoice(db_session, user)  # same fixture → same invoice_number
+    await confirm_critical(db_session, user, b)
     with pytest.raises(ActionRejectedError):
         await CommitService(db_session).approve(user, b)
     doc_b = (
@@ -523,7 +556,7 @@ async def test_reassign_requires_exactly_one_target(db_session, idp_store) -> No
 async def test_merge_bad_primary_id(db_session, idp_store) -> None:
     from app.core.errors import ValidationError
 
-    user = _reviewer()
+    user = _committer()
     a = await _ingest_invoice(db_session, user)
     b = await _ingest_invoice(db_session, user)
     with pytest.raises(ValidationError):
@@ -533,7 +566,10 @@ async def test_merge_bad_primary_id(db_session, idp_store) -> None:
 async def test_commit_parse_helpers() -> None:
     from datetime import date
 
-    from app.modules.idp.services.commit_service import _as_date, _as_int, _as_str, _as_vat
+    from app.modules.idp.services.actions.finance import as_date as _as_date
+    from app.modules.idp.services.actions.finance import as_int as _as_int
+    from app.modules.idp.services.actions.finance import as_str as _as_str
+    from app.modules.idp.services.actions.finance import as_vat as _as_vat
 
     assert _as_int("1.234.567") == 1234567
     assert _as_int("1,234,567") == 1234567

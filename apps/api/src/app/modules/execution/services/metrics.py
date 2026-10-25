@@ -21,11 +21,21 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.capture_share import CaptureSource, register_capture_source
 from app.core.clock import month_key, month_range
 from app.core.config import get_config
 from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
-from app.modules.execution.models import Initiative, KeyResult, Kpi, Project, Task
+from app.modules.execution.models import (
+    Initiative,
+    KeyResult,
+    Kpi,
+    KpiMeasurement,
+    KpiTarget,
+    Objective,
+    Project,
+    Task,
+)
 from app.modules.execution.repositories import (
     InitiativeRepository,
     KeyResultRepository,
@@ -205,4 +215,13 @@ register_dq(
              (lambda m: (m.status == "done") & m.done_at.is_(None),
               lambda m: (m.status == "blocked") & m.blocked_reason.is_(None))),
     DqSource(Project, ("start_date", "planned_end_date", "department_id")),
+)  # fmt: skip
+
+# METRIC-DQ-02 (R-DEC-68). `check_ins` carry no provenance column → not counted; measurements
+# use `data_source` (document / ai_assisted = captured).
+register_capture_source(
+    "execution",
+    *(CaptureSource(m) for m in (Task, Kpi, KpiTarget, Objective, KeyResult)),
+    CaptureSource(KpiMeasurement,
+                  lambda m: m.data_source.in_(("document", "ai_assisted"))),
 )  # fmt: skip

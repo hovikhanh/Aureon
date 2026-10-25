@@ -1,0 +1,16 @@
+{
+  "content": "",
+  "model": "fixture",
+  "usage": {
+    "tokens_in": 0,
+    "tokens_out": 0
+  },
+  "tool_calls": [],
+  "data": {
+    "title": {
+      "value": "999000000",
+      "raw_text": "999 triệu",
+      "confidence": 0.99
+    }
+  }
+}

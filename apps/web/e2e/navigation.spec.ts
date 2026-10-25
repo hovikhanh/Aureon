@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { login } from "./helpers";
 
 /**
@@ -87,7 +87,8 @@ test.describe("product/risk frozen (TC-M11-14, R-DEC-16)", { tag: "@mock" }, () 
     await expect(grid.getByTestId("pillar-S")).toHaveCount(0);
     await expect(page.locator("[data-testid^=nav-product], [data-testid^=nav-risk]")).toHaveCount(0);
     await page.getByTestId("five-pillar-link").click();
-    await expect(page).toHaveURL(/\/home\/pillar\/finance/);
+    // first client navigation to SCR-03 compiles the route on demand under `next dev` (mock)
+    await expect(page).toHaveURL(/\/home\/pillar\/finance/, { timeout: 30_000 });
     await expect(page.getByTestId("pillar-tabs").locator("a")).toHaveCount(5);
   });
 

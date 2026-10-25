@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { loginAs } from "./helpers";
+import { expect, test } from "./fixtures";
+import { login, loginAs } from "./helpers";
 import { cleanupReviewDocs, seedReviewDoc } from "./support/seed";
 
 test.afterAll(() => cleanupReviewDocs());
@@ -11,12 +11,18 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await page.goto(`/data/review/${doc.document_id}`);
     const rows = page.getByTestId("field-row");
     await expect(rows).toHaveCount(8);
-    await expect(page.locator("[data-testid=field-row] >> text=Trọng yếu")).toHaveCount(3);
+    await expect(page.locator("[data-testid=field-row] >> text=Trọng yếu")).toHaveCount(4); // + seller_tax_code (tax_code, R-DEC-69)
     await expect(page.locator('[data-field=seller_name] [data-testid=confidence-badge]')).toHaveAttribute("data-band", "MEDIUM");
 
     // hover highlights the source line
     await page.locator("[data-field=invoice_number]").hover();
     await expect(page.locator('[data-testid=source-page] [data-highlight=true]')).toContainText(doc.invoice_number);
+
+    // FR-DC-16 / R-DEC-69: trường trọng yếu (MST + 3 trường tiền) are confirmed one by one before approve
+    for (const name of ["seller_tax_code", "subtotal", "vat_amount", "total_amount"]) {
+      await page.locator(`[data-field=${name}]`).getByTestId("field-confirm").check();
+    }
+    await expect(page.getByTestId("critical-left")).toHaveCount(0);
 
     // money correction without reason → red border + message, approve blocked
     const vat = page.locator("[data-field=vat_amount]");
@@ -32,8 +38,17 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
     await page.getByTestId("approve").click();
 
+    // R-DEC-61: REV has no finance:write → APPROVED; office@ (MGR ADM, finance:write d) commits (EP-DC-23)
+    await expect(page.getByRole("status")).toContainText("Đã duyệt — chờ người có quyền ghi (finance:write)");
     await expect(page).toHaveURL(/\/data\/review$/);
-    await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
+    await page.context().clearCookies();
+    await login(page, "office@abc.demo");
+    await page.goto(`/data/review/${doc.document_id}`);
+    await expect(page.getByTestId("approved-state")).toBeVisible();
+    await page.getByTestId("commit").click();
+    await expect(page.getByTestId("undo-toast")).toBeVisible();
+    await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
+    await expect(page).toHaveURL(/\/data\/review$/);
     await expect(page.locator(`[data-document-id="${doc.document_id}"]`)).toHaveCount(0);
 
     // Invoice may be on page 2+ of the list (20/page, many E2E invoices) — verify via API.

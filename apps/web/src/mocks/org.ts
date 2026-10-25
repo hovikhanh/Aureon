@@ -22,8 +22,11 @@ const dId = (code: string) => mockId("department", code);
 const tId = (code: string) => mockId("team", code);
 export const eId = (code: string) => mockId("employee", code);
 const EMP = new Map(SNAPSHOT.employees.map((e) => [eId(e.code), e]));
+/** Employees created at runtime (M1.5 ACT-create_employee via the capture mock). */
+export interface MEmployee { id: string; code: string; full_name: string; version: number; deleted: boolean }
+const empOf = (id: string) => EMP.get(id) ?? orgStore().employees.find((e) => e.id === id && !e.deleted);
 
-interface OrgStore { depts: MDept[]; teams: MTeam[]; positions: MPosition[]; assignments: MAssignment[]; seq: number }
+interface OrgStore { depts: MDept[]; teams: MTeam[]; positions: MPosition[]; assignments: MAssignment[]; employees: MEmployee[]; seq: number }
 // on globalThis: `next dev` re-evaluates server modules when it compiles another page
 const G = globalThis as typeof globalThis & { __aureonMockOrg?: OrgStore | null };
 
@@ -33,6 +36,7 @@ function seed(): OrgStore {
     depts: SNAPSHOT.departments.map((d) => ({ ...base, id: dId(d.code), organization_id: ORG_ID, code: d.code, name: d.name, parent_id: null, manager_id: eId(d.head) })),
     teams: SNAPSHOT.departments.flatMap((d) => d.teams.map((t) => ({ ...base, id: tId(t.code), department_id: dId(d.code), code: t.code, name: t.name, lead_employee_id: null }))),
     positions: [],
+    employees: [],
     assignments: SNAPSHOT.assignments.map((a, i) => ({
       id: mockId("assignment", `${a.employee}:${i}`), version: 1, employee_id: eId(a.employee), department_id: dId(a.department),
       team_id: a.team ? tId(a.team) : null, position_id: null, manager_id: a.manager ? eId(a.manager) : null,
@@ -122,14 +126,14 @@ function tree(req: MockRequest) {
   const s = orgStore();
   const depts = s.depts.filter((d) => live(d.valid_from, d.valid_to, at) && (seen === null || seen.has(d.id)));
   const ids = new Set(depts.map((d) => d.id));
-  const current = s.assignments.filter((a) => ids.has(a.department_id) && live(a.valid_from, a.valid_to, at) && EMP.has(a.employee_id));
+  const current = s.assignments.filter((a) => ids.has(a.department_id) && live(a.valid_from, a.valid_to, at) && empOf(a.employee_id) !== undefined);
   const title = (pid: string | null) => s.positions.find((p) => p.id === pid)?.title ?? null;
   return ok({
     as_of: at,
     organization: { id: ORG_ID, code: ORG.code, name: ORG.name },
     departments: depts.map((d) => {
       const members = current.filter((a) => a.department_id === d.id).map((a) => {
-        const e = EMP.get(a.employee_id)!;
+        const e = empOf(a.employee_id)!;
         return { employee_id: a.employee_id, employee_code: e.code, full_name: e.full_name, team_id: a.team_id, position_id: a.position_id, position_title: title(a.position_id), manager_id: a.manager_id };
       });
       const teams = s.teams.filter((t) => t.department_id === d.id && live(t.valid_from, t.valid_to, at))
@@ -270,7 +274,7 @@ function createAssignment(req: MockRequest) {
   const b = body<MAssignment>(req);
   required(b, "employee_id", "department_id", "valid_from");
   const s = orgStore();
-  if (!EMP.has(String(b.employee_id))) rule("employee not found", "not_found", { field: "employee_id" });
+  if (!empOf(String(b.employee_id))) rule("employee not found", "not_found", { field: "employee_id" });
   findOr404(s.depts.filter((d) => !d.archived), b.department_id, "department");
   if (b.team_id && s.teams.find((t) => t.id === b.team_id)?.department_id !== b.department_id) rule("team not in department", "team_outside_department", { field: "team_id" });
   if (b.manager_id && b.manager_id === b.employee_id) rule("employee cannot manage themself", "manager_self", { field: "manager_id" });

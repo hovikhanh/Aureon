@@ -8,7 +8,11 @@ added for the demo store). INFECTED files are moved to the `quarantine` bucket (
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
 import shutil
+import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -92,3 +96,39 @@ def get_object_store() -> ObjectStore:
     if _store is None:
         _store = LocalObjectStore()
     return _store
+
+
+# ---- presigned GET (EP-DC-14 "Xem tài liệu gốc", 5 min) ------------------------------------
+# The local demo store has no S3 presigner: the URL is HMAC-SHA256 signed over
+# (storage_key, expiry) with a key derived from `DB_ENCRYPTION_KEY` (no new dependency). A
+# MinIO/S3 store presigns natively behind the same call. Serving route: pending DEC (STATE debt).
+PRESIGN_TTL_SECONDS = 300
+_PRESIGN_LABEL = b"aureon.idp.presign.v1"
+_EPHEMERAL = secrets.token_bytes(32)
+
+
+def _presign_key() -> bytes:
+    key = get_config().db_encryption_key
+    base = key.get_secret_value().encode() if key is not None else _EPHEMERAL
+    return hmac.new(base, _PRESIGN_LABEL, hashlib.sha256).digest()
+
+
+def _signature(storage_key: str, expires: int) -> str:
+    msg = f"{storage_key}\n{expires}".encode()
+    return hmac.new(_presign_key(), msg, hashlib.sha256).hexdigest()
+
+
+def presign_get(
+    storage_key: str, *, ttl: int = PRESIGN_TTL_SECONDS, now: float | None = None
+) -> str:
+    """Signed, expiring GET URL of a stored object (opaque key, no PII in the URL)."""
+    expires = int((now if now is not None else time.time()) + ttl)
+    return f"/files/{storage_key}?expires={expires}&signature={_signature(storage_key, expires)}"
+
+
+def verify_presigned(
+    storage_key: str, expires: int, signature: str, *, now: float | None = None
+) -> bool:
+    if (now if now is not None else time.time()) > expires:
+        return False
+    return hmac.compare_digest(_signature(storage_key, expires), signature)

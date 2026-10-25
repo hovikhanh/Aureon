@@ -165,6 +165,33 @@ class HrService:
         """Public: soft-ref integrity check for `department_id` in other modules (05 C7)."""
         return await self.departments.get(department_id) is not None
 
+    # ---------- public: code lookups for the Action Registry v2 (T-636) ----------
+    async def department_id_by_code(self, code: str) -> uuid.UUID | None:
+        dept = await self.departments.by_code(code)
+        return dept.id if dept is not None else None
+
+    async def employee_id_by_code(self, code: str) -> uuid.UUID | None:
+        emp = await self.employees.by_code(code)
+        return emp.id if emp is not None else None
+
+    async def position_id_by_title(self, department_id: uuid.UUID, title: str) -> uuid.UUID | None:
+        pos = await self.positions.by_title(department_id, title)
+        return pos.id if pos is not None else None
+
+    async def default_organization_id(self) -> uuid.UUID | None:
+        """The tenant's first live organization (ACT-create_department has no org column)."""
+        orgs = await OrganizationRepository(self.db).live()
+        return orgs[0].id if orgs else None
+
+    async def set_manager(self, user: Principal, employee_id: uuid.UUID,
+                          manager_id: uuid.UUID) -> int:  # fmt: skip
+        """#4 second pass: `manager_id` once every employee of the roster exists (EP-HR-04).
+        Returns the employee's new `version` (undo conflict baseline, R-DEC-63)."""
+        obj = await self.get_employee_row(user, employee_id)
+        out = await self.update_employee(user, employee_id, EmployeeUpdate(manager_id=manager_id),
+                                         int(obj.version))  # fmt: skip
+        return out.version
+
     # ---------- EP-81 departments ----------
     async def list_departments(
         self, page: PageParams, *, parent_id: uuid.UUID | None,
@@ -218,7 +245,10 @@ class HrService:
                             entity_id=obj_id, change=change,
                             **{k: v for k, v in extra.items() if v is not None})  # fmt: skip
 
-    async def create_department(self, user: Principal, body: DepartmentCreate) -> DepartmentOut:
+    async def create_department(
+        self, user: Principal, body: DepartmentCreate, *, source: str = "MANUAL"
+    ) -> DepartmentOut:
+        """EP-ORG-07; `source` = C19 origin (`IDP`/`IMPORT` via ACT-create_department, T-636)."""
         org = await OrganizationRepository(self.db).get(body.organization_id)
         if org is None:
             raise _err("organization not found", "organization_id", "not_found")
@@ -231,7 +261,7 @@ class HrService:
         obj = Department(
             organization_id=org.id, code=body.code, name=body.name,
             aliases=[], parent_id=body.parent_id, head_employee_id=body.manager_id,
-            valid_from=start, source="MANUAL", created_by=user.user_id,
+            valid_from=start, source=source, created_by=user.user_id,
         )  # fmt: skip
         self.db.add(obj)
         await self._flush_unique("department code")
@@ -333,7 +363,7 @@ class HrService:
         return await self._out(user, await self.get_employee_row(user, id_))
 
     async def _position_for(
-        self, user: Principal, department_id: uuid.UUID, title: str
+        self, user: Principal, department_id: uuid.UUID, title: str, source: str = "MANUAL"
     ) -> uuid.UUID:
         """EP-82 `title` → `positions` row of the department (found or created, DEC-195)."""
         found = await self.positions.by_title(department_id, title)
@@ -343,7 +373,7 @@ class HrService:
         code = f"{dept.code}-{normalize_name(title).replace(' ', '-')}-{uuid.uuid4().hex[:6]}"
         pos = await self.positions.create(
             department_id=department_id, code=code.upper(), title=title, headcount_budget=0,
-            source="MANUAL", created_by=user.user_id,
+            source=source, created_by=user.user_id,
         )  # fmt: skip
         await record_audit(self.db, action="hr.position_create", target_schema="hr",
                            target_table="positions", target_id=pos.id,
@@ -396,21 +426,31 @@ class HrService:
                                 department_id=e.department_id,
                                 termination_date=e.termination_date)  # fmt: skip
 
-    async def create_employee(self, user: Principal, body: EmployeeCreate) -> EmployeeOut:
+    async def create_employee(
+        self,
+        user: Principal,
+        body: EmployeeCreate,
+        *,
+        source: str = "MANUAL",
+        source_document_id: uuid.UUID | None = None,
+    ) -> EmployeeOut:
+        """EP-HR-02; `source`/`source_document_id` set by ACT-create_employee (T-636)."""
         data = body.model_dump()
         await self._validate_employee(data, None)
         title = data.pop("title")
         contract = data.pop("contract_type")
-        position_id = await self._position_for(user, body.department_id, title) if title else None
+        position_id = (
+            await self._position_for(user, body.department_id, title, source) if title else None
+        )
         obj = Employee(
             **data, normalized_name=normalize_name(body.full_name),
             contract_type=CONTRACT_TO_DB[contract] if contract else None,
-            position_id=position_id,
-            source="MANUAL", created_by=user.user_id,
+            position_id=position_id, source_document_id=source_document_id,
+            source=source, created_by=user.user_id,
         )  # fmt: skip
         self.db.add(obj)
         await self._flush_unique("employee")
-        await self.org.record_placement(obj, today(), actor=user.user_id)  # T-612
+        await self.org.record_placement(obj, today(), actor=user.user_id, source=source)  # T-612
         await self.db.refresh(obj)
         out = await self._out(user, obj)
         await self._audit("hr.employee_create", "employees", obj, after=employee_out(

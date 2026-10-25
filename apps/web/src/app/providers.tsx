@@ -19,6 +19,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+  // Client shell marker: set once React has hydrated (handlers attached, router ready). Read by
+  // E2E helpers so a click under a slow `next dev` compile is not swallowed; no UI effect.
+  React.useEffect(() => {
+    document.documentElement.dataset.hydrated = "true";
+  }, []);
   return (
     <SessionProvider refetchOnWindowFocus={false}>
       <QueryClientProvider client={client}>

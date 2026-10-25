@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { login, loginAs, loginWithPassword } from "./helpers";
 import { cleanupReviewDocs, rootEnv, seedReviewDoc } from "./support/seed";
 
@@ -62,15 +62,29 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   await loginAs(page, "reviewer@abc.demo");
   await expect(page).toHaveURL(/\/home$/);
   await page.getByTestId("nav-data").click();
-  await page.getByTestId("sublink-review").click();
-  await expect(page).toHaveURL(/\/data\/review$/);
-  await page.locator(`[data-document-id="${doc.document_id}"]`).getByTestId("review-link").click();
+  // M1.5: /data is the Data Inbox (SCR-45) — the review link sits on the document's row
+  await expect(page).toHaveURL(/\/data$/);
+  await page.locator(`[data-testid="inbox-row"][data-doc="${doc.document_id}"]`).getByTestId("inbox-review").click();
+  await expect(page).toHaveURL(new RegExp(`/data/review/${doc.document_id}$`));
   await expect(page.getByTestId("field-row")).toHaveCount(8);
+  // FR-DC-16 / R-DEC-69: trường trọng yếu (MST + 3 trường tiền) are confirmed one by one before approve
+  for (const name of ["seller_tax_code", "subtotal", "vat_amount", "total_amount"]) {
+    await page.locator(`[data-field=${name}]`).getByTestId("field-confirm").check();
+  }
   const seller = page.locator("[data-field=seller_name]");
   await seller.getByTestId("field-input").fill("Công ty Văn phòng Phẩm Sài Gòn");
   await seller.getByTestId("field-reason").fill("OCR thiếu dấu");
   await page.getByTestId("approve").click();
-  await expect(page.getByRole("status")).toContainText("Đã ghi vào Finance");
+  // R-DEC-61: REV has no finance:write → APPROVED; office@ (MGR ADM, finance:write d) commits (EP-DC-23)
+  await expect(page.getByRole("status")).toContainText("Đã duyệt — chờ người có quyền ghi (finance:write)");
+  await expect(page).toHaveURL(/\/data\/review$/);
+  await page.context().clearCookies();
+  await login(page, "office@abc.demo");
+  await page.goto(`/data/review/${doc.document_id}`);
+  await expect(page.getByTestId("approved-state")).toBeVisible();
+  await page.getByTestId("commit").click();
+  await expect(page.getByTestId("undo-toast")).toBeVisible();
+  await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
   // Invoice may land on page 2 of the list (20/page, many E2E invoices) — verify via API instead.
   const r = await page.request.get(`/api/backend/finance/invoices?direction=IN&sort_by=created_at&order=desc&limit=5`);
   expect(r.ok()).toBeTruthy();

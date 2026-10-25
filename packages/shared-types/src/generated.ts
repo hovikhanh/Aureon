@@ -171,8 +171,14 @@ export type AuditLogOut = {
   why?: string | null;
 };
 
+export type Body_import_upload_api_v1_data_capture_imports_post = {
+  file: string;
+  document_type?: string | null;
+};
+
 export type Body_upload_documents_api_v1_idp_documents_post = {
   files: string[];
+  document_type?: string | null;
 };
 
 export type BreakdownRow = {
@@ -415,6 +421,11 @@ export type ClientUpdate = {
   website?: string | null;
   account_owner_id?: string | null;
   notes?: string | null;
+};
+
+export type ColumnMappingOut = {
+  field: string | null;
+  confidence: number;
 };
 
 export type ConfidenceOut = {
@@ -675,6 +686,14 @@ export type DismissIn = {
   reason: string;
 };
 
+export type DocumentActionOut = {
+  seq: number;
+  action_name: string;
+  result_refs: ResultRefOut[];
+  status: "applied" | "reverted";
+  reverted_at: string | null;
+};
+
 export type DocumentOut = {
   id: string;
   original_filename: string | null;
@@ -689,6 +708,12 @@ export type DocumentOut = {
   pillars: string[];
   sensitivity_level: number;
   submitted_at: string;
+  document_type?: string | null;
+  committed_at?: string | null;
+  undo_deadline?: string | null;
+  can_undo?: boolean;
+  rolled_back_at?: string | null;
+  version: number;
 };
 
 export type DocumentPageOut = {
@@ -699,6 +724,26 @@ export type DocumentPageOut = {
   ocr_used: boolean;
   ocr_confidence: number | null;
   text_content: string | null;
+};
+
+export type DocumentTypeOut = {
+  id: string;
+  code: string;
+  name_vi: string;
+  name_en: string;
+  pillars: string[];
+  is_active: boolean;
+  current_schema_version: number | null;
+  channels_supported: string[];
+  version: number;
+};
+
+export type DocumentTypePatch = {
+  name_vi?: string | null;
+  name_en?: string | null;
+  is_active?: boolean | null;
+  classifier_keywords?: string[] | null;
+  version: number;
 };
 
 export type EmployeeAssignmentOut = {
@@ -876,6 +921,11 @@ export type Envelope_DocumentOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_DocumentTypeOut_ = {
+  data: DocumentTypeOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_EmployeeAssignmentOut_ = {
   data: EmployeeAssignmentOut;
   meta?: Meta | null;
@@ -901,6 +951,11 @@ export type Envelope_ExtractionResultOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_ExtractionSchemaOut_ = {
+  data: ExtractionSchemaOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_FeatureOut_ = {
   data: FeatureOut;
   meta?: Meta | null;
@@ -921,6 +976,11 @@ export type Envelope_ForecastOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_FormOut_ = {
+  data: FormOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_GoalTreeOut_ = {
   data: GoalTreeOut;
   meta?: Meta | null;
@@ -938,6 +998,21 @@ export type Envelope_HiringPlanOut_ = {
 
 export type Envelope_HrDashboardOut_ = {
   data: HrDashboardOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ImportPreviewOut_ = {
+  data: ImportPreviewOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ImportSubmitOut_ = {
+  data: ImportSubmitOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_IncidentOut_ = {
+  data: IncidentOut;
   meta?: Meta | null;
 };
 
@@ -978,6 +1053,16 @@ export type Envelope_KpiOut_ = {
 
 export type Envelope_KpiTargetOut_ = {
   data: KpiTargetOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_LineageOut_ = {
+  data: LineageOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ManualSubmitOut_ = {
+  data: ManualSubmitOut;
   meta?: Meta | null;
 };
 
@@ -1136,6 +1221,11 @@ export type Envelope_ScenarioOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_SourceViewOut_ = {
+  data: SourceViewOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_StrategicObjectiveOut_ = {
   data: StrategicObjectiveOut;
   meta?: Meta | null;
@@ -1176,6 +1266,11 @@ export type Envelope_TokenOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_UndoOut_ = {
+  data: UndoOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_UploadResultOut_ = {
   data: UploadResultOut;
   meta?: Meta | null;
@@ -1188,6 +1283,11 @@ export type Envelope_UserAdminOut_ = {
 
 export type Envelope_UserOut_ = {
   data: UserOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ValidationRuleOut_ = {
+  data: ValidationRuleOut;
   meta?: Meta | null;
 };
 
@@ -1281,6 +1381,16 @@ export type Envelope_list_DepartmentOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_DocumentActionOut__ = {
+  data: DocumentActionOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_DocumentTypeOut__ = {
+  data: DocumentTypeOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_EmployeeAssignmentOut__ = {
   data: EmployeeAssignmentOut[];
   meta?: Meta | null;
@@ -1301,6 +1411,11 @@ export type Envelope_list_ExpenseOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_ExtractionSchemaOut__ = {
+  data: ExtractionSchemaOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_FeatureOut__ = {
   data: FeatureOut[];
   meta?: Meta | null;
@@ -1313,6 +1428,21 @@ export type Envelope_list_ForecastOut__ = {
 
 export type Envelope_list_HiringPlanOut__ = {
   data: HiringPlanOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ImportRowOut__ = {
+  data: ImportRowOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_InboxItemOut__ = {
+  data: InboxItemOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_IncidentOut__ = {
+  data: IncidentOut[];
   meta?: Meta | null;
 };
 
@@ -1511,6 +1641,11 @@ export type Envelope_list_UserAdminOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_ValidationRuleOut__ = {
+  data: ValidationRuleOut[];
+  meta?: Meta | null;
+};
+
 export type EvidenceItem = {
   kind: "file" | "link" | "note";
   ref: string;
@@ -1597,6 +1732,33 @@ export type ExtractionResultOut = {
   routing_reasons: string[];
   fields: FieldResultOut[];
   validation_errors: Record<string, unknown>[];
+};
+
+export type ExtractionSchemaCreate = {
+  document_type: string;
+  clone_from_id?: string | null;
+  fields?: SchemaFieldDef[];
+  thresholds?: SchemaThresholds | null;
+  action_names?: string[];
+};
+
+export type ExtractionSchemaOut = {
+  id: string;
+  document_type: string;
+  schema_version: number;
+  status: "draft" | "published" | "retired";
+  fields: SchemaFieldDef[];
+  thresholds: SchemaThresholds;
+  action_names: string[];
+  published_at: string | null;
+  version: number;
+};
+
+export type ExtractionSchemaPatch = {
+  fields?: SchemaFieldDef[] | null;
+  thresholds?: SchemaThresholds | null;
+  action_names?: string[] | null;
+  version: number;
 };
 
 export type FeatureCreate = {
@@ -1751,6 +1913,26 @@ export type ForecastUpdate = {
   assumptions?: Record<string, unknown> | null;
 };
 
+export type FormFieldOut = {
+  name: string;
+  label_key: string;
+  value_type: string;
+  required: boolean;
+  is_critical: boolean;
+  sensitivity_level: number;
+  enum?: string[] | null;
+  master_ref?: string | null;
+  repeatable_group?: string | null;
+};
+
+export type FormOut = {
+  document_type: string;
+  schema_version: number;
+  fields: FormFieldOut[];
+  required_permissions: string[];
+  permitted: boolean;
+};
+
 export type FunctionCallOut = {
   tool: string;
   status: "ok" | "error" | "forbidden" | "timeout";
@@ -1862,6 +2044,90 @@ export type HrDashboardOut = {
 export type HrImpact = {
   status: "ok" | "unavailable";
   headcount_delta?: number | null;
+};
+
+export type ImportColumnOut = {
+  index: number;
+  header: string | null;
+};
+
+export type ImportMappingIn = {
+  document_type: string;
+  sheet: string;
+  header_row: number;
+  mapping: Record<string, string | null>;
+  version: number;
+};
+
+export type ImportPreviewOut = {
+  batch_id: string;
+  document_id: string;
+  sheets: ImportSheetOut[];
+  suggested_document_type: SuggestedTypeOut | null;
+  column_mapping: Record<string, ColumnMappingOut>;
+  preview_rows: Record<string, unknown>[];
+  summary: ImportSummaryOut;
+  version: number;
+};
+
+export type ImportRowOut = {
+  row_number: number;
+  values: Record<string, unknown | Masked>;
+  errors: RowErrorOut[];
+};
+
+export type ImportSheetOut = {
+  name: string;
+  row_count: number;
+  header_row: number;
+  columns: ImportColumnOut[];
+};
+
+export type ImportSubmitOut = {
+  document: DocumentOut;
+  rows_submitted: number;
+  rows_excluded: number;
+};
+
+export type ImportSummaryOut = {
+  rows_total: number;
+  rows_valid: number;
+  rows_invalid: number;
+};
+
+export type InboxItemOut = {
+  document: DocumentOut;
+  document_type: string | null;
+  channel: string;
+  submitted_by_name: string | null;
+  record_count: number | null;
+  undo_deadline: string | null;
+  can_undo: boolean;
+  batch_id: string | null;
+};
+
+export type IncidentCreate = {
+  source_document_id: string;
+  extracted_field_id?: string | null;
+  field_name: string;
+  target_table?: string | null;
+  target_id?: string | null;
+  description: string;
+};
+
+export type IncidentOut = {
+  id: string;
+  source_document_id: string;
+  extracted_field_id: string | null;
+  field_name: string;
+  is_critical: boolean;
+  detected_by: "review" | "post_commit" | "undo";
+  undetected: boolean;
+  target_table: string | null;
+  target_id: string | null;
+  description: string;
+  reported_by: string;
+  reported_at: string;
 };
 
 export type IniNode = {
@@ -2292,9 +2558,49 @@ export type KrNode = {
   owner_id: string;
 };
 
+export type LineageLinkOut = {
+  target_column: string | null;
+  source_document_id: string;
+  document_type: string | null;
+  original_filename: string | null;
+  page_number: number | null;
+  sheet_name: string | null;
+  row_index: number | null;
+  field_name: string | null;
+  raw_text: string | Masked | null;
+  confidence: number | null;
+  action_name: string | null;
+  committed_at: string | null;
+  revoked_at: string | null;
+};
+
+export type LineageOut = {
+  entity?: string | null;
+  id?: string | null;
+  links?: LineageLinkOut[] | null;
+  restricted?: boolean;
+  reason?: ("target_out_of_scope" | "source_out_of_scope") | null;
+};
+
 export type LoginIn = {
   email: string;
   password: string;
+};
+
+export type ManualSubmitIn = {
+  document_type: string;
+  schema_version: number;
+  values?: Record<string, unknown>;
+  rows?: Record<string, unknown>[] | null;
+  department_id?: string | null;
+};
+
+export type ManualSubmitOut = {
+  document: DocumentOut;
+  status: string;
+  actions: ActionRefOut[];
+  validation_errors: Record<string, unknown>[];
+  undo_deadline: string | null;
 };
 
 export type Masked = {
@@ -2397,6 +2703,8 @@ export type Meta = {
   pagination?: Pagination | null;
   unread_count?: number | null;
   pending_count?: number | null;
+  counts?: Record<string, number> | null;
+  pending_permissions?: string[] | null;
 };
 
 export type MetricCreate = {
@@ -2717,6 +3025,13 @@ export type PipelineTrendPoint = {
   weighted_pipeline: number;
 };
 
+export type PlannedActionOut = {
+  action_name: string;
+  count: number;
+  required_permission: string;
+  permitted: boolean;
+};
+
 export type PositionCreate = {
   department_id: string;
   code: string;
@@ -2984,6 +3299,14 @@ export type ReplayOut = {
   queued_at: string;
 };
 
+export type ResultRefOut = {
+  schema: string;
+  table: string;
+  id: string;
+  reused?: boolean;
+  [key: string]: unknown;
+};
+
 export type RevenueCreate = {
   amount: number;
   currency?: string;
@@ -3050,6 +3373,9 @@ export type ReviewDetailOut = {
   assigned_to: string | null;
   locked_by: string | null;
   locked_until: string | null;
+  rows?: ReviewRowOut[];
+  planned_actions?: PlannedActionOut[];
+  can_commit?: boolean;
 };
 
 export type ReviewFieldOut = {
@@ -3088,6 +3414,11 @@ export type ReviewQueueItemOut = {
   due_at: string | null;
   locked_by: string | null;
   locked_until: string | null;
+};
+
+export type ReviewRowOut = {
+  row_index: number;
+  fields: ReviewFieldOut[];
 };
 
 export type RiskCreate = {
@@ -3214,6 +3545,13 @@ export type RoleOut = {
   pillars: string[];
 };
 
+export type RowErrorOut = {
+  field: string | null;
+  rule_code: string;
+  message_key: string;
+  params?: Record<string, unknown>;
+};
+
 export type RunwayTrendPoint = {
   period_key: string;
   runway_months: number | null;
@@ -3325,6 +3663,30 @@ export type ScenarioOut = {
   sources: app__modules__risk__schemas__SourceRef[];
 };
 
+export type SchemaFieldDef = {
+  name: string;
+  label_key?: string | null;
+  value_type: string;
+  required?: boolean;
+  is_critical?: boolean;
+  sensitivity_level?: number;
+  group?: "row" | null;
+  target?: SchemaFieldTarget | null;
+  enum?: string[] | null;
+  master_ref?: string | null;
+  header_aliases?: string[];
+};
+
+export type SchemaFieldTarget = {
+  action: string;
+  param: string;
+};
+
+export type SchemaThresholds = {
+  classification_confidence_min: number;
+  required_field_min: number;
+};
+
 export type SimilarClient = {
   id: string;
   name: string;
@@ -3335,6 +3697,13 @@ export type SourceRef_Input = {
   kind: "meeting" | "decision" | "ai_action" | "document" | "mitigation";
   id: string;
   page?: number | null;
+};
+
+export type SourceViewOut = {
+  url: string;
+  mime_type: string | null;
+  page_count: number | null;
+  page: number | null;
 };
 
 export type StageChange = {
@@ -3452,6 +3821,11 @@ export type StrategyUpdate = {
   period_end?: string | null;
   owner_id?: string | null;
   status?: ("draft" | "active" | "closed") | null;
+};
+
+export type SuggestedTypeOut = {
+  code: string;
+  confidence: number;
 };
 
 export type TargetCreate = {
@@ -3718,6 +4092,16 @@ export type UndoActionIn = {
   reason?: string | null;
 };
 
+export type UndoIn = {
+  reason: string;
+  reason_code: "mistake" | "critical_field_wrong" | "duplicate" | "other";
+};
+
+export type UndoOut = {
+  document: DocumentOut;
+  reverted_actions: ActionRefOut[];
+};
+
 export type UploadResultOut = {
   document_ids: string[];
   job_ids: string[];
@@ -3784,6 +4168,39 @@ export type ValidationError = {
   type: string;
   input?: unknown;
   ctx?: Record<string, unknown>;
+};
+
+export type ValidationRuleCreate = {
+  extraction_schema_id?: string | null;
+  code: string;
+  kind: "field" | "cross_field" | "cross_document" | "master_data";
+  expression: Record<string, unknown>;
+  severity: "warn" | "fail" | "blocking";
+  tolerance?: number | null;
+};
+
+export type ValidationRuleOut = {
+  id: string;
+  extraction_schema_id: string | null;
+  code: string;
+  kind: "field" | "cross_field" | "cross_document" | "master_data";
+  expression: Record<string, unknown>;
+  severity: "warn" | "fail" | "blocking";
+  tolerance: number | null;
+  is_active: boolean;
+  version: number;
+};
+
+export type ValidationRulePatch = {
+  expression?: Record<string, unknown> | null;
+  severity?: ("warn" | "fail" | "blocking") | null;
+  tolerance?: number | null;
+  is_active?: boolean | null;
+  version: number;
+};
+
+export type VersionIn = {
+  version: number;
 };
 
 export type WinRateTrendPoint = {
@@ -3963,6 +4380,102 @@ export interface ApiOperations {
   "GET /api/v1/dashboard/metrics/{metric_code}": {
     request: void;
     response: Envelope_MetricDetail_;
+  };
+  "GET /api/v1/data-capture/document-types": {
+    request: void;
+    response: Envelope_list_DocumentTypeOut__;
+  };
+  "PATCH /api/v1/data-capture/document-types/{type_id}": {
+    request: DocumentTypePatch;
+    response: Envelope_DocumentTypeOut_;
+  };
+  "GET /api/v1/data-capture/documents/{document_id}/actions": {
+    request: void;
+    response: Envelope_list_DocumentActionOut__;
+  };
+  "POST /api/v1/data-capture/documents/{document_id}/commit": {
+    request: VersionIn;
+    response: Envelope_ApproveOut_;
+  };
+  "GET /api/v1/data-capture/documents/{document_id}/source": {
+    request: void;
+    response: Envelope_SourceViewOut_;
+  };
+  "POST /api/v1/data-capture/documents/{document_id}/undo": {
+    request: UndoIn;
+    response: Envelope_UndoOut_;
+  };
+  "GET /api/v1/data-capture/extraction-schemas": {
+    request: void;
+    response: Envelope_list_ExtractionSchemaOut__;
+  };
+  "POST /api/v1/data-capture/extraction-schemas": {
+    request: ExtractionSchemaCreate;
+    response: Envelope_ExtractionSchemaOut_;
+  };
+  "PATCH /api/v1/data-capture/extraction-schemas/{schema_id}": {
+    request: ExtractionSchemaPatch;
+    response: Envelope_ExtractionSchemaOut_;
+  };
+  "POST /api/v1/data-capture/extraction-schemas/{schema_id}/publish": {
+    request: VersionIn;
+    response: Envelope_ExtractionSchemaOut_;
+  };
+  "GET /api/v1/data-capture/forms/{document_type}": {
+    request: void;
+    response: Envelope_FormOut_;
+  };
+  "POST /api/v1/data-capture/imports": {
+    request: void;
+    response: Envelope_ImportPreviewOut_;
+  };
+  "GET /api/v1/data-capture/imports/{batch_id}": {
+    request: void;
+    response: Envelope_ImportPreviewOut_;
+  };
+  "GET /api/v1/data-capture/imports/{batch_id}/error-file": {
+    request: void;
+    response: void;
+  };
+  "PATCH /api/v1/data-capture/imports/{batch_id}/mapping": {
+    request: ImportMappingIn;
+    response: Envelope_ImportPreviewOut_;
+  };
+  "GET /api/v1/data-capture/imports/{batch_id}/rows": {
+    request: void;
+    response: Envelope_list_ImportRowOut__;
+  };
+  "POST /api/v1/data-capture/imports/{batch_id}/submit": {
+    request: VersionIn;
+    response: Envelope_ImportSubmitOut_;
+  };
+  "GET /api/v1/data-capture/inbox": {
+    request: void;
+    response: Envelope_list_InboxItemOut__;
+  };
+  "GET /api/v1/data-capture/incidents": {
+    request: void;
+    response: Envelope_list_IncidentOut__;
+  };
+  "POST /api/v1/data-capture/incidents": {
+    request: IncidentCreate;
+    response: Envelope_IncidentOut_;
+  };
+  "POST /api/v1/data-capture/manual": {
+    request: ManualSubmitIn;
+    response: Envelope_ManualSubmitOut_;
+  };
+  "GET /api/v1/data-capture/validation-rules": {
+    request: void;
+    response: Envelope_list_ValidationRuleOut__;
+  };
+  "POST /api/v1/data-capture/validation-rules": {
+    request: ValidationRuleCreate;
+    response: Envelope_ValidationRuleOut_;
+  };
+  "PATCH /api/v1/data-capture/validation-rules/{rule_id}": {
+    request: ValidationRulePatch;
+    response: Envelope_ValidationRuleOut_;
   };
   "GET /api/v1/execution/dashboard": {
     request: void;
@@ -4443,6 +4956,10 @@ export interface ApiOperations {
   "POST /api/v1/kpis/{kpi_id}/targets": {
     request: KpiTargetCreate;
     response: Envelope_KpiTargetOut_;
+  };
+  "GET /api/v1/lineage/{entity}/{record_id}": {
+    request: void;
+    response: Envelope_LineageOut_;
   };
   "GET /api/v1/notifications": {
     request: void;

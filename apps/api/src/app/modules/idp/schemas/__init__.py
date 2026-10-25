@@ -36,6 +36,14 @@ class DocumentOut(BaseModel):
     pillars: list[str]
     sensitivity_level: int
     submitted_at: datetime
+    # M1.5 (EP-DC-02, 10 §7.2.4): doc type code, commit/undo window, rollback stamp.
+    document_type: str | None = None
+    committed_at: datetime | None = None
+    undo_deadline: datetime | None = None
+    can_undo: bool = False
+    rolled_back_at: datetime | None = None
+    # optimistic lock for EP-DC-08/22/23 `{version}` bodies (R-DEC-60bis)
+    version: int
 
 
 class DocumentPageOut(BaseModel):
@@ -139,6 +147,22 @@ class ReviewAssignmentOut(BaseModel):
     is_current: bool
 
 
+class ReviewRowOut(BaseModel):
+    """EP-DC-05 — the fields of one table row (C5 / roster docs), `row_index` = Excel row."""
+
+    row_index: int
+    fields: list[ReviewFieldOut]
+
+
+class PlannedActionOut(BaseModel):
+    """EP-DC-05 — dry-run of one ACT (validate only, no write — R-DEC-61)."""
+
+    action_name: str
+    count: int
+    required_permission: str
+    permitted: bool
+
+
 class ReviewDetailOut(BaseModel):
     """EP-25/30 review detail — document + pages + fields + validation + assignment (04 §12.1)."""
 
@@ -153,6 +177,10 @@ class ReviewDetailOut(BaseModel):
     assigned_to: uuid.UUID | None
     locked_by: uuid.UUID | None
     locked_until: datetime | None
+    # M1.5 (EP-DC-05): table docs grouped by `row_index`; dry-run of the ACTs; commit gate.
+    rows: list[ReviewRowOut] = Field(default_factory=list)
+    planned_actions: list[PlannedActionOut] = Field(default_factory=list)
+    can_commit: bool = False
 
 
 class ReviewOpenOut(BaseModel):

@@ -5,7 +5,7 @@ Every query starts from `_live()` / `_scoped()` (tenant + `deleted_at IS NULL`, 
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import ColumnElement, and_, func, or_, select
@@ -27,6 +27,11 @@ def valid_on(model: Any, as_of: date) -> ColumnElement[bool]:
     return and_(model.valid_from <= as_of, or_(model.valid_to.is_(None), model.valid_to > as_of))
 
 
+def _day_after(as_of: date) -> datetime:
+    """Start of the UTC day after `as_of` — rows soft-deleted before it are gone on `as_of`."""
+    return datetime.combine(as_of + timedelta(days=1), time.min, tzinfo=UTC)
+
+
 class _Dated[ModelT: Organization | Department | Team](BaseRepository[ModelT]):
     async def by_code_live(self, code: str, *, exclude: uuid.UUID | None = None) -> bool:
         stmt = self._live().where(self._col("code") == code)
@@ -35,8 +40,15 @@ class _Dated[ModelT: Organization | Department | Team](BaseRepository[ModelT]):
         return (await self.db.execute(stmt.limit(1))).first() is not None
 
     async def at(self, as_of: date, **filters: Any) -> Sequence[ModelT]:
-        """Rows valid on `as_of` — archived rows included (history), tenant-scoped."""
-        stmt = self._scoped(select(self.model)).where(valid_on(self.model, as_of))
+        """Rows valid on `as_of` — archived rows included (history), tenant-scoped.
+
+        A row archived on or before `as_of` is gone that day even when `valid_to` had to be
+        pushed to `valid_from + 1` (archived the day it was created — e.g. a capture undo,
+        R-DEC-66; CHECK `valid_to > valid_from`)."""
+        deleted = self._col("deleted_at")
+        stmt = self._scoped(select(self.model)).where(
+            valid_on(self.model, as_of), or_(deleted.is_(None), deleted >= _day_after(as_of))
+        )
         for name, value in filters.items():
             stmt = stmt.where(self._col(name) == value)
         stmt = stmt.order_by(self._col("code"))
@@ -139,6 +151,10 @@ class DeptRepository(_Dated[Department]):
 class TeamRepository(_Dated[Team]):
     model = Team
 
+    async def by_department_code(self, department_id: uuid.UUID, code: str) -> Team | None:
+        stmt = self._live().where(Team.department_id == department_id, Team.code == code)
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
     async def current_assignments(self, id_: uuid.UUID) -> int:
         stmt = (
             BaseRepository(self.db, EmployeeAssignment)
@@ -196,6 +212,8 @@ class TreeRepository(BaseRepository[EmployeeAssignment]):
                 EmployeeAssignment.deleted_at.is_(None),
                 EmployeeAssignment.department_id.in_(set(department_ids)),
                 effective_at(EmployeeAssignment, as_of),
+                # hired and removed the same day (capture undo): `valid_to` = `valid_from + 1`
+                or_(Employee.deleted_at.is_(None), Employee.deleted_at >= _day_after(as_of)),
             )
             .order_by(Employee.employee_code)
         )

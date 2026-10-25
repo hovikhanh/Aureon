@@ -22,6 +22,8 @@ APPEND_ONLY = {
     "idp.review_assignments", "hr.salary_history", "sales.deal_stage_history",
     "risk.risk_assessments", "execution.kpi_measurements", "product.product_metrics",
     "execution.check_ins", "execution.kr_measurements",
+    "idp.import_rows", "idp.document_actions",  # M1.5 log tables (05 §2.7)
+    "platform.dq_domain_scores",  # M1.5 computed DQ-01 breakdown (0020_capture_dq, upsert)
 }  # fmt: skip
 
 
@@ -57,6 +59,8 @@ def test_db_tables_match_metadata(engine: Engine) -> None:
 
 # Columns named like C19 but with a different meaning in 05 (not optimistic locking).
 NON_C19_VERSION = {"platform.outbox_events"}  # 05 §5.1: payload schema version
+# Log tables with an optimistic-lock `version` but no other C19 (05 §2.7: EP-DC-19/22 lock).
+LOG_WITH_VERSION = {"idp.import_batches"}
 # Log tables that 05 explicitly soft-deletes (05 §4.8: "xóa hội thoại = xóa mềm ở conversations").
 SOFT_DELETED_LOGS = {"ai.conversations"}
 
@@ -66,7 +70,7 @@ def test_c19_columns_by_group() -> None:
         cols = set(table.c.keys())
         if name in APPEND_ONLY:
             forbidden = {"source"} | (set() if name in SOFT_DELETED_LOGS else {"deleted_at"})
-            if name not in NON_C19_VERSION:
+            if name not in NON_C19_VERSION | LOG_WITH_VERSION:
                 forbidden.add("version")
             assert not forbidden & cols, name
         else:
@@ -104,3 +108,21 @@ def test_foreign_keys_are_indexed() -> None:
         for fk in table.foreign_keys:
             col = fk.parent.name
             assert col in indexed or col in unique, f"{name}.{col}"
+
+
+def test_0019_seeds_p0_capture_doc_types(engine: Engine) -> None:
+    """TC-M15-01: #2/#3/#4 each point at a published v1 schema with registered ACTs."""
+    from app.modules.idp.services.actions import get_action
+
+    sql = text(
+        "SELECT d.code, s.status, s.schema_version, s.action_names, "
+        "cardinality(d.classifier_keywords) FROM idp.document_types d "
+        "JOIN idp.extraction_schemas s ON s.id = d.current_schema_id "
+        "WHERE d.code IN ('PLAN_KPI_OKR', 'PERIOD_REPORT', 'HR_ROSTER')"
+    )
+    with engine.connect() as conn:
+        rows = {r[0]: r for r in conn.execute(sql)}
+    assert set(rows) == {"PLAN_KPI_OKR", "PERIOD_REPORT", "HR_ROSTER"}
+    for _code, status, version, actions, keywords in rows.values():
+        assert status == "published" and version >= 1 and keywords > 0
+        assert actions and all(get_action(a) for a in actions)

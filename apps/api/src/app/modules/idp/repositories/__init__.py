@@ -9,9 +9,21 @@ from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
-from app.modules.idp.models import ExtractedField, ReviewAssignment, SourceDocument
+from app.core.tenant import require_tenant
+from app.modules.idp.models import (
+    CaptureIncident,
+    DocumentAction,
+    ExtractedField,
+    ExtractionJob,
+    ExtractionReview,
+    ImportBatch,
+    ImportRow,
+    ReviewAssignment,
+    SourceDocument,
+)
 
 
 class SourceDocumentRepository(BaseRepository[SourceDocument]):
@@ -26,7 +38,11 @@ class SourceDocumentRepository(BaseRepository[SourceDocument]):
     async def first_original_by_sha(self, digest: str) -> SourceDocument | None:
         stmt = (
             self._live()
-            .where(SourceDocument.sha256 == digest, SourceDocument.duplicate_of_id.is_(None))
+            .where(
+                SourceDocument.sha256 == digest,
+                SourceDocument.duplicate_of_id.is_(None),
+                SourceDocument.status != "ROLLED_BACK",  # R-DEC-66: resubmission = new document
+            )
             .order_by(SourceDocument.submitted_at.asc())
             .limit(1)
         )
@@ -42,6 +58,18 @@ class SourceDocumentRepository(BaseRepository[SourceDocument]):
         total = (await self.db.execute(count)).scalar_one()
         stmt = base.order_by(order).limit(limit).offset(offset)
         return (await self.db.execute(stmt)).scalars().all(), int(total)
+
+    async def status_counts(self, where: Sequence[ColumnElement[bool]]) -> dict[str, int]:
+        """`{status: n}` of live documents under `where` (EP-DC-13 `meta.counts`)."""
+        stmt = self._scoped(select(SourceDocument.status, func.count())).where(
+            SourceDocument.deleted_at.is_(None), *where
+        )
+        rows = (await self.db.execute(stmt.group_by(SourceDocument.status))).all()
+        return {s: int(n) for s, n in rows}
+
+    async def matches(self, document_id: uuid.UUID, clause: ColumnElement[bool]) -> bool:
+        stmt = self._live().where(SourceDocument.id == document_id, clause)
+        return (await self.db.execute(stmt)).first() is not None
 
     async def awaiting_review_with_assignment(
         self,
@@ -67,3 +95,101 @@ class ExtractedFieldRepository(BaseRepository[ExtractedField]):
         if ordered:
             stmt = stmt.order_by(ExtractedField.field_name.asc())
         return list((await self.db.execute(stmt)).scalars().all())
+
+    async def critical_of_document(self, document_id: uuid.UUID) -> list[ExtractedField]:
+        """Critical fields of the latest extraction job of a document (G4 undo incidents)."""
+        job = (
+            select(ExtractionJob.id).where(ExtractionJob.source_document_id == document_id)
+            .order_by(ExtractionJob.attempt_no.desc()).limit(1).scalar_subquery()
+        )  # fmt: skip
+        stmt = (
+            self._scoped(select(ExtractedField))
+            .where(ExtractedField.extraction_job_id == job, ExtractedField.is_critical.is_(True))
+            .order_by(ExtractedField.field_name, ExtractedField.row_index)
+        )
+        return list((await self.db.execute(stmt)).scalars())
+
+    async def by_ids(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, ExtractedField]:
+        if not ids:
+            return {}
+        stmt = self._scoped(select(ExtractedField)).where(ExtractedField.id.in_(list(ids)))
+        return {f.id: f for f in (await self.db.execute(stmt)).scalars()}
+
+
+async def approvers_of(db: AsyncSession, document_id: uuid.UUID) -> set[uuid.UUID]:
+    """Reviewers who approved this document (`ExtractionReview.decision = APPROVED`)."""
+    stmt = select(ExtractionReview.reviewer_id).where(
+        ExtractionReview.source_document_id == document_id,
+        ExtractionReview.decision == "APPROVED",
+    )
+    return set((await db.execute(stmt)).scalars())
+
+
+class DocumentActionRepository(BaseRepository[DocumentAction]):
+    """`idp.document_actions` — one row per executed ACT (R-DEC-63, append + status flip)."""
+
+    model = DocumentAction
+
+    async def for_document(
+        self, document_id: uuid.UUID, *, newest_first: bool = False
+    ) -> list[DocumentAction]:
+        order = DocumentAction.seq.desc() if newest_first else DocumentAction.seq
+        stmt = self._scoped(select(DocumentAction)).where(
+            DocumentAction.source_document_id == document_id
+        )
+        return list((await self.db.execute(stmt.order_by(order))).scalars())
+
+
+class ImportRepository(BaseRepository[ImportBatch]):
+    """C5 `import_batches` + `import_rows` (R-DEC-62), tenant-scoped."""
+
+    model = ImportBatch
+
+    async def excel_batch(self, batch_id: uuid.UUID) -> ImportBatch | None:
+        stmt = self._scoped(select(ImportBatch)).where(
+            ImportBatch.id == batch_id, ImportBatch.kind == "excel_import"
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    def _rows(self, batch_id: uuid.UUID, status: str | None) -> Any:
+        stmt = select(ImportRow).where(
+            ImportRow.import_batch_id == batch_id, ImportRow.tenant_id == require_tenant()
+        )
+        return stmt if status in (None, "all") else stmt.where(ImportRow.status == status)
+
+    async def rows(
+        self, batch_id: uuid.UUID, *, status: str | None = None, limit: int | None = None,
+        offset: int = 0, desc: bool = False,
+    ) -> list[ImportRow]:  # fmt: skip
+        key = ImportRow.row_number.desc() if desc else ImportRow.row_number.asc()
+        stmt = self._rows(batch_id, status).order_by(key).offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def count_rows(self, batch_id: uuid.UUID, status: str | None) -> int:
+        sub = self._rows(batch_id, status).subquery()
+        return int((await self.db.execute(select(func.count()).select_from(sub))).scalar_one())
+
+    async def replace_rows(self, batch_id: uuid.UUID, rows: list[ImportRow]) -> None:
+        from sqlalchemy import delete
+
+        await self.db.execute(delete(ImportRow).where(
+            ImportRow.import_batch_id == batch_id, ImportRow.tenant_id == require_tenant()
+        ))  # fmt: skip
+        self.db.add_all(rows)
+
+
+class IncidentRepository(BaseRepository[CaptureIncident]):
+    """`idp.capture_incidents` — G4 wrong critical fields after commit (R-DEC-69)."""
+
+    model = CaptureIncident
+
+    async def page_where(
+        self, where: Sequence[ColumnElement[bool]], *, limit: int, offset: int, desc: bool
+    ) -> tuple[list[CaptureIncident], int]:
+        base = self._live().where(*where)
+        total = await self.db.execute(select(func.count()).select_from(base.subquery()))
+        key = CaptureIncident.reported_at.desc() if desc else CaptureIncident.reported_at.asc()
+        rows = await self.db.execute(base.order_by(key).limit(limit).offset(offset))
+        return list(rows.scalars()), int(total.scalar_one())

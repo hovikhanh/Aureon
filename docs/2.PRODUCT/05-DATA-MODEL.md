@@ -253,6 +253,8 @@ Nhóm bảng theo 05 §2.1: **nghiệp vụ** (C3/C4/C19 + `tenant_id` + `delete
 ### 2.7. Field-level đợt code — M1.5 (D03 Data Capture C1/C3/C5, Action Registry v2, lineage — đề xuất, chờ human duyệt bước S)
 
 > Migration `0018_capture_registry` (idp + platform.data_lineage) và `0019_capture_seed_doctypes` (data: doc type #2/#3/#4 + schema v1 published + rule). Cả hai reversible; `downgrade` của 0019 xóa schema/rule seed **chỉ khi** chưa có `extraction_jobs` tham chiếu (ngược lại raise). Thứ tự phụ thuộc: sau `0014..0017` của M1.3/M1.4.
+>
+> + `0020_capture_dq` (platform.dq_domain_scores) — làm rõ khi code; M1.6 dời sang 0021.
 
 **ENT-SourceDocument — `idp.source_documents`** (sửa)
 

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
+import { LineageChip } from "@/components/ai/LineageChip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoadError } from "./common";
@@ -31,7 +32,10 @@ export function TaskDetail({ id, caps, onClose, onOpen }: { id: string; caps: De
     <aside role="dialog" aria-modal="false" aria-label={t("title")} data-testid="task-detail"
       className="fixed inset-y-0 right-0 z-40 flex w-full max-w-lg flex-col gap-3 overflow-y-auto border-l bg-card p-5 shadow-xl">
       <div className="flex items-start justify-between gap-2">
-        <h2 className="text-lg font-semibold" data-testid="task-detail-title">{task?.title ?? t("title")}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold" data-testid="task-detail-title">{task?.title ?? t("title")}</h2>
+          {task?.source_document_id && <LineageChip entity="execution.tasks" id={task.id} />}
+        </div>
         <Button size="icon" variant="ghost" onClick={onClose} aria-label={t("close")} data-testid="task-detail-close"><X className="h-4 w-4" /></Button>
       </div>
       {q.isError && <p role="alert" className="text-sm text-danger">{t("notFound")}</p>}

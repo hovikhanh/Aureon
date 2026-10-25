@@ -18,6 +18,7 @@ import { WORK_ROUTES } from "./work";
 import { PROJECT_ROUTES } from "./work-projects";
 import { WORKFLOW_ROUTES } from "./workflow";
 import { GOALS_ROUTES } from "./goals";
+import { CAPTURE_ROUTES } from "./capture";
 
 export interface MockRequest {
   method: string;
@@ -111,6 +112,7 @@ export const ROUTES: readonly Route[] = [
   ...WORKFLOW_ROUTES,
   // M1.4 goals (T-626F..T-628F): strategy tree, KPI, OKR, check-ins.
   ...GOALS_ROUTES,
+  ...CAPTURE_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

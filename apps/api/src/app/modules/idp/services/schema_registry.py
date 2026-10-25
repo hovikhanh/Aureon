@@ -1,6 +1,9 @@
-"""Extraction-schema catalog bootstrap (04 §5, ENT-DocumentType / ExtractionSchema /
-ValidationRule). Admin edits these at runtime (US-DC-008); for the pipeline to run on a fresh
-DB we seed a minimal published catalog idempotently.
+"""Extraction-schema registry (04 §5, ENT-DocumentType / ExtractionSchema / ValidationRule).
+
+The DB is the source of truth (T-634): `schema_for_code` returns the doc type's
+`current_schema_id` (the published schema Admin last published, EP-DC-32). The hard-coded
+INVOICE / OTHER dicts below and `catalog.SEED_TYPES` (#2/#3/#4, migration 0019) are only seed
+data — `_ensure` creates a missing seed type idempotently so the pipeline runs on a fresh DB.
 
 `FIELD_DEFS` encode the 04 §5 field result contract: `name`, `value_type`, `required`,
 `is_critical` (trường trọng yếu — always reviewed, §7.3), `sensitivity_level`. `RULE_DEFS`
@@ -16,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.idp.models import DocumentType, ExtractionSchema, ValidationRule
+from app.modules.idp.services.catalog import SEED_TYPES
 
 # ---- INVOICE (04 §5.5) — the pipeline's reference doc type -------------------------------
 INVOICE_FIELDS: list[dict[str, Any]] = [
@@ -68,7 +72,10 @@ async def _ensure(
     sensitivity: int,
     fields: list[dict[str, Any]],
     rules: list[dict[str, Any]],
+    action_names: list[str] | None = None,
+    keywords: list[str] | None = None,
 ) -> uuid.UUID:
+    action_names = action_names or []
     dt = (
         await db.execute(select(DocumentType).where(DocumentType.code == code))
     ).scalar_one_or_none()
@@ -81,6 +88,7 @@ async def _ensure(
             sensitivity_level=sensitivity,
             retention_years=10,
             is_active=True,
+            classifier_keywords=keywords or [],
             data_classification="INTERNAL",
         )
         db.add(dt)
@@ -94,13 +102,15 @@ async def _ensure(
             )
         )
     ).scalar_one_or_none()
+    if dt.current_schema_id is not None:  # Admin-managed from here on (DB = source of truth)
+        return dt.current_schema_id
     if schema is None:
         schema = ExtractionSchema(
             document_type_id=dt.id,
             schema_version=1,
             fields=fields,
             thresholds=_THRESHOLDS,
-            action_names=[],
+            action_names=action_names,
             status="published",
             data_classification="INTERNAL",
         )
@@ -132,6 +142,7 @@ async def ensure_invoice_schema(db: AsyncSession) -> uuid.UUID:
         sensitivity=2,
         fields=INVOICE_FIELDS,
         rules=INVOICE_RULES,
+        action_names=["ACT-create_invoice"],
     )
 
 
@@ -153,7 +164,28 @@ async def default_schema_id(db: AsyncSession) -> uuid.UUID:
     return await ensure_other_schema(db)
 
 
+async def ensure_seed_type(db: AsyncSession, code: str) -> uuid.UUID | None:
+    seed = next((t for t in SEED_TYPES if t["code"] == code), None)
+    if seed is None:
+        return None
+    return await _ensure(
+        db, code=code, name_vi=seed["name_vi"], name_en=seed["name_en"], pillars=seed["pillars"],
+        sensitivity=seed["sensitivity_level"], fields=seed["fields"], rules=seed["rules"],
+        action_names=seed["action_names"], keywords=seed["classifier_keywords"],
+    )  # fmt: skip
+
+
 async def schema_for_code(db: AsyncSession, code: str) -> uuid.UUID:
+    """Current published schema of doc type `code` (DB); unknown/unpublished → OTHER."""
+    current = (
+        await db.execute(
+            select(DocumentType.current_schema_id).where(
+                DocumentType.code == code, DocumentType.is_active.is_(True)
+            )
+        )
+    ).scalar_one_or_none()
+    if current is not None:
+        return current
     if code == "INVOICE":
         return await ensure_invoice_schema(db)
-    return await ensure_other_schema(db)
+    return await ensure_seed_type(db, code) or await ensure_other_schema(db)

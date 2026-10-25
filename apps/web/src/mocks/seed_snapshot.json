@@ -3137,6 +3137,14 @@
    "value": 89.2
   },
   {
+   "code": "METRIC-DQ-02",
+   "period_key": "2026-10",
+   "pillar": null,
+   "status": "critical",
+   "unit": "PCT",
+   "value": 0.0
+  },
+  {
    "code": "METRIC-FIN-01",
    "period_key": "2026-09",
    "pillar": "F",
@@ -3666,6 +3674,8 @@
    "hr:admin",
    "hr:read",
    "idp:admin",
+   "idp:read",
+   "idp:write",
    "platform:admin",
    "platform:read"
   ],
@@ -3892,7 +3902,9 @@
    "pillars": [],
    "role_ref": "ROLE-ADM",
    "scope_rules": {
-    "hr:read": "s"
+    "hr:read": "s",
+    "idp:read": "s",
+    "idp:write": "s"
    }
   },
   {

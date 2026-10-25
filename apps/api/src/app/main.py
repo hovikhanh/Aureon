@@ -13,7 +13,7 @@ from app.modules.dashboard.routes.router import router as dashboard_router
 from app.modules.execution.routes.router import module_router as execution_router
 from app.modules.finance.routes.router import router as finance_router
 from app.modules.hr.routes.router import router as hr_router
-from app.modules.idp.routes.router import router as idp_router
+from app.modules.idp.routes.router import module_router as idp_router
 from app.modules.platform.routes.health import router as health_router
 from app.modules.platform.routes.router import module_router as platform_router
 from app.modules.product.routes.router import router as product_router

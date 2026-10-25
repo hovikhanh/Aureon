@@ -14,7 +14,7 @@ from app.core.deps import Principal
 from app.modules.idp.models import ExtractionJob, SourceDocument
 from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import ExtractionResultOut, FieldResultOut
-from app.modules.idp.services.scope import document_visible
+from app.modules.idp.services.scope import document_visible, type_in_scope
 
 
 class IdpQueryService:
@@ -25,7 +25,7 @@ class IdpQueryService:
         doc = await SourceDocumentRepository(self.db).by_id(document_id)
         if doc is None or not self._visible(user, doc):
             return None
-        return doc
+        return doc if await type_in_scope(self.db, user, doc) else None
 
     async def get_extraction(
         self, user: Principal, document_id: uuid.UUID

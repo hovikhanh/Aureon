@@ -17,24 +17,27 @@ import asyncio
 import json
 import sys
 import time
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import select, update
+from tests.integration.idp.sample_docs import _pdf_with_text
 
-from app.core.config import get_config
 from app.core.base_model import DEFAULT_TENANT_ID
+from app.core.config import get_config
 from app.core.db import get_sessionmaker
-from app.core.tenant import tenant_scope
 from app.core.deps import Principal
 from app.core.model_gateway import ChatResponse
+from app.core.tenant import tenant_scope
 from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 from app.modules.auth.repositories import UserRepository
-from app.modules.idp.models import SourceDocument
+from app.modules.idp.models import ExtractedField, ExtractionJob, SourceDocument
+from app.modules.idp.schemas import FieldCorrectionIn, FieldPatchIn
 from app.modules.idp.services.commit_service import CommitService
 from app.modules.idp.services.pipeline import Pipeline
+from app.modules.idp.services.review_service import ReviewService
 from app.modules.idp.services.upload_service import UploadFile, UploadService
-from tests.integration.idp.sample_docs import _pdf_with_text
 
 
 class _FixtureInvoiceGateway:
@@ -67,27 +70,53 @@ async def main(*, commit: bool = False) -> None:
     async with get_sessionmaker()() as db:
         # Upload as the seeded reviewer so the doc is in that reviewer's department queue
         # (EP-28 is department-scoped, 04 §8.2; REV has a department since seed v3, T-603b).
-        rev = await UserRepository(db).by_email("reviewer@abc.demo")
+        # `--commit`: the CFO (DIR khối F — idp:approve + finance:write) uploads and approves,
+        # so approve commits at once (R-DEC-61: REV lacks finance:write → approve stays APPROVED).
+        email, role = ("cfo@abc.demo", "DIR") if commit else ("reviewer@abc.demo", "REV")
+        rev = await UserRepository(db).by_email(email)
         if rev is None:
-            raise SystemExit("reviewer@abc.demo missing — run the seed first")
+            raise SystemExit(f"{email} missing — run the seed first")
         user = Principal(
             user_id=rev.id,
-            role="REV",
-            permissions=frozenset(ROLE_PERMISSIONS["REV"]),
+            role=role,
+            permissions=frozenset(ROLE_PERMISSIONS[role]),
             department_id=rev.department_id,
             tenant_id=DEFAULT_TENANT_ID,
         )
-        f = UploadFile(filename=f"hoa-don-{number}.pdf", content_type="application/pdf", chunks=iter([data]))
+        f = UploadFile(
+            filename=f"hoa-don-{number}.pdf", content_type="application/pdf", chunks=iter([data])
+        )
         res = await UploadService(db).upload(user, [f])
         doc_id = res.document_ids[0]
         outcome = await Pipeline(db, _FixtureInvoiceGateway(number)).run(doc_id)
         await db.commit()
         status = outcome.status
         if commit:  # `--commit`: approve through EP-31's service (Action Registry → finance)
+            # FR-DC-16 / R-DEC-69: critical fields must be confirmed one by one before approve
+            await _confirm_critical(db, user, doc_id)
             await CommitService(db).approve(user, doc_id, comment="e2e lineage fixture")
             await db.commit()
-            status = "COMMITTED"
+            status = (await db.get(SourceDocument, doc_id)).status  # type: ignore[union-attr]
     print(json.dumps({"document_id": str(doc_id), "invoice_number": number, "status": status}))
+
+
+async def _confirm_critical(db: Any, user: Principal, doc_id: uuid.UUID) -> None:
+    """EP-29 open + EP-30 `confirm` for every critical field, as a reviewer would."""
+    review = ReviewService(db)
+    await review.open(user, doc_id)
+    ids = (
+        (
+            await db.execute(
+                select(ExtractedField.id)
+                .join(ExtractionJob, ExtractionJob.id == ExtractedField.extraction_job_id)
+                .where(ExtractionJob.source_document_id == doc_id, ExtractedField.is_critical)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    edits = [FieldCorrectionIn(field_id=i, action="confirm") for i in ids]
+    await review.patch_fields(user, doc_id, FieldPatchIn(fields=edits))
 
 
 async def cleanup() -> None:

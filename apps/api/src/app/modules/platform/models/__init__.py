@@ -244,10 +244,20 @@ class Report(BusinessModel):
 
 
 # ---------- append-only / technical ----------
-class DataLineage(LogModel):
+class DataLineage(LogModel, TenantMixin):
+    """ENT-DataLineage — append-only; M1.5 (05 §2.7, R-DEC-64): `tenant_id`, the
+    `idp.document_actions` row that wrote it (logical ref, no cross-schema FK) and `row_index`."""
+
     __tablename__ = "data_lineage"
     __table_args__ = (
         Index("ix_data_lineage_target", "target_schema", "target_table", "target_id"),
+        Index(
+            "ix_data_lineage_target_live",
+            "target_schema",
+            "target_table",
+            "target_id",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
         {"schema": S},
     )
 
@@ -263,6 +273,32 @@ class DataLineage(LogModel):
     contribution: Mapped[Any] = measure()
     action_name: Mapped[str | None] = txt(nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    document_action_id: Mapped[uuid.UUID | None] = sr(index=False)
+    row_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class DqDomainScore(LogModel, TenantMixin):
+    """ENT-DQDomainScore (05 §2.7, R-DEC-68) — METRIC-DQ-01 per-domain breakdown, one row per
+    (tenant, domain, month); upserted by the platform metric provider."""
+
+    __tablename__ = "dq_domain_scores"
+    __table_args__ = (
+        *[CheckConstraint(f"{c} BETWEEN 0 AND 100", name=f"{c}_range")
+          for c in ("completeness", "accuracy", "freshness", "score")],
+        CheckConstraint("rows >= 0", name="rows_nonneg"),
+        Index("uq_dq_domain_scores_tenant_domain_period", "tenant_id", "domain", "period_key",
+              unique=True),
+        {"schema": S},
+    )  # fmt: skip
+
+    domain: Mapped[str] = txt()
+    period_key: Mapped[str] = txt()
+    completeness: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    accuracy: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    freshness: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    score: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AuditLog(LogModel):

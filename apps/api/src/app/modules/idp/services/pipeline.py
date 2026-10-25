@@ -37,26 +37,32 @@ from app.modules.idp.models import (
     ValidationRule,
 )
 from app.modules.idp.repositories import SourceDocumentRepository
-from app.modules.idp.services.extractor import Extractor
+from app.modules.idp.services.classifier import Classifier, invoice_score
+from app.modules.idp.services.extractor import Extractor, classification_for_sensitivity
 from app.modules.idp.services.malware_scan import MalwareScanService
 from app.modules.idp.services.preprocess import extract_pages
+from app.modules.idp.services.prompt_safety import looks_injected
 from app.modules.idp.services.schema_registry import schema_for_code
 from app.modules.idp.services.validator import Validator
 
 STP_DOC_CONFIDENCE = 0.95
 STP_REQUIRED_FIELD_MIN = 0.90
 
-# Minimal keyword classifier (04 §3 step 4). Full LLM classification + 9 doc types is T-403/
-# a later sub-sprint; S4a routes to INVOICE when the text is clearly an invoice, else OTHER.
-_INVOICE_HINTS = ("hoa don", "hóa đơn", "invoice", "vat", "gtgt", "mst", "tien thue")
-
 
 def classify(text: str) -> tuple[str, float]:
-    low = text.lower()
-    hits = sum(1 for h in _INVOICE_HINTS if h in low)
-    if hits >= 2:
-        return "INVOICE", round(min(0.90 + 0.02 * hits, 0.99), 4)
-    return "OTHER", 0.50
+    """Built-in INVOICE hint scorer (no DB) — kept for the unit tests of the v2.1 path."""
+    score = invoice_score(text)
+    return ("INVOICE", score) if score else ("OTHER", 0.50)
+
+
+def _header_row(pages: list[Any]) -> list[str] | None:
+    """C5 sheet/CSV header = first non-empty line of the first tabular page (tab separated)."""
+    for p in pages:
+        if p.sheet_name is not None or "\t" in (p.text_content or ""):
+            for line in (p.text_content or "").splitlines():
+                if line.strip():
+                    return line.split("\t")
+    return None
 
 
 @dataclass
@@ -112,10 +118,20 @@ class Pipeline:
             )
         await self.db.flush()
 
+        # Instruction-like content stays data (no tool calling); it only flags + forces review.
+        doc.suspicious_content = looks_injected(pre.full_text)
+
         # --- step 4: classification (pick the doc type + its published schema) ---
         doc.status = "CLASSIFYING"
         await self.db.flush()
-        type_code, class_conf = classify(pre.full_text)
+        preselected = await self._preselected_code(doc)
+        level = classification_for_sensitivity(doc.sensitivity_level)
+        result = await Classifier(self.db, self.gateway).classify(
+            pre.full_text, preselected=preselected, headers=_header_row(pre.pages),
+            document_id=doc.id, classification=level,
+        )  # fmt: skip
+        type_code, class_conf = result.code, result.confidence
+        self._class_conf = class_conf
         schema_id = await schema_for_code(self.db, type_code)
         dt = await self._document_type_of(schema_id)
         doc.document_type_id = dt.id
@@ -154,7 +170,7 @@ class Pipeline:
             self.db.add(
                 ExtractedField(
                     extraction_job_id=job.id,
-                    document_page_id=pages.get(1),
+                    document_page_id=_page_of(fr.source_location, pages),
                     field_name=fr.field_name,
                     row_index=fr.row_index,
                     value_type=fr.value_type,
@@ -173,6 +189,8 @@ class Pipeline:
 
         # --- step 9: routing ---
         decision, reasons = self._route(extraction, validation, fields_spec)
+        if doc.suspicious_content:
+            decision, reasons = "REVIEW", [*reasons, "SUSPICIOUS_CONTENT"]
         job.routing_decision = decision
         job.routing_reasons = reasons
         job.status = "SUCCEEDED"
@@ -252,6 +270,8 @@ class Pipeline:
         required = {f["name"] for f in fields_spec if f.get("required")}
         if any(f.is_critical for f in extraction.fields):
             reasons.append("CRITICAL_FIELD")
+        if getattr(self, "_class_conf", 1.0) < STP_DOC_CONFIDENCE:  # R-DEC-65 → reviewer
+            reasons.append("LOW_CLASSIFICATION_CONFIDENCE")
         if extraction.document_confidence < STP_DOC_CONFIDENCE:
             reasons.append("LOW_DOCUMENT_CONFIDENCE")
         for f in extraction.fields:
@@ -260,6 +280,13 @@ class Pipeline:
         if not validation.ok:
             reasons.append("VALIDATION_FAILED")
         return ("REVIEW" if reasons else "STP"), reasons
+
+    async def _preselected_code(self, doc: SourceDocument) -> str | None:
+        if not doc.type_preselected or doc.document_type_id is None:
+            return None
+        return (await self.db.execute(
+            select(DocumentType.code).where(DocumentType.id == doc.document_type_id)
+        )).scalar_one_or_none()  # fmt: skip
 
     # -------- persistence helpers --------
     async def _get_doc(self, document_id: uuid.UUID) -> SourceDocument:
@@ -359,3 +386,11 @@ def enqueue_pipeline(document_id: uuid.UUID) -> None:
         process_document.delay(str(document_id), tenant)
     except Exception:
         return
+
+
+def _page_of(location: dict[str, Any] | None, pages: dict[int, uuid.UUID]) -> uuid.UUID | None:
+    """T-637: the field's own page (`source_location.page`), else page 1 (single-page docs)."""
+    page = (location or {}).get("page")
+    if isinstance(page, int) and page in pages:
+        return pages[page]
+    return pages.get(1)

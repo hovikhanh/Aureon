@@ -78,6 +78,11 @@ class StructureService:
                 out |= await self.depts.subtree_ids(root)
         return out
 
+    # ---------- public: lookups for the Action Registry v2 (T-636) ----------
+    async def team_id_by_code(self, department_id: uuid.UUID, code: str) -> uuid.UUID | None:
+        team = await self.teams.by_department_code(department_id, code)
+        return team.id if team is not None else None
+
     # ---------- shared ----------
     async def _record(
         self, entity: str, table: str, obj: Any, change: str, verb: str,
@@ -122,6 +127,14 @@ class StructureService:
         seen = await self._visible_departments(user)
         if seen is not None and department_id not in seen:
             raise deny("department", department_id=department_id)
+
+    async def get_department_visible(self, user: Principal, id_: uuid.UUID) -> Any:
+        """Scoped single-department read (lineage EP-DC-26): 404 / 403 like EP-ORG reads."""
+        dept = await self.depts.get(id_)
+        if dept is None:
+            raise NotFoundError("department not found")
+        await self._check_visible(user, dept.id)
+        return dept
 
     # ---------- organizations (EP-ORG-01..05) ----------
     async def list_orgs(
@@ -212,7 +225,9 @@ class StructureService:
         await self._check_visible(user, team.department_id)
         return TeamOut.model_validate(team)
 
-    async def create_team(self, user: Principal, body: TeamCreate) -> TeamOut:
+    async def create_team(
+        self, user: Principal, body: TeamCreate, *, source: str = "MANUAL"
+    ) -> TeamOut:
         dept = await self._department(body.department_id)
         await self._employee(body.lead_employee_id, "lead_employee_id")
         if await self.teams.by_code_live(body.code):
@@ -221,7 +236,7 @@ class StructureService:
         if start < dept.valid_from:
             raise _rule("valid_from before the department", "before_parent", "valid_from")
         team = Team(department_id=dept.id, code=body.code, name=body.name,
-                    lead_employee_id=body.lead_employee_id, valid_from=start, source="MANUAL",
+                    lead_employee_id=body.lead_employee_id, valid_from=start, source=source,
                     created_by=user.user_id)  # fmt: skip
         self.db.add(team)
         await self._flush("team")
@@ -312,14 +327,16 @@ class StructureService:
         if await self.positions.get(id_) is None:
             raise _rule("position not found", "not_found", "reports_to_position_id")
 
-    async def create_position(self, user: Principal, body: PositionCreate) -> PositionOut:
+    async def create_position(
+        self, user: Principal, body: PositionCreate, *, source: str = "MANUAL"
+    ) -> PositionOut:
         await self._department(body.department_id)
         await self._reports_to(body.reports_to_position_id)
         if await self.positions.code_taken(body.code):
             raise DuplicateResourceError("position code exists", details={"code": body.code})
         pos = Position(department_id=body.department_id, code=body.code, title=body.title,
                        level=body.level, headcount_budget=body.headcount_budget,
-                       reports_to_position_id=body.reports_to_position_id, source="MANUAL",
+                       reports_to_position_id=body.reports_to_position_id, source=source,
                        created_by=user.user_id)  # fmt: skip
         self.db.add(pos)
         await self._flush("position")

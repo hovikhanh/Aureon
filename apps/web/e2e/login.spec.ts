@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { devPassword, isMockProject, login, loginAs, pickDemoAccount } from "./helpers";
 import { DEMO_ACCOUNTS } from "../src/lib/demo-accounts";
 import { MOCK_LOGIN_PASSWORD } from "./support/mock";

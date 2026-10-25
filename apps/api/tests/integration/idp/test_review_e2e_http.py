@@ -82,7 +82,7 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
     detail = d.json()["data"]
     assert len(detail["fields"]) == 8
     critical = [f for f in detail["fields"] if f["is_critical"]]
-    assert len(critical) == 3
+    assert len(critical) == 4  # money ×3 + seller_tax_code (R-DEC-69)
 
     # open the review (soft lock) before editing
     o = await api.http.request(
@@ -104,7 +104,8 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
                     "action": "correct",
                     "value": "Cong ty ABC (da sua)",
                     "reason": "OCR mismatch",
-                }
+                },
+                *({"field_id": f["id"], "action": "confirm"} for f in critical),
             ]
         },
         headers=rev_headers,
@@ -121,7 +122,20 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
         headers=api.headers("REVIEWER", user_id=reviewer, idem=True),
     )
     assert ap.status_code == 200, ap.text
-    body = ap.json()["data"]
+    # R-DEC-61: REV approves but lacks `finance:write` → APPROVED + pending permission
+    assert ap.json()["data"]["document"]["status"] == "APPROVED"
+    assert isinstance(ap.json()["data"]["document"]["version"], int)  # R-DEC-60bis
+    assert ap.json()["data"]["actions"] == []
+    assert ap.json()["meta"]["pending_permissions"] == ["finance:write"]
+
+    # --- step 6b: EP-DC-23 — a finance writer (CFO) commits the APPROVED document ---
+    cm = await api.http.request(
+        "POST", f"/api/v1/data-capture/documents/{doc_id}/commit",
+        json={"version": ap.json()["data"]["document"]["version"]},
+        headers=api.headers("CFO", idem=True),
+    )  # fmt: skip
+    assert cm.status_code == 200, cm.text
+    body = cm.json()["data"]
     assert body["document"]["status"] == "COMMITTED"
     assert body["actions"][0]["action_name"] == "ACT-create_invoice"
     inv_id = body["actions"][0]["ids"][0]

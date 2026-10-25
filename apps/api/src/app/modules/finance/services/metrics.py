@@ -12,6 +12,7 @@ from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.capture_share import CaptureSource, register_capture_source
 from app.core.clock import month_key, month_range, shift_month
 from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
@@ -114,3 +115,5 @@ register_dq(
     DqSource(Expense, ("department_id",), (lambda m: m.amount <= 0,)),
     DqSource(Revenue, ("client_id",)),
 )  # fmt: skip
+
+register_capture_source("finance", CaptureSource(Invoice))  # METRIC-DQ-02 (R-DEC-68)

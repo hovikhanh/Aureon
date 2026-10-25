@@ -1,4 +1,4 @@
-import { expect, request, test, type Page } from "@playwright/test";
+import { expect, request, test, type Page } from "./fixtures";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import path from "node:path";

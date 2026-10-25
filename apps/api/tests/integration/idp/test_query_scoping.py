@@ -48,6 +48,9 @@ async def test_reader_sees_own_and_same_department_only(db_session, idp_store) -
 
 
 async def test_pipeline_gateway_factory_and_public_service(db_session) -> None:
+    import importlib
+
+    importlib.import_module("app.modules.ai")  # composition root registers the call-log sink
     from app.modules.idp.services import IdpService
     from app.modules.idp.services.gateway import pipeline_gateway
 
@@ -56,7 +59,8 @@ async def test_pipeline_gateway_factory_and_public_service(db_session) -> None:
     assert IdpService(db_session).db is db_session
 
 
-async def test_admin_sees_everything(db_session, idp_store) -> None:
+async def test_admin_sees_only_structure_doc_types(db_session, idp_store) -> None:
+    """R-DEC-76: ADM `idp:read` scope `s` — a non-#4 document is invisible (404 upstream)."""
     submitter = _emp(uuid.uuid4())
     r = await UploadService(db_session).upload(submitter, [_file()])
     admin = Principal(
@@ -65,7 +69,10 @@ async def test_admin_sees_everything(db_session, idp_store) -> None:
         permissions=frozenset(ROLE_PERMISSIONS["ADM"]),
         department_id=None,
     )
-    assert await IdpQueryService(db_session).get_document(admin, r.document_ids[0]) is not None
+    assert await IdpQueryService(db_session).get_document(admin, r.document_ids[0]) is None
+    rev = frozenset(ROLE_PERMISSIONS["REV"])
+    no_dept = Principal(user_id=uuid.uuid4(), role="REV", permissions=rev, department_id=None)
+    assert await IdpQueryService(db_session).get_document(no_dept, r.document_ids[0]) is not None
 
 
 async def test_ceo_with_a_department_sees_every_department(db_session, idp_store) -> None:

@@ -45,6 +45,43 @@ class UploadResult:
     duplicates: list[uuid.UUID]
 
 
+@dataclass
+class StoredFile:
+    storage_key: str
+    mime: str
+    size: int
+    sha256: str
+    prefix: bytes = b""
+
+
+def store_stream(store: ObjectStore, f: UploadFile, max_mb: int) -> StoredFile:
+    """Stream `f` (1 MB chunks) into the object store: size cap → `413`, sha-256, MIME
+    whitelist + magic bytes → `415` (04 §15.1). Never holds the whole file in RAM."""
+    max_bytes = max_mb * 1024 * 1024
+    sha = hashlib.sha256()
+    size = 0
+    prefix = b""
+
+    def _counting() -> Iterator[bytes]:
+        nonlocal size, prefix
+        for chunk in f.chunks:
+            size += len(chunk)
+            if size > max_bytes:
+                raise AppError(f"file exceeds {max_mb} MB", code="FILE_TOO_LARGE",
+                               status_code=413, details={"max_mb": max_mb})  # fmt: skip
+            if len(prefix) < MAX_PREFIX:
+                prefix += chunk[: MAX_PREFIX - len(prefix)]
+            sha.update(chunk)
+            yield chunk
+
+    storage_key = store.put_stream(_counting(), bucket=DEFAULT_BUCKET)
+    mime = resolve_mime(f.filename, f.content_type, prefix)
+    if mime is None:
+        raise AppError(f"unsupported file type: {f.filename}", code="UNSUPPORTED_MEDIA_TYPE",
+                       status_code=415, details={"filename": f.filename})  # fmt: skip
+    return StoredFile(storage_key, mime, size, sha.hexdigest(), prefix)
+
+
 class UploadService:
     def __init__(self, db: AsyncSession, store: ObjectStore | None = None) -> None:
         self.db = db
@@ -57,6 +94,7 @@ class UploadService:
         files: list[UploadFile],
         *,
         channel: str = "C3",
+        document_type: str | None = None,
     ) -> UploadResult:
         if not files:
             raise AppError("no files in request", code="BAD_REQUEST", status_code=400)
@@ -68,6 +106,7 @@ class UploadService:
                 details={"max_files": self.cfg.idp_max_files_per_upload},
             )
 
+        preselected = await self._preselected(document_type)
         batch: ImportBatch | None = None
         if len(files) > 1:
             batch = ImportBatch(
@@ -82,6 +121,9 @@ class UploadService:
         result = UploadResult([], [], batch.id if batch else None, [])
         for f in files:
             doc, job = await self._ingest_one(user, f, channel=channel, batch=batch)
+            if preselected is not None:  # FR-DC-09: classify step skipped by the pipeline
+                doc.type_preselected = True
+                doc.document_type_id = preselected
             result.document_ids.append(doc.id)
             result.job_ids.append(job.id)
             if doc.status == "DUPLICATE" and doc.duplicate_of_id is not None:
@@ -96,37 +138,9 @@ class UploadService:
         channel: str,
         batch: ImportBatch | None,
     ) -> tuple[SourceDocument, ExtractionJob]:
-        max_bytes = self.cfg.idp_max_file_size_mb * 1024 * 1024
-        sha = hashlib.sha256()
-        size = 0
-        prefix = b""
-
-        def _counting() -> Iterator[bytes]:
-            nonlocal size, prefix
-            for chunk in f.chunks:
-                size += len(chunk)
-                if size > max_bytes:
-                    raise AppError(
-                        f"file exceeds {self.cfg.idp_max_file_size_mb} MB",
-                        code="FILE_TOO_LARGE",
-                        status_code=413,
-                        details={"max_mb": self.cfg.idp_max_file_size_mb},
-                    )
-                if len(prefix) < MAX_PREFIX:
-                    prefix += chunk[: MAX_PREFIX - len(prefix)]
-                sha.update(chunk)
-                yield chunk
-
-        storage_key = self.store.put_stream(_counting(), bucket=DEFAULT_BUCKET)
-        mime = resolve_mime(f.filename, f.content_type, prefix)
-        if mime is None:
-            raise AppError(
-                f"unsupported file type: {f.filename}",
-                code="UNSUPPORTED_MEDIA_TYPE",
-                status_code=415,
-                details={"filename": f.filename},
-            )
-        digest = sha.hexdigest()
+        stored = store_stream(self.store, f, self.cfg.idp_max_file_size_mb)
+        storage_key, mime, size = stored.storage_key, stored.mime, stored.size
+        digest = stored.sha256
         original = await self._find_duplicate(digest)
 
         now = datetime.now(UTC)
@@ -180,6 +194,24 @@ class UploadService:
             },
         )
         return doc, job
+
+    async def _preselected(self, code: str | None) -> uuid.UUID | None:
+        """EP-DC-01 `document_type`: an active doc type code, else `422 VALIDATION_ERROR`."""
+        if code is None:
+            return None
+        from sqlalchemy import select
+
+        from app.core.errors import ValidationError as AppValidationError
+        from app.modules.idp.models import DocumentType
+
+        stmt = select(DocumentType.id).where(
+            DocumentType.code == code, DocumentType.is_active.is_(True)
+        )
+        dt_id = (await self.db.execute(stmt)).scalar_one_or_none()
+        if dt_id is None:
+            raise AppValidationError("unknown or inactive document type",
+                                     details={"fields": ["document_type"]})  # fmt: skip
+        return dt_id
 
     async def _find_duplicate(self, digest: str) -> SourceDocument | None:
         return await SourceDocumentRepository(self.db).first_original_by_sha(digest)
