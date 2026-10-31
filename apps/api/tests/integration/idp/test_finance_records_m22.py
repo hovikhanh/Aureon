@@ -101,3 +101,37 @@ async def test_nonpositive_amount_rejected_no_write(db_session, idp_store) -> No
     exp = (await db_session.execute(select(Expense).where(
         Expense.title == _EXP_TITLE, Expense.deleted_at.is_(None)))).scalars().all()  # fmt: skip
     assert exp == [] and await _live_cash(db_session, _P3) == []
+
+
+async def test_expense_nonpositive_amount_rejected(db_session, idp_store) -> None:
+    cfo = _p("DIR", ("F",))
+    # revenue ok, expense amount <= 0 → ACT-record_expense rejects, whole doc rolls back
+    steps = build_plan(_ACTS, _FIELDS, _row(_P3, expense_amount=0))
+    with pytest.raises(ActionRejectedError) as exc:
+        await run_all(db_session, cfo, steps, ActionContext(source="IDP"))
+    assert exc.value.details["action_name"] == "ACT-record_expense"
+    rev = (await db_session.execute(select(Revenue).where(
+        Revenue.period_key == _P3, Revenue.deleted_at.is_(None)))).scalars().all()  # fmt: skip
+    assert rev == []
+
+
+async def test_cash_negative_balance_rejected(db_session, idp_store) -> None:
+    cfo = _p("DIR", ("F",))
+    steps = build_plan(_ACTS, _FIELDS, _row(_P3, closing_balance=-1))
+    with pytest.raises(ActionRejectedError) as exc:
+        await run_all(db_session, cfo, steps, ActionContext(source="IDP"))
+    assert exc.value.details["action_name"] == "ACT-record_cash_balance"
+    assert await _live_cash(db_session, _P3) == []
+
+
+async def test_record_revenue_missing_date_rejected(db_session, idp_store) -> None:
+    # only ACT-record_revenue, no period/recognized_on → validate returns a `no_date` row error
+    cfo = _p("DIR", ("F",))
+    vals: list[tuple[str, int | None, object]] = [
+        ("revenue_amount", 0, 500_000_000),
+        ("revenue_category", 0, "service"),
+    ]
+    steps = build_plan(["ACT-record_revenue"], _FIELDS, vals)
+    with pytest.raises(ActionRejectedError) as exc:
+        await run_all(db_session, cfo, steps, ActionContext(source="IDP"))
+    assert exc.value.details["action_name"] == "ACT-record_revenue"
