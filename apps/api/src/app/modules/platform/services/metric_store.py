@@ -13,7 +13,7 @@ Only company-scope readings drive alerts (one alert per metric+period: 05 UQ).
 
 import logging
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -210,8 +210,48 @@ class MetricStore:
                 "escalated": escalated,
             },
         )  # fmt: skip
+        await notify_alert(self.db, m, a)
 
 
 def _message_params(m: Metric, r: MetricReading) -> dict[str, Any]:
     value = "—" if r.value is None else f"{r.value:g}"
     return {"metric_code": m.code, "value": value, "period_key": r.period_key}
+
+
+def _iso_week_start(now: datetime) -> datetime:
+    """Monday 00:00 UTC of `now`'s ISO week — dedupe window (alert_id, recipient, ISO week)."""
+    monday = now.date() - timedelta(days=now.isoweekday() - 1)
+    return datetime(monday.year, monday.month, monday.day, tzinfo=UTC)
+
+
+async def _alert_recipients(db: AsyncSession, pillar: str | None) -> list[uuid.UUID]:
+    """CEO + DIR phụ trách khối của `pillar` (R-DEC-88). MGR chỉ cho alert cấp phòng (chưa có)."""
+    from app.modules.auth.services.auth_service import AuthService
+
+    auth = AuthService(db)
+    out = list(await auth.users_with_roles(["CEO"]))
+    for d in await auth.approver_candidates(["DIR"]):
+        if not d.scope_pillars or (pillar is not None and pillar in d.scope_pillars):
+            out.append(d.user_id)
+    return out
+
+
+async def notify_alert(db: AsyncSession, m: Metric, a: Alert) -> None:
+    """In-tx Notification (kind `alert`) cho CEO + DIR khối, dedupe theo tuần ISO (R-DEC-88).
+
+    Không phát event mới (§9.2 giữ nguyên). Tái dùng notification_service + auth (role→user).
+    """
+    from app.modules.platform.services.notification_service import NotificationService
+
+    ns = NotificationService(db)
+    since = _iso_week_start(datetime.now(UTC))
+    link = f"/dashboard/metrics/{m.code}"
+    for uid in dict.fromkeys(await _alert_recipients(db, m.pillar)):
+        if await ns.already_sent(uid, kind="alert", since=since, ref_table="alerts", ref_id=a.id):
+            continue
+        await ns.create(
+            recipient_id=uid, kind="alert",
+            title=f"alert.{m.alert_code.lower().replace('-', '_')}.{a.severity.lower()}",
+            body=f"{m.name_vi}: {a.message_vi}", link=link,
+            ref_schema="platform", ref_table="alerts", ref_id=a.id,
+        )
