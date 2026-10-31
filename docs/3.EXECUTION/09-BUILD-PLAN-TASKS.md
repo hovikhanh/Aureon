@@ -344,19 +344,25 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 ### 6.8. M2.1 — D28 Health metrics v3 + Metric Store + 3 cấp dashboard (nhánh `v3/m2.1-home`)
 
-**FE:** `/home` theo role (03 §1.1, 06 §5.1) — **Executive**: dòng tóm tắt 1 câu, 4 ô sức khỏe CEO tự chọn (mặc định doanh thu, runway, OKR công ty, task trễ), "Cần anh quyết", "Rủi ro", "AI đã làm", panel AI phải, Strategy Execution Index; **Department**: KPI/OKR đơn vị, heatmap workload, dự án trễ, task đến hạn; **Employee**: task, mục tiêu, check-in, lịch. Nhãn độ tươi; drill-down P01 → bản ghi → tài liệu gốc; mỗi widget một query.
+**FE:** `/home` theo role (03 §1.1, 06 §5.1) — **Executive**: dòng tóm tắt 1 câu, 4 ô sức khỏe CEO tự chọn (mặc định doanh thu, runway, KPI/OKR đúng kỳ, task trễ), "Cần anh quyết", "Rủi ro", "AI đã làm", panel AI phải (khung M2.4), Strategy Execution Index; **Department**: KPI/OKR đơn vị, heatmap workload, dự án trễ, task đến hạn; **Employee**: task, mục tiêu, check-in, lịch (khung M3.1). Nhãn độ tươi; drill-down P01 → bản ghi → tài liệu gốc; mỗi widget một query.
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-701 | Catalog METRIC v3 (FIN/CUS/OPS/PPL/STR/DQ) đủ danh sách P0 skeleton §10 + bảng ánh xạ 32 METRIC v2.1 | ☐ |
-| T-702 | Ngưỡng là cấu hình; freshness theo `SLA_FRESHNESS_*` | ☐ |
-| T-703 | Provider metric mới (execution/okr/kpi/decision) | ☐ |
-| T-704 | `GET /reporting/dashboards/{executive|department|employee}` theo scope; `Cache-Control: private, max-age=60` + `Vary: Authorization` | ☐ |
-| T-705 | Cài đặt 4 ô của CEO (user preference) | ☐ |
-| T-706 | Alert ngưỡng → Notification | ☐ |
-| T-707 | Xác minh seed có ≥ 1 chỉ số ở ngưỡng cảnh báo (08 §5) | ☐ |
-| T-708 | E2E `home-*.spec.ts` 3 cấp × role | ☐ |
-| T-709 | Đóng phase | ☐ |
+**Spec lock M2.1 (R-DEC-82..88 — human duyệt bước S 2026-10-31):** 10 §7.2.6 (EP-RPT-01..05, `MetricValueOut` thêm `group`/`freshness`, SEI → `METRIC-STR-02`), 03 §1.1/§4/§4.1, 06 §3.4 (SCR-40 đầy đủ), 13 R-DEC-82..88, 14 §1.11 (TC-M21-01..14), skeleton §10.
+
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-701 | Catalog v3: thêm `group` (property từ `pillar`+`source_module`) cho 33 chỉ số; **đổi SEI `METRIC-RSK-06`→`METRIC-STR-02`** + migration data-only `0022` (reversible); giữ `p1_frozen` Risk/Product | `platform/services/catalog.py`, `alembic/versions/0022_m21_metric_store.py` | R-DEC-82/83, 03 §4.1 | TC-M21-01, 02 | ☐ |
+| T-702 | `MetricValueOut` + `group`/`freshness`; `SLA_FRESHNESS_<DOMAIN>_HOURS` (ConfigService + `.env.example`); `metric_query` gắn freshness + `is_stale` | `platform/services/metric_query.py`, `dashboard/schemas/__init__.py`, `core/config.py`, `.env.example` | R-DEC-86 | TC-M21-03, 10 | ☐ |
+| T-703 | `ReportingService` (3 cấp) — executive/department/employee theo scope (`visible_pillars`+`org_scope`); EP-RPT-01..03 routes; summary_line từ MetricValue (grounding) | `dashboard/services/reporting_service.py` (mới), `dashboard/routes/reporting.py` (mới), `dashboard/routes/router.py`, `dashboard/schemas/__init__.py` | EP-RPT-01..03, R-DEC-85 | TC-M21-04, 05, 06 | ☐ |
+| T-704 | 4 ô preference: `platform.user_preferences` (migration `0022`) + `UserPreferenceService` public; EP-RPT-04/05 (validate catalog + scope + version); audit `platform.preference_update` | `platform/models/__init__.py`, `platform/services/preference_service.py` (mới), `dashboard/routes/reporting.py` | EP-RPT-04/05, R-DEC-87 | TC-M21-07, 08 | ☐ |
+| T-705 | Alert→Notification: consumer metric sinh/nâng mức alert P0 → Notification scope (CEO+DIR khối+MGR phòng), dedupe ISO week, in-tx | `platform/services/metrics.py`, `notification_service`, `core/org_scope.py` | R-DEC-88 | TC-M21-09 | ☐ |
+| T-706 | Seed: bảo đảm ≥ 1 chỉ số mỗi cấp ở ngưỡng cảnh báo/critical để dashboard + alert có dữ liệu demo | `apps/api/src/app/seed/*`, `08 §4` | 08 §4 | TC-M21-11 | ☐ |
+| T-707F | SCR-40 FE đầy đủ 3 cấp trên mock: layout theo role, 4 ô + dialog tùy chỉnh, freshness badge, khối Cần quyết/Rủi ro/AI đã làm; i18n `home.*`; Vitest | `apps/web/src/app/(app)/home/page.tsx`, `features/home/**`, `features/dashboard/*`, `mocks/reporting.ts` (mới), `messages/{vi,en}.json` | SCR-40 | TC-M21-12 | ☐ |
+| T-708 | Nối FE↔BE (BFF real), contract/shared-types; E2E `home.spec.ts` (3 cấp × role, đổi 4 ô persist, redirect REV/ADM) mock+real | `apps/web/e2e/home.spec.ts`, `packages/shared-types/src/generated.ts`, `mocks/router.ts` | 09 §6.8 Exit | TC-M21-13 | ☐ |
+| T-709 | Đóng phase: full gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 (Passed) | — | 09 §6.8 Exit | TC-M21-14 | ☐ |
+
+**Thứ tự** (09 §6.0): S (Spec lock đã duyệt) → **C**: T-701 (catalog + migration `0022` trước — mọi provider/schema phụ thuộc) → T-702 (schema + config) → **B**: T-703, T-704, T-705 song song sau khi chốt schema; **F**: T-707F trên mock song song B sau khi chốt Pydantic schema → T-706 (seed) → **N**: T-708 (nối real + contract + E2E) → **R**: T-709 full test + coverage. File dùng chung (`dashboard/schemas`, `dashboard/routes/router.py`, `mocks/router.ts`, `messages/*.json`, `catalog.py`, migration `0022`) do coordinator gộp (09 §6.0bis).
+
+**Exit:** 3 cấp dashboard end-to-end trên project `real` (TC-M21-13); scope/preference/tenant/alert coverage ≥ 90% (TC-M21-04/05/07/08/09); SEI rename + user_preferences migration reversible (TC-M21-02/08); pytest + Vitest + contract + Playwright mock+real xanh; shared-types drift = 0 (TC-M21-14). **Điều kiện bắt đầu:** M1 đóng (tip `main` chứa M1.1→M1.6 + fix hậu-M1); nhánh `v3/m2.1-home` tách từ `main`.
 
 ### 6.9. M2.2 — D15 Finance Lite · D17 Sales Lite · D16 HR cơ bản (nhánh `v3/m2.2-business`)
 
@@ -520,6 +526,7 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** §6.8 M2.1 mở rộng bảng task sang `T | Việc | File chính | Spec | TC | Trạng thái` (T-701..T-709) + khối Spec lock (R-DEC-82..88) + dòng **Thứ tự** (S→C→B‖F→N→R) và **Exit**; đổi SEI → `METRIC-STR-02`, EP-RPT-01..05, `MetricValueOut` thêm `group`/`freshness`, 4 ô preference ở `platform.user_preferences`, alert→Notification, migration `0022`.
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §6.0bis quy trình chuỗi auto (R-DEC-38); §6.4–§6.7 thay bảng task bằng bảng mở rộng `T | Việc | File chính | Spec | TC | Trạng thái` (T-619S..T-625 M1.3, T-626S..T-633 M1.4, T-634S..T-643 M1.5, T-644S..T-652 M1.6) + dòng **Thứ tự** và **Exit** chi tiết; phụ thuộc liên phase chốt khi gộp (`projects.initiative_id` ở T-619, service public M1.4 cho undo ở T-627, subtree qua `core/org_scope.py` ở T-632, `ACT-update_task`/`ACT-assign_task` ở T-645). Open questions: thêm OQ-09-06/07.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, chờ human duyệt bước S):** §6.3 mở rộng bảng task theo cột §6.2 (File chính | Spec | TC); thêm T-611S (bước S, ◐) và T-617F (FE trên mock); ghi rõ BusinessUnit hoãn, giữ `/hr/departments`, ghi cơ cấu `hr:admin`, reactivate, preferences email, thứ tự task; FE ghi SCR-51..54.
 - **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §6.2 thêm dòng T-610c (dropdown 10 tài khoản demo + autofill email/mật khẩu qua Route Handler `/api/demo-credentials` bật bằng `DEMO_MODE` + `DEMO_LOGIN_AUTOFILL`, nút con mắt); trạng thái ◐ chờ human test tay + full suite.

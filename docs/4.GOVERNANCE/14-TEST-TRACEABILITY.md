@@ -221,6 +221,27 @@ Ngưỡng: TC-M15-07, 09, 10, 13 thuộc nhóm **bảo mật** (Action Registry/
 
 Ngưỡng: TC-M16-06, 07, 08, 09, 11, 14, 18 thuộc nhóm **bảo mật** (autonomy, kill switch, RBAC, PII filter — coverage ≥ 90%, gap = blocking); TC-M16-10, 13, 17 thuộc nhóm event/idempotency/audit (gap = blocking); TC-M16-23, 24 là **exit criteria mốc M1** (gap = blocking).
 
+### 1.11. M2.1 — D28 Reporting v3 · Metric Store · 3 cấp dashboard (Spec lock M2.1, human duyệt bước S 2026-10-31)
+
+| TC | Nội dung | Loại | Task | Spec | Trạng thái |
+|---|---|---|---|---|---|
+| TC-M21-01 | Catalog gán `group` đúng cho 33 chỉ số (FIN←F, CUS←C, OPS←O∩execution, PPL←O∩hr, STR←S∩execution, DQ←pillar None); Risk nghiệp vụ (RSK-01..05) + Product (PRD-*) `p1_frozen`, không hiện dashboard v3, không quảng bá AI | unit | T-701 | R-DEC-82 | Planned |
+| TC-M21-02 | SEI đổi mã `METRIC-RSK-06`→`METRIC-STR-02` (`group=STR`, `pillar=S`, `source_module=execution`, `refresh_events` giữ); migration `0022` `downgrade -1 && upgrade head` sạch; alert_code = `ALERT-STR-02`; `MetricValue` cũ theo `metric_id` không mất | unit + integration | T-701 | R-DEC-83 | Planned |
+| TC-M21-03 | `MetricValueOut` thêm `group` + `freshness{computed_at,is_stale,max_age_hours}`; `is_stale` theo `SLA_FRESHNESS_<DOMAIN>_HOURS` (ConfigService, mặc định 24h); shared-types sinh lại trùng commit (drift=0) | unit + contract | T-702 | R-DEC-86, 10 §7.2.6 | Planned |
+| TC-M21-04 | EP-RPT-01 executive: CEO toàn DN / DIR theo khối (`scope_pillars`); trả `summary_line`, `tiles≤4`, `sei`, `decisions_waiting`, `open_risks`, `ai_done`; EMP → `403 FORBIDDEN_ROLE`; trụ ngoài scope vắng mặt (không `null`); cache `private, max-age=60` + `Vary: Authorization` | integration (bảo mật) | T-703 | EP-RPT-01, R-DEC-85, NFR-07 | Planned |
+| TC-M21-05 | EP-RPT-02 department: DIR/MGR theo phòng + subtree (`org_scope`); `department_id` ngoài subtree → `403 FORBIDDEN_SCOPE`; EMP → `403`; KPI/OKR đơn vị + workload ref + dự án trễ + task đến hạn | integration (bảo mật) | T-703 | EP-RPT-02, R-DEC-85 | Planned |
+| TC-M21-06 | EP-RPT-03 employee: trả của chính người gọi (`employee_id` JWT); không dữ liệu ngoài scope cá nhân; mọi role người gọi được (token) | integration | T-703 | EP-RPT-03 | Planned |
+| TC-M21-07 | EP-RPT-04/05 preference: mặc định `FIN-01/FIN-03/STR-01/OPS-01` khi chưa lưu; PUT ≤4 mã hợp lệ + trong scope; mã lạ → `422 VALIDATION_ERROR`; ngoài scope → `422 BUSINESS_RULE_VIOLATION` (`details.reason=out_of_scope`); >4 → `422`; `version` lệch → `409`; Idempotency-Key thiếu → `400`; audit `platform.preference_update` | integration (bảo mật) | T-704 | EP-RPT-04/05, R-DEC-87 | Planned |
+| TC-M21-08 | `platform.user_preferences` migration `0022`: unique `(tenant_id,user_id,key)`; tenant B không đọc preference tenant A; `downgrade -1 && upgrade head` sạch | integration + architecture | T-704 | R-DEC-87, 05 §2.3 | Planned |
+| TC-M21-09 | Alert→Notification: consumer sinh/nâng mức alert P0 → Notification kind `alert` cho CEO + DIR khối (theo `group→pillar→scope_pillars`) + MGR phòng (nếu `department_id`); dedupe `(alert_id,recipient,ISO week)`; ghi in-tx cùng recompute; không event mới; không PII | integration (bảo mật) | T-705 | R-DEC-88, 10 §9.2 | Planned |
+| TC-M21-10 | Freshness stale label: chỉ số có `computed_at` quá `max_age_hours` → `is_stale=true`; dashboard/briefing nêu; ngưỡng là cấu hình (đổi env → đổi kết quả, không hard-code) | unit | T-702 | R-DEC-86, NFR-19 | Planned |
+| TC-M21-11 | Seed demo có ≥1 chỉ số mỗi cấp ở ngưỡng cảnh báo/critical (để dashboard + alert có dữ liệu); `summary_line` sinh đúng số từ MetricValue (grounding, không bịa) | integration | T-706 | 08 §4, P05 | Planned |
+| TC-M21-12 | SCR-40 `/home` trên mock (Vitest): 3 bố cục theo role; 4 ô + dialog tùy chỉnh (lưu/khôi phục); freshness badge "dữ liệu đã cũ"; mỗi widget lỗi báo tại chỗ không sập trang; token `ai` chỉ ở khối "AI đã làm" | Vitest | T-707F | SCR-40, FR-DSH-07 | Planned |
+| TC-M21-13 | **E2E (`real`)**: CEO `/home` executive 4 ô + SEI + 3 khối; DIR khối thấy đúng phạm vi; MGR department; EMP employee (không executive/department → `/403` hoặc redirect); đổi 4 ô → persist sau reload; Reviewer→`/data`, Admin→`/admin`; số click → lineage | E2E `real` + `mock` | T-708 | SCR-40, 09 §6.8 Exit | Planned |
+| TC-M21-14 | Cổng M2.1: gate DoD (CLAUDE §3.3) exit 0; `pytest --cov` dashboard/platform services ≥ 80%, nhóm scope ≥ 90%; Playwright mock+real xanh; contract drift shared-types = 0; mọi `TC-M21-*` Passed | toàn bộ | T-709 | 09 §6.8 Exit M2.1 | Planned |
+
+Ngưỡng: TC-M21-04, 05, 07, 08, 09 thuộc nhóm **bảo mật** (scope 3 cấp, preference scope, tenant isolation, alert routing — coverage ≥ 90%, gap = blocking); TC-M21-02, 08 thuộc nhóm migration reversible (gap = blocking); TC-M21-13, 14 là **exit criteria M2.1** (gap = blocking).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).
@@ -329,6 +350,7 @@ Mỗi NFR nêu cách kiểm ở mức khung; ngưỡng số là baseline MVP (BR
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** thêm §1.11 `TC-M21-01..14` (Planned) — catalog group + SEI rename migration, freshness, 3 cấp dashboard scope (CEO/DIR/MGR/EMP + default-deny), preference validate+scope+tenant, alert→Notification dedupe, seed, SCR-40 mock + E2E real, cổng M2.1 + dòng ngưỡng nhóm bảo mật/migration/exit.
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** thêm §1.7 `TC-M13-01..14`, §1.8 `TC-M14-01..18`, §1.9 `TC-M15-01..18`, §1.10 `TC-M16-01..24` (Planned) + dòng ngưỡng nhóm bảo mật/event/exit mỗi phase; ghi chú UC-07 ở M1 không gồm knowledge base (D14 → M3.4) và test L3 v2.1 sửa theo trần L2, không skip. Open questions: thêm OQ-14-04/05.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, chờ human duyệt bước S):** thêm §1.6 `TC-M12-01..19` (Planned) phủ migration/backfill, effective-dated không chồng + `as_of`, cây tổ chức, CRUD ORG + audit/outbox cùng transaction, regression EP-82, ADM user CRUD + deactivate thu hồi refresh token, roles/audit lọc, RBAC 403, field mask mức 3/4, notification chỉ của mình + preferences, email idempotent không chứa mức 3–4, tenant isolation, seed, FE mock, E2E `admin-org`.
 - **Change 1.2.0 (đề xuất — T-610c, R-DEC-28):** §1.5 sửa TC-M11-16 sang dropdown 10 tài khoản + autofill email/mật khẩu (Implemented); thêm TC-M11-17 (Route Handler `/api/demo-credentials` 404 khi tắt cờ / ngoài whitelist, nút con mắt, HTML `/login` không chứa mật khẩu — Implemented).

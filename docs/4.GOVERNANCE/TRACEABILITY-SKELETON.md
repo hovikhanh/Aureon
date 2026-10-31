@@ -150,7 +150,7 @@ Nhóm Tài chính / Khách hàng / Vận hành / Con người / Chiến lược 
 
 > Mã `METRIC-*` cụ thể sẽ cấp ở file 00/03 khi viết; registry này chốt **danh sách chỉ số nguồn** từ BRD, chưa gán số.
 >
-> **Mã đã cấp (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** `METRIC-STR-01` "KPI/OKR cập nhật đúng kỳ" (cổng G2, R-DEC-54); `METRIC-DQ-02` "Bản ghi mới vào qua tài liệu/NL" (cổng G3, R-DEC-68). Strategy Execution Index giữ mã nền `METRIC-RSK-06` tới T-701; DQ theo domain = breakdown `METRIC-DQ-01`.
+> **Mã đã cấp:** `METRIC-STR-01` "KPI/OKR cập nhật đúng kỳ" (cổng G2, R-DEC-54); `METRIC-DQ-02` "Bản ghi mới vào qua tài liệu/NL" (cổng G3, R-DEC-68); `METRIC-STR-02` "Strategy Execution Index" (M2.1, đổi từ `METRIC-RSK-06`, R-DEC-83). DQ theo domain = breakdown `METRIC-DQ-01`. M2.1 (R-DEC-82) gán **nhóm v3** `FIN/CUS/OPS/PPL/STR/DQ` cho catalog (song song pillar F/O/C/U/S), không đổi mã các chỉ số khác.
 
 ## 11. Entity cốt lõi (BRD §13.2) — 13 nhóm
 

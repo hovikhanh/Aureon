@@ -22,7 +22,7 @@ Dashboard là lớp trình bày của bộ chỉ số sức khỏe (§4) theo sc
 **Executive (ROLE-CEO / ROLE-DIR)** — bố cục theo `SOURCE-UIUX.md` §6.1:
 
 - **Dòng tóm tắt một câu** (U1): trả lời "có gì cần tôi?" trước mọi con số (VD "2 việc cần anh quyết, 1 rủi ro mới, doanh thu đạt 82% kế hoạch"). Sinh từ cùng logic Briefing (§3).
-- **4 ô chỉ số sức khỏe** CEO tự chọn trong cài đặt; mặc định: **doanh thu, dòng tiền (cash runway), OKR công ty, task trễ**. Mỗi ô có nhãn độ tươi dữ liệu (FR-DATA-03) và trạng thái màu theo ngưỡng §4. Bấm ô → mở nguồn + công thức (drill-down FR-RPT-04).
+- **4 ô chỉ số sức khỏe** CEO tự chọn trong cài đặt; mặc định: **doanh thu (`METRIC-FIN-01`), dòng tiền cash runway (`METRIC-FIN-03`), KPI/OKR đúng kỳ (`METRIC-STR-01`), task đúng hạn (`METRIC-OPS-01`)** (R-DEC-87; lưu ở `platform.user_preferences` key `dashboard.executive_tiles`, ≤ 4 mã, EP-RPT-04/05). Mỗi ô có nhãn độ tươi dữ liệu (FR-DATA-03, R-DEC-86) và trạng thái màu theo ngưỡng §4. Bấm ô → mở nguồn + công thức (drill-down FR-RPT-04). Ô ngoài scope hiện tại bị lọc im lặng khi render.
 - **Khối "Cần anh quyết"** (đứng trên rủi ro): danh sách quyết định đang chờ (nguồn Decision Log + Approval Engine), mỗi dòng có tóm tắt AI + nút hành động tại chỗ.
 - **Khối "Rủi ro"**: rủi ro đang mở xếp theo mức, nối với Risk Engine (§4 dùng chung ngưỡng).
 - **Khối "AI đã làm"** (nền khác biệt — U4): feed hành động L3 kèm lối hoàn tác (undo ≥24h, autonomy ở 02/07).
@@ -135,16 +135,33 @@ Cố định, có công thức + ngưỡng cảnh báo, dùng chung cho Dashboar
 | Con người | Quá tải | Người >110% workload 2 tuần/Tổng | > 10% | P0 | Cảnh báo khi > 10% nhân sự quá tải 2 tuần liên tiếp → RISKS; gợi ý điều phối (F5). |
 | Con người | Nghỉ việc | Nghỉ/NS bình quân (năm hóa) | > 15%/năm | P1 | (chi tiết hóa ở đợt code — R-DEC-09) |
 | Con người | DT/nhân sự; CP nhân sự/DT | theo kỳ | lệch > 15% kế hoạch | P1 | (chi tiết hóa ở đợt code — R-DEC-09) |
-| Chiến lược | **Strategy Execution Index** | % initiative đúng tiến độ (trọng số) | < 70% | P0 | Cảnh báo khi index < 70% → RISKS + widget chiến lược Executive; drill-down tới initiative trễ. |
+| Chiến lược | **Strategy Execution Index** — `METRIC-STR-02` (đổi từ `METRIC-RSK-06` ở M2.1, R-DEC-83) | % initiative đúng tiến độ (trọng số) | < 70% | P0 | Cảnh báo khi index < 70% → RISKS + widget chiến lược Executive; drill-down tới initiative trễ. |
 | Dữ liệu | **Data Quality Score** | Đầy đủ/chính xác/kịp thời/nhất quán | < 80/100 | P0 | Cảnh báo khi DQ Score < 80/100 → AI gắn cảnh báo "kết luận dựa trên dữ liệu chất lượng thấp" (FR-DATA-02). |
 | Chiến lược | **KPI/OKR cập nhật đúng kỳ** — `METRIC-STR-01` (cổng G2, đề xuất R-DEC-54 — Spec lock M1.4) | (#KPI-kỳ đo đúng hạn + #KR check-in đúng hạn) / (#KPI-kỳ đến hạn + #KR active); grace `GOALS_KPI_GRACE_DAYS`, check-in ≤ `GOALS_KR_CHECKIN_MAX_AGE_DAYS` | < 80% (critical < 60%) | P0 | Cảnh báo khi < 80% → PERFORMANCE; drill-down danh sách KPI/KR trễ (05 §2.6). |
 | Dữ liệu | **Bản ghi mới vào qua tài liệu/NL** — `METRIC-DQ-02` (cổng G3, đề xuất R-DEC-68 — Spec lock M1.5) | Bản ghi đích tạo trong tháng có nguồn `IDP`/`IMPORT`/`AI` ÷ tổng bản ghi tạo trong tháng (tập bảng whitelist lineage; C1 form không tính) | < 60% (critical < 40%) | P0 | Cảnh báo khi < 60% → DATA; drill-down theo kênh/doc type. |
 
 - **Grounding:** mọi giá trị hiển thị là `MetricValue` tính sẵn, có `lineage_url` (FR-DATA-04, FR-DATA-06); dashboard/AI không tính lúc request.
 - **Ngưỡng là cấu hình** (không hard-code); doanh nghiệp tinh chỉnh được, mặc định theo bảng trên.
-- **Mã đã cấp (Spec lock M1.3–M1.6, đề xuất):** `METRIC-STR-01` (G2) và `METRIC-DQ-02` (G3) đăng ký ở skeleton §10. Strategy Execution Index giữ mã nền `METRIC-RSK-06` tới T-701 (M2.1, bảng ánh xạ 32 METRIC); Data Quality Score theo domain là breakdown của `METRIC-DQ-01` (không cấp mã riêng).
+- **Mã đã cấp:** `METRIC-STR-01` (G2), `METRIC-DQ-02` (G3), `METRIC-STR-02` (SEI, M2.1 R-DEC-83); Data Quality Score theo domain là breakdown của `METRIC-DQ-01` (không cấp mã riêng).
 
-> `METRIC-*` cụ thể + mã alert 1-1 cấp khi chi tiết hóa ở đợt code (00/14, R-DEC-09). Ngưỡng freshness (SLA_FRESHNESS_*) tách khỏi SLA vận hành (08). Danh sách chỉ số nguồn: `TRACEABILITY-SKELETON.md` §10.
+> `METRIC-*` cụ thể + mã alert 1-1 cấp khi chi tiết hóa ở đợt code (00/14, R-DEC-09). Ngưỡng freshness (`SLA_FRESHNESS_<DOMAIN>_HOURS`, R-DEC-86) tách khỏi SLA vận hành (08). Danh sách chỉ số nguồn: `TRACEABILITY-SKELETON.md` §10.
+
+### 4.1. Ánh xạ nhóm v3 ↔ catalog (M2.1, R-DEC-82)
+
+Catalog `platform/services/catalog.py` giữ **33 mã `METRIC-*`** (không đổi, trừ SEI R-DEC-83); mỗi chỉ số mang thêm trường **`group ∈ FIN/CUS/OPS/PPL/STR/DQ`** (suy từ `pillar` + `source_module`) song song `pillar` (F/O/C/U/S) để không phá scope hiện hành. Dashboard v3 nhóm theo `group`; scope role vẫn theo `pillar`/`scope_pillars`.
+
+| Nhóm v3 | Pillar v2.1 | source_module | Mã chỉ số | Hiện trên dashboard v3 |
+|---|---|---|---|---|
+| **FIN** Tài chính | F | finance | METRIC-FIN-01..07 | ✅ (CEO/DIR-F) |
+| **CUS** Khách hàng | C | sales | METRIC-CUS-01..06 | ✅ (CEO/DIR-C) |
+| **OPS** Vận hành | O | execution | METRIC-OPS-01..03 | ✅ (mọi cấp) |
+| **PPL** Con người | O | hr | METRIC-HR-01..04 | ✅ (CEO/DIR-O; lương mask) |
+| **STR** Chiến lược | S | execution | METRIC-STR-01, METRIC-STR-02 (SEI) | ✅ (CEO/DIR) |
+| **DQ** Dữ liệu | — (`pillar=None`) | platform/capture | METRIC-DQ-01, METRIC-DQ-02 | ✅ (CEO/ADM) |
+| *(frozen P1)* | S | risk | METRIC-RSK-01..05 | ⛔ `p1_frozen` (R-DEC-16) |
+| *(frozen P1)* | U | product | METRIC-PRD-01..05 | ⛔ `p1_frozen` (R-DEC-16) |
+
+> Chỉ số `p1_frozen` (Risk nghiệp vụ + Product) **không** hiện dashboard v3 và **không** quảng bá cho AI (R-DEC-16); giữ catalog để tái dùng ở phase sau. `METRIC-RSK-*` ở đây là 5 chỉ số rủi ro nghiệp vụ (khác SEI đã chuyển sang nhóm STR).
 
 ## 5. Insight & khuyến nghị — cấu trúc 9 phần (BRD §11.8)
 
@@ -210,6 +227,7 @@ Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuy
 - **Version:** 1.0.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (human duyệt bước S M2.1, 2026-10-31):** §1.1 ghi 4 ô Executive mặc định + cơ chế preference (R-DEC-87); §4 đổi SEI → `METRIC-STR-02` (R-DEC-83) + ghi chú freshness `SLA_FRESHNESS_*` (R-DEC-86); §4.1 mới — bảng ánh xạ nhóm v3 (FIN/CUS/OPS/PPL/STR/DQ) ↔ catalog (R-DEC-82), Risk nghiệp vụ + Product giữ `p1_frozen`.
 - **Change 1.0.1 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §4 thêm dòng `METRIC-STR-01` (G2, R-DEC-54) và `METRIC-DQ-02` (G3, R-DEC-68) + ghi chú mã đã cấp (SEI giữ `METRIC-RSK-06`, DQ theo domain = breakdown `METRIC-DQ-01`).
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên spec-level P0 bám BRD §12 + §11.8 + §13.1 (docs-first, R-DEC-09): mô tả hành vi + ràng buộc 12 năng lực CEO Assistant (§2); cấu trúc đầy đủ 7 khối Daily Briefing + bảng nguồn + ví dụ + tiêu chí chấp nhận UC-01 + luồng F1 (§3); ngữ nghĩa alert 1-1 cho từng chỉ số P0 (§4); mô tả 9 phần insight + ví dụ (§5); widget cụ thể cho 3 cấp dashboard theo `SOURCE-UIUX.md` §6.1 (§1.1); vòng đời Decision Log 30/60/90 (§7); bảng UC liên quan + tiêu chí (§8); thêm OQ-03-03/04. METRIC-* + mã alert cụ thể giữ hoãn đợt code.
