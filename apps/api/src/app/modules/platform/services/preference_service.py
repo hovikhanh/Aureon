@@ -59,23 +59,29 @@ class UserPreferenceService:
             if version != 0:
                 raise ConflictStateError("version mismatch", details={"expected": "0"})
             row = UserPreference(
-                id=uuid.uuid4(), tenant_id=user.tenant_id, user_id=user.user_id,
-                key=TILES_KEY, value_json=list(tiles), version=1,
+                id=uuid.uuid4(),
+                tenant_id=user.tenant_id,
+                user_id=user.user_id,
+                key=TILES_KEY,
+                value_json=list(tiles),
+                version=1,
             )
             self.db.add(row)
             new_version = 1
         else:
             if row.version != version:
-                raise ConflictStateError(
-                    "version mismatch", details={"expected": str(row.version)}
-                )
+                raise ConflictStateError("version mismatch", details={"expected": str(row.version)})
             row.value_json = list(tiles)
             row.version = version + 1
             new_version = row.version
         await record_audit(
-            self.db, action="platform.preference_update",
-            target_schema="platform", target_table="user_preferences", target_id=row.id,
-            after={"key": TILES_KEY, "tiles": tiles}, metadata={"key": TILES_KEY},
+            self.db,
+            action="platform.preference_update",
+            target_schema="platform",
+            target_table="user_preferences",
+            target_id=row.id,
+            after={"key": TILES_KEY, "tiles": tiles},
+            metadata={"key": TILES_KEY},
         )
         await self.db.flush()
         return list(tiles), new_version

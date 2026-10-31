@@ -62,7 +62,8 @@ class ReportingService:
         ai_items = [AiActionBriefOut(**vars(b)) for b in briefs]
         return ExecutiveDashboardOut(
             summary_line=_summary(len(tiles), total, alerts.total, sei),
-            tiles=tiles, sei=sei,
+            tiles=tiles,
+            sei=sei,
             decisions_waiting=CountedApprovals(count=total, items=approvals),
             open_risks=CountedAlerts(count=alerts.total, items=alerts.items),
             ai_done=CountedActions(count=ai_total, items=ai_items),
@@ -108,7 +109,8 @@ async def _department(
         late_projects=due.projects_late,
         due_tasks=DueTasks(
             overdue=sum(1 for c in exe.workload_heatmap if c.load_pct > 110),
-            today=0, this_week=len(exe.workload_heatmap),
+            today=0,
+            this_week=len(exe.workload_heatmap),
         ),
         generated_at=datetime.now(UTC),
     )
@@ -127,8 +129,13 @@ async def _employee(svc: ReportingService, user: Principal) -> EmployeeDashboard
         user, page, filters={}, overdue=None, mine=True, due_from=today, due_to=today
     )
     _, due_week = await ts.list_tasks(
-        user, page, filters={}, overdue=None, mine=True,
-        due_from=today, due_to=today + timedelta(days=7),
+        user,
+        page,
+        filters={},
+        overdue=None,
+        mine=True,
+        due_from=today,
+        due_to=today + timedelta(days=7),
     )
     return EmployeeDashboardOut(
         my_tasks=DueTasks(overdue=overdue, today=due_today, this_week=due_week),

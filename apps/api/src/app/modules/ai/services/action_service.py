@@ -335,8 +335,11 @@ async def _executive_ai_feed(
     rows = await AIActionRepository(db).list_for_user(on_behalf_of, status="executed")
     briefs = [
         AiActionBrief(
-            id=a.id, action_name=a.action_name, status=a.status,
-            executed_at=a.executed_at, result_refs=public_refs(a.result_refs),
+            id=a.id,
+            action_name=a.action_name,
+            status=a.status,
+            executed_at=a.executed_at,
+            result_refs=public_refs(a.result_refs),
         )
         for a in rows
     ]

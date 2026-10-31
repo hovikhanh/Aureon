@@ -20,7 +20,9 @@ _TENANT = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 def _ceo() -> Principal:
     return Principal(
-        user_id=uuid.uuid4(), role="CEO", permissions=frozenset({"dashboard:write"}),
+        user_id=uuid.uuid4(),
+        role="CEO",
+        permissions=frozenset({"dashboard:write"}),
         tenant_id=_TENANT,
     )
 

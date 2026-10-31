@@ -77,9 +77,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f(f"pk_{P}")),
-        sa.UniqueConstraint(
-            "tenant_id", "user_id", "key", name=f"uq_{P}_tenant_user_key"
-        ),
+        sa.UniqueConstraint("tenant_id", "user_id", "key", name=f"uq_{P}_tenant_user_key"),
         schema=S,
     )
     op.create_index(op.f(f"ix_{P}_tenant_id"), P, ["tenant_id"], schema=S)

@@ -250,8 +250,12 @@ async def notify_alert(db: AsyncSession, m: Metric, a: Alert) -> None:
         if await ns.already_sent(uid, kind="alert", since=since, ref_table="alerts", ref_id=a.id):
             continue
         await ns.create(
-            recipient_id=uid, kind="alert",
+            recipient_id=uid,
+            kind="alert",
             title=f"alert.{m.alert_code.lower().replace('-', '_')}.{a.severity.lower()}",
-            body=f"{m.name_vi}: {a.message_vi}", link=link,
-            ref_schema="platform", ref_table="alerts", ref_id=a.id,
+            body=f"{m.name_vi}: {a.message_vi}",
+            link=link,
+            ref_schema="platform",
+            ref_table="alerts",
+            ref_id=a.id,
         )

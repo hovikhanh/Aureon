@@ -15,8 +15,11 @@ def _metric(code: str, source_module: str, pillar: str | None = "F") -> SimpleNa
 
 def _value(computed_at: datetime) -> SimpleNamespace:
     return SimpleNamespace(
-        value=82, threshold_status="GREEN", period_key="2026-10",
-        computed_at=computed_at, data_quality_score=99,
+        value=82,
+        threshold_status="GREEN",
+        period_key="2026-10",
+        computed_at=computed_at,
+        data_quality_score=99,
     )
 
 
