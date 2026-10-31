@@ -144,3 +144,38 @@ async def test_action_item_in_lineage_whitelist_and_scoped(db_session: AsyncSess
     ai = await svc.create_action_item(ceo, title="Việc có lineage", meeting_id=m.id)
     fetched = await svc.get_action_item(ceo, ai.id)  # CEO sees all meetings
     assert fetched.id == ai.id
+
+
+async def test_both_acts_through_registry_validate_run_undo(db_session: AsyncSession) -> None:
+    """R-DEC-101: both meeting ACTs via the Action Registry executor (validate → run → undo).
+    Covers the ActionDef wrappers + params models + the create_task undo (detach)."""
+    from app.modules.idp.services.actions import ActionContext, get_action
+    from app.modules.idp.services.actions.executor import Step, run_all
+
+    ceo = _ceo()
+    # ACT-create_action_item: empty title → validate error; valid → writes an ActionItem.
+    act_ai = get_action("ACT-create_action_item")
+    assert act_ai is not None
+    bad = await act_ai.validate(db_session, ceo, act_ai.params_model(title=""),
+                                ActionContext(source="IDP"))  # fmt: skip
+    assert bad and bad[0]["field"] == "title"
+    step_ai = Step(act_ai, 0, {"title": "Giao việc A", "owner_name": "Nguyễn Văn An",
+                               "due_date": "2026-11-05"})  # fmt: skip
+    ((_, outcome_ai),) = await run_all(db_session, ceo, [step_ai], ActionContext(source="IDP"))
+    ai_id = uuid.UUID(outcome_ai.result_refs[0]["id"])
+    assert await db_session.get(ActionItem, ai_id) is not None
+
+    # ACT-create_task_from_action_item: bad ref → validate error; valid → Task; undo detaches.
+    act_task = get_action("ACT-create_task_from_action_item")
+    assert act_task is not None
+    bad_t = await act_task.validate(db_session, ceo, act_task.params_model(action_item_ref="x"),
+                                    ActionContext())  # fmt: skip
+    assert bad_t and bad_t[0]["code"] == "invalid_uuid"
+    step_t = Step(act_task, 0, {"action_item_ref": str(ai_id)})
+    ((_, outcome_t),) = await run_all(db_session, ceo, [step_t], ActionContext())
+    task_id = uuid.UUID(outcome_t.result_refs[0]["id"])
+    refreshed = await MeetingService(db_session).get_action_item(ceo, ai_id)
+    assert refreshed.task_id == task_id
+    await act_task.undo(db_session, ceo, outcome_t)  # detach + delete task
+    detached = await MeetingService(db_session).get_action_item(ceo, ai_id)
+    assert detached.task_id is None
