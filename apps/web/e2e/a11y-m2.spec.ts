@@ -15,7 +15,7 @@ const SCREENS = [
   { path: "/business", email: "ceo@abc.demo" },
 ];
 
-test.describe("WCAG AA structure — M2 screens", { tag: "@mock" }, () => {
+test.describe("WCAG AA structure — M2 screens", { tag: "@mock-only" }, () => {
   for (const s of SCREENS) {
     test(`${s.path}: landmarks + single H1 + named nav (1.3.1 / 2.4.1 / 2.4.6)`, async ({ page }) => {
       await loginAs(page, s.email);

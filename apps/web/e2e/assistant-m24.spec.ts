@@ -23,7 +23,7 @@ function stubChat(page: import("@playwright/test").Page) {
   });
 }
 
-test.describe("M2.4 CEO Assistant", { tag: "@mock" }, () => {
+test.describe("M2.4 CEO Assistant", { tag: "@mock-only" }, () => {
   test("⌘K palette opens and routes to /ask with the question prefilled + auto-sent", async ({ page }) => {
     await stubChat(page);
     await loginAs(page, "ceo@abc.demo");
