@@ -23,6 +23,8 @@ import { GOALS_ROUTES } from "./goals";
 import { CAPTURE_ROUTES } from "./capture";
 import { AI_ADMIN_ROUTES } from "./ai_admin";
 import { ONBOARDING_ROUTES } from "./onboarding";
+import { FINANCE_ROUTES } from "./finance";
+import { SALES_ROUTES } from "./sales";
 
 export interface MockRequest {
   method: string;
@@ -112,6 +114,9 @@ export const ROUTES: readonly Route[] = [
   ...ONBOARDING_ROUTES,
   // M2.1 Reporting v3 (T-707F): SCR-40 3 cấp dashboard + 4 ô Executive.
   ...REPORTING_ROUTES,
+  // M2.2 business (T-715F): Finance Lite + Sales pipeline.
+  ...FINANCE_ROUTES,
+  ...SALES_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

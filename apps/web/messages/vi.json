@@ -392,6 +392,59 @@
     },
     "empty": "Chưa có hóa đơn."
   },
+  "financeLite": {
+    "title": "Tài chính",
+    "summaryTitle": "Tổng quan",
+    "empty": "Chưa có dữ liệu tài chính.",
+    "monthsValue": "{value} tháng",
+    "summary": {
+      "total_revenue": "Doanh thu",
+      "net_profit": "Lợi nhuận ròng",
+      "runway_months": "Runway",
+      "budget_utilization_pct": "Tỷ lệ dùng ngân sách"
+    },
+    "budgetTitle": "Tình trạng ngân sách",
+    "budgetCol": {
+      "department": "Phòng ban",
+      "allocated": "Phân bổ",
+      "spent": "Đã chi",
+      "utilization": "Tỷ lệ dùng",
+      "status": "Trạng thái"
+    },
+    "budgetStatus": {
+      "ok": "Trong hạn mức",
+      "warning": "Cảnh báo",
+      "critical": "Vượt ngân sách"
+    },
+    "runwayTitle": "Runway (what-if)",
+    "runway": {
+      "months": "Runway",
+      "cashBalance": "Số dư tiền mặt",
+      "netBurn": "Burn ròng/tháng",
+      "noBurn": "Dòng tiền dương"
+    }
+  },
+  "sales": {
+    "title": "Kinh doanh",
+    "summaryTitle": "Tổng quan",
+    "boardTitle": "Bảng pipeline",
+    "empty": "Chưa có dữ liệu pipeline.",
+    "weighted": "Giá trị có trọng số",
+    "summary": {
+      "pipeline_value": "Giá trị pipeline",
+      "weighted_pipeline": "Pipeline có trọng số",
+      "win_rate_pct": "Tỷ lệ thắng",
+      "deals_open": "Deal đang mở"
+    },
+    "stage": {
+      "lead": "Tiềm năng",
+      "qualified": "Đã sàng lọc",
+      "proposal": "Báo giá",
+      "negotiation": "Đàm phán",
+      "closed_won": "Thắng",
+      "closed_lost": "Thua"
+    }
+  },
   "common": {
     "loading": "Đang tải…",
     "none": "—",

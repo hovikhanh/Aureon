@@ -392,6 +392,59 @@
     },
     "empty": "No invoices yet."
   },
+  "financeLite": {
+    "title": "Finance",
+    "summaryTitle": "Overview",
+    "empty": "No finance data yet.",
+    "monthsValue": "{value} months",
+    "summary": {
+      "total_revenue": "Revenue",
+      "net_profit": "Net profit",
+      "runway_months": "Runway",
+      "budget_utilization_pct": "Budget utilization"
+    },
+    "budgetTitle": "Budget status",
+    "budgetCol": {
+      "department": "Department",
+      "allocated": "Allocated",
+      "spent": "Spent",
+      "utilization": "Utilization",
+      "status": "Status"
+    },
+    "budgetStatus": {
+      "ok": "On track",
+      "warning": "Warning",
+      "critical": "Over budget"
+    },
+    "runwayTitle": "Runway (what-if)",
+    "runway": {
+      "months": "Runway",
+      "cashBalance": "Cash balance",
+      "netBurn": "Net burn/month",
+      "noBurn": "Positive cash flow"
+    }
+  },
+  "sales": {
+    "title": "Sales",
+    "summaryTitle": "Overview",
+    "boardTitle": "Pipeline board",
+    "empty": "No pipeline data yet.",
+    "weighted": "Weighted value",
+    "summary": {
+      "pipeline_value": "Pipeline value",
+      "weighted_pipeline": "Weighted pipeline",
+      "win_rate_pct": "Win rate",
+      "deals_open": "Open deals"
+    },
+    "stage": {
+      "lead": "Lead",
+      "qualified": "Qualified",
+      "proposal": "Proposal",
+      "negotiation": "Negotiation",
+      "closed_won": "Closed won",
+      "closed_lost": "Closed lost"
+    }
+  },
   "common": {
     "loading": "Loading…",
     "none": "—",

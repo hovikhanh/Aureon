@@ -61,4 +61,10 @@ export const qk = {
   aiLogs: (kind: string, params: Record<string, unknown>) => ["ai-admin", "logs", kind, params] as const,
   // M1.6 onboarding (T-648F)
   onboarding: () => ["onboarding"] as const,
+  // M2.2 business (T-715F) — Finance Lite + Sales pipeline, one key per widget
+  financeDashboard: () => ["finance", "dashboard"] as const,
+  financeBudgetStatus: () => ["finance", "budget-status"] as const,
+  financeRunwayWhatIf: (params: Record<string, unknown>) => ["finance", "runway-what-if", params] as const,
+  salesPipeline: () => ["sales", "pipeline"] as const,
+  salesDashboard: () => ["sales", "dashboard"] as const,
 };
