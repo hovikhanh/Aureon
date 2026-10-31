@@ -1,7 +1,10 @@
 """HTTP routes for D28 Reporting v3 — EP-RPT-01..05 (10 §7.2.6, M2.1).
 
-Perm `dashboard:read` (01..03, 04) / `dashboard:write` (05) — ma trận không đổi (R-DEC-84).
-Dashboard GET: `private, max-age=60` + `Vary: Authorization`. PUT tiles bắt buộc Idempotency-Key.
+Perm (R-DEC-84, làm rõ 2026-10-31 — ma trận 02 §5.2 KHÔNG đổi): EP-RPT-01 + tiles 04/05 dùng
+`dashboard:read`/`dashboard:write` (CEO/DIR); EP-RPT-02/03 (Department/Employee) dùng
+`execution:read` — quyền MGR/EMP sẵn có, vì dashboard khối/cá nhân tổng hợp dữ liệu execution
+(task/OKR/workload) chứ không phải metric store. Dashboard GET: `private, max-age=60` +
+`Vary: Authorization`. PUT tiles bắt buộc Idempotency-Key.
 """
 
 import uuid
@@ -28,6 +31,7 @@ router = EnvelopeRouter(prefix="/reporting", tags=["reporting"])
 
 Reader = Annotated[Principal, Depends(require_permission("dashboard", "read"))]
 Writer = Annotated[Principal, Depends(require_permission("dashboard", "write"))]
+ExecReader = Annotated[Principal, Depends(require_permission("execution", "read"))]
 
 
 def _cache(response: Response) -> None:
@@ -47,7 +51,7 @@ async def executive(db: DbSession, user: Reader, response: Response) -> Any:
     "/dashboards/department", response_model=DepartmentDashboardOut, summary="EP-RPT-02 Department"
 )
 async def department(
-    db: DbSession, user: Reader, response: Response, department_id: uuid.UUID | None = None
+    db: DbSession, user: ExecReader, response: Response, department_id: uuid.UUID | None = None
 ) -> Any:
     _cache(response)
     return await ReportingService(db).department(user, department_id)
@@ -56,7 +60,7 @@ async def department(
 @router.get(
     "/dashboards/employee", response_model=EmployeeDashboardOut, summary="EP-RPT-03 Employee"
 )
-async def employee(db: DbSession, user: Reader, response: Response) -> Any:
+async def employee(db: DbSession, user: ExecReader, response: Response) -> Any:
     _cache(response)
     return await ReportingService(db).employee(user)
 

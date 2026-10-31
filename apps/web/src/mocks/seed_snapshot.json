@@ -3337,7 +3337,7 @@
    "value": 1.0
   },
   {
-   "code": "METRIC-RSK-06",
+   "code": "METRIC-STR-02",
    "period_key": "2026-10",
    "pillar": "S",
    "status": "ok",

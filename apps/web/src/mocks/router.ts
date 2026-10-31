@@ -10,6 +10,8 @@ import type { MockClaims } from "./fixtures";
 import { MockHttpError, fail, ok, paginate, parsePage } from "./http";
 import { chatStream, conversationMessages, listConversations } from "./chat";
 import { SNAPSHOT } from "./fixtures";
+import { metricOut } from "./reporting-shared";
+import { REPORTING_ROUTES } from "./reporting";
 import { metricVisible, sessionFor } from "./store";
 import { ORG_ROUTES } from "./org";
 import { ADMIN_ROUTES } from "./admin";
@@ -39,16 +41,6 @@ export interface Route {
   pattern: string;
   permission: string;
   handler: Handler;
-}
-
-const COMPUTED_AT = `${SNAPSHOT.reference_date}T01:00:00Z`;
-
-function metricOut(m: (typeof SNAPSHOT.metrics)[number]) {
-  return {
-    metric_code: m.code, pillar: m.pillar, value: m.value, unit: m.unit, currency: m.unit === "VND" ? "VND" : null,
-    status: m.status, status_reason: null, period_key: m.period_key, computed_at: COMPUTED_AT,
-    freshness: "fresh", data_quality_pct: null, lineage_url: `/dashboard/metrics/${m.code}/lineage`,
-  };
 }
 
 function requireIdempotency(req: MockRequest): void {
@@ -118,6 +110,8 @@ export const ROUTES: readonly Route[] = [
   // M1.6 AI Control Center + actions (T-644F..T-647F)
   ...AI_ADMIN_ROUTES,
   ...ONBOARDING_ROUTES,
+  // M2.1 Reporting v3 (T-707F): SCR-40 3 cấp dashboard + 4 ô Executive.
+  ...REPORTING_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

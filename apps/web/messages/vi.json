@@ -219,8 +219,10 @@
     "METRIC-RSK-03": "Rủi ro high > 30 ngày chưa có biện pháp",
     "METRIC-RSK-04": "Điểm rủi ro tổng hợp",
     "METRIC-RSK-05": "Biện pháp quá hạn",
-    "METRIC-RSK-06": "Strategy execution index (SEI)",
-    "METRIC-DQ-01": "Điểm chất lượng dữ liệu"
+    "METRIC-DQ-01": "Điểm chất lượng dữ liệu",
+    "METRIC-STR-01": "KPI/OKR cập nhật đúng kỳ",
+    "METRIC-STR-02": "Strategy execution index (SEI)",
+    "stale": "Dữ liệu cũ (> {hours} giờ)"
   },
   "unit": {
     "MONTHS": "tháng",
@@ -2038,6 +2040,27 @@
       "missing": "Chưa xong bước bắt buộc: {step}",
       "toHome": "Mở dashboard đầu tiên",
       "toOrg": "Xem cơ cấu tổ chức"
+    }
+  },
+  "home": {
+    "title": "Trang chủ",
+    "loading": "Đang tải…",
+    "error": "Không tải được dữ liệu",
+    "sei": "Chỉ số thực thi chiến lược (SEI)",
+    "decisionsWaiting": "{count, plural, =0 {Không có quyết định chờ} other {# quyết định chờ duyệt}}",
+    "openRisks": "{count, plural, =0 {Không có rủi ro mở} other {# rủi ro đang mở}}",
+    "aiDone": "AI đã làm ({count})",
+    "okrsAtRisk": "OKR rủi ro: {count}/{total}",
+    "overloaded": "{count, plural, =0 {Không ai quá tải} other {# người quá tải}}",
+    "lateProjects": "{count, plural, =0 {Không có dự án trễ} other {# dự án trễ hạn}}",
+    "myTasks": "Việc của tôi — quá hạn {overdue}, hôm nay {today}, tuần này {week}",
+    "myGoals": "Mục tiêu — {kpis} KPI, {krs} KR",
+    "workloadWeek": "Tải tuần này: {pct}%",
+    "pendingCheckins": "Check-in chờ ({count})",
+    "level": {
+      "executive": "Toàn công ty",
+      "department": "Khối/Phòng",
+      "employee": "Cá nhân"
     }
   }
 }

@@ -219,8 +219,10 @@
     "METRIC-RSK-03": "High risks without mitigation > 30 days",
     "METRIC-RSK-04": "Aggregate risk score",
     "METRIC-RSK-05": "Overdue mitigations",
-    "METRIC-RSK-06": "Strategy execution index",
-    "METRIC-DQ-01": "Data quality score"
+    "METRIC-DQ-01": "Data quality score",
+    "METRIC-STR-01": "KPI/OKR updated on time",
+    "METRIC-STR-02": "Strategy execution index",
+    "stale": "Stale (> {hours}h)"
   },
   "unit": {
     "MONTHS": "months",
@@ -2038,6 +2040,27 @@
       "missing": "Required step not done: {step}",
       "toHome": "Open the first dashboard",
       "toOrg": "View org structure"
+    }
+  },
+  "home": {
+    "title": "Home",
+    "loading": "Loading…",
+    "error": "Failed to load data",
+    "sei": "Strategy Execution Index (SEI)",
+    "decisionsWaiting": "{count, plural, =0 {No decisions waiting} other {# decisions awaiting approval}}",
+    "openRisks": "{count, plural, =0 {No open risks} other {# open risks}}",
+    "aiDone": "AI did ({count})",
+    "okrsAtRisk": "OKRs at risk: {count}/{total}",
+    "overloaded": "{count, plural, =0 {No one overloaded} other {# people overloaded}}",
+    "lateProjects": "{count, plural, =0 {No late projects} other {# late projects}}",
+    "myTasks": "My tasks — overdue {overdue}, today {today}, this week {week}",
+    "myGoals": "Goals — {kpis} KPIs, {krs} KRs",
+    "workloadWeek": "This week's load: {pct}%",
+    "pendingCheckins": "Pending check-ins ({count})",
+    "level": {
+      "executive": "Company",
+      "department": "Department",
+      "employee": "Me"
     }
   }
 }

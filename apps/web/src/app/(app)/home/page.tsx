@@ -1,18 +1,22 @@
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ComingSoon } from "@/components/shell/ComingSoon";
-import { DashboardView } from "@/features/dashboard/DashboardView";
+import { HomeView } from "@/features/home/HomeView";
 
 /**
- * SCR-40 `/home` — Trang chủ theo role (06 §3.4). M1.1: CEO/DIR get the v2.1 executive
- * dashboard as the interim view; the role-specific home of every role arrives in M2.1.
+ * SCR-40 `/home` — Trang chủ 3 cấp theo role (06 §3.4, R-DEC-84/85). CEO/DIR/MGR/EMP thấy
+ * dashboard Reporting v3 (EP-RPT-01..03); Reviewer → hàng chờ `/data`; Admin → `/admin`.
  */
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
   const role = session?.user.role ?? "";
   const perms = session?.user.permissions ?? [];
-  if ((role === "CEO" || role === "DIR") && perms.includes("dashboard:read")) {
-    return <DashboardView role={role} permissions={perms} scopePillars={session?.user.scopePillars ?? []} />;
+  if (role === "REV") redirect("/data");
+  if (role === "ADM") redirect("/admin");
+  // Executive (dashboard:read) hoặc Department/Employee (execution:read) — R-DEC-84/85.
+  if (perms.includes("dashboard:read") || perms.includes("execution:read")) {
+    return <HomeView role={role} />;
   }
   return <ComingSoon item="home" scr="SCR-40" phase="M2.1" />;
 }
