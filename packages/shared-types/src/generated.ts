@@ -830,6 +830,11 @@ export type DocumentPageOut = {
   text_content: string | null;
 };
 
+export type DocumentTypeConfidenceOut = {
+  code: string;
+  confidence: number;
+};
+
 export type DocumentTypeOut = {
   id: string;
   code: string;
@@ -1246,6 +1251,11 @@ export type Envelope_MilestoneOut_ = {
 
 export type Envelope_MitigationOut_ = {
   data: MitigationOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_NaturalLanguagePreviewOut_ = {
+  data: NaturalLanguagePreviewOut;
   meta?: Meta | null;
 };
 
@@ -1914,6 +1924,12 @@ export type ExpenseUpdate = {
   recurrence_period?: ("monthly" | "quarterly" | "yearly") | null;
   vendor?: string | null;
   description?: string | null;
+};
+
+export type ExtractedFieldPreviewOut = {
+  field: string;
+  value: unknown;
+  confidence?: number | null;
 };
 
 export type ExtractionResultOut = {
@@ -3072,6 +3088,21 @@ export type ModelGatewayCheck = {
   primary: string;
 };
 
+export type NaturalLanguageIn = {
+  text?: string | null;
+  audio_ref?: string | null;
+  channel?: "C2";
+  context?: string | null;
+};
+
+export type NaturalLanguagePreviewOut = {
+  document: DocumentOut;
+  document_type: DocumentTypeConfidenceOut;
+  status: "NEEDS_REVIEW" | "AUTO_APPROVED";
+  predicted_actions: PredictedActionOut[];
+  extracted: ExtractedFieldPreviewOut[];
+};
+
 export type NotificationOut = {
   id: string;
   kind: string;
@@ -3336,6 +3367,12 @@ export type PositionUpdate = {
   level?: number | null;
   headcount_budget?: number | null;
   reports_to_position_id?: string | null;
+};
+
+export type PredictedActionOut = {
+  action_name: string;
+  params: Record<string, unknown>;
+  confidence?: number | null;
 };
 
 export type PreferenceItem = {
@@ -4819,6 +4856,10 @@ export interface ApiOperations {
   "POST /api/v1/data-capture/manual": {
     request: ManualSubmitIn;
     response: Envelope_ManualSubmitOut_;
+  };
+  "POST /api/v1/data-capture/natural-language": {
+    request: NaturalLanguageIn;
+    response: Envelope_NaturalLanguagePreviewOut_;
   };
   "GET /api/v1/data-capture/validation-rules": {
     request: void;

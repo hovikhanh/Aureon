@@ -38,7 +38,8 @@ def spec_rows() -> list[tuple[str, str, str, str]]:
 
 
 def test_spec_lists_every_m15_endpoint() -> None:
-    assert sorted(r[0] for r in spec_rows()) == [f"EP-DC-{i:02d}" for i in range(1, 38)]
+    # EP-DC-01..37 (M1.5) + EP-DC-38 natural-language (M2.3, R-DEC-96)
+    assert sorted(r[0] for r in spec_rows()) == [f"EP-DC-{i:02d}" for i in range(1, 39)]
 
 
 def test_routes_match_spec_with_one_permission(routes: dict[tuple[str, str], APIRoute]) -> None:

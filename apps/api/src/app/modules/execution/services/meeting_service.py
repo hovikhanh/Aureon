@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, Date, any_, literal, select
+from sqlalchemy import ColumnElement, Date, any_, literal
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,8 +31,10 @@ from app.modules.execution.models import (
 )
 from app.modules.execution.repositories import (
     OPEN_TASK_STATUSES,
+    ActionItemRepository,
     DecisionRepository,
     MeetingRepository,
+    MeetingSummaryRepository,
     MilestoneRepository,
     ProjectRepository,
     TaskRepository,
@@ -130,6 +132,8 @@ class MeetingService(ExecBase):
         self.meetings = MeetingRepository(db)
         self.decisions = DecisionRepository(db)
         self.tasks = TaskRepository(db)
+        self.summaries = MeetingSummaryRepository(db)
+        self.action_items = ActionItemRepository(db)
 
     @staticmethod
     def _own(user: Principal) -> list[ColumnElement[bool]]:
@@ -370,10 +374,7 @@ class MeetingService(ExecBase):
         """ACT undo for `create_task_from_action_item`: delete the Task + clear `task_id`."""
         from app.modules.execution.services.task_service import TaskService
 
-        stmt = select(ActionItem).where(
-            ActionItem.task_id == task_id, ActionItem.deleted_at.is_(None)
-        )
-        ai = (await self.db.execute(stmt)).scalar_one_or_none()
+        ai = await self.action_items.by_task(task_id)
         if ai is not None:
             ai.task_id = None
             ai.status = "open"
@@ -390,10 +391,7 @@ class MeetingService(ExecBase):
         model_call_id: uuid.UUID | None = None, source_document_id: uuid.UUID | None = None,
     ) -> MeetingSummary:  # fmt: skip
         """Upsert the 1-1 `MeetingSummary` + publish `execution.meeting_summarized`."""
-        stmt = select(MeetingSummary).where(
-            MeetingSummary.meeting_id == meeting_id, MeetingSummary.deleted_at.is_(None)
-        )
-        summary = (await self.db.execute(stmt)).scalar_one_or_none()
+        summary = await self.summaries.for_meeting(meeting_id)
         if summary is None:
             summary = MeetingSummary(
                 meeting_id=meeting_id,
@@ -426,16 +424,16 @@ class MeetingService(ExecBase):
         return summary
 
     async def delete_summary(self, user: Principal, id_: uuid.UUID) -> None:
-        summary = await self.db.get(MeetingSummary, id_)
-        if summary is None or summary.deleted_at is not None:
+        summary = await self.summaries.get(id_)
+        if summary is None:
             raise not_found("meeting summary")
         summary.updated_by = user.user_id
         summary.deleted_at = now_utc()
         await self.db.flush()
 
     async def _action_item(self, id_: uuid.UUID) -> ActionItem:
-        ai = await self.db.get(ActionItem, id_)
-        if ai is None or ai.deleted_at is not None:
+        ai = await self.action_items.get(id_)
+        if ai is None:
             raise not_found("action item")
         return ai
 

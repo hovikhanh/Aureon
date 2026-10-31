@@ -10,6 +10,7 @@ from sqlalchemy import ColumnElement, Select, func, select
 from app.core.base_model import Base
 from app.core.base_repository import BaseRepository, tenant_ids_where
 from app.modules.execution.models import (
+    ActionItem,
     CheckIn,
     Decision,
     Initiative,
@@ -20,6 +21,7 @@ from app.modules.execution.models import (
     KpiTarget,
     KrMeasurement,
     Meeting,
+    MeetingSummary,
     Milestone,
     Objective,
     Project,
@@ -184,6 +186,24 @@ class MeetingRepository(Repo[Meeting]):
 
 class DecisionRepository(Repo[Decision]):
     model = Decision
+
+
+class MeetingSummaryRepository(Repo[MeetingSummary]):
+    model = MeetingSummary
+
+    async def for_meeting(self, meeting_id: uuid.UUID) -> MeetingSummary | None:
+        """The live 1-1 summary of a meeting (M2.3, R-DEC-100)."""
+        rows = await self.where(MeetingSummary.meeting_id == meeting_id)
+        return rows[0] if rows else None
+
+
+class ActionItemRepository(Repo[ActionItem]):
+    model = ActionItem
+
+    async def by_task(self, task_id: uuid.UUID) -> ActionItem | None:
+        """The live action item linked to a task (ACT undo detach, M2.3)."""
+        rows = await self.where(ActionItem.task_id == task_id)
+        return rows[0] if rows else None
 
 
 class ProjectRepository(Repo[Project]):
