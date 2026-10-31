@@ -81,6 +81,9 @@ class ConfigService(BaseSettings):
     model_mapping: str = "auto/cheap"
     model_insight: str = "auto/cheap"
     model_stt: str = "fixture/stt"
+    # M2.3 R-DEC-97: short-voice capture limits (C2). Over → 413/422, no raw audio stored.
+    stt_max_seconds: int = Field(default=60, gt=0, le=600)
+    stt_max_mb: int = Field(default=10, gt=0, le=50)
     model_temperature: float = Field(default=0.2, ge=0, le=2)
     model_max_output_tokens: int = Field(default=2048, gt=0)
     model_pricing_json: str = "{}"  # {"provider:model": {"in": usd_per_1m, "out": usd_per_1m}}

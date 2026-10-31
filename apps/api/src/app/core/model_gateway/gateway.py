@@ -30,7 +30,7 @@ from app.core.model_gateway.errors import (
 )
 from app.core.model_gateway.fixtures import FixtureStore
 from app.core.model_gateway.routing import TEMPLATE, Route, models_for, route, timeout_for
-from app.core.model_gateway.types import ChatChunk, ChatRequest, ChatResponse, Usage
+from app.core.model_gateway.types import ChatChunk, ChatRequest, ChatResponse, Message, Usage
 from app.core.request_context import current_request_id
 
 log = logging.getLogger("app.model_gateway")
@@ -212,6 +212,26 @@ class ModelGateway:
             return replace(resp, data=json.loads(resp.content))
         except json.JSONDecodeError as exc:
             raise ai_error("AI_FUNCTION_CALL_FAILED", "model output is not valid JSON") from exc
+
+    async def transcribe(
+        self, *, audio_ref: str, caller_module: str, user_id: object = None
+    ) -> ChatResponse:
+        """STT (task=stt, R-DEC-22/97). `audio_ref` is an opaque reference/hash — never raw
+        audio (no raw audio is stored). Fixture mode loads `stt/<sha>.json` (the transcript);
+        live STT is backlog (needs a provider dep DEC) → fixture is the only P0 path."""
+        req = ChatRequest(
+            task="stt",
+            messages=(Message(role="user", content=audio_ref),),
+            caller_module=caller_module,
+            user_id=user_id,  # type: ignore[arg-type]
+        )
+        rt = await self._route(req)
+        await self._check_budget()
+        if self.cfg.model_gateway_mode == "fixture":
+            return await self._fixture(req, rt)
+        raise ai_error(
+            "AI_NO_DATA_AVAILABLE", "live STT not configured (fixture-only at P0, R-DEC-97)"
+        )
 
     async def _fixture(self, req: ChatRequest, rt: Route) -> ChatResponse:
         started = time.monotonic()
