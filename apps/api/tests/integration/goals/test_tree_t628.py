@@ -261,8 +261,12 @@ async def test_check_ins_due(api: ApiClient, db_session: AsyncSession) -> None:
     assert r.status_code == 200, r.text
     rows = {x["target_id"]: x for x in r.json()["data"]}
     assert set(rows) == {kr["id"], k["id"]}
-    assert rows[kr["id"]]["due"] is True and rows[kr["id"]]["prefill"] is None
+    assert rows[kr["id"]]["due"] is True
+    # M2.4 prefill (R-DEC-109): a fresh KR / KPI with no grounded source value yet → no suggestion
+    # (never fabricate, P05).
+    assert rows[kr["id"]]["prefill"] is None
     assert rows[k["id"]]["due"] is True and rows[k["id"]]["target_type"] == "kpi"
+    assert rows[k["id"]]["prefill"] is None
     ck = await as_user(api, "POST", f"/key-results/{kr['id']}/check-ins", "EMPLOYEE", me,
                        json={"value": 4, "confidence": "MEDIUM"})  # fmt: skip
     assert ck.status_code == 201, ck.text
@@ -276,7 +280,12 @@ async def test_check_ins_due(api: ApiClient, db_session: AsyncSession) -> None:
     }
     assert rows[kr["id"]]["due"] is False and rows[kr["id"]]["current_value"] == 4
     assert rows[kr["id"]]["confidence"] == "MEDIUM"
+    # after a check-in the KR has history → prefill confidence rises to HIGH, value = latest
+    kr_pre2 = rows[kr["id"]]["prefill"]
+    assert kr_pre2["suggested_value"] == 4 and kr_pre2["confidence"] == "HIGH"
     assert rows[k["id"]]["due"] is False and rows[k["id"]]["current_value"] == 91
+    # the KPI now has an evaluation → AI suggests 91 (grounded on the measurement)
+    assert rows[k["id"]]["prefill"]["suggested_value"] == 91
 
 
 async def test_strategy_crud_contract_edges(api: ApiClient, db_session: AsyncSession) -> None:

@@ -38,7 +38,7 @@ from app.modules.execution.repositories import (
     StrategicObjectiveRepository,
     StrategyRepository,
 )
-from app.modules.execution.schemas.okr import CheckInDueOut
+from app.modules.execution.schemas.okr import CheckInDueOut, CheckInPrefillOut
 from app.modules.execution.schemas.strategy import (
     GoalTreeOut,
     IniNode,
@@ -96,6 +96,26 @@ class _Forest[R: BusinessModel]:
         if depth >= MAX_DEPTH:
             return []
         return [c for c in self.kids.get(r.id, []) if self.keep(c, depth + 1)]
+
+
+def _prefill(
+    current: float | None, source_label: str, lineage_url: str, *, has_history: bool
+) -> CheckInPrefillOut | None:
+    """AI check-in prefill (M2.4, R-DEC-109): suggest the latest grounded value and a confidence
+    band. No source value → no suggestion (never fabricate, P05). Confidence is HIGH only when
+    there is prior history to corroborate the reading, else MEDIUM."""
+    if current is None:
+        return None
+    band = "HIGH" if has_history else "MEDIUM"
+    reason = (
+        "Lấy từ số liệu nguồn mới nhất, có lịch sử đối chiếu."
+        if has_history
+        else "Lấy từ số liệu nguồn mới nhất; chưa có lịch sử đối chiếu."
+    )
+    return CheckInPrefillOut(
+        suggested_value=current, confidence=band, confidence_reason=reason,
+        source_label=source_label, lineage_url=lineage_url,
+    )  # fmt: skip
 
 
 def kr_node(k: KeyResult) -> KrNode:
@@ -279,7 +299,8 @@ class GoalTreeService:
         """F4 card of the caller: KRs of `active` objectives whose period contains today +
         `active` KPIs, owned by the caller (`owner_id = Principal.user_id`). `due`: KR not
         checked in within `GOALS_KR_CHECKIN_MAX_AGE_DAYS`; KPI whose last ended period has no
-        evaluation yet. `prefill` stays `null` at M1.4."""
+        evaluation yet. `prefill` (M2.4): the AI-suggested value read from the latest source
+        metric + a confidence band — the user always confirms/edits before writing (R-DEC-109)."""
         day = today()
         cfg = get_config()
         me = user.user_id
@@ -293,10 +314,14 @@ class GoalTreeService:
                 last = kr.last_checked_in_at
                 fresh = last is not None and local_day(last) >= day - timedelta(
                     days=cfg.goals_kr_checkin_max_age_days)  # fmt: skip
+                cur = num(kr.current_value)
                 out.append(CheckInDueOut(
                     target_type="key_result", target_id=kr.id, title=kr.title, unit=kr.unit,
-                    current_value=num(kr.current_value), target=float(kr.target),
-                    confidence=kr.confidence, last_checked_in_at=last, due=not fresh))  # fmt: skip
+                    current_value=cur, target=float(kr.target),
+                    confidence=kr.confidence, last_checked_in_at=last, due=not fresh,
+                    prefill=_prefill(cur, f"KR {kr.title[:60]}",
+                                     f"/goals/objectives/{kr.objective_id}?kr={kr.id}",
+                                     has_history=last is not None)))  # fmt: skip
         kpis = await self.kpis.where(Kpi.status == "active", Kpi.owner_id == me, order=Kpi.code)
         evs = await self.evaluations.of_periods(
             [(k.id, last_ended_period(k.period_type, day)) for k in kpis]
@@ -304,9 +329,12 @@ class GoalTreeService:
         latest = await self.evaluations.latest_for([k.id for k in kpis])
         for k in kpis:
             ev = latest.get(k.id)
+            cur = None if ev is None else float(ev.actual_value)
             out.append(CheckInDueOut(
                 target_type="kpi", target_id=k.id, title=k.name, unit=k.unit,
-                current_value=None if ev is None else float(ev.actual_value),
-                target=float(k.target_value), confidence=None, last_checked_in_at=None,
-                due=(k.id, last_ended_period(k.period_type, day)) not in evs))  # fmt: skip
+                current_value=cur, target=float(k.target_value), confidence=None,
+                last_checked_in_at=None,
+                due=(k.id, last_ended_period(k.period_type, day)) not in evs,
+                prefill=_prefill(cur, f"KPI {k.code}", f"/goals/kpis/{k.id}",
+                                 has_history=ev is not None)))  # fmt: skip
         return out

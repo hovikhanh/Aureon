@@ -429,7 +429,7 @@ export type CheckInDueOut = {
   confidence: ("HIGH" | "MEDIUM" | "LOW") | null;
   last_checked_in_at: string | null;
   due: boolean;
-  prefill?: null;
+  prefill?: CheckInPrefillOut | null;
 };
 
 export type CheckInOut = {
@@ -449,6 +449,14 @@ export type CheckInOut = {
   target_title?: string | null;
   department_id?: string | null;
   kr_measurement?: KrMeasurementBrief | null;
+};
+
+export type CheckInPrefillOut = {
+  suggested_value: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  confidence_reason: string;
+  source_label: string;
+  lineage_url?: string | null;
 };
 
 export type ChurnPoint = {

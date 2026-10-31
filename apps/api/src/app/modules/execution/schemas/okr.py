@@ -175,8 +175,20 @@ class CheckInOut(LogOut):
     kr_measurement: KrMeasurementBrief | None = None
 
 
+class CheckInPrefillOut(BaseModel):
+    """AI-prefill for an F4 check-in (M2.4, R-DEC-109): a suggested value read from the source
+    metric + a confidence band (Cao/TB/Thấp) with a reason. The user always confirms/edits before
+    the value is written — never auto-written (03 §7, P05)."""
+
+    suggested_value: float
+    confidence: Confidence
+    confidence_reason: str
+    source_label: str
+    lineage_url: str | None = None
+
+
 class CheckInDueOut(BaseModel):
-    """EP-PRF-06 — one F4 card of the caller; `prefill` stays `null` in M1.4 (M2.4)."""
+    """EP-PRF-06 — one F4 card of the caller; `prefill` is AI's suggested value (M2.4)."""
 
     target_type: GoalTargetType
     target_id: uuid.UUID
@@ -187,4 +199,4 @@ class CheckInDueOut(BaseModel):
     confidence: Confidence | None
     last_checked_in_at: datetime | None
     due: bool
-    prefill: None = None
+    prefill: CheckInPrefillOut | None = None
