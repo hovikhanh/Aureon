@@ -218,8 +218,8 @@
         "TOOL-get_finance_dashboard",
         "TOOL-get_risk_dashboard"
       ],
-      "answer_vi": "F (Tài chính) xanh: doanh thu đạt {METRIC-FIN-01}% kế hoạch [[METRIC-FIN-01]], runway {METRIC-FIN-03} tháng [[METRIC-FIN-03]]. S (Chiến lược & Rủi ro) đỏ: {METRIC-RSK-01} rủi ro high/critical đang mở [[METRIC-RSK-01]], SEI chỉ {METRIC-RSK-06}% [[METRIC-RSK-06]]. Tài chính khỏe nhưng rủi ro chưa được kiểm soát — nên ưu tiên giao chủ cho rủi ro.",
-      "answer_en": "F is green: revenue {METRIC-FIN-01}% of plan [[METRIC-FIN-01]], runway {METRIC-FIN-03} months [[METRIC-FIN-03]]. S is red: {METRIC-RSK-01} open high/critical risks [[METRIC-RSK-01]], SEI {METRIC-RSK-06}% [[METRIC-RSK-06]]."
+      "answer_vi": "F (Tài chính) xanh: doanh thu đạt {METRIC-FIN-01}% kế hoạch [[METRIC-FIN-01]], runway {METRIC-FIN-03} tháng [[METRIC-FIN-03]]. S (Chiến lược & Rủi ro) đỏ: {METRIC-RSK-01} rủi ro high/critical đang mở [[METRIC-RSK-01]], SEI chỉ {METRIC-STR-02}% [[METRIC-STR-02]]. Tài chính khỏe nhưng rủi ro chưa được kiểm soát — nên ưu tiên giao chủ cho rủi ro.",
+      "answer_en": "F is green: revenue {METRIC-FIN-01}% of plan [[METRIC-FIN-01]], runway {METRIC-FIN-03} months [[METRIC-FIN-03]]. S is red: {METRIC-RSK-01} open high/critical risks [[METRIC-RSK-01]], SEI {METRIC-STR-02}% [[METRIC-STR-02]]."
     }
   ]
 }
