@@ -65,8 +65,12 @@ def test_registry_and_routing() -> None:
     for e in ("execution.kpi_measured", "execution.okr_checked_in"):
         assert platform_consumers.AFFECTS[e] == {"execution"}
         assert REGISTRY.consumers_for(e) == ["platform.on_goal_event"]
-    for e in ("execution.kpi_below_threshold", "execution.okr_at_risk"):
-        assert REGISTRY.consumers_for(e) == ["execution.on_goal_alert"]
+    # M2.4 R-DEC-108: AI now also observes the KPI breach to raise an insight (order-independent).
+    assert set(REGISTRY.consumers_for("execution.kpi_below_threshold")) == {
+        "execution.on_goal_alert",
+        "ai.on_kpi_below_threshold",
+    }
+    assert REGISTRY.consumers_for("execution.okr_at_risk") == ["execution.on_goal_alert"]
     assert "execution.kpi_measured" not in platform_consumers._group("execution.")
 
 

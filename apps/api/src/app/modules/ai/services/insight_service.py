@@ -116,6 +116,89 @@ class InsightService:
         draft = InsightDraft(pillar, kind, severity, observation, structured, evidence)
         return await self._persist(draft, band)
 
+    async def generate_for_kpi(self, payload: dict[str, Any]) -> Insight | None:
+        """A KPI breach (`execution.kpi_below_threshold`) → one 9-part insight with a root cause
+        read from the owner's overdue work and an **L2** recommendation (MGR approves a task tied
+        to the KPI; never auto-executed — R-DEC-108, UC-03). Grounded on the KPI value itself.
+        """
+        code = str(payload.get("kpi_code", "KPI"))
+        period = str(payload.get("period_key", ""))
+        raw_pct = payload.get("achievement_pct")
+        if raw_pct is None:
+            return None
+        try:
+            pct = float(raw_pct)
+        except (TypeError, ValueError):
+            return None
+        band_in = str(payload.get("band", "BELOW"))
+        kpi_id = str(payload.get("kpi_id", ""))
+        overdue = await self._owner_overdue(payload)
+        # evidence: the KPI value is the grounded number (GAP D-15 — ≥ 1 SourceRef)
+        evidence = [
+            SourceRefOut(
+                type="metric_value",
+                id=code,
+                label=f"KPI {code}",
+                period_key=period,
+                value=pct,
+                lineage_url=f"/goals/kpis/{kpi_id}",
+            ).model_dump()
+        ]
+        observation = f"KPI {code} đạt {pct:g}% kỳ {period} — ở mức {band_in}."
+        root = (
+            f"Phát hiện {overdue} việc quá hạn của người phụ trách — khả năng là nguyên nhân "
+            f"trực tiếp kéo KPI xuống." if overdue
+            else "Chưa thấy việc quá hạn của người phụ trách; cần rà soát bản ghi nguồn của kỳ."
+        )  # fmt: skip
+        structured = {
+            "impact": f"KPI {code} dưới ngưỡng ảnh hưởng mục tiêu kỳ {period}.",
+            "root_cause": root,
+            "risk": f"Giữ nguyên {band_in} sẽ làm lệch mục tiêu kỳ và các kỳ kế tiếp.",
+            "expected_outcome": {"metric_id": code, "target": "về ngưỡng", "by": "+14d"},
+            # L2: a proposed task tied to the KPI — MGR confirms via an ActionCard (not auto-run)
+            "action": [{
+                "text": f"Giao việc khắc phục KPI {code} (chờ MGR duyệt)",
+                "tool": "TOOL-create_task", "autonomy_level": "L2",
+                "input": {"kpi_code": code, "kpi_id": kpi_id, "period_key": period},
+            }],
+            "evidence": evidence,
+            "confidence": {"band": "MEDIUM", "reason": "Một chỉ số KPI tươi + tín hiệu việc trễ."},
+            "alternatives": ["Chờ kỳ sau đo lại trước khi hành động."],
+            "timeline": "Trong 14 ngày; kiểm tra 24h/7d sau khi giao việc.",
+            "owner": "MGR",
+        }  # fmt: skip
+        pillar = "O"  # KPI/OKR execution health maps to the people/execution pillar
+        severity = "CRITICAL" if band_in.upper() == "CRITICAL" else "WARNING"
+        draft = InsightDraft(pillar, "recommendation", severity, observation, structured, evidence)
+        return await self._persist(draft, "MEDIUM")
+
+    async def _owner_overdue(self, payload: dict[str, Any]) -> int:
+        """Count the KPI owner's overdue tasks (root-cause signal) via the `execution` public
+        service — scoped to a system MGR principal for the owner's department (no cross-schema
+        query, DEC-125). Returns 0 when the owner is unknown or the read fails."""
+        from app.core.deps import Principal
+        from app.core.pagination import PageParams
+        from app.modules.execution.services.task_service import TaskService
+
+        owner = payload.get("owner_id")
+        dept = payload.get("department_id")
+        if not owner:
+            return 0
+        actor = Principal(
+            user_id=uuid.UUID(str(owner)), role="MGR",
+            permissions=frozenset({"execution:read"}),
+            department_id=uuid.UUID(str(dept)) if dept else None,
+            employee_id=uuid.UUID(str(owner)),
+        )  # fmt: skip
+        try:
+            _items, total = await TaskService(self.db).list_tasks(
+                actor, PageParams(limit=5, offset=0, sort_by="due_date", order="asc"),
+                filters={}, overdue=True,
+            )  # fmt: skip
+        except Exception:  # a read failure must not drop the insight (root cause falls back)
+            return 0
+        return int(total)
+
     async def _narrate(self, pillar: str, worst: Any, evidence: list[dict[str, Any]]) -> str:
         default = f"Trụ {pillar}: {worst.metric_code} đang ở mức {worst.status}."
         if self.gateway is None:
