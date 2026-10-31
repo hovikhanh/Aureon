@@ -24,6 +24,7 @@ from app.modules.execution.models import (
     Project,
     Task,
 )
+from app.modules.finance.models import Revenue
 from app.modules.hr.models import Department, Employee
 from app.modules.platform.models import Metric, MetricValue
 from app.modules.platform.services.metric_store import MetricStore, seed_catalog
@@ -352,3 +353,14 @@ async def test_tc_m14_16_goal_layer(seeded: AsyncSession) -> None:
     m = await _metrics(seeded)
     assert m["METRIC-STR-01"] == (81.5, "GREEN")
     assert m["METRIC-STR-02"] == (75.0, "GREEN")
+
+
+async def test_tc_m22_06_annual_revenue_near_300ty(seeded: AsyncSession) -> None:
+    """TC-M22-06 (R-DEC-94, 08/CLAUDE §1.5): doanh thu 12 tháng gần nhất (2025-11..2026-10)
+    của Công ty ABC ≈ 300 tỷ VNĐ/năm — tính bằng query trên seed, không tính nhẩm."""
+    periods = [f"2025-{m:02d}" for m in (11, 12)] + [f"2026-{m:02d}" for m in range(1, 11)]
+    total = (await seeded.execute(
+        select(func.coalesce(func.sum(Revenue.amount), 0)).where(
+            Revenue.period_key.in_(periods)))).scalar_one()  # fmt: skip
+    ty = int(total) / 1_000_000_000
+    assert 270 <= ty <= 320, f"doanh thu 12 tháng = {ty:.1f} tỷ, ngoài ~300 tỷ"

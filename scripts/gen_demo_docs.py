@@ -14,6 +14,7 @@ Outputs (all under data/):
                                                 3 intentional error rows; leavers on sheet 2)
     DOC-07  kpi-okr-q4-2026.xlsx / .docx       (openpyxl + python-docx, #2 PLAN_KPI_OKR 2026-Q4)
     DOC-08  bao-cao-ket-qua-q3-2026.pdf        (reportlab, #3 PERIOD_REPORT Q3/2026)
+    DOC-11  sao-ke-so-du-q3-2026.xlsx          (openpyxl, #6 FINANCE_REPORT: 3 kỳ rev/exp/cash)
     DOC-09  hoa-don-gtgt-mau.pdf               (reportlab, #1 INVOICE single VAT invoice,
                                                 all 8 schema fields, VR-INV-05 holds)
     DOC-10  anh-hoa-don-gtgt.png               (Pillow, #1 INVOICE as a C4 photo for OCR —
@@ -1548,6 +1549,49 @@ def gen_doc10(path: Path) -> str:
 
 
 # ===========================================================================
+# DOC-11 — Sao kê số dư & báo cáo tài chính (doc type #6 FINANCE_REPORT, M2.2)
+# Số liệu khớp seed finance_data (T7–T9/2026) → doanh thu quý ≈ 73,5 tỷ.
+# ===========================================================================
+DOC11_ROWS: Final[tuple[tuple[str, int, int, int], ...]] = (
+    # (Kỳ, Doanh thu, Chi phí (COGS), Số dư cuối kỳ) — đơn vị đồng
+    ("2026-07", 23_400_000_000, 19_080_000_000, 17_400_000_000),
+    ("2026-08", 24_600_000_000, 20_070_000_000, 15_000_000_000),
+    ("2026-09", 25_500_000_000, 20_850_000_000, 12_600_000_000),
+)
+
+
+def gen_doc11(path: Path) -> str:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sao kê số dư"
+    ws.append([f"BÁO CÁO TÀI CHÍNH / SAO KÊ SỐ DƯ — {COMPANY}"])
+    ws.append([f"Kỳ: Quý 3/2026 — Ngày lập: {REF_DATE} — Đơn vị tiền: đồng (VND)"])
+    ws.append([])
+    headers = ["Kỳ", "Doanh thu", "Chi phí", "Số dư cuối kỳ"]
+    ws.append(headers)
+    _style_header(ws, len(headers), row=4)
+    thin = Side(style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    rev_sum = 0
+    for period, rev, exp, bal in DOC11_ROWS:
+        ws.append([period, rev, exp, bal])
+        rev_sum += rev
+        r = ws.max_row
+        for c in range(2, 5):
+            ws.cell(row=r, column=c).number_format = "#,##0"
+        for c in range(1, 5):
+            ws.cell(row=r, column=c).border = border
+    for i, w in enumerate([12, 22, 22, 22], start=1):
+        ws.column_dimensions[ws.cell(row=4, column=i).column_letter].width = w
+    note = ws.cell(row=ws.max_row + 2, column=1)
+    note.value = f"Tổng doanh thu quý 3/2026 = {vnd(rev_sum)}"
+    note.font = Font(bold=True, italic=True, color="1F4E79")
+    assert rev_sum == 73_500_000_000, f"DOC-11: Σ doanh thu {rev_sum} != 73.5 tỷ"
+    _save_wb(wb, path)
+    return f"DOC-11: #6 FINANCE_REPORT 3 kỳ (Σ doanh thu={num(rev_sum)}), {path.name}"
+
+
+# ===========================================================================
 # main
 # ===========================================================================
 def main() -> None:
@@ -1582,6 +1626,7 @@ def main() -> None:
         (DATA_DIR / "DOC-08-bao-cao-ket-qua-q3-2026.pdf", gen_doc08),
         (DATA_DIR / "DOC-09-hoa-don-gtgt-mau.pdf", gen_doc09),
         (DATA_DIR / "DOC-10-anh-hoa-don-gtgt.png", gen_doc10),
+        (DATA_DIR / "DOC-11-sao-ke-so-du-q3-2026.xlsx", gen_doc11),
         (DATA_DIR / UC07_FILE, gen_uc07),
     ]
 
