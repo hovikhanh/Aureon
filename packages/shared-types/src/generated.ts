@@ -3857,6 +3857,11 @@ export type SimilarClient = {
   score: number;
 };
 
+export type SourcePageOut = {
+  page_number: number;
+  text_content: string | null;
+};
+
 export type SourceRef_Input = {
   kind: "meeting" | "decision" | "ai_action" | "document" | "mitigation";
   id: string;
@@ -3868,6 +3873,8 @@ export type SourceViewOut = {
   mime_type: string | null;
   page_count: number | null;
   page: number | null;
+  filename?: string | null;
+  pages?: SourcePageOut[] | null;
 };
 
 export type StageChange = {
@@ -4749,6 +4756,10 @@ export interface ApiOperations {
   "PATCH /api/v1/execution/meetings/{meeting_id}": {
     request: MeetingUpdate;
     response: Envelope_MeetingOut_;
+  };
+  "GET /api/v1/files/{storage_key}": {
+    request: void;
+    response: void;
   };
   "GET /api/v1/finance/budgets": {
     request: void;

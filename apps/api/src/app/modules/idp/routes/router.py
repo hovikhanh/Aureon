@@ -21,6 +21,7 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.idp.routes.data_capture import router as data_capture_router
+from app.modules.idp.routes.files import router as files_router
 from app.modules.idp.routes.lineage import router as lineage_router
 from app.modules.idp.schemas import (
     ApproveIn,
@@ -286,9 +287,11 @@ async def review_merge(body: MergeIn, user: IdpApprover, db: DbSession, idem: Id
     return MergeOut(parent=parent, children=children)
 
 
-# `/idp/*` + `/data-capture/*` (EP-DC-13..25, 27..37) + `/lineage/*` (EP-DC-26) — 10 §7.2.4.
+# `/idp/*` + `/data-capture/*` (EP-DC-13..25, 27..37) + `/lineage/*` (EP-DC-26)
+# + `/files/*` (EP-DC-14b, R-DEC-80) — 10 §7.2.4.
 
 module_router = EnvelopeRouter()
 module_router.include_router(router)
 module_router.include_router(data_capture_router)
 module_router.include_router(lineage_router)
+module_router.include_router(files_router)

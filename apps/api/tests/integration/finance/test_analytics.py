@@ -98,6 +98,13 @@ async def test_dashboard_contract(api: ApiClient, monkeypatch: pytest.MonkeyPatc
     assert d["runway_trend"][-1]["runway_months"] == 6.0
     codes = [m["metric_code"] for m in d["metrics"]]
     assert codes == [f"METRIC-FIN-0{i}" for i in range(1, 8)]
+    # units are the normalized dashboard output vocabulary the FE `unit.*` i18n knows —
+    # never the catalog-internal "PERCENT" (would throw MISSING_MESSAGE: unit.PERCENT on the FE).
+    units = {m["unit"] for m in d["metrics"]}
+    assert "PERCENT" not in units
+    assert units <= {"PCT", "VND", "SCORE", "RATIO", "MONTHS", "DAYS", "COUNT"}
+    pct_codes = {f"METRIC-FIN-0{i}" for i in (1, 2, 5, 6, 7)}
+    assert {m["unit"] for m in d["metrics"] if m["metric_code"] in pct_codes} == {"PCT"}
     runway = d["metrics"][2]
     assert runway["status"] == "warning" and runway["lineage_url"].endswith("METRIC-FIN-03")
     assert d["status"] in {"warning", "critical"}

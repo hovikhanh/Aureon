@@ -27,7 +27,45 @@ Chạy trên đỉnh chuỗi `v3/m1.6-ai-onboarding` (chứa M1.3→M1.6), DB ri
 - Lần real đầu fail 6–7 spec IDP/goals do script support ghi nhầm DB worktree (chưa có `E2E_ENV_FILE`) + dữ liệu bẩn từ lượt trước → reseed sạch rồi chạy lại 75/75.
 - Sau reboot WSL, port-forward Docker Desktop có thể reset kết nối → `docker restart` container (dữ liệu giữ).
 
-## M1.6 — D26 AI Platform + UC-07 (chuỗi auto) — DONE `[full-test pending]` (2026-10-25, nhánh `v3/m1.6-ai-onboarding`)
+## FIX — "Xem tài liệu gốc" (EP-DC-14) hoạt động end-to-end — R-DEC-80 (2026-10-26, nhánh `v3/fix-source-view-ep-dc-14`)
+Sửa lỗi người dùng báo: Data Inbox → "Xem tài liệu gốc" luôn hiện *"Chưa xem trực tiếp được file gốc; không có lớp chữ…"* dù file có lớp chữ. **Hai nguyên nhân gốc:**
+1. EP-DC-14 ký presigned URL `/files/<key>` nhưng **không có route phục vụ file** (nợ M1.5) → `servable()` luôn false → không bao giờ nhúng iframe.
+2. Fallback lớp chữ của `SourceDrawer` gọi **nhầm EP-DC-05 `/review`** (quyền `idp:approve`) → CEO/EMP/ADM (chỉ có `idp:read`) nhận `403` → `retry:false` → UI gộp "không có quyền" thành "không có lớp chữ".
+
+**Quyết định:** R-DEC-80 (đề xuất, chờ human cấp số DEC) — thêm **EP-DC-14b** `GET /files/{storage_key}` (`idp:read`) + mở rộng `SourceViewOut` (`pages[]`, `filename`) + presigned URL đổi tiền tố BFF `/api/backend/files/…`. **Không mở rộng quyền phê duyệt.**
+
+| Thay đổi | File |
+|---|---|
+| Route phục vụ file (verify chữ ký+hạn → tra theo `storage_key` trong tenant → kiểm scope `capture_visible` → stream, `inline`/`no-store`/`nosniff`/CSP sandbox) | `apps/api/src/app/modules/idp/routes/files.py` (mới), `router.py` |
+| `presign_get` → tiền tố `/api/backend/files/…` + `valid_storage_key()` (chống traversal) | `core/storage.py` |
+| `SourceViewOut` + `pages[]`/`filename`; `source()` kèm lớp chữ; `serve_file()` | `idp/schemas/capture.py`, `services/inbox_service.py`, `repositories/__init__.py` (`by_storage_key` tenant-scoped) |
+| FE: logic view-state thuần (`sourceViewState`) phân biệt frame / text / no-text-layer / page-no-text / **forbidden (403)** / error; đọc lớp chữ từ EP-DC-14 (không gọi `/review`) | `features/capture/source-view.ts` (mới), `SourceDrawer.tsx`, i18n `noTextLayer`/`pageNoText`/`signature`/`NOT_FOUND` |
+| BFF forward header `content-disposition`/`x-content-type-options`/CSP cho stream | `apps/web/src/app/api/backend/[...path]/route.ts` |
+| shared-types regen; mock `source` trả `pages[]`/`filename` | `packages/shared-types/src/generated.ts`, `src/mocks/capture.ts` |
+| Docs | 10 §7.2.4 (EP-DC-14, EP-DC-14b), 13 (R-DEC-80), 14 (TC-SRC-01..08, TC-SRC-FE-01..06) |
+
+**Test (đã chạy, 2026-10-26):** BE `pytest apps/api/tests/integration/idp apps/api/tests/unit` **540 passed**; contract **34**; architecture **30**; unit storage 6 (chữ ký/hạn/traversal/giả mạo); `/files` serving 5 (happy+headers+audit, chữ ký/hạn→403, key xấu/ngoài scope→404, cross-tenant→404, ma trận role không cần `idp:approve`). FE `pnpm lint`/`typecheck`/`test` (**330 Vitest**, +`source-view.test.ts` 9); mock E2E `capture.spec.ts` 2/2 (MANUAL→422 + "Xem tài liệu gốc" mở frame inline, không `source-no-text`). mypy 349 file sạch, ruff/format sạch, shared-types up-to-date.
+**Chưa làm:** chưa commit/push/merge (chờ human); R-DEC-80 chờ human cấp số DEC chính thức; chưa chụp màn hình app đang chạy (dùng assertion Playwright thay thế — không đụng server :3000 của người dùng).
+
+## FIX — Tài liệu upload kẹt ở UPLOADED (không hiện review/ảnh gốc như seed) (2026-10-26)
+Người dùng báo: tài liệu **seed** xem được ảnh gốc (trái) + trường trích xuất (phải), nhưng tài liệu **tự upload** không hiện vậy. **Nguyên nhân gốc:** Celery app [worker.py](apps/api/src/app/worker.py) có `include=[events, jobs, notifications]` **thiếu `app.workers.idp_pipeline`** → task `app.idp.process_document` không được đăng ký. Khi upload, route gọi `enqueue_pipeline()` → `process_document.delay()` đẩy task vào broker, worker **nhận nhưng từ chối** (`KeyError: 'app.idp.process_document'`), nên mọi doc upload kẹt `UPLOADED`, không chạy phân loại/OCR/trích xuất → không vào được màn review. Seed khác vì seeder ghi sẵn doc đã xử lý. (Backend phục vụ ảnh gốc EP-DC-14 vẫn OK — đã kiểm chứng file upload serve HTTP 200 PDF; vấn đề là pipeline không chạy nên doc không tới màn review.)
+**Sửa:** thêm `"app.workers.idp_pipeline"` vào `include` + route `app.idp.* → queue "idp"` (worker nghe `default,idp,events`). Không đổi API/schema/dep → không cần DEC.
+**Regression test:** [test_worker_tenant.py](apps/api/tests/unit/test_worker_tenant.py) — `test_worker_registers_idp_pipeline_task` khẳng định `include` chứa module, task có trong `celery_app.tasks`, và route `app.idp.*` → `idp`.
+**Test:** worker unit 6 passed; IDP integration **168 passed**; mypy 349 sạch; ruff sạch.
+**Docker:** rebuild+recreate `aureon-api:local` (api+celery). **Kiểm chứng live end-to-end:** upload PDF hợp lệ (office@abc.demo) → worker chạy `app.idp.process_document` SUCCEEDED ~4s → status `UPLOADED→NEEDS_REVIEW`; `/source` (trái) serve HTTP 200 PDF, `/extraction` (phải) HTTP 200. Task đã đăng ký trong worker đang chạy. (Đã dọn doc test.)
+
+## FIX — Cảnh báo Next.js "font preloaded ... was not used" (2026-10-26)
+Console mọi trang (gồm `/data`) cảnh báo 8 file `_next/static/media/*.woff2` preload nhưng không dùng trong vài giây. **Nguyên nhân gốc:** [layout.tsx](apps/web/src/app/layout.tsx) nạp `Be_Vietnam_Pro` 4 weight × subset {latin, vietnamese} với `preload` mặc định = true → next/font phát `<link rel=preload>` cho cả 8 woff2 (4 weight × 2 subset), nhưng first paint chỉ dùng vài file → trình duyệt cảnh báo. **Sửa:** đặt `preload: false` (giữ nguyên `subsets`, `weight`, `display:"swap"`). Font vẫn nạp theo nhu cầu qua `@font-face` đã sinh; **không mất subset vietnamese, không đổi thiết kế**. **Kiểm chứng:** build FE OK; HTML phục vụ còn **0** preload woff2 (trước: 8); CSS phục vụ còn **13 `@font-face`** (4 block dải Vietnamese, đủ 4 weight) → glyph tiếng Việt vẫn dùng Be Vietnam Pro. lint/typecheck sạch, Vitest **332 passed**. **Docker:** rebuild+recreate `aureon-web:local`.
+
+## FIX — `MISSING_MESSAGE: financeDrill.hint.cash` khi xem chi tiết trụ Tài chính (2026-10-26)
+`FinanceDrillView` hiển thị `financeDrill.card.<key>` luôn + `financeDrill.hint.<key>` khi thẻ có < 2 điểm trend. i18n chỉ có hint cho `budget`/`burn` trong khi có 6 card (`revenue/expense/budget/runway/cash/burn`) → 4 thẻ thiếu hint → `MISSING_MESSAGE` khi series thưa (gặp trên Docker thật). **Sửa:** bổ sung `financeDrill.hint` cho `revenue/expense/runway/cash` (VI+EN) trong [vi.json](apps/web/messages/vi.json)/[en.json](apps/web/messages/en.json); regression test [drilldown.test.ts](apps/web/src/features/finance/drilldown.test.ts) khẳng định mọi `CARDS[].key` có cả `card.*` và `hint.*` ở 2 locale. **Test:** Vitest **332 passed** (+2), lint/typecheck sạch. **Docker:** rebuild+recreate `aureon-web:local`; xác minh chuỗi hint mới có trong container.
+
+## FIX — `MISSING_MESSAGE: unit.PERCENT` trên FE (console control/dashboard) (2026-10-26)
+Người dùng báo lỗi console `Error: MISSING_MESSAGE: unit.PERCENT (vi)`. **Nguyên nhân gốc:** `/finance/dashboard` (tính on-read, DEC-200) phát `unit:"PERCENT"` (unit nội bộ của catalog), trong khi mọi dashboard khác + metric store chuẩn hóa `PERCENT→PCT` (`UNIT_OUT` ở `platform/services/metric_query.py`). FE namespace i18n `unit.*` chỉ biết `PCT/VND/SCORE/RATIO/MONTHS/DAYS/COUNT` → `t("unit.PERCENT")` ném `MISSING_MESSAGE`.
+**Sửa:** [analytics_service.py](apps/api/src/app/modules/finance/services/analytics_service.py) — 5 metric FIN (01/02/05/06/07) phát `"PCT"` thay vì `"PERCENT"` (đồng bộ vocab output; field `FinanceMetricOut.unit: str` không đổi → không đổi contract/schema, không cần DEC). Regression test ở [test_analytics.py](apps/api/tests/integration/finance/test_analytics.py) khẳng định units ⊆ vocab FE-biết và không có `PERCENT`.
+**Test:** finance + 6 domain dashboard + platform integration **158 passed**; ruff/mypy sạch (349 file). **Docker:** rebuild+recreate `aureon-api:local`; xác minh live `/finance/dashboard` → units `['DAYS','MONTHS','PCT']`, không còn `PERCENT`. (FE không đổi → không rebuild web.)
+
+## FIX — "Xem tài liệu gốc" (EP-DC-14) hoạt động end-to-end — R-DEC-80 (2026-10-26, nhánh `v3/fix-source-view-ep-dc-14`)
 | Task | Commit | Nội dung |
 |---|---|---|
 | T-644S | `a528d48`, `38c9067` | Spec lock M1.3–M1.6 (R-DEC-70..79 cho M1.6) |
@@ -113,7 +151,7 @@ tài liệu ngoài scope `404` (trước `422`); #5 ai_eval INJ-02/03 đỏ sẵ
 DB (seed thêm INVOICE) → thêm fixture tương ứng. Đã soát: audit/outbox/lineage cùng transaction (SAVEPOINT executor), quyền đích
 từng ACT, undo `seq DESC` + `409 conflicts[]`, mức 4 không vào params/snapshot/audit/event/prompt, upload stream 1 MB, `413`
 rows/sheets/columns, migration reversible, master-ref cache (không N+1 theo dòng).
-**Nợ / lưu ý:** EP-DC-14 cần DEC cho route phục vụ file presigned (hiện URL ký nhưng không route đọc); ADM xem incident (EP-DC-37
+**Nợ / lưu ý:** ~~EP-DC-14 cần DEC cho route phục vụ file presigned (hiện URL ký nhưng không route đọc)~~ → **ĐÓNG 2026-10-26 bởi R-DEC-80** (EP-DC-14b `/files/{storage_key}`, xem mục FIX đầu file); ADM xem incident (EP-DC-37
 cần `idp:approve`) → OQ M3.x; SCR-63 `classifier_keywords` không trả trong `DocumentTypeOut`; reviewer@ thuộc phòng ADM → người ghi
 hoá đơn trên demo là office@ — xem lại UX/seed; SCR-18b không highlight ô nguồn trên trang; rule form validation chỉ single-field;
 fixture classify phụ thuộc tập doc type active (thêm doc type → ghi lại fixture INJ).

@@ -1,9 +1,8 @@
 """`/data-capture/*` — D03 Data Capture M1.5: EP-DC-13..25, EP-DC-27..37 (10 §7.2.4, R-DEC-39).
 
 Each endpoint holds exactly one `idp:*` permission; the domain write permission of every ACT is
-checked inside the Action Registry v2 (R-DEC-61). Endpoints whose behaviour lands in a later
-M1.5 task answer `501` (`core/stub.py`). Static paths (`/inbox`, `/imports`, …) come before
-`{id}` paths.
+checked inside the Action Registry v2 (R-DEC-61). Static paths (`/inbox`, `/imports`, …) come
+before `{id}` paths.
 """
 
 import uuid

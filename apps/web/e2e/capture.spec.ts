@@ -43,6 +43,33 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     expect([src.status(), ((await src.json()) as { error: { details: { reason: string } } }).error.details.reason]).toEqual([422, "no_file"]);
   });
 
+  test("R-DEC-80: 'Xem tài liệu gốc' opens the original file inline for a FILE document", async ({ page }) => {
+    await login(page, "ceo@abc.demo");
+    // resolve the seeded FILE invoice (HD-0001234.pdf, EXTRACTING) from the inbox API
+    const inbox = await page.request.get("/api/backend/data-capture/inbox?group=processing&limit=100");
+    expect(inbox.status()).toBe(200);
+    const rows = ((await inbox.json()) as { data: { document: { id: string; original_filename: string | null; kind: string } }[] }).data;
+    const invoice = rows.find((r) => r.document.original_filename === "HD-0001234.pdf");
+    expect(invoice, "seeded FILE invoice present in inbox").toBeTruthy();
+    const docId = invoice!.document.id;
+    // EP-DC-14 returns a servable URL + text-layer pages[] for a non-MANUAL doc.
+    const res = await page.request.get(`/api/backend/data-capture/documents/${docId}/source`);
+    expect(res.status()).toBe(200);
+    const body = (await res.json()) as { data: { url: string; pages: unknown[] | null } };
+    expect(body.data.url).toMatch(/^(data:|https?:|\/api\/backend\/)/); // servable → framed inline
+    expect(Array.isArray(body.data.pages)).toBe(true); // text-layer fallback available
+    // open the drawer from the inbox row and assert the frame renders (not the "no text" message)
+    await page.goto("/data");
+    await page.getByTestId("group-processing").click();
+    const row = page.locator(`[data-testid="inbox-row"][data-doc="${docId}"]`);
+    await expect(row).toBeVisible();
+    await row.getByTestId("inbox-more").click();
+    await page.getByTestId("inbox-source").click();
+    await expect(page.getByTestId("source-drawer")).toBeVisible();
+    await expect(page.getByTestId("source-frame")).toBeVisible();
+    await expect(page.getByTestId("source-no-text")).toHaveCount(0);
+  });
+
   test("SCR-61: EMP enters a task (C1) → COMMITTED + UndoToast → task in /work with lineage", async ({ page }) => {
     await login(page, "employee@abc.demo");
     await page.goto("/data");
@@ -184,6 +211,23 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
     await page.getByTestId("admin-tab-schemas").click();
     await page.locator('[data-testid="schema-row"][data-type="HR_ROSTER"][data-status="draft"]').getByTestId("schema-publish").click();
     await expect(page.locator('[data-testid="schema-row"][data-type="HR_ROSTER"][data-status="retired"]')).toBeVisible();
+  });
+
+  test("SCR-45 C4: 'Chụp ảnh' opens the camera, captures a photo → DropZone send list", async ({ page }) => {
+    await login(page, "office@abc.demo"); // idp:write → DropZone + camera visible
+    await page.goto("/data");
+    await page.getByTestId("camera-open").click();
+    await expect(page.getByTestId("camera-dialog")).toBeVisible();
+    // fake media device (config launch args) → live preview, no permission prompt
+    await expect(page.getByTestId("camera-snap")).toBeVisible();
+    await page.getByTestId("camera-snap").click();
+    // review the shot, keep it, then confirm → photo added to the DropZone file list
+    await page.getByTestId("camera-keep").click();
+    await expect(page.getByTestId("camera-count")).toContainText("1");
+    await page.getByTestId("camera-confirm").click();
+    await expect(page.getByTestId("camera-dialog")).toHaveCount(0);
+    // the captured .jpg now appears as a pending file ready to upload through /idp/documents
+    await expect(page.locator('[data-testid="dropzone-file"]').filter({ hasText: ".jpg" }).first()).toBeVisible();
   });
 });
 

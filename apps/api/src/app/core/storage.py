@@ -98,11 +98,19 @@ def get_object_store() -> ObjectStore:
     return _store
 
 
-# ---- presigned GET (EP-DC-14 "Xem tài liệu gốc", 5 min) ------------------------------------
+# ---- presigned GET (EP-DC-14 "Xem tài liệu gốc", 5 min; served by EP-DC-14b) ----------------
 # The local demo store has no S3 presigner: the URL is HMAC-SHA256 signed over
 # (storage_key, expiry) with a key derived from `DB_ENCRYPTION_KEY` (no new dependency). A
-# MinIO/S3 store presigns natively behind the same call. Serving route: pending DEC (STATE debt).
+# MinIO/S3 store presigns natively behind the same call.
+#
+# R-DEC-80: the URL is prefixed with the BFF proxy base (`/api/backend/files/...`) so the browser
+# can load it in an <iframe>/<img> through the Next BFF (which injects the session Bearer
+# server-side — the token never reaches client JS). The route EP-DC-14b (`modules/idp/routes/
+# files.py`) then re-checks `idp:read` + document scope + tenant AND the HMAC signature/expiry
+# (defense in depth): neither the signature alone nor the session alone is sufficient.
 PRESIGN_TTL_SECONDS = 300
+# Browser-reachable prefix: Next rewrites `/api/backend/<p>` → FastAPI `/api/v1/<p>` (BFF proxy).
+PRESIGN_URL_PREFIX = "/api/backend/files"
 _PRESIGN_LABEL = b"aureon.idp.presign.v1"
 _EPHEMERAL = secrets.token_bytes(32)
 
@@ -114,16 +122,34 @@ def _presign_key() -> bytes:
 
 
 def _signature(storage_key: str, expires: int) -> str:
+    # Signed over the bare storage_key (`<bucket>/<uuid4>`), independent of the URL prefix.
     msg = f"{storage_key}\n{expires}".encode()
     return hmac.new(_presign_key(), msg, hashlib.sha256).hexdigest()
+
+
+def valid_storage_key(storage_key: str) -> bool:
+    """A storage key is exactly ``<bucket>/<uuid4>`` — no traversal, no extra segments.
+
+    EP-DC-14b accepts only app-generated keys; this rejects a client-crafted path (``..``,
+    absolute, extra ``/``) before any store lookup (CLAUDE §6.5 — path traversal guard).
+    """
+    parts = storage_key.split("/")
+    if len(parts) != 2 or "\\" in storage_key or any(p in ("", ".", "..") for p in parts):
+        return False
+    try:
+        uuid.UUID(parts[1])
+    except ValueError:
+        return False
+    return True
 
 
 def presign_get(
     storage_key: str, *, ttl: int = PRESIGN_TTL_SECONDS, now: float | None = None
 ) -> str:
-    """Signed, expiring GET URL of a stored object (opaque key, no PII in the URL)."""
+    """Signed, expiring, BFF-reachable GET URL of a stored object (opaque key, no PII in URL)."""
     expires = int((now if now is not None else time.time()) + ttl)
-    return f"/files/{storage_key}?expires={expires}&signature={_signature(storage_key, expires)}"
+    sig = _signature(storage_key, expires)
+    return f"{PRESIGN_URL_PREFIX}/{storage_key}?expires={expires}&signature={sig}"
 
 
 def verify_presigned(

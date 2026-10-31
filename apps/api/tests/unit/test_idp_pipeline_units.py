@@ -121,6 +121,44 @@ async def test_extractor_maps_five_fields_with_bands() -> None:
     assert gw.requests[0].classification == "INTERNAL"
 
 
+class _LiveLikeGateway:
+    """Mirrors the real ModelGateway: `chat()` leaves `data=None` (structured output is not
+    parsed there); `extract()` parses `content` into `data`. Regression for the live-only bug
+    where the Extractor called `chat()` and read `resp.data` (None) → every field null."""
+
+    def __init__(self, payload: dict) -> None:
+        import json
+
+        self._content = json.dumps(payload)
+
+    async def chat(self, req):
+        from app.core.model_gateway import ChatResponse
+
+        return ChatResponse(content=self._content, provider="live", model="m", data=None)
+
+    async def extract(self, req):
+        import json
+        from dataclasses import replace
+
+        resp = await self.chat(req)
+        return resp if resp.data is not None else replace(resp, data=json.loads(resp.content))
+
+
+@pytest.mark.asyncio
+async def test_extractor_uses_structured_output_for_live_gateway() -> None:
+    payload = {
+        "invoice_number": {"value": "HV-2026-0912", "confidence": 0.97},
+        "total_amount": {"value": 275000000, "confidence": 0.95},
+    }
+    out = await Extractor(_LiveLikeGateway(payload)).extract(
+        schema_fields=INVOICE_FIELDS, page_text="x", sensitivity_level=2
+    )
+    by = {f.field_name: f for f in out.fields}
+    assert by["invoice_number"].value == "HV-2026-0912"
+    assert by["total_amount"].value == 275000000
+    assert by["total_amount"].confidence_band == "HIGH"
+
+
 @pytest.mark.asyncio
 async def test_extractor_blocks_nothing_but_routes_secret() -> None:
     out_req_class = None

@@ -2,8 +2,7 @@
 
 `ai:query` reads agents (EP-AI-16); everything else is `ai:admin` (CEO scope `k`, ADM). Every
 mutation needs `reason` (audit `why`) and writes `ai.policy_changed` to the outbox in the same
-transaction. Static paths come before `{id}` paths. Endpoints whose behaviour lands in a later
-M1.6 task answer `501` (`core/stub.py`).
+transaction. Static paths come before `{id}` paths.
 """
 
 from __future__ import annotations

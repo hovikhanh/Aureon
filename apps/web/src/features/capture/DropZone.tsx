@@ -7,6 +7,7 @@ import { FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
+import { CameraCapture } from "./CameraCapture";
 import { captureError } from "./errors";
 import { ACCEPT_EXT, checkFiles, isTable } from "./logic";
 import type { DocumentType } from "./types";
@@ -71,14 +72,17 @@ export function DropZone() {
         <Upload className="h-6 w-6 text-muted-foreground" aria-hidden />
         <p className="font-medium">{t("capture.drop.title")}</p>
         <p className="text-sm text-muted-foreground">{t("capture.drop.hint")}</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()}>{t("capture.drop.browse")}</Button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()}>{t("capture.drop.browse")}</Button>
+          <CameraCapture onConfirm={(photos) => setFiles((xs) => [...xs, ...photos])} disabled={busy} />
+        </div>
         <input ref={input} type="file" multiple hidden accept={ACCEPT_EXT.join(",")} onChange={(e) => add(e.target.files)} data-testid="dropzone-input" />
       </div>
       {files.length > 0 && (
         <div className="mt-3 flex flex-col gap-2">
           <ul className="max-h-48 overflow-auto text-sm" data-testid="dropzone-files">
             {files.map((f, i) => (
-              <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 border-b py-1 last:border-0">
+              <li key={`${f.name}-${i}`} data-testid="dropzone-file" className="flex items-center justify-between gap-2 border-b py-1 last:border-0">
                 <span className="truncate">{f.name}</span>
                 <span className="flex items-center gap-2">
                   {checks[i]!.issue && <span className="text-xs text-danger" data-testid="dropzone-issue">{t(`capture.drop.issue.${checks[i]!.issue}`)}</span>}

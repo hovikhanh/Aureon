@@ -35,6 +35,15 @@ class SourceDocumentRepository(BaseRepository[SourceDocument]):
         stmt = stmt.where(SourceDocument.id == document_id)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
+    async def by_storage_key(self, storage_key: str) -> SourceDocument | None:
+        """EP-DC-14b: the document owning `storage_key` **within the current tenant** (R-DEC-80).
+
+        Scoped by tenant so a signed URL from another tenant never resolves (defense in depth
+        on top of the HMAC signature). A rolled-back document keeps its file; `_live()` filters
+        soft-deleted rows only, so a committed/rolled-back source is still viewable."""
+        stmt = self._live().where(SourceDocument.storage_key == storage_key)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
     async def first_original_by_sha(self, digest: str) -> SourceDocument | None:
         stmt = (
             self._live()

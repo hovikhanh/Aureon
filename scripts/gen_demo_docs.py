@@ -14,6 +14,10 @@ Outputs (all under data/):
                                                 3 intentional error rows; leavers on sheet 2)
     DOC-07  kpi-okr-q4-2026.xlsx / .docx       (openpyxl + python-docx, #2 PLAN_KPI_OKR 2026-Q4)
     DOC-08  bao-cao-ket-qua-q3-2026.pdf        (reportlab, #3 PERIOD_REPORT Q3/2026)
+    DOC-09  hoa-don-gtgt-mau.pdf               (reportlab, #1 INVOICE single VAT invoice,
+                                                all 8 schema fields, VR-INV-05 holds)
+    DOC-10  anh-hoa-don-gtgt.png               (Pillow, #1 INVOICE as a C4 photo for OCR —
+                                                same content as DOC-09)
     UC-07   ABC_DanhSachNhanSu_Onboarding.xlsx (openpyxl, #4 HR_ROSTER onboarding roster with
             intentional error rows — R-DEC-79, TC-M16-22)
 
@@ -1427,6 +1431,123 @@ def gen_doc08(path: Path) -> str:
 
 
 # ===========================================================================
+# DOC-09 — single VAT invoice (doc type #1 INVOICE, reportlab, text layer)
+# ===========================================================================
+# One Vietnamese VAT invoice (hóa đơn GTGT) that carries every INVOICE schema field
+# (04 §5.5): invoice_number, issue_date, seller_name, seller_tax_code, subtotal,
+# vat_rate_pct, vat_amount, total_amount. Cross-field rule VR-INV-05 holds:
+# total = subtotal + vat (tolerance 1000). Used to exercise the INVOICE extraction
+# path end-to-end on a PDF with a real text layer (no OCR needed).
+DOC09_INVOICE: Final[dict[str, object]] = {
+    "invoice_number": "HV-2026-0912",
+    "issue_date": "12/09/2026",
+    "seller_name": "Công ty TNHH TechSoft",
+    "seller_tax_code": "0305551234",
+    "subtotal": 250_000_000,
+    "vat_rate_pct": 10,
+    "vat_amount": 25_000_000,
+    "total_amount": 275_000_000,
+}
+
+
+def gen_doc09(path: Path) -> str:
+    inv = DOC09_INVOICE
+    sub = int(inv["subtotal"])  # type: ignore[arg-type]
+    vat = int(inv["vat_amount"])  # type: ignore[arg-type]
+    total = int(inv["total_amount"])  # type: ignore[arg-type]
+    assert sub + vat == total, f"DOC-09: {sub}+{vat} != {total} (VR-INV-05)"
+    _register_fonts()
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle("VNTitle9", parent=styles["Title"], fontName=FONT_BOLD, fontSize=15)
+    body = ParagraphStyle("VNBody9", parent=styles["Normal"], fontName=FONT_REGULAR,
+                          fontSize=10, leading=14)
+    doc = SimpleDocTemplate(str(path), pagesize=A4, topMargin=20 * mm, bottomMargin=18 * mm,
+                            leftMargin=18 * mm, rightMargin=18 * mm, title="HÓA ĐƠN GTGT")
+    header_rows = [
+        ["Số hóa đơn", str(inv["invoice_number"])],
+        ["Ngày lập", str(inv["issue_date"])],
+        ["Đơn vị bán hàng", str(inv["seller_name"])],
+        ["Mã số thuế (bên bán)", str(inv["seller_tax_code"])],
+    ]
+    amount_rows = [
+        ["Chỉ tiêu", "Giá trị (VND)"],
+        ["Tiền hàng (chưa thuế)", vnd(sub)],
+        [f"Thuế suất GTGT ({inv['vat_rate_pct']}%)", f"{inv['vat_rate_pct']}%"],
+        ["Tiền thuế GTGT", vnd(vat)],
+        ["Tổng tiền thanh toán", vnd(total)],
+    ]
+    t1 = Table(header_rows, colWidths=[55 * mm, 110 * mm])
+    t1.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), FONT_REGULAR),
+        ("FONTNAME", (0, 0), (0, -1), FONT_BOLD),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
+    ]))
+    t2 = Table(amount_rows, colWidths=[110 * mm, 55 * mm])
+    t2.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), FONT_REGULAR),
+        ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+        ("FONTNAME", (0, -1), (-1, -1), FONT_BOLD),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
+        ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+    ]))
+    story = [
+        Paragraph("HÓA ĐƠN GIÁ TRỊ GIA TĂNG (MẪU)", title),
+        Paragraph(f"Bên mua: {COMPANY} — MST {COMPANY_TAX}. Ngày lập: {inv['issue_date']}.", body),
+        Spacer(1, 4 * mm), t1, Spacer(1, 5 * mm), t2, Spacer(1, 4 * mm),
+        Paragraph("Số tiền bằng chữ: Hai trăm bảy mươi lăm triệu đồng chẵn.", body),
+    ]
+    doc.build(story)
+    return f"DOC-09: hóa đơn GTGT {inv['invoice_number']} (tổng {num(total)}), {path.name}"
+
+
+# ===========================================================================
+# DOC-10 — invoice photo (doc type #1 INVOICE via C4 capture, Pillow PNG for OCR)
+# ===========================================================================
+# A rendered "photo" of a VAT invoice as a PNG so the capture/OCR path (images →
+# preprocess._ocr_image) can be exercised. With OCR_PROVIDER=stub the pipeline still
+# runs (empty text → NEEDS_REVIEW, confidence 0 — no fabrication, P05); with
+# OCR_PROVIDER=paddle the text is recovered. Content mirrors DOC-09 so a reviewer can
+# compare the extracted fields against the source.
+def gen_doc10(path: Path) -> str:
+    from PIL import Image, ImageDraw, ImageFont
+
+    inv = DOC09_INVOICE
+    w, h = 1000, 1400
+    img = Image.new("RGB", (w, h), "white")
+    d = ImageDraw.Draw(img)
+    try:
+        font_path = str(FONT_DIR / "DejaVuSans.ttf")
+        font_b = ImageFont.truetype(str(FONT_DIR / "DejaVuSans-Bold.ttf"), 34)
+        font = ImageFont.truetype(font_path, 26)
+    except OSError:  # pragma: no cover - font always present in the demo image
+        font_b = ImageFont.load_default()
+        font = ImageFont.load_default()
+    lines = [
+        ("HÓA ĐƠN GIÁ TRỊ GIA TĂNG", font_b),
+        (f"{COMPANY} — MST {COMPANY_TAX}", font),
+        ("", font),
+        (f"Số hóa đơn: {inv['invoice_number']}", font),
+        (f"Ngày lập: {inv['issue_date']}", font),
+        (f"Đơn vị bán: {inv['seller_name']}", font),
+        (f"MST bên bán: {inv['seller_tax_code']}", font),
+        ("", font),
+        (f"Tiền hàng: {vnd(int(inv['subtotal']))}", font),  # type: ignore[arg-type]
+        (f"Thuế suất GTGT: {inv['vat_rate_pct']}%", font),
+        (f"Tiền thuế: {vnd(int(inv['vat_amount']))}", font),  # type: ignore[arg-type]
+        (f"Tổng thanh toán: {vnd(int(inv['total_amount']))}", font),  # type: ignore[arg-type]
+    ]
+    y = 70
+    d.rectangle([30, 30, w - 30, h - 30], outline="#1F4E79", width=4)
+    for text, fnt in lines:
+        d.text((70, y), text, fill="black", font=fnt)
+        y += 60 if fnt is font_b else 50
+    img.save(path, format="PNG", optimize=True)
+    return f"DOC-10: ảnh hóa đơn GTGT (PNG {w}x{h}, OCR/C4 test), {path.name}"
+
+
+# ===========================================================================
 # main
 # ===========================================================================
 def main() -> None:
@@ -1459,6 +1580,8 @@ def main() -> None:
         (DATA_DIR / "DOC-07-kpi-okr-q4-2026.xlsx", gen_doc07),
         (DATA_DIR / "DOC-07-kpi-okr-q4-2026.docx", gen_doc07_docx),
         (DATA_DIR / "DOC-08-bao-cao-ket-qua-q3-2026.pdf", gen_doc08),
+        (DATA_DIR / "DOC-09-hoa-don-gtgt-mau.pdf", gen_doc09),
+        (DATA_DIR / "DOC-10-anh-hoa-don-gtgt.png", gen_doc10),
         (DATA_DIR / UC07_FILE, gen_uc07),
     ]
 

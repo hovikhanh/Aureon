@@ -76,6 +76,20 @@ def test_pipeline_task_refuses_missing_tenant() -> None:
         idp_pipeline.process_document.run(str(uuid.uuid4()))
 
 
+def test_worker_registers_idp_pipeline_task() -> None:
+    """Regression: the worker's Celery app must *include* app.workers.idp_pipeline so the
+    task is registered. If it is only importable (not in `include`), the real worker process
+    receives the enqueued task and rejects it with KeyError, leaving uploads stuck at UPLOADED.
+    Assert on the configured `include` (process-independent) and the live registry."""
+    from app.worker import celery_app
+
+    assert "app.workers.idp_pipeline" in set(celery_app.conf.include or [])
+    # import side effect registers the task on this process' app, mirroring the worker boot
+    assert "app.idp.process_document" in celery_app.tasks
+    # routed to the `idp` queue the worker consumes (`-Q default,idp,events`)
+    assert celery_app.conf.task_routes.get("app.idp.*") == {"queue": "idp"}
+
+
 async def test_pipeline_task_runs_as_given_tenant(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[uuid.UUID | None] = []
 

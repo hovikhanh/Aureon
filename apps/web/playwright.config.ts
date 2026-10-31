@@ -57,8 +57,19 @@ export default defineConfig({
   reporter: [["list"]],
   use: { trace: "retain-on-failure", locale: "vi-VN", timezoneId: "Asia/Ho_Chi_Minh" },
   projects: [
-    // first hit of each route compiles on demand under `next dev` → longer budget
-    { name: "mock", grep: /@mock/, timeout: 120_000, use: { ...desktop, baseURL: MOCK_URL } },
+    // first hit of each route compiles on demand under `next dev` → longer budget.
+    // Fake media stream + auto-granted camera so SCR-45 C4 "Chụp ảnh" can open a camera headless.
+    {
+      name: "mock",
+      grep: /@mock/,
+      timeout: 120_000,
+      use: {
+        ...desktop,
+        baseURL: MOCK_URL,
+        permissions: ["camera"],
+        launchOptions: { args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] },
+      },
+    },
     { name: "real", grepInvert: /@mock-only/, use: { ...desktop, baseURL: REAL_URL } },
   ],
   webServer: servers,

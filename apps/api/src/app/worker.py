@@ -11,7 +11,16 @@ celery_app = Celery(
     "aureon",
     broker=_cfg.celery_broker_url.get_secret_value(),
     backend=_cfg.celery_result_backend.get_secret_value(),
-    include=["app.workers.events", "app.workers.jobs", "app.workers.notifications"],
+    include=[
+        "app.workers.events",
+        "app.workers.jobs",
+        "app.workers.notifications",
+        # IDP pipeline (04 §3): registers `app.idp.process_document`. Without this the worker
+        # receives the task (enqueued on upload via `enqueue_pipeline`) but rejects it with
+        # `KeyError: 'app.idp.process_document'`, leaving every uploaded document stuck at
+        # UPLOADED (no extraction, no review) — unlike seeded docs that are pre-processed.
+        "app.workers.idp_pipeline",
+    ],
 )
 celery_app.conf.update(
     task_acks_late=True,
@@ -26,6 +35,7 @@ celery_app.conf.update(
         "app.events.*": {"queue": "events"},
         "app.jobs.*": {"queue": "default"},
         "app.notifications.*": {"queue": "default"},
+        "app.idp.*": {"queue": "idp"},  # worker consumes `default,idp,events`
     },
     beat_schedule={
         "relay-outbox-events": {

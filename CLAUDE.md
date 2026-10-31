@@ -158,7 +158,7 @@ Chạy từ **root repo** (uv workspace root trỏ tới `apps/api`; package Pyt
 cp .env.example .env                                         # chỉ điền giá trị dev; KHÔNG commit .env
 pnpm install                                                 # deps frontend
 uv sync                                                      # deps backend (+ group dev)
-uv run python -m app.scripts.gen_jwt_keys --out ./secrets    # cặp khóa RS256 — có sau T-007
+./scripts/generate_keys.sh keys                              # cặp khóa RS256 → ./keys (R-DEC-81)
 docker compose up -d postgres redis minio                    # + clamav sau khi DEC ClamAV resolved (T-014)
 uv run alembic upgrade head                                  # tạo schema + bảng
 uv run python -m app.seed                                    # lệnh seed DUY NHẤT (DEC-062), idempotent

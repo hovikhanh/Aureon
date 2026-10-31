@@ -81,8 +81,19 @@ class Extractor:
     ) -> ExtractionOutput:
         classification = classification_for_sensitivity(sensitivity_level)
         req = self._build_request(schema_fields, page_text, classification, document_id)
-        resp: ChatResponse = await self.gateway.chat(req)
+        # Structured output: `extract()` guarantees `resp.data` is the parsed JSON field map
+        # (it parses `content` for a live provider; a test/fake gateway that already sets `data`
+        # in `chat()` is returned unchanged). Calling `chat()` here left `data=None` for a live
+        # provider — every field parsed as null (bug only visible outside fixture mode).
+        resp: ChatResponse = await self._call(req)
         return self._parse(resp, schema_fields)
+
+    async def _call(self, req: ChatRequest) -> ChatResponse:
+        """Prefer the gateway's structured-output path; fall back to `chat` for a fake gateway
+        that only implements `chat` (and already returns `data`)."""
+        extract = getattr(self.gateway, "extract", None)
+        resp: ChatResponse = await (extract(req) if callable(extract) else self.gateway.chat(req))
+        return resp
 
     def _build_request(
         self,

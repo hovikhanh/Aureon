@@ -14,7 +14,18 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const FORWARD_REQ = ["content-type", "accept", "accept-language", "idempotency-key", "if-match"];
-const FORWARD_RES = ["content-type", "cache-control", "etag", "x-request-id", "vary"];
+const FORWARD_RES = [
+  "content-type",
+  "cache-control",
+  "etag",
+  "x-request-id",
+  "vary",
+  // EP-DC-14b file streaming (R-DEC-80): keep the disposition + content security headers.
+  "content-disposition",
+  "content-length",
+  "x-content-type-options",
+  "content-security-policy",
+];
 
 const UNAUTH = { error: { code: "UNAUTHENTICATED", message: "no session", details: {} } };
 

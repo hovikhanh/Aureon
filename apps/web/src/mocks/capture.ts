@@ -54,7 +54,10 @@ function source(req: MockRequest): Response {
   // Mock-only presigned URL: an inline SVG "page" (no object storage in mock mode); keeps the document id for tests.
   const esc = (x: string) => x.replace(/[&<>"]/g, "_");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842"><rect width="100%" height="100%" fill="white"/><text x="40" y="60" font-size="18">${esc(d.original_filename ?? "")}</text><text x="40" y="90" font-size="14">p. ${page} · ${d.id}</text></svg>`;
-  return ok({ url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, mime_type: d.mime_type, page_count: d.page_count, page });
+  // R-DEC-80: text-layer fallback pages[] (one per page; the stand-in text = filename, as review mock does).
+  const count = d.page_count ?? 1;
+  const pages = Array.from({ length: count }, (_, i) => ({ page_number: i + 1, text_content: d.original_filename ?? null }));
+  return ok({ url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, mime_type: d.mime_type, page_count: d.page_count, page, filename: d.original_filename, pages });
 }
 
 function actions(req: MockRequest): Response {

@@ -410,7 +410,11 @@
       "burn": "Burn rate (net/month)"
     },
     "hint": {
+      "revenue": "Revenue recognised in the period",
+      "expense": "Expense recognised in the period",
       "budget": "Spent / approved budget in the period",
+      "runway": "Months of operation left at the current cash balance",
+      "cash": "Cash balance at the end of the period",
       "burn": "Net cash out per month (gross burn − collected revenue)"
     },
     "trend": {
@@ -1296,6 +1300,31 @@
       "remove": "Remove {name}",
       "label": "File upload area"
     },
+    "camera": {
+      "open": "Take photo",
+      "title": "Photograph a document",
+      "hint": "Line the document up in the frame and press Capture. Photos are added to the send list and processed like uploaded files.",
+      "preview": "Live camera preview",
+      "shotPreview": "Captured photo",
+      "starting": "Opening camera…",
+      "snap": "Capture",
+      "retake": "Retake",
+      "keep": "Use this photo",
+      "cancel": "Cancel",
+      "confirm": "Use {count, plural, =0 {photos} one {# photo} other {# photos}}",
+      "taken": "{count, plural, =0 {No photos yet} one {# photo} other {# photos}} taken",
+      "retry": "Try again",
+      "thumb": "Photo {n}",
+      "shot": "Photo {n}",
+      "removeShot": "Remove photo {n}",
+      "error": {
+        "unsupported": "This browser or connection does not support the camera. The camera needs HTTPS or localhost. You can still pick an image from your device with the Browse button.",
+        "denied": "You denied camera permission. Grant it in your browser settings and try again.",
+        "not_found": "No camera was found on this device.",
+        "in_use": "Could not open the camera (it may be in use by another app). Close that app and try again.",
+        "unknown": "Could not open the camera. Please try again."
+      }
+    },
     "undo": {
       "title": "Undo document",
       "body": "Every record written by this document will be reverted. Undo deadline: {deadline}.",
@@ -1324,7 +1353,9 @@
       "open": "Open in new tab",
       "expires": "Link expires in 5 minutes",
       "loading": "Loading…",
-      "unavailable": "The original file cannot be shown inline yet; no text layer for this page"
+      "unavailable": "The original file cannot be shown inline yet; no text layer for this page",
+      "noTextLayer": "This document has no text layer to display.",
+      "pageNoText": "This page has no text content."
     },
     "history": {
       "title": "Write history",
@@ -1448,6 +1479,8 @@
       "DUPLICATE_RESOURCE": "This file was already imported",
       "no_valid_rows": "No valid rows left to send",
       "no_file": "Manual entries have no source file",
+      "signature": "The document link has expired or is invalid. Please reopen it.",
+      "NOT_FOUND": "The source document was not found.",
       "critical_unconfirmed": "Some critical fields are not confirmed",
       "missing": "Missing write permission: {perms}",
       "encoding": "CSV must be UTF-8 encoded",

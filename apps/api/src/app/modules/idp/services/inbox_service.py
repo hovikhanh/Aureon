@@ -17,11 +17,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.deps import Principal
-from app.core.errors import BadRequestError, BusinessRuleError, NotFoundError
+from app.core.errors import (
+    BadRequestError,
+    BusinessRuleError,
+    NotFoundError,
+    ScopeDeniedError,
+)
 from app.core.pagination import PageParams
-from app.core.storage import PRESIGN_TTL_SECONDS, presign_get
-from app.modules.idp.models import DocumentType, SourceDocument
-from app.modules.idp.schemas.capture import InboxItemOut, SourceViewOut
+from app.core.storage import (
+    PRESIGN_TTL_SECONDS,
+    presign_get,
+    valid_storage_key,
+    verify_presigned,
+)
+from app.modules.idp.models import DocumentPage, DocumentType, SourceDocument
+from app.modules.idp.schemas.capture import InboxItemOut, SourcePageOut, SourceViewOut
 from app.modules.idp.services.capture_common import can_undo, document_out
 from app.modules.idp.services.scope import capture_visible, inbox_filter
 
@@ -156,8 +166,62 @@ class InboxService:
                 target_table="source_documents", target_id=doc.id,
                 after={"page": page, "ttl_seconds": PRESIGN_TTL_SECONDS},
             )  # fmt: skip
-        return SourceViewOut(url=presign_get(doc.storage_key), mime_type=doc.mime_type,
-                             page_count=pages, page=page)  # fmt: skip
+        return SourceViewOut(
+            url=presign_get(doc.storage_key),
+            mime_type=doc.mime_type,
+            page_count=pages,
+            page=page,
+            filename=doc.original_filename,
+            pages=await self._text_pages(doc.id),
+        )
+
+    async def _text_pages(self, document_id: uuid.UUID) -> list[SourcePageOut] | None:
+        """Extracted text layer (R-DEC-80 fallback) — ordered by page; `None` if no page row."""
+        rows = (
+            (
+                await self.db.execute(
+                    select(DocumentPage)
+                    .where(DocumentPage.source_document_id == document_id)
+                    .order_by(DocumentPage.page_number.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not rows:
+            return None
+        return [SourcePageOut(page_number=p.page_number, text_content=p.text_content) for p in rows]
+
+    # ----------------------------------------------------------- EP-DC-14b
+    async def serve_file(
+        self, user: Principal, storage_key: str, expires: int, signature: str
+    ) -> tuple[SourceDocument, str]:
+        """EP-DC-14b: resolve a signed `/files/{storage_key}` for streaming (R-DEC-80).
+
+        Four independent checks, each failing closed:
+        1. `storage_key` shape (`<bucket>/<uuid4>`, no traversal) — bad → `404`.
+        2. HMAC signature + 5-min expiry (`verify_presigned`) — invalid/expired → `403`.
+        3. document owning the key **in the current tenant** — none → `404`.
+        4. caller's capture scope (`capture_visible`) — outside → `404`.
+
+        Returns `(document, mime_type)`; the route streams the stored object. Audits
+        `idp.source_view` for sensitivity ≥ 3 (same as EP-DC-14)."""
+        if not valid_storage_key(storage_key):
+            raise NotFoundError("file not found")
+        if not verify_presigned(storage_key, expires, signature):
+            raise ScopeDeniedError("invalid or expired signature", details={"reason": "signature"})
+        from app.modules.idp.repositories import SourceDocumentRepository
+
+        doc = await SourceDocumentRepository(self.db).by_storage_key(storage_key)
+        if doc is None or not await self._may_view(user, doc):
+            raise NotFoundError("file not found")
+        if doc.sensitivity_level >= 3:
+            await record_audit(
+                self.db, action="idp.source_view", target_schema="idp",
+                target_table="source_documents", target_id=doc.id,
+                after={"served": True, "ttl_seconds": PRESIGN_TTL_SECONDS},
+            )  # fmt: skip
+        return doc, doc.mime_type or "application/octet-stream"
 
     async def _may_view(self, user: Principal, doc: SourceDocument) -> bool:
         """Same visibility as the inbox (scope row filter) + review/type scope."""

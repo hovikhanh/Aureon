@@ -229,16 +229,20 @@ class FinanceAnalyticsService:
                 lineage_url=f"/dashboard/metrics/{code}",
             )  # fmt: skip
 
+        # Emit the dashboard output unit vocabulary (PCT), same as every other domain dashboard
+        # and the platform metric store (`UNIT_OUT` in metric_query.py). The catalog's internal
+        # unit is "PERCENT"; the FE `unit.*` i18n namespace only knows the normalized codes, so a
+        # raw "PERCENT" here surfaced as `MISSING_MESSAGE: unit.PERCENT`.
         metrics = [
-            metric("METRIC-FIN-01", rules.growth_pct(total_rev, prev_rev), "PERCENT",
+            metric("METRIC-FIN-01", rules.growth_pct(total_rev, prev_rev), "PCT",
                    "ok" if has_data else "no_data"),
-            metric("METRIC-FIN-02", margin, "PERCENT", "ok" if margin is not None else "no_data"),
+            metric("METRIC-FIN-02", margin, "PCT", "ok" if margin is not None else "no_data"),
             metric("METRIC-FIN-03", runway, "MONTHS",
                    _status_lo_bad(runway, 12, 6) if balance is not None else "no_data"),
             metric("METRIC-FIN-04", dso, "DAYS", "ok" if dso is not None else "no_data"),
-            metric("METRIC-FIN-05", overdue_pct, "PERCENT", _status_hi_bad(overdue_pct, 15, 25)),
-            metric("METRIC-FIN-06", util, "PERCENT", _status_hi_bad(util, 100, 110)),
-            metric("METRIC-FIN-07", burn_var, "PERCENT",
+            metric("METRIC-FIN-05", overdue_pct, "PCT", _status_hi_bad(overdue_pct, 15, 25)),
+            metric("METRIC-FIN-06", util, "PCT", _status_hi_bad(util, 100, 110)),
+            metric("METRIC-FIN-07", burn_var, "PCT",
                    _status_hi_bad(burn_var, BURN_WARN_PCT, BURN_CRIT_PCT)),
         ]  # fmt: skip
         snap = await pillar_snapshot(self.db, "F")  # open alerts of pillar F (store)

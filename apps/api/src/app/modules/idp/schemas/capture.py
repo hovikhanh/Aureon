@@ -40,13 +40,26 @@ class InboxItemOut(BaseModel):
     batch_id: uuid.UUID | None
 
 
+class SourcePageOut(BaseModel):
+    """One page of the extracted text layer (EP-DC-14 `pages[]` fallback, R-DEC-80)."""
+
+    page_number: int
+    text_content: str | None
+
+
 class SourceViewOut(BaseModel):
-    """EP-DC-14 — presigned GET (5 min) of the original file / one page."""
+    """EP-DC-14 — presigned GET (5 min) of the original file + text-layer fallback (R-DEC-80).
+
+    `url` is BFF-reachable (`/api/backend/files/...`, served by EP-DC-14b). `pages` carries the
+    extracted text layer so the reader can read the content even when the original cannot be
+    rendered inline; `null` when the document has no pages (e.g. not yet preprocessed)."""
 
     url: str
     mime_type: str | None
     page_count: int | None
     page: int | None
+    filename: str | None = None
+    pages: list[SourcePageOut] | None = None
 
 
 # ---------- EP-DC-15/16 C1 manual form ----------

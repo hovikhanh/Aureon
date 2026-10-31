@@ -11,10 +11,13 @@ const M = flat(vi as Record<string, unknown>);
 const t = Object.assign((key: string, values: Record<string, string | number> = {}) => (M[key] ?? key).replace(/\{(\w+)\}/g, (_, k: string) => String(values[k] ?? "")), { has: (key: string) => key in M });
 
 describe("T-643 wiring", () => {
-  it("EP-DC-14: the local `/files/...` URL has no serving route → text-layer fallback", () => {
-    expect(servable("/files/documents/x?expires=1&signature=s")).toBe(false);
+  it("EP-DC-14b (R-DEC-80): the BFF file path is servable; absolute/data URLs too; others fall back", () => {
+    // R-DEC-80: presigned URL now routes through the BFF → browser-loadable.
+    expect(servable("/api/backend/files/documents/x?expires=1&signature=s")).toBe(true);
     expect(servable("https://minio.local/b/x?X-Amz-Signature=s")).toBe(true);
     expect(servable("data:image/svg+xml,<svg/>")).toBe(true);
+    // a bare relative path with no serving prefix is not frameable → text-layer fallback
+    expect(servable("/files/documents/x?expires=1&signature=s")).toBe(false);
   });
 
   it("routing reasons: every BE code has a VI label, LOW_CONFIDENCE carries the field", () => {

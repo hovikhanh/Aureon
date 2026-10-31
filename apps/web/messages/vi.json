@@ -410,7 +410,11 @@
       "burn": "Burn rate (ròng/tháng)"
     },
     "hint": {
+      "revenue": "Doanh thu ghi nhận trong kỳ",
+      "expense": "Chi phí ghi nhận trong kỳ",
       "budget": "Đã chi / ngân sách được duyệt trong kỳ",
+      "runway": "Số tháng còn hoạt động được với số dư tiền mặt hiện tại",
+      "cash": "Số dư tiền mặt tại cuối kỳ",
       "burn": "Chi ròng mỗi tháng (gross burn − doanh thu thu được)"
     },
     "trend": {
@@ -1296,6 +1300,31 @@
       "remove": "Bỏ {name}",
       "label": "Vùng tải file"
     },
+    "camera": {
+      "open": "Chụp ảnh",
+      "title": "Chụp ảnh tài liệu",
+      "hint": "Căn tài liệu vào khung hình rồi bấm Chụp. Ảnh sẽ được thêm vào danh sách gửi và xử lý như file tải lên.",
+      "preview": "Khung xem trực tiếp từ camera",
+      "shotPreview": "Ảnh vừa chụp",
+      "starting": "Đang mở camera…",
+      "snap": "Chụp",
+      "retake": "Chụp lại",
+      "keep": "Dùng ảnh này",
+      "cancel": "Hủy",
+      "confirm": "Dùng {count, plural, =0 {ảnh} other {# ảnh}}",
+      "taken": "Đã chụp {count, plural, other {# ảnh}}",
+      "retry": "Thử lại",
+      "thumb": "Ảnh {n}",
+      "shot": "Ảnh {n}",
+      "removeShot": "Bỏ ảnh {n}",
+      "error": {
+        "unsupported": "Trình duyệt hoặc kết nối không hỗ trợ camera. Camera cần HTTPS hoặc localhost. Bạn vẫn có thể chọn ảnh từ thiết bị bằng nút Chọn file.",
+        "denied": "Bạn đã từ chối quyền camera. Hãy cấp quyền trong cài đặt trình duyệt rồi thử lại.",
+        "not_found": "Không tìm thấy camera trên thiết bị.",
+        "in_use": "Không mở được camera (đang được ứng dụng khác sử dụng). Hãy đóng ứng dụng đó rồi thử lại.",
+        "unknown": "Không mở được camera. Vui lòng thử lại."
+      }
+    },
     "undo": {
       "title": "Hoàn tác tài liệu",
       "body": "Mọi bản ghi do tài liệu này tạo sẽ được đảo ngược. Hạn hoàn tác: {deadline}.",
@@ -1324,7 +1353,9 @@
       "open": "Mở trong tab mới",
       "expires": "Liên kết hết hạn sau 5 phút",
       "loading": "Đang tải…",
-      "unavailable": "Chưa xem trực tiếp được file gốc; không có lớp chữ để hiển thị cho trang này"
+      "unavailable": "Chưa xem trực tiếp được file gốc; không có lớp chữ để hiển thị cho trang này",
+      "noTextLayer": "Tài liệu này không có lớp chữ để hiển thị.",
+      "pageNoText": "Trang này không có nội dung văn bản."
     },
     "history": {
       "title": "Lịch sử ghi",
@@ -1448,6 +1479,8 @@
       "DUPLICATE_RESOURCE": "File này đã được import trước đó",
       "no_valid_rows": "Không còn dòng hợp lệ để gửi",
       "no_file": "Tài liệu nhập tay không có file gốc",
+      "signature": "Liên kết xem tài liệu đã hết hạn hoặc không hợp lệ. Vui lòng mở lại.",
+      "NOT_FOUND": "Không tìm thấy tài liệu gốc.",
       "critical_unconfirmed": "Còn trường trọng yếu chưa xác nhận",
       "missing": "Thiếu quyền ghi: {perms}",
       "encoding": "CSV phải dùng mã hóa UTF-8",
