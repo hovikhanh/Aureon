@@ -248,7 +248,7 @@ Ngưỡng: TC-M21-04, 05, 07, 08, 09 thuộc nhóm **bảo mật** (scope 3 cấ
 
 | TC | Mô tả | Loại | T | Spec | Trạng thái |
 |---|---|---|---|---|---|
-| TC-M22-01 | EP-FIN-01..10 + EP-SAL-01..08 giữ path v2.1, gán ID v3; mọi route có `response_model` + đúng 1 permission; đọc khối dùng `require_pillar_permission` (DIR-F chỉ finance, DIR-C chỉ sales); `:query` mở mọi DIR; contract shared-types drift=0 | contract + integration | T-710 | 10 §7.2.7, R-DEC-89 | Planned |
+| TC-M22-01 | EP-FIN-01..10 + EP-SAL-01..08 giữ path v2.1, gán ID v3; mọi route có `response_model` + đúng 1 permission; đọc khối dùng `require_pillar_permission` (DIR-F chỉ finance, DIR-C chỉ sales); `:query` mở mọi DIR; contract shared-types drift=0 | contract + integration | T-710 | 10 §7.2.7, R-DEC-89 | Implemented |
 | TC-M22-02 | Doc type #6 "BC tài chính/sao kê số dư" phân loại + schema trích xuất (period, revenue, expense, balance); trường tiền trọng yếu → luôn review (confidence gate 04) | integration (IDP) | T-711 | R-DEC-92, 04 §6 | Implemented |
 | TC-M22-03 | `ACT-record_revenue/expense/cash_balance`: validate→run→ghi Revenue/Expense/CashPosition in-tx + audit `finance.<verb>` + outbox; undo (soft-delete) đảo bản ghi; permission `finance:write`; lỗi dòng → `ACTION_REJECTED` rollback cả tài liệu | integration (bảo mật) | T-711 | R-DEC-92, 10 §7 | Implemented |
 | TC-M22-04 | Lead/Opportunity = alias Client/Deal: không có entity/path mới; doc map BRD đúng; stage `open/closed_won/closed_lost` giữ | architecture + doc | T-712 | R-DEC-90 | Implemented |
