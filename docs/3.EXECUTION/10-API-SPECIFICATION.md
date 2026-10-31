@@ -508,6 +508,9 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 | ACT-record_kr_checkin | execution `KpiService.check_in` → `apply_check_in` | `execution:write` | kr_ref, value, confidence, note? | — (append) | xóa check-in + `recompute_progress` | #3 |
 | ACT-create_task | execution `TaskService.create` (giữ, **sửa** truyền `source_ref`, `parent_task_id` M1.3) | `execution:write` | title, assignee_code, due_date, kr_ref?/kpi_code? | — | `TaskService.delete` (giữ) | #1, #2 |
 | ACT-create_invoice | finance `InvoiceService.create` (giữ, chuyển từ `commit_service._commit_invoice`) | `finance:write` | như v2.1 | `number_taken` → `DUPLICATE_RESOURCE` | `InvoiceService` void/delete (soft) | #7 (P1, giữ code) |
+| ACT-record_revenue *(M2.2, R-DEC-92)* | finance `FinanceService.create_revenue` (qua `RevenueRepository`) | `finance:write` | period_key, amount (BIGINT), currency?, source?, note? | — (append; trùng `(period_key, source)` → cập nhật hoặc lỗi dòng tùy service) | soft-delete revenue do ACT tạo | #6 |
+| ACT-record_expense *(M2.2, R-DEC-92)* | finance `FinanceService.create_expense` (qua `ExpenseRepository`) | `finance:write` | period_key, amount (BIGINT), currency?, category?, note? | — (append) | soft-delete expense do ACT tạo | #6 |
+| ACT-record_cash_balance *(M2.2, R-DEC-92)* | finance `FinanceService.record_cash_position` (qua `CashPositionRepository`) | `finance:write` | as_of_date, balance (BIGINT), currency?, account? | `(as_of_date, account)` live → cập nhật | soft-delete cash_position do ACT tạo | #6 |
 
 - Tham chiếu `*_code` giải bằng service đọc của module đích trong **cùng transaction**, ưu tiên bản ghi do ACT trước của cùng tài liệu vừa tạo (`ctx.created_refs`) → thứ tự chạy #4: department → team → position → employee (2 lượt: tạo NV, rồi gán `manager_id`), #2: objective → key_result → kpi → kpi_target.
 - `validate` chạy cho **mọi** dòng trước khi `run` dòng đầu (dry-run, cũng dùng cho `planned_actions` EP-DC-05); có lỗi → `ACTION_REJECTED`, không ghi gì. Trong `run`, lỗi service đích (`DUPLICATE_RESOURCE`, `BUSINESS_RULE_VIOLATION`) → rollback cả tài liệu, response `422 ACTION_REJECTED` (`details.cause_code`, `row_index`).
@@ -619,6 +622,34 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 - **Route tĩnh trước động:** `/reporting/dashboards/{level}` dùng `Literal["executive","department","employee"]` (giá trị khác → `404`); `/reporting/preferences/executive-tiles` là path tĩnh.
 - Ma trận quyền **không đổi** (R-DEC-84): `dashboard:read`/`dashboard:write` đã có ở CEO/DIR/MGR/EMP (ack/dismiss alert v2.1). EMP không có truy cập executive/department (kiểm ở service theo role, không ở permission).
 
+#### 7.2.7. M2.2 — D15 Finance Lite · D17 Sales Lite · D16 HR cơ bản (Spec lock M2.2 — agent tự chốt 2026-10-31, R-DEC-89..95)
+
+**Quy ước chung M2.2:** gán ID v3 cho route `/finance/*` và `/sales/*` của v2.1 **giữ path + hành vi** (§7.1 dòng 244/245, cột `EP v2.1` = số EP cũ); không thêm endpoint ngoài tập đã có code (R-DEC-89). Envelope/phân trang/mã lỗi §10/§1.4 (**không thêm mã lỗi** — R-DEC-95); `POST` bắt buộc `Idempotency-Key` (thiếu → `400`); `PATCH` nhận `version`/`If-Match` (lệch → `409 CONFLICT_STATE`); mọi mutation ghi `ENT-AuditLog` (`finance.<verb>`/`sales.<verb>`) + outbox (§9.2) in-tx; repository lọc `tenant_id` (bản ghi tenant khác → `404`). Đọc theo khối dùng `require_pillar_permission` (DIR chỉ khối mình: F cho finance, C cho sales); aggregate/`:query` mở cho mọi DIR (R-DEC-12a). `DELETE` = soft delete → `204`. Tiền BIGINT + `currency` (VND). Lead/Opportunity = **alias** Client/Deal (R-DEC-90), không đổi path/entity.
+
+| EP | Method | Path | Permission | EP v2.1 | Ghi chú |
+|---|---|---|---|---|---|
+| EP-FIN-01 | GET | `/finance/revenues` | `finance:read` (pillar) | EP-60 | Lọc `period?`, `source?`; `RevenueOut[]` |
+| EP-FIN-02 | POST/GET/PATCH/DELETE | `/finance/revenues[/{id}]` | `finance:write`/`finance:read` | EP-60 | CRUD Revenue; `amount` BIGINT |
+| EP-FIN-03 | * | `/finance/expenses[/{id}]` | `finance:write`/`finance:read` | EP-61 | CRUD Expense |
+| EP-FIN-04 | * | `/finance/cash-positions[/{id}]` | `finance:write`/`finance:read` | EP-62 | CRUD CashPosition (số dư kỳ) |
+| EP-FIN-05 | * | `/finance/budgets[/{id}]`, `/finance/budgets/status` | `finance:write`/`finance:query` | EP-63 | Ngân sách + variance `BudgetStatusOut` |
+| EP-FIN-06 | * | `/finance/forecasts[/{id}]` | `finance:write`/`finance:read` | EP-64 | Dự báo |
+| EP-FIN-07 | * | `/finance/invoices[/{id}]`, `/pay` | `finance:write`/`finance:read` | EP-65 | Hóa đơn (nối IDP `ACT-create_invoice`) |
+| EP-FIN-08 | GET | `/finance/dashboard` | `finance:query` | EP-66 | `FinanceDashboardOut`; cache 60s + Vary |
+| EP-FIN-09 | GET | `/finance/what-if/runway` | `finance:query` | EP-67 | Runway what-if |
+| EP-FIN-10 | GET/POST | `/finance/cash-flow-forecast[/recompute]` | `finance:query`/`finance:write` | EP-68 | Dự báo dòng tiền; recompute `202` |
+| EP-SAL-01 | * | `/sales/clients[/{id}]` | `sales:write`/`sales:read` | EP-70 | CRUD Client (= Lead, R-DEC-90) |
+| EP-SAL-02 | * | `/sales/deals[/{id}]` | `sales:write`/`sales:read` | EP-71 | CRUD Deal (= Opportunity) |
+| EP-SAL-03 | POST/GET | `/sales/deals/{id}/stage`, `/stage-history` | `sales:write`/`sales:read` | EP-72 | Đổi stage (→closed_won/lost phát event §9.2); lịch sử |
+| EP-SAL-04 | * | `/sales/targets[/{id}]` | `sales:write`/`sales:read` | EP-73 | Chỉ tiêu bán |
+| EP-SAL-05 | GET | `/sales/pipeline` | `sales:query` | EP-74 | Kanban pipeline theo stage; `PipelineOut` |
+| EP-SAL-06 | GET | `/sales/performance` | `sales:query` | EP-75 | Win rate/row; `PerformanceRow[]` |
+| EP-SAL-07 | GET | `/sales/dashboard` | `sales:query` | EP-76 | `SalesDashboardOut`; cache 60s + Vary |
+| EP-SAL-08 | * | `/sales/contracts[/{id}]` | `sales:write`/`sales:read` | EP-77 | Hợp đồng |
+
+- **ACT doc type #6** (R-DEC-92): `ACT-record_revenue` / `ACT-record_expense` / `ACT-record_cash_balance` thêm vào §7 ACT table (doc type #6), permission `finance:write`, wire IDP → service `finance` sẵn có; undo = soft-delete bản ghi do ACT tạo. Trường tiền trọng yếu luôn qua người (04 §confidence). Không event mới.
+- **Event** (R-DEC-91): `sales.deal_closed_won`/`sales.deal_closed_lost` (đã publish khi stage→closed_*; §9.2) feed `METRIC-CUS-02` (Win rate). `finance.invoice_created` giữ.
+
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
 Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:
@@ -657,6 +688,7 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 | Event | Phát khi | Domain nguồn | AI dùng để (Observe) |
 |---|---|---|---|
 | `invoice.created` (mã code `finance.invoice_created`) | Ghi hóa đơn (qua `commit_extraction`/Finance) | D15 Finance | Cảnh báo dòng tiền, cập nhật metric tài chính |
+| `deal.closed_won` · `deal.closed_lost` (mã code `sales.deal_closed_won` · `sales.deal_closed_lost`) *(M2.2 — đã có `EVENT_TYPES`, xác minh; R-DEC-91)* | Deal chuyển stage → `closed_won`/`closed_lost` (EP-SAL-03, `sales_service._publish_closed`) | D17 Sales | Payload `{deal_id, client_id?, stage, value?, department_id?, owner_id?, closed_at}` — chỉ mã, không tên client. Consumer: recompute `METRIC-CUS-02` (Win rate); `risk.on_deal_closed_lost` (đã có) |
 | `kpi.measured` (mã code `execution.kpi_measured`) | Ghi `record_kpi_measurement` | D08 KPI | Cập nhật achievement, trend |
 | `kpi.below_threshold` (mã code `execution.kpi_below_threshold`) | KPI dưới ngưỡng cảnh báo | D08 KPI | UC-03 KPI underperformance |
 | `okr.at_risk` (mã code `execution.okr_at_risk`) | KR/OKR có rủi ro không đạt | D09 OKR | UC-04 OKR at risk |
@@ -688,6 +720,7 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 | Tên BRD / khái niệm | Mã code (`event_type`) | Trạng thái registry |
 |---|---|---|
 | `invoice.created` | `finance.invoice_created` | `EVENT_TYPES` (có) |
+| `deal.closed_won` · `deal.closed_lost` | `sales.deal_closed_won` · `sales.deal_closed_lost` | `EVENT_TYPES` (có; M2.2 xác minh + document, R-DEC-91) |
 | `task.created` · `task.completed` | `execution.task_created` · `execution.task_completed` | `EXTENSION_EVENT_TYPES` (thêm M1.3, R-DEC-47) |
 | `task.overdue` | `execution.task_overdue` | `EVENT_TYPES` (có; M1.3 thêm `days_late`) |
 | `approval.requested` · `approval.decided` | `platform.approval_requested` · `platform.approval_decided` | `EVENT_TYPES` (có; M1.3 bắt đầu publish) |
@@ -737,6 +770,7 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.5.0 (Spec lock M2.2, 2026-10-31 — agent tự chốt, R-DEC-89..95):** §7.2.7 mới — M2.2 Finance/Sales Lite: EP-FIN-01..10 (`/finance/*`) + EP-SAL-01..08 (`/sales/*`) gán ID v3 cho route v2.1 giữ path (cột `EP v2.1` EP-60..77); §7 ACT table thêm `ACT-record_revenue/record_expense/record_cash_balance` (doc type #6, `finance:write`); §9.2 document event `sales.deal_closed_won/lost` (đã có `EVENT_TYPES`) feed METRIC-CUS-02 + bảng ánh xạ. Không thêm mã lỗi/tool/dependency (R-DEC-95); Lead/Opportunity = alias Client/Deal (R-DEC-90).
 - **Change 1.4.0 (human duyệt bước S M2.1, 2026-10-31):** §7.2.6 mới — M2.1 D28 Reporting v3: EP-RPT-01..03 (`GET /reporting/dashboards/{executive|department|employee}`), EP-RPT-04/05 (`GET/PUT /reporting/preferences/executive-tiles`) — R-DEC-84/85/87; `MetricValueOut` thêm `group` (FIN/CUS/OPS/PPL/STR/DQ — R-DEC-82) + `freshness` (R-DEC-86); SEI `METRIC-RSK-06`→`METRIC-STR-02` (R-DEC-83); alert→Notification in-tx không event mới (R-DEC-88). Ma trận quyền không đổi; `/dashboard/*` (EP-11/12/15/16/17) + `/execution/dashboard` (EP-49) giữ.
 - **Change 1.3.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §2.2 mới — ánh xạ tool BRD ↔ `TOOL-*` (R-DEC-70). §7.2 thêm §7.2.2 M1.3 (EP-TASK-01..19, EP-WF-01..03; path `/work/*`, `/workflow/*` — R-DEC-40..49; `projects.initiative_id` ở EP-TASK-09..12), §7.2.3 M1.4 (EP-STR-01..22, EP-KPI-01..10, EP-OKR-01..11, EP-PRF-01..06; path `/goals/*`, `/kpis/*`, `/objectives/*`, `/key-results/*` — R-DEC-50..59), §7.2.4 M1.5 (EP-DC-01..37, Action Registry v2 12 ACT — R-DEC-60..69; `ACT-create_employee` = `hr:write`), §7.2.5 M1.6 (EP-AI-01..23, EP-ADM-13/14, 13 metadata tool, 10 tool mới 43 → 53, `ACT-update_task`/`ACT-assign_task`, trần L2 — R-DEC-70..79). §9.2 thêm event theo mã registry code (`execution.task_created/_completed`, `execution.kpi_measured` mở rộng payload, `execution.kpi_below_threshold`, `execution.okr_checked_in`, `execution.okr_at_risk`, `idp.document_committed/_rolled_back`, `platform.approval_*`, `ai.policy_changed`, `platform.onboarding_completed`) + bảng ánh xạ tên BRD ↔ mã code (không phát song song). Open questions: đề xuất đóng OQ-10-05/06, đóng một phần OQ-10-04; thêm OQ-10-07..11.
 - **Change 1.2.0 (đề xuất — Spec lock M1.2, R-DEC-29..36, chờ human duyệt bước S):** §7.2.1 bảng EP M1.2: EP-ORG-01..24 (organization/department/team/position/assignment CRUD + `GET /org/tree?as_of=`; giữ `/hr/departments` EP-81 — R-DEC-29; ghi cơ cấu `hr:admin` — R-DEC-30), EP-HR-01..05 (giữ `/hr/employees` EP-82 + nối phân công effective-dated), EP-ADM-05..12 (user admin `/platform/users` + deactivate/reactivate thu hồi refresh token, `/platform/roles`, audit-logs EP-52 thêm `from`/`to`/`actor_type`), EP-NTF-01..05 (inbox `(token)` của chính mình — R-DEC-31, read/read-all, preferences email — R-DEC-32). §9.2 thêm `hr.org_structure_changed`, `auth.user_access_changed` (R-DEC-35). Không thêm mã lỗi (§1.4 giữ nguyên).

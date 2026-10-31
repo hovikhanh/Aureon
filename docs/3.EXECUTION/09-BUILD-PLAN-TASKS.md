@@ -368,15 +368,22 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 **FE:** `/business/finance` (ngân sách, chi phí, dòng tiền, runway — tái dùng `FinanceDrillView`), `/business/sales` (kanban pipeline, target, win rate), `/business/hr` (danh sách NV, phòng ban, mức 4 masked).
 
-| T | Việc | Trạng thái |
-|---|---|---|
-| T-710 | Rà Finance/Sales/HR v2.1 theo phạm vi Lite; gán EP-FIN/SAL/HR ở 10 §7.2 | ☐ |
-| T-711 | Doc type #6 BC tài chính/sao kê số dư → Revenue/Expense/CashBalance (ACT-record_*) | ☐ |
-| T-712 | Lead/Opportunity ↔ Client/Deal hiện có (đổi tên hay alias — chốt ở bước S) | ☐ |
-| T-713 | Event `opportunity.*` → metric | ☐ |
-| T-714 | Seed bổ sung Lead/Opportunity + mẫu doc type #6; xác minh doanh thu ~300 tỷ/năm bằng script | ☐ |
-| T-715 | E2E `business.spec.ts` | ☐ |
-| T-716 | Đóng phase | ☐ |
+**Spec lock M2.2 (R-DEC-89..95 — agent tự chốt theo spec sẵn có 2026-10-31, human ủy quyền):** 10 §7.2.7 (EP-FIN-01..10 + EP-SAL-01..08 gán ID v3 cho route v2.1 giữ path EP-60..77), §7 ACT table (`ACT-record_revenue/expense/cash_balance` doc type #6), §9.2 (event `sales.deal_closed_won/lost` đã có → document); 13 R-DEC-89..95; 14 §1.12 (TC-M22-01..10). Lead/Opportunity = alias Client/Deal (không đổi entity); không thêm mã lỗi/tool/dependency.
+
+| T | Việc | File chính | Spec | TC | Trạng thái |
+|---|---|---|---|---|---|
+| T-710 | Rà Finance/Sales/HR v2.1 theo phạm vi Lite; bảng EP-FIN-01..10 + EP-SAL-01..08 vào 10 §7.2.7 (map route v2.1) | `finance/routes`, `sales/routes`, 10 §7.2.7 | R-DEC-89, EP-FIN/SAL | TC-M22-01 | ☐ |
+| T-711 | Doc type #6 BC tài chính/sao kê → Revenue/Expense/CashBalance: schema registry #6 + `ACT-record_revenue/expense/cash_balance` wire `finance` service | `idp/services/schema_registry.py`, `idp/services/actions/finance.py`, `finance/services/finance_service.py` | R-DEC-92, 04 §6 | TC-M22-02, 03 | ☐ |
+| T-712 | Lead/Opportunity = alias Client/Deal (ghi doc map BRD; không đổi entity/path) | 05 §sales, 00 §4 mapping | R-DEC-90 | TC-M22-04 | ☐ |
+| T-713 | Xác minh event `sales.deal_closed_won/lost` → recompute `METRIC-CUS-02` (Win rate) in-tx | `sales/services/sales_service.py`, `sales/services/metric_provider.py`, `catalog.py` | R-DEC-91, §9.2 | TC-M22-05 | ☐ |
+| T-714 | Seed: giữ Client/Deal; +≥1 tài liệu mẫu doc type #6; xác minh doanh thu ~300 tỷ/năm bằng script | `apps/api/src/app/seed/*` | R-DEC-94, 08 §4 | TC-M22-06 | ☐ |
+| T-715F | FE `/business/finance` (budget/cash/runway) + `/business/sales` (pipeline kanban) trên mock; i18n; Vitest | `apps/web/src/app/(app)/business/finance/**`, `business/sales/**`, `features/finance`, `features/sales` (mới), `messages/*` | R-DEC-93, SCR | TC-M22-07, 08 | ☐ |
+| T-715 | Nối FE↔BE + E2E `business.spec.ts` (finance/sales/hr Lite, scope khối) mock+real | `apps/web/e2e/business.spec.ts`, `packages/shared-types` | 09 §6.9 Exit | TC-M22-09 | ☐ |
+| T-716 | Đóng phase: gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 | — | 09 §6.9 Exit | TC-M22-10 | ☐ |
+
+**Thứ tự** (09 §6.0): S (Spec lock đã chốt) → **C**: T-710 (EP table — contract) → **B**: T-711 (ACT doc#6), T-713 (deal event→metric) song song; **F**: T-715F trên mock song song B → T-714 (seed) → **N**: T-715 (nối real + E2E) → **R**: T-716. File dùng chung do coordinator gộp.
+
+**Exit:** Finance/Sales/HR Lite end-to-end project `real` (TC-M22-09); doc type #6 → Revenue/Expense/CashBalance qua ACT có undo (TC-M22-02/03); event deal→Win rate (TC-M22-05); scope khối F/C đúng (bảo mật ≥90%); pytest + Vitest + contract + Playwright xanh; shared-types drift=0 (TC-M22-10). **Điều kiện bắt đầu:** nhánh `v3/m2.2-business` tách từ đỉnh `v3/m2.1-home`.
 
 ### 6.10. M2.3 — C2 nói/NL · C4 chụp ảnh · D12 Meeting transcript → việc (nhánh `v3/m2.3-capture-meeting`)
 

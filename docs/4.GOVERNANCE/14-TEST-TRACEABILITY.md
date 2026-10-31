@@ -244,6 +244,23 @@ Ngưỡng: TC-M21-04, 05, 07, 08, 09 thuộc nhóm **bảo mật** (scope 3 cấ
 
 > **Trạng thái bước F→N (2026-10-31, chờ review bước R):** mục Passed = đã chứng minh bằng test không cần DB (unit/architecture/Vitest/mock-E2E/contract-drift). Mục Implemented = code hoàn tất + phần verify không cần DB đã xanh, phần còn lại (integration/migration round-trip/tenant isolation/recompute seed + Playwright `real`) **hoãn sang bước R** vì môi trường agent không có Docker/Postgres (CLAUDE §6.5). Quy ước: không `docker compose down -v`, không chạm DB demo `aureon`. Khi lên bước R với stack thật: `uv run alembic upgrade head` (0022) → `uv run pytest --cov=app` (services ≥80%, bảo mật ≥90%) → `pnpm test:e2e` project `real` → chuyển các dòng Implemented sang Passed.
 
+### 1.12. M2.2 — Finance Lite · Sales Lite · HR cơ bản (Spec lock 2026-10-31, R-DEC-89..95)
+
+| TC | Mô tả | Loại | T | Spec | Trạng thái |
+|---|---|---|---|---|---|
+| TC-M22-01 | EP-FIN-01..10 + EP-SAL-01..08 giữ path v2.1, gán ID v3; mọi route có `response_model` + đúng 1 permission; đọc khối dùng `require_pillar_permission` (DIR-F chỉ finance, DIR-C chỉ sales); `:query` mở mọi DIR; contract shared-types drift=0 | contract + integration | T-710 | 10 §7.2.7, R-DEC-89 | Planned |
+| TC-M22-02 | Doc type #6 "BC tài chính/sao kê số dư" phân loại + schema trích xuất (period, revenue, expense, balance); trường tiền trọng yếu → luôn review (confidence gate 04) | integration (IDP) | T-711 | R-DEC-92, 04 §6 | Planned |
+| TC-M22-03 | `ACT-record_revenue/expense/cash_balance`: validate→run→ghi Revenue/Expense/CashPosition in-tx + audit `finance.<verb>` + outbox; undo (soft-delete) đảo bản ghi; permission `finance:write`; lỗi dòng → `ACTION_REJECTED` rollback cả tài liệu | integration (bảo mật) | T-711 | R-DEC-92, 10 §7 | Planned |
+| TC-M22-04 | Lead/Opportunity = alias Client/Deal: không có entity/path mới; doc map BRD đúng; stage `open/closed_won/closed_lost` giữ | architecture + doc | T-712 | R-DEC-90 | Planned |
+| TC-M22-05 | Deal → stage `closed_won`/`closed_lost` phát `sales.deal_closed_won/lost` in-tx; consumer recompute `METRIC-CUS-02` (Win rate) đúng; không phát event cho stage khác; idempotent theo `event_id` | event + integration | T-713 | R-DEC-91, §9.2 | Planned |
+| TC-M22-06 | Seed: Client/Deal + ≥1 tài liệu doc type #6; doanh thu năm ~300 tỷ xác minh bằng script (không nhẩm); chạy 2 lần idempotent; không PII thật | integration (seed) | T-714 | R-DEC-94, 08 §4 | Planned |
+| TC-M22-07 | FE `/business/finance`: budget/cash/runway tái dùng finance feature; mỗi widget một query; số click → lineage; mức 4 masked | Vitest | T-715F | R-DEC-93 | Planned |
+| TC-M22-08 | FE `/business/sales`: kanban pipeline theo stage, target, win rate; đổi stage gọi EP-SAL-03 | Vitest | T-715F | R-DEC-93 | Planned |
+| TC-M22-09 | **E2E** `business.spec.ts` project `real`: DIR-F thấy finance không thấy sales (403 pillar), DIR-C ngược lại; CEO thấy cả hai; pipeline kéo stage; doc #6 → review → runway cập nhật | E2E `real`+`mock` | T-715 | 09 §6.9 Exit | Planned |
+| TC-M22-10 | Cổng M2.2: gate DoD exit 0; `pytest --cov` finance/sales services ≥80%, ACT/scope ≥90%; Playwright mock+real xanh; drift=0; mọi TC-M22-* Passed | toàn bộ | T-716 | 09 §6.9 Exit | Planned |
+
+Ngưỡng: TC-M22-03 (ACT ghi/undo), TC-M22-01 (scope khối F/C) thuộc nhóm **bảo mật** (≥90%, gap=blocking); TC-M22-09/10 là **exit criteria M2.2** (gap=blocking).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).
@@ -352,6 +369,7 @@ Mỗi NFR nêu cách kiểm ở mức khung; ngưỡng số là baseline MVP (BR
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.6.0 (Spec lock M2.2, 2026-10-31):** thêm §1.12 `TC-M22-01..10` (Planned) — EP-FIN/EP-SAL contract + scope khối F/C, doc type #6 phân loại + ACT record_revenue/expense/cash_balance (ghi/undo), Lead/Opportunity alias, event deal→Win rate, seed + doanh thu ~300 tỷ, FE /business/finance + /business/sales, E2E business.spec real, cổng M2.2 + dòng ngưỡng bảo mật/exit.
 - **Change 1.5.2 (bước R M2.1 trên stack thật, 2026-10-31):** chạy bước R với Postgres/Docker — migration `0022` `downgrade -1 && upgrade head` sạch; bổ sung integration bảo mật EP-RPT-01..05 (`tests/integration/dashboard/test_reporting.py` + `test_executive_tiles.py`, 12 test) nâng `reporting_service` 35→97% và `preference_service` 55→94% (≥ ngưỡng 80/90); regen `apps/web/src/mocks/seed_snapshot.json` theo thứ tự SEI rename (STR-01 trước STR-02); dựng lại image api/web từ nhánh và chạy Playwright `real` SCR-40 (home 4, dashboard+finance-drill 5, roles 7, responsive 4, login lands/7-role + navigation) — sửa `roles.spec.ts`/`responsive.spec.ts`/`login.spec.ts` sang ngữ nghĩa SCR-40 (DIR→exec-view, MGR→dept-view, EMP→emp-view, ADM→/admin, REV→/data). Chuyển Passed: TC-M21-02/04/05/06/07/08/09/11/13/14. Ghi rõ 2 fail pre-existing ngoài phạm vi M2.1 (seed_s2 đếm alert, goal checkin weekday) + onboarding kill-switch M1.6.
 - **Change 1.5.1 (bước F→N M2.1, 2026-10-31):** cập nhật trạng thái §1.11 `TC-M21-*` theo kết quả thực thi — Passed: TC-M21-01/03/10/12 (unit/contract/Vitest); Implemented (phần không cần DB xanh, phần integration/migration/real-E2E hoãn bước R): TC-M21-02/04/05/06/07/08/09/11/13/14. Ghi R-DEC-84 làm rõ perm EP-RPT-02/03 = `execution:read` (ma trận không đổi). Thêm ghi chú quy ước Passed/Implemented + checklist bước R trên stack thật.
 - **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** thêm §1.11 `TC-M21-01..14` (Planned) — catalog group + SEI rename migration, freshness, 3 cấp dashboard scope (CEO/DIR/MGR/EMP + default-deny), preference validate+scope+tenant, alert→Notification dedupe, seed, SCR-40 mock + E2E real, cổng M2.1 + dòng ngưỡng nhóm bảo mật/migration/exit.
