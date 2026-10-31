@@ -54,6 +54,7 @@ from app.modules.ai.services.demo_replay import (
     match_entry,
     replay_enabled,
 )
+from app.modules.ai.services.grounding import enforce_grounding
 from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
 from app.modules.ai.services.tool_audit import log_tool_call
 from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
@@ -130,10 +131,12 @@ class ChatService:
         ]
 
         sources: list[SourceRef] = []
+        tool_data: list[dict[str, Any]] = []
         fcalls: list[dict[str, Any]] = []
         warnings: list[str] = []
         suggested: list[dict[str, Any]] = []
         calls_made = 0
+        read_calls = 0
         truncated = False
         answer = ""
         tokens_in = tokens_out = 0
@@ -172,6 +175,7 @@ class ChatService:
                     result = await self._write_call(user, user_msg.id, tc.id, tc.name,
                                                     tc.arguments, suggested, warnings)  # fmt: skip
                 else:
+                    read_calls += 1  # a READ tool ran → the turn tried to answer with data
                     result = await executor.run(tc.name, tc.arguments)
                     await self._log_tool(user, user_msg.id, tc.name, tc.arguments, result)
                 fcalls.append(
@@ -179,6 +183,7 @@ class ChatService:
                 )
                 if result.status == "ok":
                     sources.extend(result.sources)
+                    tool_data.append(result.data)
                 history.append(
                     GwMessage(
                         "tool",
@@ -192,6 +197,12 @@ class ChatService:
                 break
 
         answer = answer or ""
+        # Hard grounding gate (10 §8, R-DEC-105): strip any number not backed by a SourceRef /
+        # tool result, flag no-data — before the answer is ever persisted.
+        answer, ground_warnings = enforce_grounding(
+            answer, [s.as_dict() for s in sources], tool_data, data_requested=read_calls > 0
+        )
+        warnings.extend(ground_warnings)
         assistant = await self._add_message(
             conv.id, "assistant", answer, [s.as_dict() for s in sources], fcalls, user,
             truncated=truncated, tokens_in=tokens_in, tokens_out=tokens_out,
