@@ -90,14 +90,19 @@ test.describe("M1.4 goals screens", { tag: ["@mock", "@mock-only"] }, () => {
     await expect(page.getByTestId("kr-history-row").first()).toContainText("thiếu presales");
   });
 
-  test("SCR-60: EMP F4 cards (prefill placeholder) → check-in → 'Đã check-in'; MGR sees it in the team feed", async ({ page, browser }) => {
+  test("SCR-60: EMP F4 cards (AI prefill) → check-in → 'Đã check-in'; MGR sees it in the team feed", async ({ page, browser }) => {
     await login(page, "employee@abc.demo");
     await page.goto("/goals/check-ins");
     await expect(page.getByTestId("checkins")).toHaveAttribute("data-scr", "SCR-60");
     await expect(page.getByTestId("checkins-tab-team")).toHaveCount(0);
     const card = page.locator('[data-testid^="checkin-card-"][data-target-type="key_result"]');
     await expect(card).toHaveAttribute("data-done", "true"); // checked in 16/10, business day 20/10
-    await expect(card.getByTestId("checkin-prefill")).toHaveAttribute("data-prefill", "null");
+    // M2.4 (R-DEC-109): grounded current value → AI prefill with a confidence bar + "Dùng gợi ý".
+    const prefill = card.getByTestId("checkin-prefill");
+    await expect(prefill).toHaveAttribute("data-prefill", "suggested");
+    await expect(prefill.getByTestId("prefill-confidence-bar")).toBeVisible();
+    await prefill.getByTestId("prefill-use").click();
+    await expect(card.getByTestId("checkin-value")).not.toHaveValue("");
     await card.getByTestId("checkin-value").fill("1,85");
     await card.getByTestId("checkin-conf-HIGH").click();
     await card.getByTestId("checkin-note").fill("Tuyến Thủ Đức ổn định");

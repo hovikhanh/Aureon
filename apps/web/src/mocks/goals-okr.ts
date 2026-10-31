@@ -223,6 +223,14 @@ function feed(req: MockRequest) {
 }
 
 /** EP-PRF-06 — the caller's F4 cards: KR (Objective active, period contains today) + active KPI owned by the caller. */
+/** Mirror backend `_prefill` (R-DEC-109): a grounded current value → an AI suggestion with a
+ * confidence band (HIGH when there's prior history, else MEDIUM). No value → no suggestion. */
+function prefillOf(current: number | null, sourceLabel: string, lineageUrl: string, hasHistory: boolean) {
+  if (current == null) return null;
+  const band = hasHistory ? ("HIGH" as const) : ("MEDIUM" as const);
+  return { suggested_value: current, confidence: band, confidence_reason: `Dựa trên ${sourceLabel}`, source_label: sourceLabel, lineage_url: lineageUrl };
+}
+
 function due(req: MockRequest) {
   const s = goalStore();
   const today = workToday();
@@ -233,7 +241,8 @@ function due(req: MockRequest) {
     if (!o || o.status !== "active" || !b || today < b[0] || today >= b[1]) return [];
     const age = k.last_checked_in_at ? daysBetween(k.last_checked_in_at, today) : Number.POSITIVE_INFINITY;
     return [{ target_type: "key_result" as const, target_id: k.id, title: k.title, unit: k.unit, current_value: k.current_value, target: k.target,
-      confidence: (k.confidence as "HIGH" | "MEDIUM" | "LOW" | null), last_checked_in_at: k.last_checked_in_at, due: age > KR_CHECKIN_MAX_AGE_DAYS, prefill: null }];
+      confidence: (k.confidence as "HIGH" | "MEDIUM" | "LOW" | null), last_checked_in_at: k.last_checked_in_at, due: age > KR_CHECKIN_MAX_AGE_DAYS,
+      prefill: prefillOf(k.current_value, `KR ${k.title}`, `/goals/objectives/${k.objective_id}?kr=${k.id}`, k.last_checked_in_at != null) }];
   });
   const kpiCards = s.kpis.filter((k) => !k.deleted && k.owner_id === me && k.status === "active").map((k) => {
     const cur = periodKeyFor(k.period_type === "ROLLING_12M" ? "MONTH" : k.period_type, today);
@@ -244,7 +253,8 @@ function due(req: MockRequest) {
     const ci = lastCi?.confidence;
     return { target_type: "kpi" as const, target_id: k.id, title: k.name, unit: k.unit, current_value: last?.actual_value ?? null, target: k.target,
       confidence: (ci === "HIGH" || ci === "MEDIUM" || ci === "LOW" ? ci : null), last_checked_in_at: lastCi?.checked_in_at ?? null,
-      due: !s.measurements.some((m) => m.kpi_id === k.id && m.period_key === prev), prefill: null };
+      due: !s.measurements.some((m) => m.kpi_id === k.id && m.period_key === prev),
+      prefill: prefillOf(last?.actual_value ?? null, `KPI ${k.code}`, `/goals/kpis/${k.id}`, last != null) };
   });
   return ok([...krCards, ...kpiCards].sort((a, b) => Number(b.due) - Number(a.due)));
 }

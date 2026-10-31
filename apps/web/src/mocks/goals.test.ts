@@ -133,10 +133,12 @@ describe("KPI (EP-KPI-01..10, PRF-03/04)", () => {
 });
 
 describe("OKR + check-in (EP-OKR-*, EP-PRF-01/02/05/06)", () => {
-  it("EMP F4: due cards (prefill null), check-in own KR, other KR 403, MGR sees it in the team feed", async () => {
-    const due = await call<{ target_id: string; due: boolean; prefill: null }[]>("/goals/check-ins/due", { claims: EMP });
+  it("EMP F4: due cards (AI prefill from grounded value), check-in own KR, other KR 403, MGR sees it in the team feed", async () => {
+    type Prefill = { suggested_value: number; confidence: "HIGH" | "MEDIUM" | "LOW"; source_label: string; lineage_url: string } | null;
+    const due = await call<{ target_id: string; due: boolean; prefill: Prefill }[]>("/goals/check-ins/due", { claims: EMP });
     expect(due.json!.data.map((d) => d.target_id)).toEqual([krId(EMP_KR)]);
-    expect(due.json!.data.every((d) => d.prefill === null)).toBe(true);
+    // M2.4 (R-DEC-109): a grounded current value → AI prefill; prior history → HIGH confidence.
+    expect(due.json!.data[0].prefill).toMatchObject({ suggested_value: 1.9, confidence: "HIGH" });
     expect(due.json!.data[0]).toMatchObject({ target_type: "key_result", unit: "ngày", current_value: 1.9, target: 1.8, last_checked_in_at: "2026-10-16T02:00:00Z" });
     const r = await call<{ target_type: string; kr_measurement: { previous_progress_pct: number } }>(`/key-results/${krId(EMP_KR)}/check-ins`, {
       method: "POST", body: { value: 1.85, confidence: "MEDIUM", note: "ok" }, claims: EMP, headers: IDEM });

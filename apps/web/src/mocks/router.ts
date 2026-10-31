@@ -52,6 +52,22 @@ function requireIdempotency(req: MockRequest): void {
   }
 }
 
+// EP-AI-05 fixture (M2.4): a 9-part grounded recommendation insight (O pillar KPI below threshold).
+const MOCK_INSIGHTS = [
+  {
+    id: "insight-o-kpi-1", kind: "recommendation", pillar: "O", severity: "critical",
+    observation: "KPI tỷ lệ nghỉ việc chỉ đạt 42,5% kế hoạch quý này.",
+    evidence: [{ type: "metric_value", id: "METRIC-HR-04", label: "Tỷ lệ đạt KPI", period_key: "2026-Q3", value: 42.5, lineage_url: "/goals/kpis/kpi-hr-04" }],
+    impact: "Khối Vận hành (O) đang ở trạng thái rủi ro.",
+    root_cause: "Chủ KPI có nhiều task quá hạn, thiếu nguồn lực theo dõi.",
+    risk: "Nếu không can thiệp, chỉ số quý sau có thể tiếp tục giảm.",
+    recommendations: [{ text: "Giao task rà soát nguyên nhân cho quản lý khối O.", action: { autonomy_level: "L2" } }],
+    expected_outcome: { metric_id: "METRIC-HR-04", direction: "up" },
+    confidence: { band: "medium", reason: "Dựa trên 1 chỉ số nguồn, chưa đủ chuỗi lịch sử dài." },
+    structured: {}, created_at: "2026-10-20T00:00:00Z", expires_at: "2026-10-27T00:00:00Z",
+  },
+];
+
 export const ROUTES: readonly Route[] = [
   {
     method: "GET", pattern: "/dashboard/metrics", permission: "dashboard:read",
@@ -98,6 +114,11 @@ export const ROUTES: readonly Route[] = [
       requireIdempotency(req);
       return chatStream(req);
     },
+  },
+  {
+    // EP-AI-05 — 9-part insight for the Executive home (M2.4). CEO/DIR audience; otherwise empty.
+    method: "GET", pattern: "/ai/insights", permission: "ai:query",
+    handler: ({ claims }) => ok(claims.permissions.includes("dashboard:read") ? MOCK_INSIGHTS : []),
   },
   // M1.2 admin screens (T-617F): org structure, users/roles, audit, notifications.
   { method: "GET", pattern: "/platform/audit-logs", permission: "platform:read", handler: listAudit },
