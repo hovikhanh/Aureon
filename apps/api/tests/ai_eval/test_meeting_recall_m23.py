@@ -95,12 +95,24 @@ async def test_uc02_action_item_recall_at_least_90pct(db_session, idp_store) -> 
     await db_session.flush()
     await Pipeline(db_session, _MeetingGateway()).run(doc.id)
 
-    job = (await db_session.execute(
-        select(ExtractionJob).where(ExtractionJob.source_document_id == doc.id)
-    )).scalars().first()
-    fields = (await db_session.execute(
-        select(ExtractedField).where(ExtractedField.extraction_job_id == job.id)
-    )).scalars().all()
+    job = (
+        (
+            await db_session.execute(
+                select(ExtractionJob).where(ExtractionJob.source_document_id == doc.id)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    fields = (
+        (
+            await db_session.execute(
+                select(ExtractedField).where(ExtractedField.extraction_job_id == job.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     by_row: dict[int, dict[str, Any]] = {}
     for f in fields:
         by_row.setdefault(f.row_index or 0, {})[f.field_name] = f.value
@@ -108,8 +120,7 @@ async def test_uc02_action_item_recall_at_least_90pct(db_session, idp_store) -> 
     # A missing/ambiguous owner does NOT fail recognition — it routes the owner to human review
     # (R-DEC-103, 04 §7 critical-field gate), the item still exists.
     recognized = sum(
-        1 for r in by_row.values()
-        if r.get("action_item_title") and r.get("action_item_due")
+        1 for r in by_row.values() if r.get("action_item_title") and r.get("action_item_due")
     )
     recall = recognized / len(GROUND_TRUTH)
     assert recall >= 0.90, f"recall {recall:.0%} < 90% ({recognized}/{len(GROUND_TRUTH)})"

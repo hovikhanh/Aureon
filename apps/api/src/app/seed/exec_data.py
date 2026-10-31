@@ -253,7 +253,7 @@ def _transcript_text() -> str:
         "Quyết định và việc cần làm:",
     ]
     for title, who, off, _ in ACTION_ITEMS:
-        day = (MEETING_AT.date().toordinal() + off)
+        day = MEETING_AT.date().toordinal() + off
         lines.append(f"- {title}; người phụ trách {who.name}; hạn ngày {date.fromordinal(day)}.")
     return "\n".join(lines)
 

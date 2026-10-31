@@ -290,8 +290,12 @@ async def test_extractor_flat_payload_stays_single_row() -> None:
 
     class _Gw:
         async def chat(self, _req):
-            return ChatResponse(content="", provider="fake", model="m",
-                                data={"invoice_number": {"value": "0001", "confidence": 0.98}})
+            return ChatResponse(
+                content="",
+                provider="fake",
+                model="m",
+                data={"invoice_number": {"value": "0001", "confidence": 0.98}},
+            )
 
     out = await Extractor(_Gw()).extract(schema_fields=specs, page_text="x", sensitivity_level=2)
     assert len(out.fields) == 1 and out.fields[0].row_index is None

@@ -115,9 +115,11 @@ async def test_meeting_summary_upsert_and_event(db_session: AsyncSession) -> Non
     s1 = await svc.create_summary(ceo, meeting_id=m.id, summary_text="Tóm tắt 1")
     s2 = await svc.create_summary(ceo, meeting_id=m.id, summary_text="Tóm tắt 2")
     assert s1.id == s2.id  # 1-1 upsert
-    rows = (await db_session.execute(
-        select(MeetingSummary).where(MeetingSummary.meeting_id == m.id)
-    )).scalars().all()
+    rows = (
+        (await db_session.execute(select(MeetingSummary).where(MeetingSummary.meeting_id == m.id)))
+        .scalars()
+        .all()
+    )
     assert len(rows) == 1 and rows[0].summary_text == "Tóm tắt 2"
     events = await outbox_for(db_session, str(s2.id))
     assert any(t == "execution.meeting_summarized" and p["meeting_id"] == str(m.id)

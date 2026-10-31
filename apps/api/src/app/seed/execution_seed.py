@@ -74,9 +74,19 @@ def _meeting(owner: uuid.UUID) -> list[Any]:
     doc_id = seed_uuid("source_document", "biên-bản-GB-2026-10")
     attendees = sorted({emp_id(p.code) for p in X.ASSIGNEES[:8]})
     # Transcript first — Meeting.transcript_id FKs to it (R-DEC-104).
-    rows: list[Any] = [MeetingTranscript(
-        id=tid, meeting_id=None, source_document_id=doc_id, language="vi", speaker_count=4,
-        text_content=X.MEETING_TRANSCRIPT, status="PROCESSED", consent_confirmed_by=owner, **SEED)]
+    rows: list[Any] = [
+        MeetingTranscript(
+            id=tid,
+            meeting_id=None,
+            source_document_id=doc_id,
+            language="vi",
+            speaker_count=4,
+            text_content=X.MEETING_TRANSCRIPT,
+            status="PROCESSED",
+            consent_confirmed_by=owner,
+            **SEED,
+        )
+    ]
     rows.append(Meeting(
         id=mid, title=X.MEETING_TITLE, held_at=X.MEETING_AT, chair_id=owner,
         attendee_ids=attendees, summary="Giao ban tháng 10: dòng tiền, tuyển dụng, pipeline Q4.",
@@ -91,10 +101,18 @@ def _meeting(owner: uuid.UUID) -> list[Any]:
         for i, (content, _, outcome) in enumerate(X.DECISIONS)
     ]  # fmt: skip
     # UC-02/06 (R-DEC-104): summary → ≥5 action items (fuzzy owner matched).
-    rows.append(MeetingSummary(
-        id=seed_uuid("meeting_summary", "GB-2026-10"), meeting_id=mid, source_document_id=doc_id,
-        summary_text=X.MEETING_SUMMARY, key_points=[d[0] for d in X.DECISIONS],
-        generated_by="ai", status="confirmed", **SEED))
+    rows.append(
+        MeetingSummary(
+            id=seed_uuid("meeting_summary", "GB-2026-10"),
+            meeting_id=mid,
+            source_document_id=doc_id,
+            summary_text=X.MEETING_SUMMARY,
+            key_points=[d[0] for d in X.DECISIONS],
+            generated_by="ai",
+            status="confirmed",
+            **SEED,
+        )
+    )
     rows += [
         ActionItem(
             id=seed_uuid("action_item", str(i)), meeting_id=mid,
