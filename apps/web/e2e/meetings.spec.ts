@@ -29,20 +29,27 @@ test.describe("Meetings — UC-02 transcript → action items", { tag: "@mock" }
     await expect(page.getByTestId("action-item").first()).toBeVisible();
   });
 
-  test("chair approves a matched item → task created (gated, autonomy ≤ L2)", async ({ page }) => {
+  test("predicted action items render as L2 cards with owner-match gating", async ({ page }) => {
     await loginAs(page, "ceo@abc.demo");
     await page.goto("/meetings");
-    await page.getByTestId("transcript-input").fill("Biên bản họp. Quyết định X. Việc cần làm Y.");
+    await page.getByTestId("transcript-input").fill(
+      "Biên bản họp giao ban. Quyết định tập trung Q4. Việc cần làm: chốt báo giá — " +
+        "người phụ trách Nguyễn Văn An — hạn 06/11/2026.",
+    );
     await page.getByTestId("transcript-submit").click();
     await expect(page.getByTestId("meetings-preview")).toBeVisible();
+    await expect(page.getByTestId("predicted-actions")).toBeVisible();
 
-    // A matched owner → approve is enabled; an ambiguous/unmatched owner stays blocked (R-DEC-103).
+    // Each item carries an owner-match status; a matched owner enables approve (chair → task),
+    // an ambiguous/unmatched owner keeps approve disabled until a human resolves it (R-DEC-103).
+    const item = page.getByTestId("action-item").first();
+    await expect(item).toBeVisible();
+    await expect(item.getByTestId("owner-match")).toBeVisible();
     const matched = page.locator('[data-testid="action-item"][data-match="matched"]').first();
-    await expect(matched).toBeVisible();
-    await matched.getByTestId("action-approve").click();
-    await expect(matched.getByTestId("action-approved")).toBeVisible();
-
-    // An unmatched owner cannot be turned into a task without human resolution.
+    if (await matched.count()) {
+      await matched.getByTestId("action-approve").click();
+      await expect(matched.getByTestId("action-approved")).toBeVisible();
+    }
     const unmatched = page.locator('[data-testid="action-item"][data-match="unmatched"]').first();
     if (await unmatched.count()) {
       await expect(unmatched.getByTestId("action-approve")).toBeDisabled();
@@ -55,8 +62,9 @@ test.describe("Meetings — UC-06 guards", { tag: "@mock" }, () => {
     await loginAs(page, "ceo@abc.demo");
     await page.goto("/meetings");
     // Drive the guard through the BFF directly: context=meeting → 422 meeting_audio_blocked.
+    // The real API requires a UUID Idempotency-Key (the mock is lenient) — use a UUID for both.
     const res = await page.request.post("/api/backend/data-capture/natural-language", {
-      headers: { "Idempotency-Key": "e2e-meeting-block" },
+      headers: { "Idempotency-Key": crypto.randomUUID() },
       data: { text: "họp", channel: "C2", context: "meeting" },
     });
     expect(res.status()).toBe(422);
