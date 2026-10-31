@@ -75,8 +75,10 @@ describe("route guard (06 §3.4)", () => {
     expect(canAccess(path, role, perms(role))).toBe(ok);
   });
 
-  it("every human role lands on /home; the AI actor has no UI", () => {
-    for (const r of ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"] as const) expect(landingFor(r, perms(r))).toBe("/home");
+  it("landing theo role (SCR-40, R-DEC-84/85): REV→/data, ADM→/admin, còn lại /home; AI không có UI", () => {
+    for (const r of ["CEO", "DIR", "MGR", "EMP"] as const) expect(landingFor(r, perms(r))).toBe("/home");
+    expect(landingFor("REV", perms("REV"))).toBe("/data");
+    expect(landingFor("ADM", perms("ADM"))).toBe("/admin");
     expect(landingFor("AI", perms("AI"))).toBe("/403");
   });
 });

@@ -115,7 +115,8 @@ test.describe("7 roles on the real stack (TC-M11-15)", () => {
   for (const [role, email, allowed, denied] of ROLES) {
     test(`${role} (${email}) logs in, navigates, is denied ${denied}`, async ({ page }) => {
       await login(page, email);
-      await expect(page).toHaveURL(/\/home$/);
+      // SCR-40 (R-DEC-84/85): REV→/data, ADM→/admin, các role khác→/home.
+      await expect(page).toHaveURL(/\/(home|data|admin)/);
       const session = await (await page.request.get("/api/auth/session")).json();
       expect(session.user.role).toBe(role);
       await page.getByTestId(allowed).click();

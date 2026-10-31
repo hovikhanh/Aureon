@@ -22,7 +22,8 @@ test.describe("IA v3 sidebar per role (TC-M11-12)", { tag: "@mock" }, () => {
   for (const [email, keys] of SIDEBAR) {
     test(`${email}: ${keys.length} items`, async ({ page }) => {
       await login(page, email);
-      await expect(page).toHaveURL(/\/home$/);
+      // SCR-40 (R-DEC-84/85): REV lands on /data, ADM on /admin, còn lại /home — sidebar vẫn đủ mục.
+      await expect(page).toHaveURL(/\/(home|data|admin)/);
       const items = page.getByTestId("sidebar").locator("[data-testid^=nav-]");
       await expect(items).toHaveCount(keys.length);
       expect(await items.evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")))).toEqual(keys.map((k) => `nav-${k}`));
@@ -78,23 +79,15 @@ test.describe("v2.1 routes redirect 308 (TC-M11-13)", { tag: "@mock" }, () => {
   });
 });
 
-test.describe("product/risk frozen (TC-M11-14, R-DEC-16)", { tag: "@mock" }, () => {
-  test("CEO Executive default has no U/S card; the 5 pillars live only on SCR-03", async ({ page }) => {
+test.describe("product/risk frozen (TC-M11-14, R-DEC-16/82)", { tag: "@mock" }, () => {
+  test("CEO: không có nav product/risk; 5 trụ chỉ ở SCR-03 (/home/pillar)", async ({ page }) => {
     await login(page, "ceo@abc.demo");
-    const grid = page.getByTestId("pillar-grid");
-    await expect(grid.getByTestId("pillar-F")).toBeVisible();
-    await expect(grid.getByTestId("pillar-U")).toHaveCount(0);
-    await expect(grid.getByTestId("pillar-S")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/home$/);
+    // SCR-40: trang chủ là Reporting v3 (không còn lưới 5 trụ). Product/Risk đóng băng → không có nav.
+    await expect(page.getByTestId("exec-view")).toBeVisible();
     await expect(page.locator("[data-testid^=nav-product], [data-testid^=nav-risk]")).toHaveCount(0);
-    await page.getByTestId("five-pillar-link").click();
-    // first client navigation to SCR-03 compiles the route on demand under `next dev` (mock)
-    await expect(page).toHaveURL(/\/home\/pillar\/finance/, { timeout: 30_000 });
+    // layout 5 trụ chỉ sống ở SCR-03
+    await page.goto("/home/pillar/finance");
     await expect(page.getByTestId("pillar-tabs").locator("a")).toHaveCount(5);
-  });
-
-  test("a DIR scoped to F gets no five-pillar link", async ({ page }) => {
-    await login(page, "cfo@abc.demo");
-    await expect(page.getByTestId("pillar-F")).toBeVisible();
-    await expect(page.getByTestId("five-pillar-link")).toHaveCount(0);
   });
 });

@@ -3,12 +3,12 @@ import { loginAs } from "./helpers";
 
 /**
  * 06 breakpoints: ≥1440 · 1280–1439 · 768–1279 (sidebar icons) · <768 (drawer). No horizontal scroll.
- * Executive default = 3 cards F/O/C (U/S frozen, R-DEC-16) → one row from 768px up.
+ * SCR-40 Executive home = 4 ô (lg:4 / sm:2 / 1) → số cột theo breakpoint của lưới ô chỉ số.
  */
 const VIEWPORTS = [
-  { w: 1440, h: 900, sidebar: "full", cols: 3 },
-  { w: 1280, h: 800, sidebar: "full", cols: 3 },
-  { w: 768, h: 1024, sidebar: "icons", cols: 3 },
+  { w: 1440, h: 900, sidebar: "full", cols: 4 },
+  { w: 1280, h: 800, sidebar: "full", cols: 4 },
+  { w: 768, h: 1024, sidebar: "icons", cols: 2 },
   { w: 390, h: 844, sidebar: "drawer", cols: 1 },
 ] as const;
 
@@ -16,7 +16,7 @@ for (const vp of VIEWPORTS) {
   test(`dashboard shell at ${vp.w}px`, async ({ page }) => {
     await page.setViewportSize({ width: vp.w, height: vp.h });
     await loginAs(page, "ceo@abc.demo");
-    await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
+    await expect(page.getByTestId("exec-tiles").locator("[data-testid=metric-tile]")).toHaveCount(4);
     const sidebar = page.getByTestId("sidebar");
     const box = await sidebar.boundingBox();
     if (vp.sidebar === "full") expect(box?.width).toBeGreaterThan(200);
@@ -29,7 +29,7 @@ for (const vp of VIEWPORTS) {
       await expect(page).toHaveURL(/\/ask$/);
       await page.goto("/home");
     }
-    const tops = await page.locator("[data-testid=pillar-grid] > *").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    const tops = await page.getByTestId("exec-tiles").locator("[data-testid=metric-tile]").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
     expect(tops.filter((t) => t === tops[0]).length).toBe(vp.cols);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);

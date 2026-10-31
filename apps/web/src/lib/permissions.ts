@@ -133,6 +133,9 @@ export function visibleWorkTabs(role: string, perms: readonly string[]): WorkTab
 
 /** Every human role lands on Trang chủ (SCR-40); the AI actor has no UI. */
 export function landingFor(role: string, perms: readonly string[]): string {
+  // SCR-40 (R-DEC-84/85): Reviewer vào hàng chờ, Admin vào cấu hình nền tảng, còn lại Trang chủ.
+  if (role === "REV" && canAccess("/data", role, perms)) return "/data";
+  if (role === "ADM" && canAccess("/admin", role, perms)) return "/admin";
   return canAccess("/home", role, perms) ? "/home" : "/403";
 }
 

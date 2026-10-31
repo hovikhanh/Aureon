@@ -66,6 +66,14 @@ export type AgentPatchIn = {
   version: number;
 };
 
+export type AiActionBriefOut = {
+  id: string;
+  action_name: string;
+  status: string;
+  executed_at?: string | null;
+  result_refs?: Record<string, unknown>[];
+};
+
 export type AlertOut = {
   id: string;
   alert_code: string;
@@ -591,6 +599,21 @@ export type CostSummaryOut = {
   rows?: CostRowOut[];
 };
 
+export type CountedActions = {
+  count: number;
+  items?: AiActionBriefOut[];
+};
+
+export type CountedAlerts = {
+  count: number;
+  items?: AlertOut[];
+};
+
+export type CountedApprovals = {
+  count: number;
+  items?: ApprovalRequestOut[];
+};
+
 export type DashboardPeriod = {
   key: string;
   type: string;
@@ -731,6 +754,16 @@ export type DepartmentCreate = {
   valid_from?: string | null;
 };
 
+export type DepartmentDashboardOut = {
+  department_id?: string | null;
+  kpis?: MetricValueOut[];
+  okrs: OkrSummary;
+  workload: WorkloadSummary;
+  late_projects: number;
+  due_tasks: DueTasks;
+  generated_at: string;
+};
+
 export type DepartmentOut = {
   id: string;
   version: number;
@@ -817,6 +850,12 @@ export type DocumentTypePatch = {
   version: number;
 };
 
+export type DueTasks = {
+  overdue: number;
+  today: number;
+  this_week: number;
+};
+
 export type EmployeeAssignmentOut = {
   id: string;
   version: number;
@@ -849,6 +888,14 @@ export type EmployeeCreate = {
   hire_date: string;
   termination_date?: string | null;
   manager_id?: string | null;
+};
+
+export type EmployeeDashboardOut = {
+  my_tasks: DueTasks;
+  my_goals: GoalSummary;
+  pending_checkins?: PendingCheckin[];
+  workload_week_pct?: number | null;
+  generated_at: string;
 };
 
 export type EmployeeOut = {
@@ -992,6 +1039,11 @@ export type Envelope_DecisionOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_DepartmentDashboardOut_ = {
+  data: DepartmentDashboardOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_DepartmentOut_ = {
   data: DepartmentOut;
   meta?: Meta | null;
@@ -1012,6 +1064,11 @@ export type Envelope_EmployeeAssignmentOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_EmployeeDashboardOut_ = {
+  data: EmployeeDashboardOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_EmployeeOut_ = {
   data: EmployeeOut;
   meta?: Meta | null;
@@ -1019,6 +1076,16 @@ export type Envelope_EmployeeOut_ = {
 
 export type Envelope_ExecutionDashboardOut_ = {
   data: ExecutionDashboardOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ExecutiveDashboardOut_ = {
+  data: ExecutiveDashboardOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ExecutiveTilesOut_ = {
+  data: ExecutiveTilesOut;
   meta?: Meta | null;
 };
 
@@ -1782,6 +1849,26 @@ export type ExecutionSummary = {
   overloaded_count: number;
 };
 
+export type ExecutiveDashboardOut = {
+  summary_line: string;
+  tiles?: MetricValueOut[];
+  sei?: MetricValueOut | null;
+  decisions_waiting: CountedApprovals;
+  open_risks: CountedAlerts;
+  ai_done: CountedActions;
+  generated_at: string;
+};
+
+export type ExecutiveTilesIn = {
+  tiles: string[];
+  version: number;
+};
+
+export type ExecutiveTilesOut = {
+  tiles?: string[];
+  version: number;
+};
+
 export type ExpenseCreate = {
   title: string;
   amount: number;
@@ -2043,6 +2130,11 @@ export type FunctionCallOut = {
   tool: string;
   status: "ok" | "error" | "forbidden" | "timeout";
   latency_ms: number;
+};
+
+export type GoalSummary = {
+  kpis: number;
+  krs: number;
 };
 
 export type GoalTreeOut = {
@@ -2832,6 +2924,7 @@ export type MetricCreate = {
 export type MetricDetail = {
   metric_code: string;
   pillar: ("F" | "O" | "C" | "U" | "S") | null;
+  group?: ("FIN" | "CUS" | "OPS" | "PPL" | "STR" | "DQ") | null;
   value: number | null;
   unit: string;
   currency?: string | null;
@@ -2840,6 +2933,8 @@ export type MetricDetail = {
   period_key: string;
   computed_at: string;
   freshness: "fresh" | "stale";
+  is_stale?: boolean;
+  max_age_hours?: number;
   data_quality_pct?: number | null;
   lineage_url: string;
   name: string;
@@ -2872,6 +2967,7 @@ export type MetricOut = {
 export type MetricValueOut = {
   metric_code: string;
   pillar: ("F" | "O" | "C" | "U" | "S") | null;
+  group?: ("FIN" | "CUS" | "OPS" | "PPL" | "STR" | "DQ") | null;
   value: number | null;
   unit: string;
   currency?: string | null;
@@ -2880,6 +2976,8 @@ export type MetricValueOut = {
   period_key: string;
   computed_at: string;
   freshness: "fresh" | "stale";
+  is_stale?: boolean;
+  max_age_hours?: number;
   data_quality_pct?: number | null;
   lineage_url: string;
 };
@@ -3066,6 +3164,11 @@ export type ObjectiveUpdate = {
   strategic_objective_id?: string | null;
 };
 
+export type OkrSummary = {
+  at_risk_count: number;
+  total: number;
+};
+
 export type OnTimePoint = {
   period_key: string;
   tasks_on_time_pct: number | null;
@@ -3151,6 +3254,13 @@ export type PaymentTerm = {
   due_date: string;
   amount: number;
   description?: string | null;
+};
+
+export type PendingCheckin = {
+  target_type: string;
+  target_id: string;
+  label: string;
+  period_key: string;
 };
 
 export type PerformanceRow = {
@@ -4441,6 +4551,11 @@ export type WorkloadRowOut = {
   overloaded: boolean;
 };
 
+export type WorkloadSummary = {
+  overloaded_count: number;
+  heatmap_ref: string;
+};
+
 export type WorkloadSummaryOut = {
   people: number;
   overloaded_count: number;
@@ -5464,6 +5579,26 @@ export interface ApiOperations {
   "PATCH /api/v1/product/roadmap-items/{item_id}": {
     request: RoadmapUpdate;
     response: Envelope_RoadmapOut_;
+  };
+  "GET /api/v1/reporting/dashboards/department": {
+    request: void;
+    response: Envelope_DepartmentDashboardOut_;
+  };
+  "GET /api/v1/reporting/dashboards/employee": {
+    request: void;
+    response: Envelope_EmployeeDashboardOut_;
+  };
+  "GET /api/v1/reporting/dashboards/executive": {
+    request: void;
+    response: Envelope_ExecutiveDashboardOut_;
+  };
+  "GET /api/v1/reporting/preferences/executive-tiles": {
+    request: void;
+    response: Envelope_ExecutiveTilesOut_;
+  };
+  "PUT /api/v1/reporting/preferences/executive-tiles": {
+    request: ExecutiveTilesIn;
+    response: Envelope_ExecutiveTilesOut_;
   };
   "GET /api/v1/risk/dashboard": {
     request: void;

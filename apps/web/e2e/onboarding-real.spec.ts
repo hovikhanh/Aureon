@@ -168,7 +168,8 @@ test.describe("M1.6 UC-07 onboarding on the real stack (TC-M16-23)", { tag: "@re
       console.log(`UC-07 onboarding build time: ${ev.duration_minutes} min`, ev.counts);
       await page.getByTestId("finish-completed").getByRole("link", { name: /dashboard đầu tiên|first dashboard/i }).click();
       await expect(page).toHaveURL(/\/home$/);
-      await expect(page.getByTestId("pillar-grid")).toBeVisible({ timeout: 30_000 });
+      // SCR-40 (M2.1): trang chủ CEO là Reporting v3 Executive (không còn lưới trụ).
+      await expect(page.getByTestId("exec-view")).toBeVisible({ timeout: 30_000 });
     });
 
     const ASK = "Tạo việc cho tôi: gọi lại khách hàng ABC trước cuối tháng";

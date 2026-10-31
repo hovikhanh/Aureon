@@ -10,26 +10,20 @@ test.afterAll(() => cleanupReviewDocs());
 
 const SLUGS = { F: "finance", O: "operations", C: "customer", U: "product", S: "strategy" } as const;
 
-test("CEO: F/O/C cards drill down, 5-pillar layout on SCR-03, 13 alerts", async ({ page }) => {
+test("CEO: SCR-40 Executive home + 5-pillar layout on SCR-03", async ({ page }) => {
   await loginAs(page, "ceo@abc.demo");
-  await expect(page.getByTestId("alert-row")).toHaveCount(13);
-  for (const code of ["O", "C"] as const) {
-    await expect(page.getByTestId(`pillar-${code}`)).toHaveAttribute("data-status", /ok|warning|critical/);
-    await page.getByTestId(`pillar-${code}`).click();
-    await expect(page).toHaveURL(new RegExp(`/home/pillar/${SLUGS[code]}`));
-    await expect(page.getByTestId("pillar-detail")).toHaveAttribute("data-pillar", code);
-    await page.goBack();
-    await expect(page.getByTestId("pillar-grid")).toBeVisible();
-  }
-  // R-DEC-16: U/S only through the optional five-pillar layout (SCR-03 tabs)
-  await page.getByTestId("five-pillar-link").click();
+  // SCR-40 (M2.1): trang chủ là Reporting v3 — 4 ô + SEI + rủi ro mở, không còn lưới trụ.
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByTestId("exec-view")).toBeVisible();
+  await expect(page.getByTestId("exec-tiles").locator("[data-testid=metric-tile]")).toHaveCount(4);
+  await expect(page.getByTestId("exec-risks")).toBeVisible();
+  // R-DEC-16: layout 5 trụ (gồm U/S) chỉ ở SCR-03 /home/pillar
+  await page.goto("/home/pillar/finance");
   for (const [code, slug] of Object.entries(SLUGS)) {
     await page.getByTestId(`pillar-tab-${code}`).click();
     await expect(page).toHaveURL(new RegExp(`/home/pillar/${slug}`));
     await expect(page.getByTestId(`pillar-tab-${code}`)).toHaveAttribute("aria-current", "page");
   }
-  await page.goto("/home");
-  await expect(page.getByTestId("alert-row").first()).toHaveAttribute("data-severity", "critical");
 });
 
 test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
@@ -60,9 +54,7 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   // Seed fresh so it is not cleaned up by the review-detail.spec.ts afterAll running concurrently.
   const doc = seedReviewDoc();
   await loginAs(page, "reviewer@abc.demo");
-  await expect(page).toHaveURL(/\/home$/);
-  await page.getByTestId("nav-data").click();
-  // M1.5: /data is the Data Inbox (SCR-45) — the review link sits on the document's row
+  // SCR-40 (R-DEC-85): Reviewer vào thẳng hàng chờ /data (Data Inbox SCR-45).
   await expect(page).toHaveURL(/\/data$/);
   await page.locator(`[data-testid="inbox-row"][data-doc="${doc.document_id}"]`).getByTestId("inbox-review").click();
   await expect(page).toHaveURL(new RegExp(`/data/review/${doc.document_id}$`));

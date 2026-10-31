@@ -6,8 +6,8 @@ import { seedCommittedInvoice } from "./support/seed";
 test.describe("Finance drill-down (T-511)", () => {
   test("F card → 6 metric cards → Revenue → lineage modal", async ({ page }) => {
     await loginAs(page, "ceo@abc.demo");
-    await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
-    await page.getByTestId("pillar-F").click();
+    // SCR-40: lưới trụ nằm ở SCR-03 /home/pillar; mở trực tiếp trụ Finance.
+    await page.goto("/home/pillar/finance");
     await expect(page).toHaveURL(/\/home\/pillar\/finance$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trụ Tài chính");
     await expect(page.getByTestId("pillar-detail").getByTestId("status-badge").first()).toBeVisible();
