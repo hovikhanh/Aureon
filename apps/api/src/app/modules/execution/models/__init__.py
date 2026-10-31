@@ -30,6 +30,10 @@ TS = DateTime(timezone=True)
 
 # ---------- module-owned enums (05 §6) ----------
 DECISION_STATUS = pg_enum(S, "decision_status", "open", "in_progress", "done", "cancelled")
+SUMMARY_ORIGIN = pg_enum(S, "summary_origin", "ai", "human")  # M2.3 MeetingSummary (R-DEC-100)
+NAME_MATCH_STATUS = pg_enum(  # M2.3 ActionItem fuzzy owner (R-DEC-103)
+    S, "name_match_status", "matched", "ambiguous", "unmatched"
+)
 TASK_STATUS = pg_enum(
     S, "task_status",
     "backlog", "todo", "in_progress", "blocked", "in_review", "done", "cancelled",
@@ -150,6 +154,62 @@ class Decision(BusinessModel):
     status: Mapped[str] = mapped_column(DECISION_STATUS, nullable=False)
     done_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+
+
+class MeetingSummary(BusinessModel):
+    """ENT-MeetingSummary (M2.3, 05 §2.9, R-DEC-100) — 1-1 với Meeting; AI soạn (L2) hoặc người."""
+
+    __tablename__ = "meeting_summaries"
+    __table_args__ = schema_args(S)
+
+    meeting_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.meetings.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    source_document_id: Mapped[uuid.UUID | None] = sr()
+    summary_text: Mapped[str] = txt()
+    key_points: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'"))
+    generated_by: Mapped[str] = mapped_column(SUMMARY_ORIGIN, nullable=False)
+    model_call_id: Mapped[uuid.UUID | None] = sr()
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'draft'"))
+
+
+class ActionItem(BusinessModel):
+    """ENT-ActionItem (M2.3, 05 §2.9, R-DEC-100) — việc từ họp; task_id set sau chủ trì duyệt."""
+
+    __tablename__ = "action_items"
+    __table_args__ = schema_args(S)
+
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.meetings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    decision_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.decisions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    title: Mapped[str] = txt()
+    owner_id: Mapped[uuid.UUID | None] = sr()
+    owner_name_raw: Mapped[str | None] = txt(nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confidence: Mapped[Any] = mapped_column(Numeric(4, 3), nullable=True)
+    match_status: Mapped[str] = mapped_column(NAME_MATCH_STATUS, nullable=False)
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    source_document_id: Mapped[uuid.UUID | None] = sr()
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'open'"))
 
 
 # ---------- projects / tasks ----------
