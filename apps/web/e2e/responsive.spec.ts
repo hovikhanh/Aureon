@@ -28,6 +28,8 @@ for (const vp of VIEWPORTS) {
       await page.getByTestId("nav-ask").click();
       await expect(page).toHaveURL(/\/ask$/);
       await page.goto("/home");
+      // sau khi điều hướng lại, chờ lưới ô chỉ số tải xong trước khi đo cột (tránh đọc 0 ô)
+      await expect(page.getByTestId("exec-tiles").locator("[data-testid=metric-tile]")).toHaveCount(4);
     }
     const tops = await page.getByTestId("exec-tiles").locator("[data-testid=metric-tile]").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
     expect(tops.filter((t) => t === tops[0]).length).toBe(vp.cols);

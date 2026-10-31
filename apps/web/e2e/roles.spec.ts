@@ -39,8 +39,9 @@ test("CFO: Finance drill-down then chat about cash flow", async ({ page }) => {
     }),
   );
   await loginAs(page, "cfo@abc.demo");
-  await expect(page.getByTestId("pillar-F")).toHaveAttribute("data-status", /ok|warning|critical/);
-  await page.getByTestId("pillar-F").click();
+  // SCR-40 (R-DEC-85): DIR lands on the Executive view; pillar grid moved to /home/pillar.
+  await expect(page.getByTestId("exec-view")).toBeVisible();
+  await page.goto("/home/pillar/finance");
   await expect(page).toHaveURL(/\/home\/pillar\/finance/);
   await expect(page.getByTestId("fin-card")).toHaveCount(6);
   await expect(page.getByTestId("fin-card-cash").getByTestId("fin-value")).toHaveText("12,6 tỷ");
@@ -86,10 +87,9 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
 
 test("HR: dashboard shows O (+ public F headline), employees list", async ({ page }) => {
   await loginAs(page, "hr@abc.demo");
-  await expect(page.getByTestId("pillar-O")).toBeVisible();
-  // scope_pillars={O}; F stays as the public METRIC-FIN-01 headline (02 §6.1, dashboard.visible_pillars)
-  await expect(page.getByTestId("pillar-grid").locator("> [data-testid^=pillar-]")).toHaveCount(2);
-  await expect(page.getByTestId("pillar-C")).toHaveCount(0);
+  // SCR-40 (R-DEC-85): DIR (scope O) lands on the Executive view; scope filtering is now
+  // enforced at the pillar-detail/metric level, not a /home pillar grid.
+  await expect(page.getByTestId("exec-view")).toBeVisible();
   await page.getByTestId("nav-business").click();
   await page.getByTestId("sublink-employees").click();
   await expect(page).toHaveURL(/\/business\/hr\/employees$/);
@@ -103,8 +103,7 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
   const password = process.env.DEMO_ADMIN_PASSWORD ?? rootEnv().DEMO_ADMIN_PASSWORD;
   expect(password, "DEMO_ADMIN_PASSWORD must be set in .env").toBeTruthy();
   await loginWithPassword(page, "admin@abc.demo", password ?? "");
-  await expect(page).toHaveURL(/\/home$/);
-  await page.getByTestId("nav-admin").click();
+  // SCR-40 (R-DEC-85): ADM lands straight on /admin (no business dashboards).
   await expect(page).toHaveURL(/\/admin$/);
   // SCR-50 admin overview cards → navigate via admin-card-audit (no ComingSoon sublink)
   await page.getByTestId("admin-card-audit").click();
@@ -118,8 +117,9 @@ test("ADMIN: audit log page, no business dashboards", async ({ page }) => {
 
 test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open", async ({ page }) => {
   await login(page, "manager@abc.demo");
-  await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-40");
-  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  // SCR-40 (R-DEC-85): MGR lands on the Department view (not the old ComingSoon), no Executive tab.
+  await expect(page.getByTestId("dept-view")).toBeVisible();
+  await expect(page.getByTestId("level-executive")).toHaveCount(0);
   await page.getByTestId("nav-work").click();
   await expect(page).toHaveURL(/\/work$/);
   await expect(page.getByTestId("work-tab-board")).toBeVisible();
@@ -131,7 +131,9 @@ test("MGR: no Executive dashboard, Công việc → Phê duyệt, AI chat open",
 
 test("EMP: personal scope — goals tree, work, no approvals, no admin", async ({ page }) => {
   await login(page, "employee@abc.demo");
-  await expect(page.getByTestId("pillar-grid")).toHaveCount(0);
+  // SCR-40 (R-DEC-85): EMP lands on the Employee view only (no level tabs, no pillar grid).
+  await expect(page.getByTestId("emp-view")).toBeVisible();
+  await expect(page.getByTestId("level-tabs")).toHaveCount(0);
   await page.getByTestId("nav-goals").click();
   await expect(page.getByTestId("goals-tree")).toHaveAttribute("data-scr", "SCR-41");
   await expect(page.getByTestId("nav-admin")).toHaveCount(0);

@@ -3134,7 +3134,7 @@
    "pillar": null,
    "status": "ok",
    "unit": "SCORE",
-   "value": 89.2
+   "value": 88.6
   },
   {
    "code": "METRIC-DQ-02",
@@ -3337,20 +3337,20 @@
    "value": 1.0
   },
   {
-   "code": "METRIC-STR-02",
-   "period_key": "2026-10",
-   "pillar": "S",
-   "status": "ok",
-   "unit": "PCT",
-   "value": 75.0
-  },
-  {
    "code": "METRIC-STR-01",
    "period_key": "2026-10",
    "pillar": "S",
    "status": "ok",
    "unit": "PCT",
    "value": 81.5
+  },
+  {
+   "code": "METRIC-STR-02",
+   "period_key": "2026-10",
+   "pillar": "S",
+   "status": "ok",
+   "unit": "PCT",
+   "value": 75.0
   }
  ],
  "milestones": [

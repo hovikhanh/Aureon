@@ -21,7 +21,8 @@ test.describe("SCR-13 login (T-502/T-503)", () => {
   for (const [email, landing] of [
     ["ceo@abc.demo", "/home"],
     ["cfo@abc.demo", "/home"],
-    ["reviewer@abc.demo", "/home"],
+    // SCR-40 (R-DEC-85): Reviewer vào thẳng hàng chờ /data (không phải /home).
+    ["reviewer@abc.demo", "/data"],
   ] as const) {
     test(`demo ${email} lands on ${landing}`, async ({ page }) => {
       await loginAs(page, email);
