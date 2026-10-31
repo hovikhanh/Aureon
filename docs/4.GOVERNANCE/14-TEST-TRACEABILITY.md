@@ -254,9 +254,9 @@ Ngưỡng: TC-M21-04, 05, 07, 08, 09 thuộc nhóm **bảo mật** (scope 3 cấ
 | TC-M22-04 | Lead/Opportunity = alias Client/Deal: không có entity/path mới; doc map BRD đúng; stage `open/closed_won/closed_lost` giữ | architecture + doc | T-712 | R-DEC-90 | Implemented |
 | TC-M22-05 | Deal → stage `closed_won`/`closed_lost` phát `sales.deal_closed_won/lost` in-tx; consumer recompute `METRIC-CUS-02` (Win rate) đúng; không phát event cho stage khác; idempotent theo `event_id` | event + integration | T-713 | R-DEC-91, §9.2 | Implemented |
 | TC-M22-06 | Seed: Client/Deal + ≥1 tài liệu doc type #6; doanh thu năm ~300 tỷ xác minh bằng script (không nhẩm); chạy 2 lần idempotent; không PII thật | integration (seed) | T-714 | R-DEC-94, 08 §4 | Implemented |
-| TC-M22-07 | FE `/business/finance`: budget/cash/runway tái dùng finance feature; mỗi widget một query; số click → lineage; mức 4 masked | Vitest | T-715F | R-DEC-93 | Planned |
-| TC-M22-08 | FE `/business/sales`: kanban pipeline theo stage, target, win rate; đổi stage gọi EP-SAL-03 | Vitest | T-715F | R-DEC-93 | Planned |
-| TC-M22-09 | **E2E** `business.spec.ts` project `real`: DIR-F thấy finance không thấy sales (403 pillar), DIR-C ngược lại; CEO thấy cả hai; pipeline kéo stage; doc #6 → review → runway cập nhật | E2E `real`+`mock` | T-715 | 09 §6.9 Exit | Planned |
+| TC-M22-07 | FE `/business/finance`: budget/cash/runway tái dùng finance feature; mỗi widget một query; số click → lineage; mức 4 masked | Vitest | T-715F | R-DEC-93 | Implemented |
+| TC-M22-08 | FE `/business/sales`: kanban pipeline theo stage, target, win rate; đổi stage gọi EP-SAL-03 | Vitest | T-715F | R-DEC-93 | Implemented |
+| TC-M22-09 | **E2E** `business.spec.ts` project `real`: DIR-F thấy finance không thấy sales (403 pillar), DIR-C ngược lại; CEO thấy cả hai; pipeline kéo stage; doc #6 → review → runway cập nhật | E2E `real`+`mock` | T-715 | 09 §6.9 Exit | Implemented |
 | TC-M22-10 | Cổng M2.2: gate DoD exit 0; `pytest --cov` finance/sales services ≥80%, ACT/scope ≥90%; Playwright mock+real xanh; drift=0; mọi TC-M22-* Passed | toàn bộ | T-716 | 09 §6.9 Exit | Planned |
 
 Ngưỡng: TC-M22-03 (ACT ghi/undo), TC-M22-01 (scope khối F/C) thuộc nhóm **bảo mật** (≥90%, gap=blocking); TC-M22-09/10 là **exit criteria M2.2** (gap=blocking).
