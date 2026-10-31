@@ -387,6 +387,8 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 ### 6.10. M2.3 — C2 nói/NL · C4 chụp ảnh · D12 Meeting transcript → việc (nhánh `v3/m2.3-capture-meeting`)
 
+> **Spec lock M2.3 (S, 2026-10-31 — agent tự chốt, human ủy quyền):** R-DEC-96..104 (13). Contract: EP-DC-38 `/data-capture/natural-language` (10 §7.2.4), `ACT-create_action_item` + `ACT-create_task_from_action_item` (10 §7), event `execution.meeting_summarized`/`execution.action_item_created` (10 §9.2), doc type #1 Biên bản họp (04 §5 #1), ENT-MeetingSummary + ENT-ActionItem (05 §2.9, migration `0022`), STT gateway `task=stt` (R-DEC-97), C4 ảnh suy channel + deskew FR-DC-08 (R-DEC-98), fuzzy tên→Employee `difflib` (R-DEC-103). Không thêm mã lỗi/dependency mới. TC-M23-01..11 (14 §1.13).
+
 **FE:** **PWA installable** (`app/manifest.ts` + service worker chỉ cache app shell, R-DEC-25); layout 390 px cho 4 việc cốt lõi; chụp ảnh (căn góc); **nói để nhập liệu ngắn** (`MediaRecorder`, giới hạn thời lượng, thông báo "xử lý bằng dịch vụ AI cloud"); gõ NL; `/meetings`: danh sách họp, dán/tải transcript văn bản hoặc ảnh biên bản (**không ghi âm họp**, R-DEC-22); AI tóm tắt → Decision + ActionItem dạng **ActionCard L2**, chủ trì duyệt → tạo task.
 
 | T | Việc | Trạng thái |

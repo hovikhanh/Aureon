@@ -408,6 +408,41 @@ Nhóm bảng theo 05 §2.1: **nghiệp vụ** (C3/C4/C19 + `tenant_id` + `delete
 - `SystemSettingService` thêm `set(..., expected_version)` → lệch → `ConflictStateError` (409). Key mới khai trong whitelist key setting (`ai.kill_switch`, `onboarding.state`).
 - Phân loại: `onboarding.state` mức 2 Nội bộ; `tool_call_logs.arguments` mức 2 sau scrub (mức 3/4 không bao giờ lưu); `model_call_logs.prompt_sha256` mức 1.
 
+### 2.9. Field-level đợt code — M2.3 (D12 Meeting transcript → việc; R-DEC-100, agent tự chốt bước S 2026-10-31)
+
+> Migration `0022_meeting_m23` (down_revision `0021_ai_platform_m16`; reversible; `downgrade` drop 2 bảng + enum mới). Schema `execution`. Chuỗi 05 §3: Meeting 1─1 MeetingTranscript 1─1 MeetingSummary; Meeting 1─N Decision 1─N ActionItem 1─1 Task. `Meeting`/`MeetingTranscript`/`Decision` đã có (M1.x) — không sửa. Endpoint/ACT/event ở 10 §7.2.4/§7/§9.2.
+
+**ENT-MeetingSummary — `execution.meeting_summaries`** (mới; `BusinessModel`: id UUID, tenant_id, created_at/updated_at, deleted_at)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `meeting_id` | UUID NOT NULL FK `execution.meetings.id` (RESTRICT), **unique** | 1-1 với Meeting |
+| `source_document_id` | UUID NULL | Lineage tới trang transcript (biên bản họp doc type #1) |
+| `summary_text` | text NOT NULL | Tóm tắt do AI soạn (L2) hoặc người |
+| `key_points` | JSONB NOT NULL default `'[]'` | Danh sách ý chính `[{point}]` — không PII |
+| `generated_by` | `execution.summary_origin` enum `ai`/`human` NOT NULL | Nguồn tóm tắt |
+| `model_call_id` | UUID NULL | Trỏ `ai.model_call_logs` khi `generated_by=ai` (soft ref) |
+| `status` | text NOT NULL default `draft` | `draft`/`confirmed` |
+
+**ENT-ActionItem — `execution.action_items`** (mới; `BusinessModel`)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `meeting_id` | UUID NULL FK `execution.meetings.id` (SET NULL), index | Họp nguồn |
+| `decision_id` | UUID NULL FK `execution.decisions.id` (SET NULL), index | Quyết định gắn việc |
+| `title` | text NOT NULL | Nội dung việc cần làm |
+| `owner_id` | UUID NULL (soft ref `hr.employees`), index | Kết quả fuzzy khớp (R-DEC-103); NULL khi chưa khớp |
+| `owner_name_raw` | text NULL | Tên thô trích từ transcript (mức 2; không hiển thị ở payload event) |
+| `due_date` | date NULL | Hạn |
+| `confidence` | numeric(4,3) NULL | Độ tin cậy trích xuất/khớp tên (0–1) |
+| `match_status` | `execution.name_match_status` enum `matched`/`ambiguous`/`unmatched` NOT NULL | ≥0.90 matched; 0.60–<0.90 hoặc nhiều ứng viên → ambiguous (review); <0.60 unmatched |
+| `task_id` | UUID NULL FK `execution.tasks.id` (SET NULL), unique | **Chỉ set sau khi chủ trì duyệt** (`ACT-create_task_from_action_item`) |
+| `source_document_id` | UUID NULL | Lineage tới trang transcript |
+| `status` | text NOT NULL default `open` | `open`/`task_created`/`cancelled` |
+
+- Phân loại: `meeting_summaries`/`action_items` mức 2 Nội bộ (chuỗi "Họp & quyết định", §2.1); `owner_name_raw` mức 2 — **không** đưa vào payload event (R-DEC-102, chỉ id/mã). `MeetingTranscript` giữ mức 3 CONFIDENTIAL.
+- Enum mới (schema `execution`): `summary_origin`, `name_match_status`. Index mọi FK (§5.7).
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -528,6 +563,7 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.5.0 (Spec lock M2.3, 2026-10-31 — agent tự chốt, R-DEC-100):** §2.9 field-level M2.3 — **ENT-MeetingSummary** (`execution.meeting_summaries`, 1-1 Meeting, summary_text/key_points/generated_by/model_call_id/status) + **ENT-ActionItem** (`execution.action_items`, meeting_id/decision_id/title/owner_id(fuzzy)/owner_name_raw/due_date/confidence/match_status/task_id(chỉ set sau duyệt)/source_document_id/status); migration `0022_meeting_m23` (down_revision `0021`); enum mới `summary_origin`, `name_match_status` (schema `execution`); mức 2 Nội bộ, `owner_name_raw` không vào payload event (R-DEC-102).
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §2.5 field-level M1.3 (task `parent_task_id`/`source_ref`, `task_dependencies`, `projects.initiative_id`, `approval_rules` — migration `0014`/`0015`); §2.6 M1.4 (`strategies`, `strategic_objectives`, KPITarget effective-dated, KPIMeasurement lịch sử, `kpi_evaluations`, KR measurement/at-risk — `0016`/`0017`); §2.7 M1.5 (`import_batches`/`import_rows`, `document_actions`, schema/rule, incident, `data_lineage` mở rộng — `0018`/`0019`); §2.8 M1.6 (`tool_call_logs`/`model_call_logs` + `request_id`/`tenant_id`, agent, autonomy policy, onboarding state — `0020`, `0021` để trống). §7 ghi chú ánh xạ tên event BRD ↔ mã code. Open questions: thêm OQ-05-09..12.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-24/32/33/34, chờ human duyệt bước S):** §2.4 field-level M1.2: `hr.organizations` (ENT-Organization, effective-dated), `hr.departments` + `organization_id`/`valid_from`/`valid_to` + unique `code` theo tenant, `hr.teams` + `valid_from`/`valid_to`, `hr.employee_assignments` (ENT-EmployeeAssignment, nửa mở, tối đa một hiện hành/NV, không chồng khoảng; cột cache trên `employees`), `platform.notifications` + `tenant_id`/`email_status`/`email_sent_at`/`email_attempts`, `platform.notification_preferences` (mới), bảng classification per-field mức 3/4 cho mask serializer (T-615); §6ter ghi mô hình `valid_from/valid_to`; thêm OQ-05-06..08.
 - **Change 1.2.0 (human duyệt 2026-10-23 — Spec lock M1.1):** §2.3 field-level M1.1: tenant context + `tenant_id` trên `platform.outbox_events` (R-DEC-21); §5 ánh xạ tổ chức → `hr` (R-DEC-24); §7 envelope thêm `tenant_id`.
