@@ -247,3 +247,52 @@ def test_extract_text_plain_is_c2_page() -> None:
     page = r.pages[0]
     assert page.text_layer_exists and not page.ocr_used
     assert "anh Minh" in page.text_content
+
+
+# --- M2.3 row-group extraction (T-725, R-DEC-99) ------------------------------------------
+
+
+async def test_extractor_rows_yield_one_result_per_row() -> None:
+    """A `rows` array → one ExtractedFieldResult per (row, field) with row_index (commit groups)."""
+    from app.core.model_gateway import ChatResponse
+    from app.modules.idp.services.extractor import Extractor
+
+    specs = [
+        {"name": "action_item_title", "value_type": "text", "required": True},
+        {"name": "action_item_owner", "value_type": "text"},
+        {"name": "action_item_due", "value_type": "date"},
+    ]
+
+    class _Gw:
+        async def chat(self, _req):
+            return ChatResponse(content="", provider="fake", model="m", data={"rows": [
+                {"action_item_title": {"value": "Soạn báo cáo", "confidence": 0.95},
+                 "action_item_owner": {"value": "Nguyễn Văn A", "confidence": 0.92},
+                 "action_item_due": {"value": "2026-11-15", "confidence": 0.9}},
+                {"action_item_title": {"value": "Ký hợp đồng", "confidence": 0.93},
+                 "action_item_owner": {"value": "Trần Thị B", "confidence": 0.88},
+                 "action_item_due": {"value": "2026-11-20", "confidence": 0.9}},
+            ]})  # fmt: skip
+
+    out = await Extractor(_Gw()).extract(schema_fields=specs, page_text="x", sensitivity_level=2)
+    assert {f.row_index for f in out.fields} == {0, 1}
+    titles = [f.value for f in out.fields if f.field_name == "action_item_title"]
+    assert titles == ["Soạn báo cáo", "Ký hợp đồng"]
+    assert len(out.fields) == 6  # 2 rows × 3 fields
+
+
+async def test_extractor_flat_payload_stays_single_row() -> None:
+    """Legacy flat payload (scalar doc types) → row_index None, one set."""
+    from app.core.model_gateway import ChatResponse
+    from app.modules.idp.services.extractor import Extractor
+
+    specs = [{"name": "invoice_number", "value_type": "text", "required": True}]
+
+    class _Gw:
+        async def chat(self, _req):
+            return ChatResponse(content="", provider="fake", model="m",
+                                data={"invoice_number": {"value": "0001", "confidence": 0.98}})
+
+    out = await Extractor(_Gw()).extract(schema_fields=specs, page_text="x", sensitivity_level=2)
+    assert len(out.fields) == 1 and out.fields[0].row_index is None
+    assert out.fields[0].value == "0001"

@@ -103,7 +103,7 @@ class Extractor:
         document_id: uuid.UUID | None,
     ) -> ChatRequest:
         names = [f["name"] for f in schema_fields]
-        properties = {
+        field_props = {
             f["name"]: {
                 "type": "object",
                 "properties": {
@@ -114,10 +114,21 @@ class Extractor:
             }
             for f in schema_fields
         }
-        json_schema = {"type": "object", "properties": properties}
+        # A document may carry several records of the same shape (R-DEC-99: a meeting minutes has
+        # many action items, a roster many rows). The model returns `rows: [...]`, one object per
+        # record; a single-record document may also return the fields flat (both parsed).
+        json_schema = {
+            "type": "object",
+            "properties": {
+                **field_props,
+                "rows": {"type": "array", "items": {"type": "object", "properties": field_props}},
+            },
+        }
         system = (
             "Bạn trích xuất dữ liệu có cấu trúc từ tài liệu. Chỉ trả về các trường yêu cầu; "
-            "trường không tìm thấy để value=null và confidence=0. Không bịa số (P05)."
+            "trường không tìm thấy để value=null và confidence=0. Không bịa số (P05). Nếu tài "
+            "liệu có nhiều bản ghi cùng loại (vd nhiều việc cần làm), trả mảng `rows`, mỗi phần "
+            "tử là một bản ghi."
         )
         # Document content is wrapped as DATA, not instructions (04 §2.3, no tool calling).
         user = f"Các trường cần trích: {', '.join(names)}\n<<<DATA\n{page_text}\nDATA>>>"
@@ -131,33 +142,49 @@ class Extractor:
             agent_profile_code="data_capture",  # M1.6 R-DEC-71 (AGT-DATA_CAPTURE)
         )
 
+    def _field(
+        self, spec: dict[str, Any], raw: Any, row_index: int | None
+    ) -> tuple[ExtractedFieldResult, float]:
+        value = raw.get("value") if isinstance(raw, dict) else None
+        raw_text = raw.get("raw_text") if isinstance(raw, dict) else None
+        raw_conf = raw.get("confidence") if isinstance(raw, dict) else None
+        conf = float(raw_conf) if isinstance(raw_conf, (int, float)) else 0.0
+        if value is None:
+            conf = 0.0
+        result = ExtractedFieldResult(
+            field_name=spec["name"],
+            value_type=spec["value_type"],
+            value=value,
+            raw_text=raw_text,
+            confidence=round(conf, 4),
+            confidence_band=confidence_band(conf),
+            is_critical=is_critical(spec),
+            sensitivity_level=int(spec.get("sensitivity_level", 2)),
+            source_location={"kind": "page", "page": 1},
+            row_index=row_index,
+        )
+        return result, conf
+
     def _parse(self, resp: ChatResponse, schema_fields: list[dict[str, Any]]) -> ExtractionOutput:
         data = resp.data if isinstance(resp.data, dict) else {}
         out = ExtractionOutput(provider=resp.provider, model=resp.model)
         confidences: list[float] = []
-        for spec in schema_fields:
-            name = spec["name"]
-            raw = data.get(name) or {}
-            value = raw.get("value") if isinstance(raw, dict) else None
-            raw_text = raw.get("raw_text") if isinstance(raw, dict) else None
-            raw_conf = raw.get("confidence") if isinstance(raw, dict) else None
-            conf = float(raw_conf) if isinstance(raw_conf, (int, float)) else 0.0
-            if value is None:
-                conf = 0.0
-            confidences.append(conf)
-            out.fields.append(
-                ExtractedFieldResult(
-                    field_name=name,
-                    value_type=spec["value_type"],
-                    value=value,
-                    raw_text=raw_text,
-                    confidence=round(conf, 4),
-                    confidence_band=confidence_band(conf),
-                    is_critical=is_critical(spec),
-                    sensitivity_level=int(spec.get("sensitivity_level", 2)),
-                    source_location={"kind": "page", "page": 1},
-                )
-            )
+        # Row-group extraction (M2.3, R-DEC-99): a `rows` array yields one field per (row, spec)
+        # with `row_index` — the commit layer groups by it into one ACT per row. A flat payload
+        # (single value per field, legacy / scalar doc types) stays a single row_index=None set.
+        rows = data.get("rows") if isinstance(data.get("rows"), list) else None
+        if rows is not None:
+            for idx, row in enumerate(rows):
+                row = row if isinstance(row, dict) else {}
+                for spec in schema_fields:
+                    fr, conf = self._field(spec, row.get(spec["name"]) or {}, idx)
+                    out.fields.append(fr)
+                    confidences.append(conf)
+        else:
+            for spec in schema_fields:
+                fr, conf = self._field(spec, data.get(spec["name"]) or {}, None)
+                out.fields.append(fr)
+                confidences.append(conf)
         out.document_confidence = (
             round(sum(confidences) / len(confidences), 4) if confidences else 0.0
         )
