@@ -133,3 +133,9 @@ async def test_output_shape_matches_ep114(db_session) -> None:
     assert o.severity in ("info", "warning", "critical")
     assert o.recommendations, "recommendations carry the Action parts"
     assert all(ev.lineage_url for ev in o.evidence)
+    # TC-M24-03: the 9 parts are first-class on InsightOut, not buried in `structured`.
+    assert o.observation and o.evidence and o.impact
+    assert o.root_cause, "Root Cause is a first-class part"
+    assert o.risk, "Risk is a first-class part"
+    assert isinstance(o.expected_outcome, dict) and o.expected_outcome.get("metric_id")
+    assert o.confidence.reason, "Confidence carries a reason, not a bare %"

@@ -140,6 +140,9 @@ class RecommendationOut(BaseModel):
 
 
 class InsightOut(BaseModel):
+    """The 9-part grounded insight (03 §7.1, 10 §8, BRD §11.8): Observation → Evidence →
+    Impact → Root Cause → Risk → Recommendation → Expected Outcome → Confidence → Action."""
+
     id: uuid.UUID
     kind: Literal["anomaly", "trend", "risk", "recommendation", "briefing"]
     pillar: str | None
@@ -147,7 +150,10 @@ class InsightOut(BaseModel):
     observation: str
     evidence: list[SourceRefOut] = Field(default_factory=list)
     impact: str | None = None
+    root_cause: str | None = None
+    risk: str | None = None
     recommendations: list[RecommendationOut] = Field(default_factory=list)
+    expected_outcome: dict[str, Any] | None = None
     confidence: ConfidenceOut
     structured: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime

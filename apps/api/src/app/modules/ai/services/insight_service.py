@@ -97,6 +97,8 @@ class InsightService:
         kind = "anomaly" if worst.status == "critical" else "recommendation"
         band, reason = self._confidence(breaching)
         structured = {
+            "impact": f"{worst.metric_code} ở mức {worst.status} đang kéo sức khỏe trụ "
+                      f"{pillar} xuống.",
             "root_cause": "Chưa xác định chắc chắn — cần rà soát bản ghi nguồn.",
             "risk": f"{worst.metric_code} đang ở mức {worst.status}; để kéo dài sẽ ảnh "
                     f"hưởng trụ {pillar}.",
@@ -197,6 +199,7 @@ class InsightService:
             if isinstance(a, dict)
         ]
         sev = ins.severity.lower() if ins.severity else "info"
+        eo = structured.get("expected_outcome")
         return InsightOut(
             id=ins.id,
             kind=ins.kind,
@@ -204,8 +207,11 @@ class InsightService:
             severity=sev,
             observation=ins.body,
             evidence=[SourceRefOut.model_validate(s) for s in (ins.sources or [])],
-            impact=structured.get("risk"),
+            impact=structured.get("impact") or structured.get("risk"),
+            root_cause=structured.get("root_cause"),
+            risk=structured.get("risk"),
             recommendations=recs,
+            expected_outcome=eo if isinstance(eo, dict) else None,
             confidence=ConfidenceOut(
                 band=ins.confidence.lower(),
                 reason=(structured.get("confidence") or {}).get("reason", ""),

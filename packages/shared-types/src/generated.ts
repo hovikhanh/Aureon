@@ -2440,7 +2440,10 @@ export type InsightOut = {
   observation: string;
   evidence?: app__modules__ai__schemas__SourceRefOut[];
   impact?: string | null;
+  root_cause?: string | null;
+  risk?: string | null;
   recommendations?: RecommendationOut[];
+  expected_outcome?: Record<string, unknown> | null;
   confidence: ConfidenceOut;
   structured?: Record<string, unknown>;
   created_at: string;
