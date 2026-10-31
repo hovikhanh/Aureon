@@ -439,6 +439,16 @@ class MeetingService(ExecBase):
             raise not_found("action item")
         return ai
 
+    async def get_action_item(
+        self, user: Principal, id_: uuid.UUID, action: str = "read"
+    ) -> ActionItem:
+        """Scoped read (EP-DC-26 lineage target, R-DEC-104). Visibility follows the parent
+        meeting; an item without a meeting is tenant-visible to any `execution:read` holder."""
+        ai = await self._action_item(id_)
+        if ai.meeting_id is not None:
+            await self.get_meeting(user, ai.meeting_id, action)
+        return ai
+
 
 def _sid(v: uuid.UUID | None) -> str | None:
     return str(v) if v is not None else None

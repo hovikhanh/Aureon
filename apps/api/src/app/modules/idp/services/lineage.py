@@ -103,12 +103,15 @@ async def _hr_visible(db: AsyncSession, user: Any, entity: str, rid: uuid.UUID) 
 
 async def _execution_visible(db: AsyncSession, user: Any, entity: str, rid: uuid.UUID) -> None:
     from app.modules.execution.services.kpi_service import KpiService
+    from app.modules.execution.services.meeting_service import MeetingService
     from app.modules.execution.services.okr_service import OkrService
     from app.modules.execution.services.task_service import TaskService
 
     table = entity.split(".", 1)[1]
     if table == "tasks":
         await TaskService(db).get(user, rid)
+    elif table == "action_items":
+        await MeetingService(db).get_action_item(user, rid)
     elif table == "objectives":
         await OkrService(db).get_objective(user, rid)
     elif table == "key_results":

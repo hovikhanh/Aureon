@@ -21,6 +21,7 @@ LINEAGE_ENTITIES: frozenset[str] = frozenset({
     "hr.departments", "hr.teams", "hr.positions", "hr.employees", "execution.tasks",
     "execution.kpis", "execution.kpi_targets", "execution.kpi_measurements",
     "execution.objectives", "execution.key_results", "execution.check_ins", "finance.invoices",
+    "execution.action_items",  # M2.3 R-DEC-104: ActionItem → transcript page lineage
 })  # fmt: skip
 
 
