@@ -13,6 +13,7 @@ from app.core.envelope import Page
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.modules.dashboard.routes.reporting import router as reporting_router
 from app.modules.dashboard.schemas import (
     AcknowledgeIn,
     AlertOut,
@@ -90,3 +91,9 @@ async def dismiss(id: uuid.UUID, body: DismissIn, db: DbSession, user: Writer, i
     await db.commit()
     await idem.remember(out)
     return out
+
+
+# M2.1 D28 Reporting v3 — EP-RPT-01..05 mounted with the module (prefix `/reporting`).
+module_router = EnvelopeRouter()
+module_router.include_router(router)
+module_router.include_router(reporting_router)

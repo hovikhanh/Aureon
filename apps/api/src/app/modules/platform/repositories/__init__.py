@@ -24,6 +24,7 @@ from app.modules.platform.models import (
     NotificationPreference,
     OutboxEvent,
     ProcessedEvent,
+    UserPreference,
 )
 
 DeadLetterRow = tuple[ProcessedEvent, OutboxEvent]
@@ -346,6 +347,18 @@ class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
             NotificationPreference.user_id == user_id
         )
         return {p.kind: p for p in (await self.db.execute(stmt)).scalars().all()}
+
+
+class UserPreferenceRepository(BaseRepository[UserPreference]):
+    """ENT-UserPreference (M2.1, R-DEC-87) — tenant-scoped config store."""
+
+    model = UserPreference
+
+    async def by_key(self, user_id: uuid.UUID, key: str) -> UserPreference | None:
+        stmt = self._scoped(select(UserPreference)).where(
+            UserPreference.user_id == user_id, UserPreference.key == key
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
 
 class LineageRepository(BaseRepository[DataLineage]):

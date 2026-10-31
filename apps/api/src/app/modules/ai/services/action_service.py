@@ -22,6 +22,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ai_activity import AiActionBrief, register_ai_activity_provider
 from app.core.approval_hooks import register_approval_hook
 from app.core.audit import record_audit
 from app.core.deps import Principal
@@ -322,3 +323,24 @@ async def _execute_approved_ai_action(
 
 
 register_approval_hook("ai_action", _execute_approved_ai_action)
+
+
+async def _executive_ai_feed(
+    db: Any, on_behalf_of: uuid.UUID, limit: int
+) -> tuple[list[AiActionBrief], int]:
+    """ai_activity provider (M2.1) — recent executed AI actions for the Executive dashboard.
+
+    Keeps `dashboard` free of an `ai` import (DEC-125). `result_refs` masked via `public_refs`.
+    """
+    rows = await AIActionRepository(db).list_for_user(on_behalf_of, status="executed")
+    briefs = [
+        AiActionBrief(
+            id=a.id, action_name=a.action_name, status=a.status,
+            executed_at=a.executed_at, result_refs=public_refs(a.result_refs),
+        )
+        for a in rows
+    ]
+    return briefs[:limit], len(briefs)
+
+
+register_ai_activity_provider(_executive_ai_feed)
