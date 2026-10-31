@@ -297,6 +297,15 @@ Ngưỡng: TC-M23-02 (STT/PII), TC-M23-07 (ACT ghi/undo + chủ trì duyệt) th
 
 Ngưỡng: TC-M24-01 (grounding), TC-M24-02 (tool P06), TC-M24-06/07 (GR/INJ eval) thuộc nhóm **bảo mật** (≥90%, gap=blocking); TC-M24-11 (exit M2.4) là **exit criteria** (gap=blocking).
 
+### 1.15. M2.5 — Cổng M2 (`v3/m2.5-gate`, R-DEC-113..116)
+
+| TC | Mô tả | Loại | Task | Spec | Trạng thái |
+|---|---|---|---|---|---|
+| TC-M25-01 | **E2E hồi quy UC-02/03/06/07 trên `real`**: toàn bộ project `real` Playwright (trừ `@mock-only`) xanh trên stack compose đã rebuild image web — UC-02/06 (meetings/business), UC-03 (`uc03-real`), UC-07 (`onboarding-real`) | E2E `real` | T-737 | R-DEC-113, 09 §6.12 | (chạy) |
+| TC-M25-02 | **Hiệu năng**: dashboard Executive **p95 < 3s** (NFR-PERF-01); chat **TTFT < 2s** (NFR-PERF-02) — đo bằng `scripts/perf_m2_gate.sh` trên stack thật | NFR perf | T-738 | R-DEC-114, 07 §6.2 | Passed (2026-11-01: dashboard p95 **0.027s** « 3s; chat TTFT p95 **0.074s** « 2s; demo-replay gateway; `scripts/perf_m2_gate.sh`) |
+| TC-M25-03 | **A11y WCAG AA**: snapshot role/aria/landmark + kiểm tay trên `/home`, `/ask`, `/goals/check-ins`, `/business`; axe tự động hoãn (cần DEC dependency) | E2E a11y `mock` | T-739 | R-DEC-115, 06 §WCAG AA | (kế tiếp) |
+| TC-M25-04 | **Đóng cổng M2**: demo_reset (không `-v`), STATE/14 cập nhật, gate DoD exit 0, self-review, PR; không tự merge/push | toàn bộ | T-740 | R-DEC-116, 09 §6.12 | (kế tiếp) |
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).
