@@ -38,10 +38,18 @@ test.describe("IA v3 sidebar per role (TC-M11-12)", { tag: "@mock" }, () => {
 
   test("a not-yet-built item shows the 'Sắp có' frame", async ({ page }) => {
     await login(page, "employee@abc.demo");
+    // /knowledge (SCR-49) is still a frame — full screen lands in M3.3 / M3.4.
+    await page.getByTestId("nav-knowledge").click();
+    await expect(page).toHaveURL(/\/knowledge$/);
+    await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-49");
+    await expect(page.getByTestId("coming-soon")).toContainText("Sắp có");
+  });
+
+  test("meetings (SCR-44) is now built — renders the /meetings view", async ({ page }) => {
+    await login(page, "employee@abc.demo");
     await page.getByTestId("nav-meetings").click();
     await expect(page).toHaveURL(/\/meetings$/);
-    await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-44");
-    await expect(page.getByTestId("coming-soon")).toContainText("Sắp có");
+    await expect(page.getByTestId("meetings-view")).toBeVisible();
   });
 
   test("locale cookie NEXT_LOCALE switches the IA to English", async ({ page, context }) => {
