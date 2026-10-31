@@ -50,6 +50,8 @@ EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
         "execution.okr_at_risk",  # M1.4 R-DEC-56 (BRD `okr.at_risk`)
         "ai.policy_changed",  # M1.6 R-DEC-77 (BRD `policy.changed`)
         "platform.onboarding_completed",  # M1.6 R-DEC-77 (BRD `onboarding.completed`)
+        "execution.meeting_summarized",  # M2.3 R-DEC-102 (BRD `meeting.summarized`)
+        "execution.action_item_created",  # M2.3 R-DEC-102 (BRD `action_item.created`)
     }
 )
 

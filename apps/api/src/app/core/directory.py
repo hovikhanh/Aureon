@@ -14,11 +14,20 @@ from typing import Any
 
 EmployeeLookup = Callable[[Any, Sequence[uuid.UUID]], Awaitable[set[uuid.UUID]]]
 
+# M2.3 R-DEC-103: fuzzy name → employee. `(employee_id|None, confidence 0-1, candidate_count)`.
+NameMatch = tuple["uuid.UUID | None", float, int]
+NameMatcher = Callable[[Any, str], Awaitable[NameMatch]]
+
 _LOOKUP: list[EmployeeLookup] = []
+_NAME_MATCHER: list[NameMatcher] = []
 
 
 def register_employee_lookup(fn: EmployeeLookup) -> None:
     _LOOKUP[:] = [fn]
+
+
+def register_employee_name_matcher(fn: NameMatcher) -> None:
+    _NAME_MATCHER[:] = [fn]
 
 
 async def live_employee_ids(db: Any, ids: Sequence[uuid.UUID]) -> set[uuid.UUID]:
@@ -26,3 +35,10 @@ async def live_employee_ids(db: Any, ids: Sequence[uuid.UUID]) -> set[uuid.UUID]
     if not _LOOKUP:
         raise RuntimeError("no employee directory registered (hr module not loaded)")
     return await _LOOKUP[0](db, ids)
+
+
+async def match_employee_by_name(db: Any, name: str) -> NameMatch:
+    """Fuzzy match a raw name to a live employee (R-DEC-103). `(id|None, confidence, count)`."""
+    if not _NAME_MATCHER:
+        raise RuntimeError("no employee name matcher registered (hr module not loaded)")
+    return await _NAME_MATCHER[0](db, name)

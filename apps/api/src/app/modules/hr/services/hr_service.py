@@ -6,6 +6,7 @@ through `publish_in_tx` with ids + dates only — never a salary amount or PII (
 FR-HR-02). The route commits.
 """
 
+import difflib
 import re
 import unicodedata
 import uuid
@@ -20,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit
 from app.core.base_model import Base
 from app.core.deps import Principal
-from app.core.directory import register_employee_lookup
+from app.core.directory import register_employee_lookup, register_employee_name_matcher
 from app.core.errors import (
     BusinessRuleError,
     DuplicateResourceError,
@@ -173,6 +174,28 @@ class HrService:
     async def employee_id_by_code(self, code: str) -> uuid.UUID | None:
         emp = await self.employees.by_code(code)
         return emp.id if emp is not None else None
+
+    async def match_employee_by_name(self, name: str) -> tuple[uuid.UUID | None, float, int]:
+        """Fuzzy match a raw name to a live employee (R-DEC-103, FR-DC-14). Normalize (accent-free,
+        lower) + difflib ratio. Returns `(employee_id|None, confidence, candidate_count)`:
+        best ≥ 0.90 and strictly ahead of the runner-up → matched; a near-tie or 0.60–< 0.90 →
+        ambiguous (id=None); best < 0.60 → unmatched. No PII logged."""
+        target = normalize_name(name)
+        if not target:
+            return (None, 0.0, 0)
+        rows = await self.employees.live_names()
+        scored = sorted(
+            ((difflib.SequenceMatcher(None, target, n).ratio(), eid) for eid, n in rows),
+            key=lambda s: s[0],
+            reverse=True,
+        )
+        if not scored:
+            return (None, 0.0, 0)
+        best_score, best_id = scored[0]
+        runner = scored[1][0] if len(scored) > 1 else 0.0
+        if best_score >= 0.90 and best_score - runner >= 0.05:
+            return (best_id, round(best_score, 3), 1)
+        return (None, round(best_score, 3), sum(1 for s, _ in scored if s >= 0.60))
 
     async def email_taken(self, email: str) -> bool:
         """A live employee already uses `email` (ACT-create_employee row check, ids only)."""
@@ -588,4 +611,11 @@ async def _live_employee_ids(db: AsyncSession, ids: Sequence[uuid.UUID]) -> set[
     return await HrService(db).live_employee_ids(ids)
 
 
+async def _match_employee_by_name(
+    db: AsyncSession, name: str
+) -> tuple[uuid.UUID | None, float, int]:
+    return await HrService(db).match_employee_by_name(name)
+
+
 register_employee_lookup(_live_employee_ids)
+register_employee_name_matcher(_match_employee_by_name)

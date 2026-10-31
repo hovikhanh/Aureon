@@ -142,6 +142,13 @@ class EmployeeRepository(BaseRepository[Employee]):
         )  # fmt: skip
         return set((await self.db.execute(stmt)).scalars())
 
+    async def live_names(self) -> Sequence[tuple[uuid.UUID, str]]:
+        """`(id, normalized_name)` of live, non-terminated employees — fuzzy name match (M2.3)."""
+        stmt = self._scoped(select(Employee.id, Employee.normalized_name)).where(
+            Employee.deleted_at.is_(None), Employee.status != "terminated"
+        )
+        return [(r[0], r[1]) for r in (await self.db.execute(stmt)).all()]
+
     async def by_email(self, email: str) -> Employee | None:
         stmt = self._live().where(func.lower(Employee.email) == email.lower())
         return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
