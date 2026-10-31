@@ -313,3 +313,11 @@ class FinanceService:
         out = await self.cash_out(obj)
         await self._audit("finance.cash_position_update", "cash_positions", obj, before, out)
         return out
+
+    async def delete_cash_position(self, user: Principal, id_: uuid.UUID) -> None:
+        """Soft-delete a cash position (undo of ACT-record_cash_balance, R-DEC-92)."""
+        obj = await self.get_cash_position(id_)
+        before = await self.cash_out(obj)
+        obj.updated_by = user.user_id
+        await self.cash.soft_delete(obj)
+        await self._audit("finance.cash_position_delete", "cash_positions", obj, before=before)

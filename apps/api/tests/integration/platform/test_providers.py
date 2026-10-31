@@ -18,7 +18,7 @@ from app.modules.finance.services.metrics import compute as finance_compute
 from app.modules.hr.services.metric_provider import compute_hr
 from app.modules.platform.events import consumers as platform_consumers
 from app.modules.platform.events.consumers import AFFECTS
-from app.modules.platform.models import Alert, Metric
+from app.modules.platform.models import Alert, Metric, MetricValue
 from app.modules.sales.services.metric_provider import calc_pct, compute_sales
 from app.workers.consumers import load_metric_providers
 
@@ -108,3 +108,48 @@ async def test_event_consumer_raises_alert(db_session: AsyncSession, fin_data: N
         )
     )
     assert int((await db_session.execute(stmt)).scalar_one()) == 1
+
+
+def _deal(stage: str, closed_day: int, value: int = 1_000_000) -> "object":
+    from app.modules.sales.models import Deal
+
+    return Deal(
+        name="t", client_id=CLIENT, deal_value=value, currency="VND", stage=stage,
+        probability_pct=100 if stage == "closed_won" else 0,
+        closed_at=datetime(2037, 4, closed_day, 10, 0, tzinfo=UTC), assigned_to=DEPT,
+        department_id=DEPT, tags=[], source="MANUAL",
+        lost_reason="x" if stage == "closed_lost" else None,
+    )  # fmt: skip
+
+
+async def test_deal_closed_event_recomputes_win_rate(
+    db_session: AsyncSession, fin_data: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TC-M22-05 (R-DEC-91): 2 won + 1 lost deals closed in `last` (2037-04) → fire
+    `sales.deal_closed_won` → `platform.on_sales_event` recomputes `METRIC-CUS-02` = 66.7 %."""
+    from app.modules.sales.models import Client
+
+    load_metric_providers()
+    monkeypatch.setattr(platform_consumers, "business_today", lambda: AS_OF)
+    db_session.add(Client(id=CLIENT, name="ABC", normalized_name="abc", status="active",
+                          source="MANUAL"))  # fmt: skip
+    await db_session.flush()
+    db_session.add_all([_deal("closed_won", 5), _deal("closed_won", 6), _deal("closed_lost", 7)])
+    await db_session.flush()
+    env = EventEnvelope(
+        event_id=uuid.uuid4(), event_type="sales.deal_closed_won",
+        occurred_at=datetime.now(UTC), version=1, producer="sales",
+        payload={"deal_id": str(uuid.uuid4()), "stage": "closed_won"},
+        tenant_id=DEFAULT_TENANT_ID,
+    )  # fmt: skip
+    await platform_consumers.recompute_for(db_session, env)
+    stmt = (
+        select(MetricValue.value)
+        .join(Metric, MetricValue.metric_id == Metric.id)
+        .where(
+            Metric.code == "METRIC-CUS-02", MetricValue.is_current.is_(True),
+            MetricValue.scope_type == "company", MetricValue.period_key == "2037-04",
+        )
+    )  # fmt: skip
+    value = (await db_session.execute(stmt)).scalar_one()
+    assert float(value) == 66.7  # 2 won / 3 closed
