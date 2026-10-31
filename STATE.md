@@ -1,6 +1,30 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: M1.3→M1.6 DONE — full test chuỗi XANH (T-652, 2026-10-25) — 4 PR xếp chồng chờ human review
+## Status: M2 (Trí tuệ) DONE — M2.1→M2.5 XANH (2026-11-01) — nhánh xếp chồng chờ human review/PR
+
+## M2 — Trí tuệ (M2.1→M2.5, chuỗi auto liên tục, human ủy quyền 2026-10-31) — DONE 2026-11-01
+
+Mỗi mốc 1 nhánh từ đỉnh mốc trước (§6.0 S→C→F→B→N→R). Agent tự chốt Spec lock theo spec sẵn có + đề xuất R-DEC (human ủy quyền). **Chưa merge/push — chờ human.**
+
+| Mốc | Nhánh | Nội dung | R-DEC |
+|---|---|---|---|
+| M2.1 | `v3/m2.1-home` | SCR-40 /home 3 cấp Executive/Department/Employee, EP-RPT-01..05, SEI | R-DEC-82..88 |
+| M2.2 | `v3/m2.2-business` | Finance Lite + Sales pipeline (/business), EP-FIN/EP-SAL | R-DEC-89..95 |
+| M2.3 | `v3/m2.3-meeting` | EP-DC-38 C2 ngôn ngữ tự nhiên/voice, MeetingSummary + ActionItem | R-DEC-96..104 |
+| M2.4 | `v3/m2.4-assistant` | Grounding cứng, Insight 9 phần, kpi→Insight L2, AI-prefill F4, ⌘K, InsightCard, UC-03 | R-DEC-105..112 |
+| M2.5 | `v3/m2.5-gate` | Cổng M2: hồi quy UC real, perf, a11y AA, đóng cổng | R-DEC-113..116 |
+
+**M2.4 (đỉnh `f8fcad8`):** backend — `ai/services/grounding.py::enforce_grounding` (gỡ số thiếu nguồn sau vòng tool, `AI_NO_DATA_AVAILABLE`), `InsightOut` 9 phần first-class (`root_cause`/`risk`/`expected_outcome`), consumer `ai.on_kpi_below_threshold` → Insight + Recommendation L2, `CheckInDueOut.prefill` (AI điền sẵn F4, không bịa, confidence band), ai_eval GR/INJ/ROUTE + UC-03 CEO 4 bước (demo-replay), test P06 advertise (53 tool). FE — `CommandPalette` ⌘K→`/ask?q=` auto-send, `InsightCard` 9 phần + "Tại sao?", `InsightsPanel` EP-AI-05 trên Executive home, `CheckInCard` prefill + thanh confidence + "Dùng gợi ý". Grounding cov **91%** ≥90%.
+
+**M2.5 (đỉnh — nhánh hiện tại):** T-737 hồi quy real **80 pass** (UC-03 `uc03-real` 2/2 sau rebuild image web; `assistant-m24`/`a11y-m2` gắn `@mock-only` chạy mock 9/9; còn `roles`/`review-detail`/`admin-org`/`capture`/`goals:180`/`onboarding-real` fail login `net::ERR_FAILED`/date-drift — hạ tầng/state sẵn có M1.x, không chạm code M2). T-738 perf: dashboard p95 **0.027s** «3s (NFR-PERF-01), chat TTFT p95 **0.074s** «2s (NFR-PERF-02) — `scripts/perf_m2_gate.sh`. T-739 a11y WCAG AA structural **5/5** (`e2e/a11y-m2.spec.ts`: 1 `#main`+nav primary+1 H1, 0 button thiếu tên, ⌘K aria-modal+focus+Escape). T-740 demo_reset (7 phòng/154 NV/34 metric/6 agent, không `-v`), STATE/14, self-review.
+
+**Gate đóng M2 (2026-11-01):** ruff/format/mypy(359)/contract(34) xanh · pytest **1313 passed / 4 failed** (4 tiền-tồn: `inj02`/`inj03` fixture classify, `goal_events_t629` date-sensitive, `seed_s2` đếm alert — không hồi quy) · Vitest **379** · Playwright mock (assistant-m24 4 + a11y-m2 5 + …) · drift shared-types = 0 · perf đạt · a11y AA đạt.
+
+**Nợ / lưu ý M2:** axe-core tự động hoãn (cần DEC dependency §2.3); InsightsPanel trên real trống khi seed chưa có insight (chỉ sinh khi `kpi_below_threshold`) — demo cần kích hoạt consumer để có card; real E2E login flake (`net::ERR_FAILED`) trên spec IDP/review/onboarding M1.x cần ổn định hạ tầng (không chặn M2); image web phải rebuild để FE M2.4 lên stack thật.
+
+---
+
+## Status (M1): M1.3→M1.6 DONE — full test chuỗi XANH (T-652, 2026-10-25) — 4 PR xếp chồng chờ human review
 
 | Field | Value |
 |---|---|
