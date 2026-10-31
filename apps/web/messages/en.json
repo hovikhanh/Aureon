@@ -2115,5 +2115,50 @@
       "department": "Department",
       "employee": "Me"
     }
+  },
+  "meetings": {
+    "title": "Meetings & minutes",
+    "subtitle": "Paste or dictate meeting minutes — AI proposes decisions and action items for the chair to approve.",
+    "errorGeneric": "Something went wrong. Please try again shortly.",
+    "paste": {
+      "title": "Paste / upload transcript",
+      "label": "Transcript content",
+      "placeholder": "Paste the meeting minutes or a free-text note…",
+      "submit": "Analyze"
+    },
+    "voice": {
+      "start": "Speak",
+      "stop": "Stop",
+      "notMeeting": "The voice button is for short notes only — it does NOT record meetings.",
+      "error": {
+        "unsupported": "This browser cannot record (needs HTTPS and a microphone).",
+        "denied": "Microphone permission was refused.",
+        "not_found": "No microphone found.",
+        "in_use": "The microphone is busy.",
+        "too_long": "Recording too long — short notes only.",
+        "unknown": "Recording failed. Please try again.",
+        "meetingBlocked": "Meeting audio cannot be captured via this channel (R-DEC-22)."
+      }
+    },
+    "preview": {
+      "docType": "Document type",
+      "sourceLabel": "Source transcript"
+    },
+    "actions": {
+      "title": "Proposed action items",
+      "l2": "AI drafted",
+      "owner": "Owner",
+      "unknownOwner": "unknown",
+      "approve": "Chair approves → create task",
+      "created": "Task created",
+      "unresolved": "{count} item(s) need an owner before a task can be created.",
+      "resolveOwner": "Resolve the owner first.",
+      "needPermission": "You do not have permission to create tasks."
+    },
+    "match": {
+      "matched": "Matched",
+      "ambiguous": "Ambiguous",
+      "unmatched": "Unmatched"
+    }
   }
 }

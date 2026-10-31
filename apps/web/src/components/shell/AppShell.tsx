@@ -3,6 +3,7 @@ import * as React from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { KillSwitchBanner } from "./KillSwitchBanner";
+import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 
 export interface ShellUser {
   id: string;
@@ -18,6 +19,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   const [collapsed, setCollapsed] = React.useState(false);
   return (
     <div className="flex min-h-dvh">
+      <ServiceWorkerRegister />
       <Sidebar
         role={user.role}
         permissions={user.permissions}

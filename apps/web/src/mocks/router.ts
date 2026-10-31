@@ -25,6 +25,7 @@ import { AI_ADMIN_ROUTES } from "./ai_admin";
 import { ONBOARDING_ROUTES } from "./onboarding";
 import { FINANCE_ROUTES } from "./finance";
 import { SALES_ROUTES } from "./sales";
+import { MEETINGS_ROUTES } from "./meetings";
 
 export interface MockRequest {
   method: string;
@@ -117,6 +118,8 @@ export const ROUTES: readonly Route[] = [
   // M2.2 business (T-715F): Finance Lite + Sales pipeline.
   ...FINANCE_ROUTES,
   ...SALES_ROUTES,
+  // M2.3 meetings (T-717F): EP-DC-38 C2 natural-language / short voice note.
+  ...MEETINGS_ROUTES,
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

@@ -2115,5 +2115,50 @@
       "department": "Khối/Phòng",
       "employee": "Cá nhân"
     }
+  },
+  "meetings": {
+    "title": "Họp & biên bản",
+    "subtitle": "Dán hoặc đọc biên bản họp — AI đề xuất quyết định và việc cần làm để chủ trì duyệt.",
+    "errorGeneric": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút.",
+    "paste": {
+      "title": "Dán / tải transcript",
+      "label": "Nội dung transcript",
+      "placeholder": "Dán nội dung biên bản họp hoặc mô tả tự nhiên…",
+      "submit": "Phân tích"
+    },
+    "voice": {
+      "start": "Nói",
+      "stop": "Dừng",
+      "notMeeting": "Nút nói chỉ dùng cho ghi chú ngắn — KHÔNG ghi âm cuộc họp.",
+      "error": {
+        "unsupported": "Trình duyệt không hỗ trợ ghi âm (cần HTTPS và micro).",
+        "denied": "Anh/chị chưa cho phép dùng micro.",
+        "not_found": "Không tìm thấy micro.",
+        "in_use": "Micro đang bận.",
+        "too_long": "Ghi âm quá dài — chỉ dùng cho ghi chú ngắn.",
+        "unknown": "Không ghi âm được. Anh/chị thử lại.",
+        "meetingBlocked": "Không ghi âm cuộc họp qua kênh này (R-DEC-22)."
+      }
+    },
+    "preview": {
+      "docType": "Loại tài liệu",
+      "sourceLabel": "Transcript gốc"
+    },
+    "actions": {
+      "title": "Việc đề xuất",
+      "l2": "AI soạn",
+      "owner": "Người phụ trách",
+      "unknownOwner": "chưa rõ",
+      "approve": "Chủ trì duyệt → tạo việc",
+      "created": "Đã tạo việc",
+      "unresolved": "{count} việc cần xác định người phụ trách trước khi tạo.",
+      "resolveOwner": "Cần xác định người phụ trách trước.",
+      "needPermission": "Anh/chị không có quyền tạo việc."
+    },
+    "match": {
+      "matched": "Khớp",
+      "ambiguous": "Chưa rõ",
+      "unmatched": "Không khớp"
+    }
   }
 }

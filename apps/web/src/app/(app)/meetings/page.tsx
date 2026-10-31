@@ -1,6 +1,14 @@
-import { ComingSoon } from "@/components/shell/ComingSoon";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { MeetingsView } from "@/features/execution/MeetingsView";
 
-/** SCR-44 `/meetings` — frame only; full screen in M2.3 / M3.1 (06 §3.4). */
-export default function Page() {
-  return <ComingSoon item="meetings" scr="SCR-44" phase="M2.3 / M3.1" />;
+/** SCR-44 `/meetings` (M2.3): C2 natural-language / short voice note → predicted action items. */
+export default async function MeetingsPage() {
+  const session = await getServerSession(authOptions);
+  return (
+    <MeetingsView
+      viewerId={session?.user.id ?? ""}
+      permissions={session?.user.permissions ?? []}
+    />
+  );
 }
