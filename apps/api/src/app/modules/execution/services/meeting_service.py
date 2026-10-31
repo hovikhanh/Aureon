@@ -11,14 +11,24 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, Date, any_, literal
+from sqlalchemy import ColumnElement, Date, any_, literal, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
-from app.core.errors import BusinessRuleError, ConflictStateError
+from app.core.directory import match_employee_by_name
+from app.core.errors import BusinessRuleError, ConflictStateError, NotFoundError
+from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
-from app.modules.execution.models import Decision, Meeting, Milestone, Project, Task
+from app.modules.execution.models import (
+    ActionItem,
+    Decision,
+    Meeting,
+    MeetingSummary,
+    Milestone,
+    Project,
+    Task,
+)
 from app.modules.execution.repositories import (
     OPEN_TASK_STATUSES,
     DecisionRepository,
@@ -39,6 +49,7 @@ from app.modules.execution.schemas.meetings import (
     ProjectOut,
     ProjectUpdate,
 )
+from app.modules.execution.schemas.tasks import SourceRef, TaskCreate, TaskOut
 from app.modules.execution.schemas.work import ProjectDetailOut, TaskCountsOut
 from app.modules.execution.services import project_rules as pr
 from app.modules.execution.services import scope
@@ -277,6 +288,160 @@ class MeetingService(ExecBase):
         out = decision_out(d)
         await self.audit("decision_update", "decisions", d.id, before, out)
         return out
+
+    # ---------- M2.3 action items + summaries (R-DEC-100..103) ----------
+    async def create_action_item(
+        self, user: Principal, *, title: str, owner_name: str | None = None,
+        due_date: date | None = None, confidence: float | None = None,
+        meeting_id: uuid.UUID | None = None, decision_id: uuid.UUID | None = None,
+        source_document_id: uuid.UUID | None = None,
+    ) -> ActionItem:  # fmt: skip
+        """Write an `ActionItem` (fuzzy owner match, no Task); event carries ids only."""
+        owner_id: uuid.UUID | None = None
+        match_status = "unmatched"
+        if owner_name:
+            owner_id, matched_conf, _count = await match_employee_by_name(self.db, owner_name)
+            confidence = matched_conf if confidence is None else confidence
+            match_status = "matched" if owner_id is not None else "ambiguous"
+        ai = ActionItem(
+            title=title, owner_id=owner_id, owner_name_raw=owner_name, due_date=due_date,
+            confidence=None if confidence is None else Decimal(str(confidence)),
+            match_status=match_status, meeting_id=meeting_id, decision_id=decision_id,
+            source_document_id=source_document_id, source="IDP", created_by=user.user_id,
+        )  # fmt: skip
+        self.db.add(ai)
+        await self.db.flush()
+        await self.db.refresh(ai)
+        await self.audit("action_item_create", "action_items", ai.id,
+                         after={"id": str(ai.id), "status": ai.status})  # fmt: skip
+        await publish_in_tx(
+            self.db, event_type="execution.action_item_created", producer="execution",
+            aggregate_schema="execution", aggregate_table="action_items", aggregate_id=ai.id,
+            payload={
+                "action_item_id": str(ai.id), "meeting_id": _sid(ai.meeting_id),
+                "decision_id": _sid(ai.decision_id), "owner_id": _sid(ai.owner_id),
+                "due_date": ai.due_date.isoformat() if ai.due_date else None,
+                "match_status": ai.match_status,
+            },
+        )  # fmt: skip
+        return ai
+
+    async def delete_action_item(self, user: Principal, id_: uuid.UUID) -> None:
+        """Soft-delete (ACT undo for `create_action_item`)."""
+        ai = await self._action_item(id_)
+        ai.updated_by = user.user_id
+        ai.deleted_at = now_utc()
+        await self.db.flush()
+        await self.audit("action_item_delete", "action_items", ai.id,
+                         before={"id": str(ai.id), "status": ai.status})  # fmt: skip
+
+    async def create_task_from_action_item(
+        self, user: Principal, action_item_id: uuid.UUID
+    ) -> TaskOut:
+        """Create a Task from an approved ActionItem (chair approval enforced upstream). Setting
+        `task_id` is idempotent: an item that already has a Task returns the existing one."""
+        from app.modules.execution.services.task_service import TaskService
+
+        ai = await self._action_item(action_item_id)
+        if ai.task_id is not None:
+            existing = await self.tasks.get(ai.task_id)
+            if existing is not None:
+                return await TaskService(self.db).out(existing)
+        source_ref: SourceRef | None = None
+        if ai.meeting_id is not None:
+            source_ref = SourceRef(kind="meeting", id=ai.meeting_id)
+        elif ai.source_document_id is not None:
+            source_ref = SourceRef(kind="document", id=ai.source_document_id)
+        body = TaskCreate(
+            title=ai.title, due_date=ai.due_date, assignee_id=ai.owner_id,
+            meeting_id=ai.meeting_id, decision_id=ai.decision_id, task_source="meeting",
+            source_ref=source_ref, source_document_id=ai.source_document_id,
+        )  # fmt: skip
+        task = await TaskService(self.db).create(user, body)
+        ai.task_id = task.id
+        ai.status = "task_created"
+        ai.updated_by = user.user_id
+        await self.db.flush()
+        await self.audit("task_from_action_item", "action_items", ai.id,
+                         after={"id": str(ai.id), "task_id": str(task.id)})  # fmt: skip
+        return task
+
+    async def detach_task(self, user: Principal, task_id: uuid.UUID) -> None:
+        """ACT undo for `create_task_from_action_item`: delete the Task + clear `task_id`."""
+        from app.modules.execution.services.task_service import TaskService
+
+        stmt = select(ActionItem).where(
+            ActionItem.task_id == task_id, ActionItem.deleted_at.is_(None)
+        )
+        ai = (await self.db.execute(stmt)).scalar_one_or_none()
+        if ai is not None:
+            ai.task_id = None
+            ai.status = "open"
+            ai.updated_by = user.user_id
+            await self.db.flush()
+        try:
+            await TaskService(self.db).delete(user, task_id)
+        except NotFoundError:
+            pass
+
+    async def create_summary(
+        self, user: Principal, *, meeting_id: uuid.UUID, summary_text: str,
+        key_points: list[Any] | None = None, generated_by: str = "ai",
+        model_call_id: uuid.UUID | None = None, source_document_id: uuid.UUID | None = None,
+    ) -> MeetingSummary:  # fmt: skip
+        """Upsert the 1-1 `MeetingSummary` + publish `execution.meeting_summarized`."""
+        stmt = select(MeetingSummary).where(
+            MeetingSummary.meeting_id == meeting_id, MeetingSummary.deleted_at.is_(None)
+        )
+        summary = (await self.db.execute(stmt)).scalar_one_or_none()
+        if summary is None:
+            summary = MeetingSummary(
+                meeting_id=meeting_id,
+                summary_text=summary_text,
+                key_points=key_points or [],
+                generated_by=generated_by,
+                model_call_id=model_call_id,
+                source_document_id=source_document_id,
+                source="IDP",
+                created_by=user.user_id,
+            )
+            self.db.add(summary)
+        else:
+            summary.summary_text = summary_text
+            summary.key_points = key_points or []
+            summary.generated_by = generated_by
+            summary.model_call_id = model_call_id
+            summary.updated_by = user.user_id
+        await self.db.flush()
+        await self.db.refresh(summary)
+        await self.audit("meeting_summary_create", "meeting_summaries", summary.id,
+                         after={"id": str(summary.id), "meeting_id": str(meeting_id)})  # fmt: skip
+        await publish_in_tx(
+            self.db, event_type="execution.meeting_summarized", producer="execution",
+            aggregate_schema="execution", aggregate_table="meeting_summaries",
+            aggregate_id=summary.id,
+            payload={"meeting_id": str(meeting_id), "summary_id": str(summary.id),
+                     "action_item_count": 0},
+        )  # fmt: skip
+        return summary
+
+    async def delete_summary(self, user: Principal, id_: uuid.UUID) -> None:
+        summary = await self.db.get(MeetingSummary, id_)
+        if summary is None or summary.deleted_at is not None:
+            raise not_found("meeting summary")
+        summary.updated_by = user.user_id
+        summary.deleted_at = now_utc()
+        await self.db.flush()
+
+    async def _action_item(self, id_: uuid.UUID) -> ActionItem:
+        ai = await self.db.get(ActionItem, id_)
+        if ai is None or ai.deleted_at is not None:
+            raise not_found("action item")
+        return ai
+
+
+def _sid(v: uuid.UUID | None) -> str | None:
+    return str(v) if v is not None else None
 
 
 @dataclass(frozen=True)

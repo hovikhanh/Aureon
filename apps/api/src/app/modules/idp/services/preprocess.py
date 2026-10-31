@@ -54,8 +54,31 @@ class PreprocessResult:
         return "\n".join(p.text_content for p in self.pages if p.text_content)
 
 
-def _ocr_image(_data: bytes) -> tuple[str, float]:
-    """OCR a single image. `stub` yields empty text (low confidence); `paddle` when available."""
+def _deskew_image(data: bytes) -> bytes:
+    """FR-DC-08 (R-DEC-98): normalise a captured photo (C4) before OCR — EXIF auto-rotate,
+    grayscale, autocontrast. Pillow is available transitively (pillow-heif, DEC-151); if it
+    cannot be imported or the bytes are not a decodable image, return the input unchanged."""
+    try:
+        from PIL import Image, ImageOps
+    except Exception:  # pragma: no cover - Pillow always present via pillow-heif
+        return data
+    try:
+        with Image.open(io.BytesIO(data)) as opened:
+            im = ImageOps.exif_transpose(opened) or opened  # correct orientation (phone capture)
+            im = ImageOps.grayscale(im)
+            im = ImageOps.autocontrast(im)  # lift faint ink / uneven lighting
+            out = io.BytesIO()
+            im.save(out, format="PNG")
+            return out.getvalue()
+    except Exception:
+        return data
+
+
+def _ocr_image(_data: bytes, *, preprocess: bool = False) -> tuple[str, float]:
+    """OCR a single image. `stub` yields empty text (low confidence); `paddle` when available.
+    `preprocess=True` (C4 photo) runs `_deskew_image` first (FR-DC-08)."""
+    if preprocess:
+        _data = _deskew_image(_data)
     provider = get_config().ocr_provider
     if provider == "paddle":
         try:  # pragma: no cover - heavy optional dependency, not installed in CI
@@ -127,7 +150,8 @@ def _csv_pages(data: bytes) -> list[PageText]:
 
 
 def _image_pages(data: bytes) -> list[PageText]:
-    ocr_text, conf = _ocr_image(data)
+    # a standalone image upload is a C4 photo capture → deskew/normalise before OCR (R-DEC-98)
+    ocr_text, conf = _ocr_image(data, preprocess=True)
     return [PageText(1, ocr_text, text_layer_exists=False, ocr_used=True, ocr_confidence=conf)]
 
 

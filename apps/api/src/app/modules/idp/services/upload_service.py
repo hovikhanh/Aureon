@@ -28,6 +28,7 @@ from app.modules.idp.services.mime import resolve_mime
 from app.modules.idp.services.schema_registry import default_schema_id
 
 MAX_PREFIX = 4096  # bytes sniffed for magic-byte detection
+IMAGE_MIMES = frozenset({"image/png", "image/jpeg", "image/webp", "image/heic"})  # C4 (R-DEC-98)
 
 
 @dataclass(frozen=True)
@@ -142,6 +143,8 @@ class UploadService:
         storage_key, mime, size = stored.storage_key, stored.mime, stored.size
         digest = stored.sha256
         original = await self._find_duplicate(digest)
+        # R-DEC-98: an image upload is a photo capture → channel C4 (server-side, not client-set)
+        channel = "C4" if mime in IMAGE_MIMES else channel
 
         now = datetime.now(UTC)
         doc = SourceDocument(

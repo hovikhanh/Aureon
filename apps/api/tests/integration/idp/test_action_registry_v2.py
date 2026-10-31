@@ -55,10 +55,15 @@ async def _count(db: Any, sql_table: str) -> int:
 async def test_registry_has_the_fourteen_acts() -> None:
     """12 M1.5 ACTs + `ACT-update_task` / `ACT-assign_task` (M1.6, OQ-09-07)
     + `ACT-record_revenue` / `ACT-record_expense` / `ACT-record_cash_balance` (M2.2 doc #6,
-    R-DEC-92) → 17."""
-    assert len(action_names()) == 17
+    R-DEC-92) → 17 + `ACT-create_action_item` / `ACT-create_task_from_action_item`
+    (M2.3 doc #1, R-DEC-101) → 19."""
+    assert len(action_names()) == 19
     assert get_action("ACT-create_employee").required_permission == ("hr:write", "hr:admin")  # type: ignore[union-attr]
     assert get_action("ACT-create_invoice").is_finance  # type: ignore[union-attr]
+    for name in ("ACT-create_action_item", "ACT-create_task_from_action_item"):
+        act = get_action(name)
+        assert act is not None and act.module == "execution"
+        assert act.required_permission == ("execution:write",) and act.reversible
     for name in ("ACT-record_revenue", "ACT-record_expense", "ACT-record_cash_balance"):
         act = get_action(name)
         assert act is not None and act.is_finance
