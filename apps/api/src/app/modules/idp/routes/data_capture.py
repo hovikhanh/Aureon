@@ -37,6 +37,8 @@ from app.modules.idp.schemas.capture import (
     IncidentOut,
     ManualSubmitIn,
     ManualSubmitOut,
+    NaturalLanguageIn,
+    NaturalLanguagePreviewOut,
     RuleKind,
     SchemaStatus,
     SourceViewOut,
@@ -54,6 +56,7 @@ from app.modules.idp.services.import_service import ImportService
 from app.modules.idp.services.inbox_service import InboxFilters, InboxService
 from app.modules.idp.services.incident_service import IncidentService
 from app.modules.idp.services.manual_service import ManualService
+from app.modules.idp.services.natural_language import NaturalLanguageService
 from app.modules.idp.services.scope import ensure_doc_type_scope
 from app.modules.idp.services.undo_service import UndoService
 from app.modules.idp.services.upload_service import UploadFile as SvcUploadFile
@@ -109,6 +112,20 @@ async def manual_submit(body: ManualSubmitIn, user: Writer, db: Db, idem: Idem) 
     if (hit := await idem.replay(body)) is not None:
         return ManualSubmitOut.model_validate(hit)
     out = await ManualService(db).submit(user, body)
+    await db.commit()
+    await idem.remember(out)
+    return out
+
+
+# ---------- EP-DC-38 C2 natural language ----------
+@router.post(
+    "/natural-language", response_model=NaturalLanguagePreviewOut, status_code=201,
+    summary="EP-DC-38 C2 natural language",
+)  # fmt: skip
+async def natural_language(body: NaturalLanguageIn, user: Writer, db: Db, idem: Idem) -> Any:
+    if (hit := await idem.replay(body)) is not None:
+        return NaturalLanguagePreviewOut.model_validate(hit)
+    out = await NaturalLanguageService(db).submit(user, body)
     await db.commit()
     await idem.remember(out)
     return out

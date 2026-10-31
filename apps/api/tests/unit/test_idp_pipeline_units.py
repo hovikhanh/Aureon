@@ -223,3 +223,27 @@ def test_validator_sum_rule_rejects_wrong_total() -> None:
         }
     )
     assert "VR-INV-05" in {e["rule"] for e in out.errors}
+
+
+# --- M2.3 C4 deskew + C2 text/plain (T-717/718, R-DEC-96/98) ------------------------------
+
+
+def test_deskew_image_normalises_and_passes_through() -> None:
+    import base64
+
+    from app.modules.idp.services.preprocess import _deskew_image
+
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    out = _deskew_image(png)
+    assert out[:4] == b"\x89PNG"  # re-encoded as PNG after EXIF/grayscale/autocontrast
+    assert _deskew_image(b"not an image") == b"not an image"  # non-image → unchanged
+
+
+def test_extract_text_plain_is_c2_page() -> None:
+    r = extract_pages("Giao anh Minh soạn báo cáo, hạn 15/11".encode(), "text/plain")
+    assert r.page_count == 1
+    page = r.pages[0]
+    assert page.text_layer_exists and not page.ocr_used
+    assert "anh Minh" in page.text_content

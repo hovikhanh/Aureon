@@ -28,6 +28,7 @@ PDF = EXT_MIME[".pdf"]
 DOCX = EXT_MIME[".docx"]
 XLSX = EXT_MIME[".xlsx"]
 CSV = EXT_MIME[".csv"]
+TXT = "text/plain"  # R-DEC-96: C2 natural-language text stored as a plain-text object
 IMAGES = frozenset({"image/png", "image/jpeg", "image/webp", "image/heic"})
 
 
@@ -164,6 +165,9 @@ def extract_pages(data: bytes, mime: str) -> PreprocessResult:
         return PreprocessResult(_xlsx_pages(data))
     if mime == CSV:
         return PreprocessResult(_csv_pages(data))
+    if mime == TXT:  # R-DEC-96: one page carrying the decoded C2 natural-language text
+        text = data.decode("utf-8", errors="replace")
+        return PreprocessResult([PageText(1, text, text_layer_exists=True, ocr_used=False)])
     if mime in IMAGES:
         return PreprocessResult(_image_pages(data))
     # legacy doc/xls not convertible without extra deps → single empty page (needs review)

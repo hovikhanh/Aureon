@@ -568,3 +568,27 @@ async def test_call_record_carries_request_id_and_agent_m16() -> None:
     rec = sink.records[-1]
     assert rec.request_id == "6f1c1d8e-0000-4000-8000-000000000001"
     assert rec.agent_profile_code == "ceo"
+
+
+# --- STT task=stt (T-717, R-DEC-97) -------------------------------------------------------
+
+
+async def test_stt_fixture_transcribe(tmp_path: Path) -> None:
+    """transcribe() routes task=stt through the fixture store keyed on the audio ref."""
+    store = FixtureStore(tmp_path)
+    probe = ChatRequest(
+        task="stt", messages=(Message(role="user", content="AUDIO-REF-1"),), caller_module="idp"
+    )
+    store.save(probe, ChatResponse("anh Minh soạn báo cáo, hạn 15/11", "fixture", "fixture/stt",
+                                   Usage(0, 0)))  # fmt: skip
+    g = gw(cfg(model_gateway_mode="fixture"), fixtures=store)
+    resp = await g.transcribe(audio_ref="AUDIO-REF-1", caller_module="idp")
+    assert resp.content == "anh Minh soạn báo cáo, hạn 15/11"
+
+
+async def test_stt_live_not_configured(tmp_path: Path) -> None:
+    """Live STT is backlog (R-DEC-97) → a clear AI error, never a silent default."""
+    with pytest.raises(AIError):
+        await gw(cfg(model_gateway_mode="live"), fixtures=FixtureStore(tmp_path)).transcribe(
+            audio_ref="AUDIO-REF-1", caller_module="idp"
+        )

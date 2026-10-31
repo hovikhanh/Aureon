@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.field_policy import Masked
 from app.modules.idp.schemas import ActionRefOut, DocumentOut
@@ -60,6 +60,52 @@ class SourceViewOut(BaseModel):
     page: int | None
     filename: str | None = None
     pages: list[SourcePageOut] | None = None
+
+
+# ---------- EP-DC-38 C2 natural language ----------
+class NaturalLanguageIn(BaseModel):
+    """EP-DC-38 request — exactly one of `text` / `audio_ref` (else 422 VALIDATION_ERROR).
+
+    `context == "meeting"` is rejected before any processing (R-DEC-22) in the service."""
+
+    text: str | None = None
+    audio_ref: str | None = None
+    channel: Literal["C2"] = "C2"
+    context: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one(self) -> NaturalLanguageIn:
+        if (self.text is None) == (self.audio_ref is None):
+            raise ValueError("exactly one of text / audio_ref must be set")
+        return self
+
+
+class DocumentTypeConfidenceOut(BaseModel):
+    code: str
+    confidence: float
+
+
+class PredictedActionOut(BaseModel):
+    action_name: str
+    params: dict[str, Any]
+    confidence: float | None = None
+
+
+class ExtractedFieldPreviewOut(BaseModel):
+    field: str
+    value: Any
+    confidence: float | None = None
+
+
+class NaturalLanguagePreviewOut(BaseModel):
+    """EP-DC-38 response — a NOT-committed preview (the document stays NEEDS_REVIEW /
+    AUTO_APPROVED; no ACT runs, nothing written to target modules)."""
+
+    document: DocumentOut
+    document_type: DocumentTypeConfidenceOut
+    status: Literal["NEEDS_REVIEW", "AUTO_APPROVED"]
+    predicted_actions: list[PredictedActionOut]
+    extracted: list[ExtractedFieldPreviewOut]
 
 
 # ---------- EP-DC-15/16 C1 manual form ----------

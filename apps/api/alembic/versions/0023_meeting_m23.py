@@ -56,6 +56,11 @@ def _common() -> list[sa.Column]:
             server_default="INTERNAL",
             nullable=False,
         ),
+        sa.Column(
+            "source",
+            postgresql.ENUM(name="record_source", schema="platform", create_type=False),
+            nullable=False,
+        ),
     ]
 
 

@@ -230,7 +230,7 @@ class ModelGateway:
         if self.cfg.model_gateway_mode == "fixture":
             return await self._fixture(req, rt)
         raise ai_error(
-            "AI_NO_DATA_AVAILABLE", "live STT not configured (fixture-only at P0, R-DEC-97)"
+            "AI_PROVIDER_ERROR", "live STT not configured (fixture-only at P0, R-DEC-97)"
         )
 
     async def _fixture(self, req: ChatRequest, rt: Route) -> ChatResponse:
