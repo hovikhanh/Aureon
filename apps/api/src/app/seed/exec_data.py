@@ -226,3 +226,36 @@ MILESTONES: tuple[tuple[str, str, date, str, date | None], ...] = (
 # EP-TASK-19 demo: the EMP account (ASSIGNEES[0], SVC) asks to hand T-L000 to a SVC colleague;
 # stays PENDING in the SVC manager's inbox (EP-WF-01).
 REASSIGN = ("T-L000", ASSIGNEES[1], "Đang xử lý sự cố khách lớn, xin chuyển cho đồng nghiệp")
+
+# ---------- M2.3 (T-726, R-DEC-104, 08 §4.2) — UC-02/06 Meeting → việc ----------
+# 1 transcript + 1 summary + 6 ActionItems (≥5 required): owner by employee name (fuzzy match
+# D01), due within the quarter. Decision index (0..2) links each item to a seeded Decision.
+# (title, owner Person, due offset days from MEETING_AT, decision_index|None)
+ACTION_ITEMS: tuple[tuple[str, Person, int, int | None], ...] = (
+    ("Lập danh sách công nợ quá hạn > 30 ngày và gọi thu hồi", ASSIGNEES[22], 10, 0),
+    ("Rà soát kế hoạch tuyển dụng khối hỗ trợ, tạm dừng tin mới", ASSIGNEES[24], 7, 1),
+    ("Chuẩn bị hồ sơ 5 cơ hội lớn nhất Q4 cho đội Sales", ASSIGNEES[8], 12, 2),
+    ("Soạn báo cáo dòng tiền tuần trình CEO", ASSIGNEES[22], 5, 0),
+    ("Cập nhật pipeline CRM cho 5 cơ hội trọng điểm", ASSIGNEES[9], 15, 2),
+    ("Đồng bộ lịch review quyết định 30/60/90 ngày", ASSIGNEES[23], 20, None),
+)
+MEETING_SUMMARY = (
+    "Giao ban tháng 10/2026: dòng tiền ưu tiên thu hồi công nợ quá hạn để đưa runway về ≥ 6 "
+    "tháng; tạm dừng tuyển mới khối hỗ trợ tới hết Q4; đội Sales tập trung 5 cơ hội lớn nhất Q4. "
+    "Sáu việc cần làm đã giao kèm người phụ trách và hạn."
+)
+
+
+def _transcript_text() -> str:
+    lines = [
+        f"{MEETING_TITLE} — họp ngày 30/09/2026.",
+        "Thành phần: Ban giám đốc và trưởng các phòng ban.",
+        "Quyết định và việc cần làm:",
+    ]
+    for title, who, off, _ in ACTION_ITEMS:
+        day = (MEETING_AT.date().toordinal() + off)
+        lines.append(f"- {title}; người phụ trách {who.name}; hạn ngày {date.fromordinal(day)}.")
+    return "\n".join(lines)
+
+
+MEETING_TRANSCRIPT = _transcript_text()

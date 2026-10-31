@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.execution.models import (
+    ActionItem,
     Decision,
     Initiative,
     KeyResult,
@@ -25,6 +26,8 @@ from app.modules.execution.models import (
     KpiMeasurement,
     KpiTarget,
     Meeting,
+    MeetingSummary,
+    MeetingTranscript,
     Milestone,
     Objective,
     Project,
@@ -67,11 +70,17 @@ def _strategy(owner: uuid.UUID) -> list[Any]:
 
 def _meeting(owner: uuid.UUID) -> list[Any]:
     mid = seed_uuid("meeting", "GB-2026-10")
+    tid = seed_uuid("meeting_transcript", "GB-2026-10")
+    doc_id = seed_uuid("source_document", "biên-bản-GB-2026-10")
     attendees = sorted({emp_id(p.code) for p in X.ASSIGNEES[:8]})
-    rows: list[Any] = [Meeting(
+    # Transcript first — Meeting.transcript_id FKs to it (R-DEC-104).
+    rows: list[Any] = [MeetingTranscript(
+        id=tid, meeting_id=None, source_document_id=doc_id, language="vi", speaker_count=4,
+        text_content=X.MEETING_TRANSCRIPT, status="PROCESSED", consent_confirmed_by=owner, **SEED)]
+    rows.append(Meeting(
         id=mid, title=X.MEETING_TITLE, held_at=X.MEETING_AT, chair_id=owner,
         attendee_ids=attendees, summary="Giao ban tháng 10: dòng tiền, tuyển dụng, pipeline Q4.",
-        **SEED)]  # fmt: skip
+        transcript_id=tid, **SEED))  # fmt: skip
     day = X.MEETING_AT.date()
     rows += [
         Decision(id=seed_uuid("decision", str(i)), meeting_id=mid, content=content,
@@ -80,6 +89,20 @@ def _meeting(owner: uuid.UUID) -> list[Any]:
                  review_at=[day + timedelta(days=n) for n in (30, 60, 90)], status="in_progress",
                  **SEED)
         for i, (content, _, outcome) in enumerate(X.DECISIONS)
+    ]  # fmt: skip
+    # UC-02/06 (R-DEC-104): summary → ≥5 action items (fuzzy owner matched).
+    rows.append(MeetingSummary(
+        id=seed_uuid("meeting_summary", "GB-2026-10"), meeting_id=mid, source_document_id=doc_id,
+        summary_text=X.MEETING_SUMMARY, key_points=[d[0] for d in X.DECISIONS],
+        generated_by="ai", status="confirmed", **SEED))
+    rows += [
+        ActionItem(
+            id=seed_uuid("action_item", str(i)), meeting_id=mid,
+            decision_id=seed_uuid("decision", str(di)) if di is not None else None,
+            title=title, owner_id=emp_id(who.code), owner_name_raw=who.name,
+            due_date=day + timedelta(days=off), confidence=Decimal("0.95"),
+            match_status="matched", source_document_id=doc_id, status="open", **SEED)
+        for i, (title, who, off, di) in enumerate(X.ACTION_ITEMS)
     ]  # fmt: skip
     return rows
 
