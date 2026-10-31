@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Bot, ClipboardCheck } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
+import { InsightsPanel } from "@/features/ai/InsightsPanel";
 import { MetricTile } from "./MetricTile";
 import type { ExecutiveDashboard } from "./types";
 
@@ -43,6 +44,7 @@ export function ExecutiveView() {
           <span>{t("openRisks", { count: d.open_risks.count })}</span>
         </Card>
       </section>
+      <InsightsPanel />
       <Card className="p-4" data-testid="exec-ai-done">
         <h2 className="flex items-center gap-2 text-sm font-medium text-ai">
           <Bot className="h-4 w-4" aria-hidden />{t("aiDone", { count: d.ai_done.count })}

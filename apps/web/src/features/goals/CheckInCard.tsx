@@ -1,8 +1,9 @@
 "use client";
 /**
  * F4 check-in card (SCR-60, 06 §4 F4): current value / target, new value, 3-step confidence,
- * note, blocker → EP-PRF-02 (KR) / EP-PRF-04 (KPI). "AI điền sẵn" slot stays a placeholder
- * (`prefill: null` until M2.4); the C2 mic button is hidden in M1.4. Success → toast + "Đã check-in".
+ * note, blocker → EP-PRF-02 (KR) / EP-PRF-04 (KPI). M2.4 (R-DEC-109): "AI điền sẵn" suggests the
+ * latest grounded value + a confidence bar; the user always confirms/edits before writing (never
+ * auto-written). The C2 mic button is hidden in M1.4. Success → toast + "Đã check-in".
  */
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -56,9 +57,7 @@ export function CheckInCard({ card }: { card: CheckInDueOut }) {
         <span className="tabular-nums">{t("checkin.current", { value: formatValue(card.current_value, card.unit, locale), target: formatValue(card.target, card.unit, locale) })}</span>
         <KrConfidence value={card.confidence} />
       </p>
-      <div className="rounded border border-dashed border-ai/40 bg-ai-subtle/40 p-2 text-xs text-muted-foreground" data-testid="checkin-prefill" data-prefill="null">
-        <span className="font-medium text-ai">{t("checkin.prefill")}</span> · {t("checkin.prefillSoon")}
-      </div>
+      <PrefillHint card={card} locale={locale} onUse={(v) => form.setValue("value", String(v), { shouldDirty: true, shouldValidate: true })} />
       <form onSubmit={(ev) => void submit(ev)} className="flex flex-col gap-3" noValidate>
         <Field id={`${idp}-v`} label={`${t("checkin.value")}${card.unit ? ` (${card.unit})` : ""}`} error={e.value?.message}>
           <Input id={`${idp}-v`} inputMode="decimal" {...form.register("value")} data-testid="checkin-value" />
@@ -82,5 +81,30 @@ export function CheckInCard({ card }: { card: CheckInDueOut }) {
         </div>
       </form>
     </article>
+  );
+}
+
+/** AI-prefill slot (R-DEC-109): shows the suggested value + a confidence bar; "Dùng gợi ý" fills
+ * the form — the user still confirms/edits before writing. No suggestion → the rest is unchanged. */
+function PrefillHint({ card, locale, onUse }: { card: CheckInDueOut; locale: AppLocale; onUse: (v: number) => void }) {
+  const t = useTranslations("goals");
+  const p = card.prefill;
+  if (!p) return null;
+  const band = p.confidence; // HIGH | MEDIUM | LOW
+  const pct = band === "HIGH" ? 100 : band === "MEDIUM" ? 66 : 33;
+  const tone = band === "HIGH" ? "bg-success" : band === "MEDIUM" ? "bg-warning" : "bg-danger";
+  return (
+    <div className="flex flex-col gap-2 rounded border border-ai/40 bg-ai-subtle/40 p-2 text-xs" data-testid="checkin-prefill" data-prefill="suggested" data-confidence={band}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-ai">{t("checkin.prefill")}</span>
+        <span className="tabular-nums font-medium" data-testid="prefill-value">{formatValue(p.suggested_value, card.unit, locale)}</span>
+        <KrConfidence value={band} />
+        <Button type="button" variant="outline" size="sm" onClick={() => onUse(p.suggested_value)} data-testid="prefill-use">{t("checkin.prefillUse")}</Button>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("checkin.confidence")} data-testid="prefill-confidence-bar">
+        <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-muted-foreground">{p.confidence_reason}</p>
+    </div>
   );
 }

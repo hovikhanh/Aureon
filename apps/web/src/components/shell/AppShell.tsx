@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { KillSwitchBanner } from "./KillSwitchBanner";
 import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
+import { CommandPalette } from "./CommandPalette";
 
 export interface ShellUser {
   id: string;
@@ -20,6 +21,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return (
     <div className="flex min-h-dvh">
       <ServiceWorkerRegister />
+      <CommandPalette />
       <Sidebar
         role={user.role}
         permissions={user.permissions}

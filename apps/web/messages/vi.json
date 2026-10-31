@@ -233,6 +233,32 @@
     "PCT": "%",
     "VND": "đ"
   },
+  "insight": {
+    "sectionTitle": "AI phát hiện",
+    "badge": "AI gợi ý",
+    "evidence": "Bằng chứng",
+    "impact": "Tác động",
+    "why": "Tại sao?",
+    "hideWhy": "Thu gọn",
+    "rootCause": "Nguyên nhân gốc",
+    "risk": "Rủi ro",
+    "recommendation": "Khuyến nghị",
+    "expectedOutcome": "Kết quả kỳ vọng",
+    "confidence": "Độ tin cậy",
+    "error": "Không tải được insight. Thử lại.",
+    "empty": "Chưa có insight nào."
+  },
+  "palette": {
+    "title": "Bảng lệnh",
+    "placeholder": "Hỏi AI hoặc tìm màn hình… (⌘K)",
+    "ask": "Hỏi AI",
+    "askWith": "Hỏi AI: “{q}”",
+    "nav": {
+      "home": "Trang chủ",
+      "checkins": "Check-in",
+      "goals": "Mục tiêu & KPI"
+    }
+  },
   "ai": {
     "title": "Hỏi AI",
     "badge": "AI",
@@ -1222,6 +1248,7 @@
       "saving": "Đang gửi…",
       "prefill": "AI điền sẵn",
       "prefillSoon": "AI điền sẵn sẽ có ở bản M2.4.",
+      "prefillUse": "Dùng gợi ý",
       "kr": "Key Result",
       "kpi": "KPI",
       "week": "Tuần",

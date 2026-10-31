@@ -62,7 +62,7 @@ function AssistantMessage({ m, viewer, flow }: { m: ChatMessage; viewer: ChatVie
   );
 }
 
-export function ChatView({ viewer }: { viewer: ChatViewer }) {
+export function ChatView({ viewer, initialQuestion }: { viewer: ChatViewer; initialQuestion?: string }) {
   const t = useTranslations();
   const [patched, setPatched] = React.useState<Record<string, SuggestedAction>>({});
   const actionFlow = useActionFlow((a) => setPatched((p) => ({ ...p, [a.id]: a })));
@@ -70,6 +70,16 @@ export function ChatView({ viewer }: { viewer: ChatViewer }) {
   const { messages, conversationId, busy, send, reset } = useChat();
   const [input, setInput] = React.useState("");
   const endRef = React.useRef<HTMLDivElement>(null);
+  const asked = React.useRef(false);
+
+  // ⌘K / deep-link: send the prefilled question exactly once on mount (R-DEC-112)
+  React.useEffect(() => {
+    const q = initialQuestion?.trim();
+    if (q && !asked.current) {
+      asked.current = true;
+      void send(q);
+    }
+  }, [initialQuestion, send]);
   const conversations = useQuery({ queryKey: qk.conversations(), queryFn: ({ signal }) => api.get<ConversationOut[]>("/ai/conversations", undefined, signal) });
 
   React.useEffect(() => {

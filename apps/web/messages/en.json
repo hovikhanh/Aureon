@@ -233,6 +233,32 @@
     "PCT": "%",
     "VND": "VND"
   },
+  "insight": {
+    "sectionTitle": "AI findings",
+    "badge": "AI suggests",
+    "evidence": "Evidence",
+    "impact": "Impact",
+    "why": "Why?",
+    "hideWhy": "Collapse",
+    "rootCause": "Root cause",
+    "risk": "Risk",
+    "recommendation": "Recommendation",
+    "expectedOutcome": "Expected outcome",
+    "confidence": "Confidence",
+    "error": "Could not load insights. Retry.",
+    "empty": "No insights yet."
+  },
+  "palette": {
+    "title": "Command palette",
+    "placeholder": "Ask AI or find a screen… (⌘K)",
+    "ask": "Ask AI",
+    "askWith": "Ask AI: “{q}”",
+    "nav": {
+      "home": "Home",
+      "checkins": "Check-ins",
+      "goals": "Goals & KPIs"
+    }
+  },
   "ai": {
     "title": "Ask AI",
     "badge": "AI",
@@ -1222,6 +1248,7 @@
       "saving": "Submitting…",
       "prefill": "AI prefill",
       "prefillSoon": "AI prefill arrives in M2.4.",
+      "prefillUse": "Use suggestion",
       "kr": "Key result",
       "kpi": "KPI",
       "week": "Week",
