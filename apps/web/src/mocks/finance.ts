@@ -6,28 +6,19 @@
  * (METRIC-FIN-01..06) where possible; the rest are deterministic constants consistent with the
  * seed (công ty ABC, ~300 tỷ/năm, Q3/2026).
  *
- * Role gate (mirror BE `require_permission("finance:read"|"finance:query")` + scope): CEO always;
- * DIR only when claims `scope_pillars` include "F" (role CFO) — otherwise 403 FORBIDDEN_ROLE.
- * This mirrors `store.ts` `seesFullFinance` (CEO | DIR∈{F,S}); here F is required for the full view.
+ * Permission (mirror BE 10 §7.2.7): dashboard, budgets/status and what-if/runway are all AGGREGATE
+ * `finance:query` — open to every DIR/CEO regardless of pillar (R-DEC-89). Pillar scoping (F vs C)
+ * applies only to the detailed `:read` lists (EP /finance/revenues, /finance/budgets), not to these
+ * aggregates; the mock must not be stricter than the real backend. The router `permission` field
+ * enforces `finance:query` (default-deny 403).
  */
-import { ok, fail } from "./http";
+import { ok } from "./http";
 import type { MockRequest, Route } from "./router";
 import { SNAPSHOT, COMPUTED_AT } from "./reporting-shared";
 import { mockId } from "./fixtures";
 
 const CURRENCY = "VND";
 const PERIOD_Q3 = { key: "2026-Q3", type: "quarter", start_date: "2026-07-01", end_date: "2026-09-30" };
-
-/** Full Finance view = CEO, or DIR whose pillar scope includes "F" (role CFO). */
-function seesFinance(claims: MockRequest["claims"]): boolean {
-  if (claims.role === "CEO") return true;
-  return claims.role === "DIR" && claims.scope_pillars.includes("F");
-}
-
-function guard(claims: MockRequest["claims"]): Response | null {
-  if (!seesFinance(claims)) return fail(403, "FORBIDDEN_ROLE", "finance view is CEO/CFO only", { pillar: "F" });
-  return null;
-}
 
 /** Finance metric value by code from the snapshot (METRIC-FIN-01..07). */
 function finValue(code: string): number | null {
@@ -68,9 +59,7 @@ function financeMetricOut(code: string) {
   };
 }
 
-function dashboard(req: MockRequest): Response {
-  const blocked = guard(req.claims);
-  if (blocked) return blocked;
+function dashboard(): Response {
   const latest = REVENUE_TREND.at(-1)!;
   return ok({
     pillar: "F",
@@ -106,9 +95,7 @@ const BUDGETS: { dept: string; allocated: number; spent: number; status: "ok" | 
   { dept: "IT", allocated: 5_000_000_000, spent: 3_900_000_000, status: "ok" },
 ];
 
-function budgetStatus(req: MockRequest): Response {
-  const blocked = guard(req.claims);
-  if (blocked) return blocked;
+function budgetStatus(): Response {
   const rows = BUDGETS.map((b) => ({
     budget_id: mockId("budget", `${b.dept}:2026-Q3`),
     department_id: mockId("department", b.dept),
@@ -131,8 +118,6 @@ function num(q: URLSearchParams, name: string): number {
 
 /** EP-69 what-if: recompute runway from the 3-month averages + the requested deltas. */
 function whatIfRunway(req: MockRequest): Response {
-  const blocked = guard(req.claims);
-  if (blocked) return blocked;
   const revenueChangePct = num(req.query, "revenue_change_pct");
   const expenseChangePct = num(req.query, "expense_change_pct");
   const extraMonthlyCost = Math.trunc(num(req.query, "extra_monthly_cost"));
@@ -164,9 +149,9 @@ function whatIfRunway(req: MockRequest): Response {
   });
 }
 
-// Perm mirrors BE: dashboard/status = finance:read; what-if = finance:query (CLAUDE §5.2, 10 §4.6).
+// Perm mirrors BE 10 §7.2.7: dashboard, budgets/status and what-if = aggregate finance:query.
 export const FINANCE_ROUTES: readonly Route[] = [
-  { method: "GET", pattern: "/finance/dashboard", permission: "finance:read", handler: dashboard },
-  { method: "GET", pattern: "/finance/budgets/status", permission: "finance:read", handler: budgetStatus },
+  { method: "GET", pattern: "/finance/dashboard", permission: "finance:query", handler: dashboard },
+  { method: "GET", pattern: "/finance/budgets/status", permission: "finance:query", handler: budgetStatus },
   { method: "GET", pattern: "/finance/what-if/runway", permission: "finance:query", handler: whatIfRunway },
 ];

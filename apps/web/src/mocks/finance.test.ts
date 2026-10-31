@@ -1,4 +1,9 @@
-/** T-715F — mock BFF `/finance/*` + `/sales/*` (M2.2): envelope shape + CEO/pillar role gate. */
+/** T-715F — mock BFF `/finance/*` + `/sales/*` (M2.2): envelope shape + aggregate `:query` gate.
+ *
+ * These endpoints (dashboard, budgets/status, what-if, pipeline) are AGGREGATE `finance:query` /
+ * `sales:query` in 10 §7.2.7 — open to every DIR/MGR/CEO regardless of pillar (R-DEC-89, verified
+ * against the live backend). Pillar scoping (F vs C) applies only to the detailed `:read` lists.
+ * EMP/REV lack `:query` → 403. The mock must not be stricter than the real backend. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { MOCK_USERS, claimsFor } from "./fixtures";
 import { handleMock } from "./router";
@@ -8,7 +13,8 @@ const user = (email: string) => claimsFor(MOCK_USERS.find((u) => u.email === ema
 const CEO = user("ceo@abc.demo");
 const CFO = user("cfo@abc.demo"); // DIR, pillar {F}
 const VP_SALES = user("sales@abc.demo"); // DIR, pillar {C}
-const HR_DIR = user("hr@abc.demo"); // DIR, pillar {O} — has finance:* perms but out of pillar F
+const HR_DIR = user("hr@abc.demo"); // DIR, pillar {O} — still has finance:query/sales:query (aggregate)
+const EMP = user("employee@abc.demo"); // no :query → blocked from aggregates
 
 async function call<T = unknown>(path: string, claims: ReturnType<typeof user>) {
   const [p, q = ""] = path.split("?");
@@ -30,12 +36,13 @@ describe("EP-60 finance dashboard", () => {
     expect(typeof r.json.data!.open_alerts).toBe("number");
   });
 
-  it("CFO (DIR pillar F): 200", async () => {
+  it("any DIR reads the aggregate dashboard (CFO + HR-DIR): 200", async () => {
     expect((await call("/finance/dashboard", CFO)).status).toBe(200);
+    expect((await call("/finance/dashboard", HR_DIR)).status).toBe(200); // aggregate, pillar-agnostic
   });
 
-  it("DIR out of pillar F: 403 FORBIDDEN_ROLE", async () => {
-    const r = await call("/finance/dashboard", HR_DIR);
+  it("EMP (no finance:query): 403 FORBIDDEN_ROLE", async () => {
+    const r = await call("/finance/dashboard", EMP);
     expect(r.status).toBe(403);
     expect(r.json.error!.code).toBe("FORBIDDEN_ROLE");
   });
@@ -52,12 +59,12 @@ describe("EP-64 budget status / EP-69 what-if", () => {
     }
   });
 
-  it("CEO: what-if returns runway + sources; DIR out of pillar → 403", async () => {
+  it("CEO: what-if returns runway + sources; EMP (no :query) → 403", async () => {
     const r = await call<{ runway_months: number | null; sources: unknown[]; currency: string }>("/finance/what-if/runway", CEO);
     expect(r.status).toBe(200);
     expect(Array.isArray(r.json.data!.sources)).toBe(true);
     expect(r.json.data!.currency).toBe("VND");
-    expect((await call("/finance/what-if/runway", HR_DIR)).status).toBe(403);
+    expect((await call("/finance/what-if/runway", EMP)).status).toBe(403);
   });
 });
 
@@ -69,9 +76,10 @@ describe("EP-75 sales pipeline / EP-70 dashboard", () => {
     expect(r.json.data!.currency).toBe("VND");
   });
 
-  it("VP_SALES (DIR pillar C): 200; DIR out of pillar C → 403 FORBIDDEN_ROLE", async () => {
+  it("any DIR reads the aggregate pipeline (VP_SALES + HR-DIR): 200; EMP → 403", async () => {
     expect((await call("/sales/pipeline", VP_SALES)).status).toBe(200);
-    const r = await call("/sales/pipeline", HR_DIR);
+    expect((await call("/sales/pipeline", HR_DIR)).status).toBe(200); // aggregate, pillar-agnostic
+    const r = await call("/sales/pipeline", EMP);
     expect(r.status).toBe(403);
     expect(r.json.error!.code).toBe("FORBIDDEN_ROLE");
   });

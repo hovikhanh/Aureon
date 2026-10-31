@@ -4,26 +4,17 @@
  * the canonical order lead→qualified→proposal→negotiation→closed_won→closed_lost. win_rate_pct
  * comes from SNAPSHOT METRIC-CUS-02 (100.0).
  *
- * Role gate (mirror BE `require_permission("sales:read")` + scope): CEO always; DIR only when
- * claims `scope_pillars` include "C" (role VP_SALES) — otherwise 403 FORBIDDEN_ROLE.
+ * Permission (mirror BE 10 §7.2.7): both pipeline + dashboard are AGGREGATE `sales:query` — open
+ * to every DIR/CEO regardless of pillar (R-DEC-89). Pillar scoping (F vs C) applies only to the
+ * detailed `:read` lists (EP /sales/deals), not to these aggregates; the mock must not be stricter
+ * than the real backend. The router `permission` field enforces `sales:query` (default-deny 403).
  */
-import { ok, fail } from "./http";
-import type { MockRequest, Route } from "./router";
+import { ok } from "./http";
+import type { Route } from "./router";
 import { SNAPSHOT } from "./reporting-shared";
 
 const CURRENCY = "VND";
 const PERIOD_Q3 = { key: "2026-Q3", type: "quarter", start_date: "2026-07-01", end_date: "2026-09-30" };
-
-/** Full Sales view = CEO, or DIR whose pillar scope includes "C" (role VP_SALES). */
-function seesSales(claims: MockRequest["claims"]): boolean {
-  if (claims.role === "CEO") return true;
-  return claims.role === "DIR" && claims.scope_pillars.includes("C");
-}
-
-function guard(claims: MockRequest["claims"]): Response | null {
-  if (!seesSales(claims)) return fail(403, "FORBIDDEN_ROLE", "sales view is CEO/VP_SALES only", { pillar: "C" });
-  return null;
-}
 
 function cusValue(code: string): number | null {
   return SNAPSHOT.metrics.find((m) => m.code === code)?.value ?? null;
@@ -41,9 +32,7 @@ const STAGE_DATA: { stage: string; count: number; value: number; weighted_value:
 
 const OPEN_STAGES = ["lead", "qualified", "proposal", "negotiation"];
 
-function pipeline(req: MockRequest): Response {
-  const blocked = guard(req.claims);
-  if (blocked) return blocked;
+function pipeline(): Response {
   const openValue = STAGE_DATA.filter((s) => OPEN_STAGES.includes(s.stage)).reduce((a, s) => a + s.value, 0);
   const quota = 60_000_000_000;
   return ok({
@@ -54,9 +43,7 @@ function pipeline(req: MockRequest): Response {
   });
 }
 
-function dashboard(req: MockRequest): Response {
-  const blocked = guard(req.claims);
-  if (blocked) return blocked;
+function dashboard(): Response {
   const open = STAGE_DATA.filter((s) => OPEN_STAGES.includes(s.stage));
   const won = STAGE_DATA.find((s) => s.stage === "closed_won")!;
   const lost = STAGE_DATA.find((s) => s.stage === "closed_lost")!;
@@ -97,8 +84,8 @@ function dashboard(req: MockRequest): Response {
   });
 }
 
-// Perm mirrors BE: both pipeline + dashboard = sales:read (CLAUDE §5.2, 10 §4.7).
+// Perm mirrors BE 10 §7.2.7: pipeline + dashboard aggregate = sales:query (open to all DIR).
 export const SALES_ROUTES: readonly Route[] = [
-  { method: "GET", pattern: "/sales/pipeline", permission: "sales:read", handler: pipeline },
-  { method: "GET", pattern: "/sales/dashboard", permission: "sales:read", handler: dashboard },
+  { method: "GET", pattern: "/sales/pipeline", permission: "sales:query", handler: pipeline },
+  { method: "GET", pattern: "/sales/dashboard", permission: "sales:query", handler: dashboard },
 ];
