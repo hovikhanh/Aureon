@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
+from app.core.config import get_config
 from app.core.errors import ConflictStateError, NotFoundError
 from app.modules.platform.models import Alert, Metric, MetricValue
 from app.modules.platform.repositories import (
@@ -19,16 +20,17 @@ from app.modules.platform.repositories import (
     DqDomainScoreRepository,
     MetricValueRepository,
 )
+from app.modules.platform.services.catalog import GROUP_OF
 
 STATUS_FROM_THRESHOLD = {"GREEN": "ok", "YELLOW": "warning", "RED": "critical"}
 UNIT_OUT = {"PERCENT": "PCT", "VND_PER_PERSON": "VND", "INDEX": "SCORE"}
-STALE_AFTER = timedelta(days=7)  # FRESHNESS_STALE_DAYS default for monthly metrics (03 §1.3)
 
 
 @dataclass(frozen=True)
 class MetricValueDTO:
     metric_code: str
     pillar: str | None
+    group: str | None  # nhóm v3 FIN/CUS/OPS/PPL/STR/DQ (R-DEC-82); None nếu p1_frozen
     value: float | None
     unit: str
     currency: str | None
@@ -36,7 +38,9 @@ class MetricValueDTO:
     status_reason: str | None
     period_key: str
     computed_at: datetime
-    freshness: str
+    freshness: str  # "fresh"/"stale" (giữ tương thích FE v2.1)
+    is_stale: bool  # R-DEC-86 — now - computed_at > max_age_hours
+    max_age_hours: int  # SLA_FRESHNESS_<DOMAIN>_HOURS theo source_module
     data_quality_pct: float | None
     lineage_url: str
 
@@ -86,11 +90,15 @@ def value_dto(m: Metric, v: MetricValue, now: datetime) -> MetricValueDTO:
     if v.value is None and v.threshold_status == "GREEN":
         # e.g. FIN-03 profitable (BR-FIN-03); 05 has no reason column → generic code (DEC-205)
         status, reason = "ok", "NOT_APPLICABLE"
+    max_age_hours = get_config().freshness_hours(m.source_module)
+    is_stale = now - v.computed_at > timedelta(hours=max_age_hours)
     return MetricValueDTO(
-        metric_code=m.code, pillar=m.pillar, value=_f(v.value), unit=unit,
+        metric_code=m.code, pillar=m.pillar, group=GROUP_OF.get(m.code),
+        value=_f(v.value), unit=unit,
         currency="VND" if unit == "VND" else None, status=status,
         status_reason=reason, period_key=v.period_key, computed_at=v.computed_at,
-        freshness="stale" if now - v.computed_at > STALE_AFTER else "fresh",
+        freshness="stale" if is_stale else "fresh",
+        is_stale=is_stale, max_age_hours=max_age_hours,
         data_quality_pct=_f(v.data_quality_score),
         lineage_url=f"/dashboard/metrics/{m.code}",
     )  # fmt: skip

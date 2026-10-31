@@ -153,7 +153,7 @@ async def test_tc_m11_07_uc_datasets_and_health_targets(seeded: AsyncSession) ->
     # GREEN group: on-time 85 %, late projects 10 %, decisions executed 75 %, SEI 75 %, DQ ~88,
     # win rate stable, burn vs forecast.
     assert m["METRIC-OPS-01"] == (85.0, "GREEN") and m["METRIC-OPS-02"] == (10.0, "GREEN")
-    assert m["METRIC-OPS-03"] == (75.0, "GREEN") and m["METRIC-RSK-06"] == (75.0, "GREEN")
+    assert m["METRIC-OPS-03"] == (75.0, "GREEN") and m["METRIC-STR-02"] == (75.0, "GREEN")
     for code in ("METRIC-DQ-01", "METRIC-CUS-02", "METRIC-FIN-07"):
         assert m[code][1] == "GREEN", code
 
@@ -351,4 +351,4 @@ async def test_tc_m14_16_goal_layer(seeded: AsyncSession) -> None:
     # G2 measured (not N/A) — 08 §4 / R-DEC-54
     m = await _metrics(seeded)
     assert m["METRIC-STR-01"] == (81.5, "GREEN")
-    assert m["METRIC-RSK-06"] == (75.0, "GREEN")
+    assert m["METRIC-STR-02"] == (75.0, "GREEN")

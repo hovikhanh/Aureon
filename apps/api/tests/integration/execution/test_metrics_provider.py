@@ -16,7 +16,7 @@ AS_OF = date(2041, 3, 20)
 
 async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSession) -> None:
     empty = {r.code: r for r in await compute(db_session, date(2041, 2, 10))}
-    assert empty["METRIC-OPS-01"].value is None and empty["METRIC-RSK-06"].value is None
+    assert empty["METRIC-OPS-01"].value is None and empty["METRIC-STR-02"].value is None
     emp = uuid.uuid4()
     late = await make_task(api, due_date="2041-03-05", assignee_id=str(emp), estimate_hours="50")
     await make_task(api, due_date="2041-03-06", status="cancelled")
@@ -36,12 +36,12 @@ async def test_compute_execution_metrics(api: ApiClient, db_session: AsyncSessio
         "weight_pct": 10})  # fmt: skip
     got = {r.code: r for r in await compute(db_session, AS_OF)}
     assert set(got) == {"METRIC-OPS-01", "METRIC-OPS-02", "METRIC-OPS-03", "METRIC-HR-03",
-                        "METRIC-RSK-06", "METRIC-STR-01"}  # fmt: skip
+                        "METRIC-STR-02", "METRIC-STR-01"}  # fmt: skip
     assert all(r.period_key == "2041-03" and r.scope_type == "company" for r in got.values())
     ops1 = got["METRIC-OPS-01"]
     assert ops1.value == 0.0 and late["id"] in {x.id for x in ops1.records}
     assert got["METRIC-OPS-03"].value == 0.0
     assert p["id"] in {x.id for x in got["METRIC-OPS-02"].records}
     assert got["METRIC-HR-03"].value is not None
-    assert i["id"] in {x.id for x in got["METRIC-RSK-06"].records}
+    assert i["id"] in {x.id for x in got["METRIC-STR-02"].records}
     assert all(len(r.records) <= 50 for r in got.values())

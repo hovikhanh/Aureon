@@ -28,6 +28,32 @@ class MetricDef:
     def alert_code(self) -> str:
         return self.code.replace("METRIC-", "ALERT-")
 
+    @property
+    def group(self) -> str | None:
+        """Nhóm chỉ số v3 (R-DEC-82) suy từ (pillar, source_module), song song pillar.
+
+        FIN←F, CUS←C, OPS←O∩execution, PPL←O∩hr, STR←S∩execution, DQ←pillar None.
+        Risk nghiệp vụ (S∩risk) + Product (U) giữ `None` ở v3 (p1_frozen).
+        """
+        if self.pillar is None:
+            return "DQ"
+        return _GROUP_OF.get((self.pillar, self.source_module))
+
+    @property
+    def p1_frozen(self) -> bool:
+        """Risk nghiệp vụ + Product — đóng băng P1 (R-DEC-16): không nhóm v3, không dashboard."""
+        return self.pillar is not None and self.group is None
+
+
+_GROUP_OF: dict[tuple[str, str], str] = {
+    ("F", "finance"): "FIN",
+    ("C", "sales"): "CUS",
+    ("O", "execution"): "OPS",
+    ("O", "hr"): "PPL",
+    ("S", "execution"): "STR",
+}
+GROUPS = ("FIN", "CUS", "OPS", "PPL", "STR", "DQ")
+
 
 LO, HI = "LOWER_IS_BAD", "HIGHER_IS_BAD"
 
@@ -92,7 +118,7 @@ CATALOG: tuple[MetricDef, ...] = (
               10, 15, "risk", ("risk.risk_level_changed",), inclusive=True),
     MetricDef("METRIC-RSK-05", "S", "Biện pháp quá hạn", "Overdue mitigations", "COUNT", HI, 1,
               5, "risk", ("risk.risk_mitigated",), inclusive=True),
-    MetricDef("METRIC-RSK-06", "S", "Strategy execution index (SEI)",
+    MetricDef("METRIC-STR-02", "S", "Strategy execution index (SEI)",
               "Strategy execution index", "PERCENT", LO, 70, 50, "execution",
               ("execution.kpi_measured",)),
     # M1.4 G2 (R-DEC-54, 03 §4): KPI/OKR updated on time
@@ -108,6 +134,8 @@ CATALOG: tuple[MetricDef, ...] = (
 
 BY_CODE = {m.code: m for m in CATALOG}
 PILLARS = ("F", "O", "C", "U", "S")
+GROUP_OF: dict[str, str | None] = {m.code: m.group for m in CATALOG}
+FROZEN_CODES: frozenset[str] = frozenset(m.code for m in CATALOG if m.p1_frozen)
 
 
 def evaluate(direction: str, x: float, warning: float, critical: float, inclusive: bool) -> str:

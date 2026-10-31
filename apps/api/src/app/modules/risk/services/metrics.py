@@ -1,6 +1,6 @@
 """PIL-S metric provider (T-220 contract, DEC-205): METRIC-RSK-01..05, company scope.
 
-METRIC-RSK-06 (SEI) is computed from execution Initiatives — not provided here (DEC-219).
+METRIC-STR-02 (SEI) is computed from execution Initiatives — not provided here (DEC-219).
 `proposed` risks are ignored (not yet in the register, DEC-148).
 """
 

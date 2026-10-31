@@ -377,6 +377,24 @@ class NotificationPreference(ConfigModel, TenantMixin):
     email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
 
+class UserPreference(ConfigModel, TenantMixin):
+    """ENT-UserPreference (R-DEC-87, M2.1) — per-user key/value JSON; no row = code default.
+
+    M2.1 key `dashboard.executive_tiles` = JSON array ≤ 4 metric codes (4 ô Executive).
+    `version` (ConfigModel) drives optimistic concurrency for EP-RPT-05.
+    """
+
+    __tablename__ = "user_preferences"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "user_id", "key", name="uq_user_preferences_tenant_user_key"),
+        {"schema": S},
+    )
+
+    user_id: Mapped[uuid.UUID] = sr(nullable=False)
+    key: Mapped[str] = txt()
+    value_json: Mapped[Any] = mapped_column(JSONB, nullable=False)
+
+
 class OutboxEvent(LogModel):
     """05 §5.1 — `id` = envelope `event_id`."""
 

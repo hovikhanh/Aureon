@@ -1,6 +1,6 @@
 """EP-100 `/risk/dashboard` (FR-RSK-07, 10 §5): summary + heatmap 5×5 + `risk_score_trend`.
 
-`metrics[]`, `open_alerts` and `strategy_execution_index` (METRIC-RSK-06, execution provider)
+`metrics[]`, `open_alerts` and `strategy_execution_index` (METRIC-STR-02, execution provider)
 come from the metric store via `platform.pillar_snapshot` (T-222, isolated: store down →
 `metrics=[]`, 0 alerts). Pillar status stays derived from METRIC-RSK-01..05 computed live.
 """
@@ -58,7 +58,7 @@ class RiskDashboardService:
             r for r in risks if r.status != "proposed" and _between(r.identified_at, p.start, p.end)
         ]
         store = await pillar_snapshot(self.db, "S")
-        sei = next((m["value"] for m in store.metrics if m["metric_code"] == "METRIC-RSK-06"), None)
+        sei = next((m["value"] for m in store.metrics if m["metric_code"] == "METRIC-STR-02"), None)
         summary = RiskSummary(
             open_risks=len(live),
             critical_count=sum(r.severity == "critical" for r in live),

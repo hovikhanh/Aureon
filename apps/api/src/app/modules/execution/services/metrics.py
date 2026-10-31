@@ -1,5 +1,5 @@
 """Execution metric provider (03 §2.2, §2.5, §4) — METRIC-OPS-01..03, METRIC-HR-03,
-METRIC-RSK-06 (SEI) and METRIC-STR-01 (G2 "KPI/OKR cập nhật đúng kỳ", R-DEC-54).
+METRIC-STR-02 (SEI) and METRIC-STR-01 (G2 "KPI/OKR cập nhật đúng kỳ", R-DEC-54).
 
 All company scope, `period_key = YYYY-MM` of `as_of`; `value=None` (+ `status_reason`) when
 there is nothing to measure. Status is left to the catalog thresholds. Window: tasks with
@@ -59,10 +59,10 @@ from app.modules.execution.services.project_rules import (
 )
 from app.modules.execution.services.workload import load_tasks, rows_from
 
-__all__ = ["LATE_GAP_PCT", "linear_progress"]  # re-exported (tests / RSK-06)
+__all__ = ["LATE_GAP_PCT", "linear_progress"]  # re-exported (tests / SEI STR-02)
 
 MAX_RECORDS = 50
-SEI_ON_TRACK_RATIO = Decimal("0.9")  # METRIC-RSK-06 (DEC-226)
+SEI_ON_TRACK_RATIO = Decimal("0.9")  # METRIC-STR-02 (DEC-226)
 
 
 def pct(part: int | Decimal, whole: int | Decimal) -> float | None:
@@ -136,9 +136,9 @@ def sei_on_track(i: Initiative, as_of: date) -> bool:
     return Decimal(i.progress_pct) >= expected * SEI_ON_TRACK_RATIO
 
 
-def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricReading:
+def sei_reading(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricReading:
     if not initiatives:
-        return reading("METRIC-RSK-06", None, key, (), "no active initiatives")
+        return reading("METRIC-STR-02", None, key, (), "no active initiatives")
     weights = [Decimal(i.weight_pct) for i in initiatives]
     if sum(weights) == 0:
         weights = [Decimal(1)] * len(initiatives)
@@ -147,7 +147,7 @@ def rsk06(initiatives: Sequence[Initiative], as_of: date, key: str) -> MetricRea
         if sei_on_track(i, as_of):
             hit += w
     late = (i.id for i in initiatives if not sei_on_track(i, as_of))
-    return reading("METRIC-RSK-06", pct(hit, sum(weights)), key,
+    return reading("METRIC-STR-02", pct(hit, sum(weights)), key,
                    refs("initiatives", late), "")  # fmt: skip
 
 
@@ -203,7 +203,7 @@ async def compute(db: AsyncSession, as_of: date) -> list[MetricReading]:
         ops02(projects, project_tasks, as_of, key),
         ops03(due, key),
         hr03(await load_tasks(db, None, as_of), as_of, key),
-        rsk06(await InitiativeRepository(db).in_flight(start, end), as_of, key),
+        sei_reading(await InitiativeRepository(db).in_flight(start, end), as_of, key),
         await load_str01(db, as_of, key),
     ]
 

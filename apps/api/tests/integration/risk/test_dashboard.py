@@ -26,7 +26,7 @@ async def test_dashboard_shape_and_headers(api: ApiClient) -> None:
     assert d["pillar"] == "S" and isinstance(d["open_alerts"], int)  # metric store (T-222)
     # pillar S = Strategy + Risk: METRIC-RSK-* + METRIC-STR-01 (G2, T-630)
     assert all(m["metric_code"].startswith(("METRIC-RSK-", "METRIC-STR-")) for m in d["metrics"])
-    sei = {m["metric_code"]: m["value"] for m in d["metrics"]}.get("METRIC-RSK-06")
+    sei = {m["metric_code"]: m["value"] for m in d["metrics"]}.get("METRIC-STR-02")
     assert d["summary"]["strategy_execution_index"] == sei
     assert len(d["heatmap"]) == 25 and len(d["risk_score_trend"]) == 6
     keys = [p["period_key"] for p in d["risk_score_trend"]]

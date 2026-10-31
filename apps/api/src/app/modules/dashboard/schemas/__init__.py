@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 Pillar = Literal["F", "O", "C", "U", "S"]
+MetricGroup = Literal["FIN", "CUS", "OPS", "PPL", "STR", "DQ"]
 MetricStatus = Literal["ok", "warning", "critical", "no_data"]
 PillarState = Literal["ok", "warning", "critical", "no_data", "unavailable"]
 
@@ -14,6 +15,7 @@ PillarState = Literal["ok", "warning", "critical", "no_data", "unavailable"]
 class MetricValueOut(BaseModel):
     metric_code: str
     pillar: Pillar | None
+    group: MetricGroup | None = None  # nhóm v3 (R-DEC-82); None nếu p1_frozen
     value: float | None
     unit: str
     currency: str | None = None
@@ -22,6 +24,8 @@ class MetricValueOut(BaseModel):
     period_key: str
     computed_at: datetime
     freshness: Literal["fresh", "stale"]
+    is_stale: bool = False  # R-DEC-86 — freshness theo SLA_FRESHNESS_<DOMAIN>_HOURS
+    max_age_hours: int = 24
     data_quality_pct: float | None = None
     lineage_url: str
 

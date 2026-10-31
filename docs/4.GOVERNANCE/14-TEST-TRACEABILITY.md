@@ -225,7 +225,7 @@ Ngưỡng: TC-M16-06, 07, 08, 09, 11, 14, 18 thuộc nhóm **bảo mật** (auto
 
 | TC | Nội dung | Loại | Task | Spec | Trạng thái |
 |---|---|---|---|---|---|
-| TC-M21-01 | Catalog gán `group` đúng cho 33 chỉ số (FIN←F, CUS←C, OPS←O∩execution, PPL←O∩hr, STR←S∩execution, DQ←pillar None); Risk nghiệp vụ (RSK-01..05) + Product (PRD-*) `p1_frozen`, không hiện dashboard v3, không quảng bá AI | unit | T-701 | R-DEC-82 | Planned |
+| TC-M21-01 | Catalog gán `group` đúng cho 34 chỉ số (FIN←F, CUS←C, OPS←O∩execution, PPL←O∩hr, STR←S∩execution, DQ←pillar None); Risk nghiệp vụ (RSK-01..05) + Product (PRD-*) `p1_frozen`, không hiện dashboard v3, không quảng bá AI | unit | T-701 | R-DEC-82 | Planned |
 | TC-M21-02 | SEI đổi mã `METRIC-RSK-06`→`METRIC-STR-02` (`group=STR`, `pillar=S`, `source_module=execution`, `refresh_events` giữ); migration `0022` `downgrade -1 && upgrade head` sạch; alert_code = `ALERT-STR-02`; `MetricValue` cũ theo `metric_id` không mất | unit + integration | T-701 | R-DEC-83 | Planned |
 | TC-M21-03 | `MetricValueOut` thêm `group` + `freshness{computed_at,is_stale,max_age_hours}`; `is_stale` theo `SLA_FRESHNESS_<DOMAIN>_HOURS` (ConfigService, mặc định 24h); shared-types sinh lại trùng commit (drift=0) | unit + contract | T-702 | R-DEC-86, 10 §7.2.6 | Planned |
 | TC-M21-04 | EP-RPT-01 executive: CEO toàn DN / DIR theo khối (`scope_pillars`); trả `summary_line`, `tiles≤4`, `sei`, `decisions_waiting`, `open_risks`, `ai_done`; EMP → `403 FORBIDDEN_ROLE`; trụ ngoài scope vắng mặt (không `null`); cache `private, max-age=60` + `Vary: Authorization` | integration (bảo mật) | T-703 | EP-RPT-01, R-DEC-85, NFR-07 | Planned |

@@ -403,7 +403,7 @@ class InitiativeRepository(Repo[Initiative]):
     model = Initiative
 
     async def in_flight(self, start: date, end: date) -> Sequence[Initiative]:
-        """`active`/`at_risk` initiatives overlapping `[start, end)` (METRIC-RSK-06)."""
+        """`active`/`at_risk` initiatives overlapping `[start, end)` (METRIC-STR-02)."""
         return await self.where(
             Initiative.status.in_(("active", "at_risk")),
             Initiative.start_date < end,

@@ -38,7 +38,7 @@ def test_catalog_entry() -> None:
     assert (d.direction, d.warning, d.critical, d.source_module, d.unit) == (
         LO, 80, 60, "execution", "PERCENT")  # fmt: skip
     assert set(d.refresh_events) == {"execution.kpi_measured", "execution.okr_checked_in"}
-    assert "execution.kpi_measured" in BY_CODE["METRIC-RSK-06"].refresh_events
+    assert "execution.kpi_measured" in BY_CODE["METRIC-STR-02"].refresh_events
     assert platform_consumers.AFFECTS["execution.okr_checked_in"] == {"execution"}
 
 

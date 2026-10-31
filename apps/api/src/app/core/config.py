@@ -137,12 +137,14 @@ class ConfigService(BaseSettings):
     sla_operational_risk_hours: int = 4
     sla_operational_hr_hours: int = 24
     sla_operational_product_hours: int = 24
+    sla_freshness_default_hours: int = 24
     sla_freshness_finance_hours: int = 24
     sla_freshness_sales_hours: int = 24
     sla_freshness_hr_hours: int = 72
     sla_freshness_product_hours: int = 72
     sla_freshness_risk_hours: int = 48
     sla_freshness_execution_hours: int = 24
+    sla_freshness_platform_hours: int = 24
     briefing_time: str = "06:00"
     approval_finance_threshold_vnd: int = 500_000_000
 
@@ -217,6 +219,16 @@ class ConfigService(BaseSettings):
     def model_overrides(self) -> dict[tuple[str, str], str]:
         """`MODEL_<TASK>__<PROVIDER>` (07 §6.2) from the process env and `.env` (env wins)."""
         return _model_overrides(self.model_config.get("env_file"))
+
+    def freshness_hours(self, source_module: str) -> int:
+        """`SLA_FRESHNESS_<DOMAIN>_HOURS` theo source_module (R-DEC-86, M2.1).
+
+        Tách khỏi SLA vận hành (`sla_operational_*`, 03/08). Domain không khai →
+        `SLA_FRESHNESS_DEFAULT_HOURS`. `capture`/`idp`/`sales` ánh xạ về domain gần nhất.
+        """
+        alias = {"idp": "platform", "capture": "platform"}
+        dom = alias.get(source_module, source_module)
+        return int(getattr(self, f"sla_freshness_{dom}_hours", self.sla_freshness_default_hours))
 
     @model_validator(mode="after")
     def _dq_weights_sum_to_one(self) -> "ConfigService":

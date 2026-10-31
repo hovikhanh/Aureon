@@ -148,7 +148,7 @@ Cố định, có công thức + ngưỡng cảnh báo, dùng chung cho Dashboar
 
 ### 4.1. Ánh xạ nhóm v3 ↔ catalog (M2.1, R-DEC-82)
 
-Catalog `platform/services/catalog.py` giữ **33 mã `METRIC-*`** (không đổi, trừ SEI R-DEC-83); mỗi chỉ số mang thêm trường **`group ∈ FIN/CUS/OPS/PPL/STR/DQ`** (suy từ `pillar` + `source_module`) song song `pillar` (F/O/C/U/S) để không phá scope hiện hành. Dashboard v3 nhóm theo `group`; scope role vẫn theo `pillar`/`scope_pillars`.
+Catalog `platform/services/catalog.py` giữ **34 mã `METRIC-*`** (không đổi, trừ SEI R-DEC-83); mỗi chỉ số mang thêm trường **`group ∈ FIN/CUS/OPS/PPL/STR/DQ`** (suy từ `pillar` + `source_module`) song song `pillar` (F/O/C/U/S) để không phá scope hiện hành. Dashboard v3 nhóm theo `group`; scope role vẫn theo `pillar`/`scope_pillars`.
 
 | Nhóm v3 | Pillar v2.1 | source_module | Mã chỉ số | Hiện trên dashboard v3 |
 |---|---|---|---|---|
