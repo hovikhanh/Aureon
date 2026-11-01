@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Collection, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -14,6 +14,7 @@ from app.modules.ai.models import (
     AgentProfile,
     AIAction,
     AutonomyPolicy,
+    Briefing,
     Insight,
     ModelCallLog,
     ToolCallLog,
@@ -82,6 +83,47 @@ class InsightRepository(BaseRepository[Insight]):
             Insight.id == insight_id, Insight.audience_roles.op("@>")([role])
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+
+class BriefingRepository(BaseRepository[Briefing]):
+    """ENT-Briefing — tenant-scoped (R-DEC-21); one row per (recipient, day)."""
+
+    model = Briefing
+
+    async def for_recipient_date(
+        self, recipient_id: uuid.UUID, briefing_date: date
+    ) -> Briefing | None:
+        stmt = self._live().where(
+            Briefing.recipient_id == recipient_id, Briefing.briefing_date == briefing_date
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def by_id_for(self, briefing_id: uuid.UUID, recipient_id: uuid.UUID) -> Briefing | None:
+        stmt = self._live().where(Briefing.id == briefing_id, Briefing.recipient_id == recipient_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def history(
+        self, recipient_id: uuid.UUID, *, date_from: date | None, date_to: date | None,
+        limit: int, offset: int,
+    ) -> tuple[Sequence[Briefing], int]:  # fmt: skip
+        where = [Briefing.recipient_id == recipient_id]
+        if date_from is not None:
+            where.append(Briefing.briefing_date >= date_from)
+        if date_to is not None:
+            where.append(Briefing.briefing_date <= date_to)
+        base = self._live().where(*where)
+        total = (await self.db.execute(
+            select(func.count()).select_from(base.subquery()))).scalar_one()  # fmt: skip
+        rows = (
+            (
+                await self.db.execute(
+                    base.order_by(Briefing.briefing_date.desc()).limit(limit).offset(offset)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return rows, total
 
 
 class ModelCallLogRepository:

@@ -2237,5 +2237,47 @@
     "undo": "Hoàn tác",
     "undoWindow": "Còn {left} để hoàn tác",
     "undoExpired": "Đã quá hạn hoàn tác"
+  },
+  "briefing": {
+    "title": "Tóm tắt điều hành hôm nay",
+    "new": "Mới",
+    "openedAt": "Đã mở lúc {time}",
+    "generatedAt": "Tạo lúc {time}",
+    "stale": "{count, plural, one {# chỉ số đã cũ} other {# chỉ số đã cũ}}: {codes}"
+  },
+  "knowledge": {
+    "title": "Tri thức & báo cáo",
+    "tab": {
+      "decisions": "Nhật ký quyết định",
+      "reports": "Báo cáo"
+    }
+  },
+  "decisions": {
+    "title": "Nhật ký quyết định",
+    "reviewDueFilter": "Chỉ việc tới hạn review",
+    "loading": "Đang tải…",
+    "error": "Không tải được danh sách quyết định.",
+    "empty": "Chưa có quyết định nào.",
+    "decidedAt": "Quyết định ngày {date}",
+    "nextReview": "Review kế tiếp: {date}",
+    "dueChip": "Tới hạn review",
+    "status": {
+      "open": "Đang mở",
+      "in_progress": "Đang thực hiện",
+      "done": "Hoàn tất",
+      "cancelled": "Đã hủy"
+    }
+  },
+  "reports": {
+    "title": "Báo cáo",
+    "loading": "Đang tải…",
+    "loadError": "Không tải được danh mục báo cáo.",
+    "empty": "Chưa có báo cáo nào.",
+    "error": "Không tải được tệp báo cáo.",
+    "catalog": {
+      "executive-summary": "Tổng quan điều hành",
+      "decisions": "Nhật ký quyết định",
+      "metrics-health": "Sức khỏe chỉ số"
+    }
   }
 }

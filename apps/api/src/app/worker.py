@@ -7,6 +7,18 @@ from app.core.config import get_config
 
 _cfg = get_config()
 
+
+def _hhmm(value: str, *, default: tuple[int, int]) -> tuple[int, int]:
+    """Parse a `HH:MM` config string into (hour, minute); fall back on a bad value."""
+    try:
+        h, m = value.split(":")
+        return int(h), int(m)
+    except (ValueError, AttributeError):
+        return default
+
+
+_BRIEF_H, _BRIEF_M = _hhmm(_cfg.briefing_time, default=(6, 0))
+
 celery_app = Celery(
     "aureon",
     broker=_cfg.celery_broker_url.get_secret_value(),
@@ -93,6 +105,16 @@ celery_app.conf.update(
             "task": "app.jobs.calendar_sync",
             "schedule": _cfg.calendar_sync_interval_seconds,
             "options": {"expires": _cfg.calendar_sync_interval_seconds * 2},
+        },
+        # M3.3 T-819 / R-DEC-134 — CEO Daily Briefing at BRIEFING_TIME (default 06:00 local)
+        "generate-briefings": {
+            "task": "app.jobs.generate_briefings",
+            "schedule": crontab(minute=_BRIEF_M, hour=_BRIEF_H),
+        },
+        # M3.3 T-821 / R-DEC-135 — Decision Log 30/60/90 review reminders, daily 07:30 local
+        "decision-reviews": {
+            "task": "app.jobs.decision_reviews",
+            "schedule": crontab(minute=30, hour=7),
         },
     },
 )

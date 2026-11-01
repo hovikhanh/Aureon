@@ -684,6 +684,26 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 - **Approval Matrix / ngưỡng** (R-DEC-130, 02 §7): ngưỡng nhảy L2↔L3 là **cấu hình** (`ENT-AutonomyPolicy` theo tool×role×amount + `APPROVAL_FINANCE_THRESHOLD_VND`), mặc định thận trọng (B5, OQ-02-02 chờ CEO — không chặn). Tạo/giao task nội bộ + sự kiện lịch nội bộ = L3 không bắt buộc duyệt (02 §7). Finance ≥ ngưỡng vẫn mở `ENT-ApprovalRequest` 2 bên (DEC-155, đã có).
 - **Không thêm** endpoint/mã lỗi/event/dependency; test `MODEL_GATEWAY_MODE=fixture` (AI-eval `AUT-*`, 14 §4.3); E2E bước 4–5 kịch bản CEO dùng mock BFF.
 
+#### 7.2.10. M3.3 — D27 CEO Daily Briefing + D28 Decision Log 30/60/90 + báo cáo (Spec lock M3.3 — agent tự chốt 2026-11-02, R-DEC-131..137)
+
+**Quy ước chung M3.3:** Briefing = **ảnh chụp (snapshot)** của `ReportingService.executive()` (EP-RPT-01 đã có) lưu vào `ENT-Briefing` mới (R-DEC-131/132) để tracking mở (G1) + gửi email + xem lại — **không** engine nội dung mới. Nội dung 7 khối (03 §3.1) = summary_line + tiles (kèm `freshness`/`is_stale`, R-DEC-86 đã có → **T-823 không code mới**) + sei + decisions_waiting (Approval + Decision Log) + open_risks + ai_done (L3 feed) + **RECOMMENDATIONS** (Insight kind=recommendation) + **CALENDAR** (sự kiện hôm nay). Mọi số đã grounding từ MetricValue/tool (FR-AIQ-01). Không mã lỗi/event/dependency mới.
+
+| EP | Method | Path | Permission | Ghi chú |
+|---|---|---|---|---|
+| EP-AI-24 | GET | `/ai/briefings/today` | `ai:query` | Briefing hôm nay của người gọi; chưa có → **sinh ngay** (snapshot executive) rồi trả, idempotent (recipient, ngày) qua CK `uq_briefing_recipient_date`. → `BriefingOut` `{id, briefing_date, generated_at, summary_line, payload (ExecutiveDashboardOut + recommendations[] + calendar_today[] + stale_metric_codes[]), opened_at, status}`. Role không `dashboard:read` (EMP/REV) → `403 FORBIDDEN_ROLE`. `no-store` |
+| EP-AI-25 | GET | `/ai/briefings` | `ai:query` | Lịch sử Briefing của người gọi (`recipient_id = sub`); lọc `from`/`to` (date), sort `briefing_date` desc → `BriefingOut[]` + `meta.pagination`. `no-store` |
+| EP-AI-26 | POST | `/ai/briefings/{id}/open` | `ai:query` | Ghi `opened_at` (lần đầu; idempotent — đã mở thì giữ nguyên) → tracking **G1** (North Star §20.1); `status=opened`. Chỉ của người gọi (khác → `404`). Idempotency-Key. → `200 BriefingOut`. Audit `ai.briefing_open` |
+| EP-43 (reuse) | GET | `/execution/decisions` | `execution:read` | **Đã có — không endpoint mới** (T-821): list `ENT-Decision` đã hỗ trợ lọc `status`, `review_due` (mốc `review_at` 30/60/90 ≤ hôm nay — `REVIEW_OFFSETS_DAYS=(30,60,90)`), `meeting_id`, `initiative_id`; sort `decided_at`/`due_date`/`updated_at`; `DecisionOut` + `meta.pagination`. M3.3 chỉ **dùng lại** cho UI `/knowledge/decisions` |
+| EP-43 (reuse) | GET | `/execution/decisions/{id}` | `execution:read` | **Đã có** → `DecisionOut` (ngoài scope → `404`) |
+| EP-RPT-06 | GET | `/reporting/reports` | `dashboard:read` | Danh mục báo cáo cơ bản → `ReportCatalogOut[]` `{code ∈ executive-summary/decisions/metrics-health, title_key, formats: ["csv","xlsx"]}`. `no-store` |
+| EP-RPT-07 | GET | `/reporting/reports/{code}/export` | `dashboard:read` | Query `format ∈ csv\|xlsx` (mặc định csv; khác → `422 VALIDATION_ERROR`); `code` lạ → `404`. Stream file (`Content-Disposition: attachment`); CSV = stdlib `csv`, XLSX = `openpyxl` (R-DEC-136, DEC-120 mở rộng runtime — không thêm dependency). **Không** dữ liệu mức 3–4 (02 §5.3). **PDF hoãn** (reportlab runtime — raise DEC khi human cần). Audit `dashboard.report_export` |
+
+- **ENT-Briefing** (R-DEC-131, 05 §4.8): bảng mới `ai.briefings`; enum `briefing_status` (generated/opened); CK `(recipient_id, briefing_date)`; migration `0025_briefing_m33` reversible. **Đây là thay đổi schema duy nhất của M3.3.**
+- **Beat job + email** (R-DEC-134): `app.jobs.generate_briefings` theo `BRIEFING_TIME` (config `briefing_time` 06:00 đã có), per-tenant idempotent; email **chỉ** summary + link `/home`, không mức 3–4 (dùng NotificationService kind `system` + kênh email T-616b).
+- **Decision Log 30/60/90** (R-DEC-135): sweep `ai/services/verification.py` (đã verify 24h/7d) **mở rộng** đọc mốc `review_at` → nhắc qua Notification khi tới hạn, idempotent (decision, mốc). `record_decision` ghi (đã có); M3.3 chỉ thêm **read** EP-DEC-01/02.
+- **FE M3.3** (R-DEC-137): `/home` CEO khung Briefing 7 khối ≤1 trang (mọi số click được) + `openBriefing` gọi EP-AI-26 khi mount; `/knowledge/decisions`; `/knowledge/reports` (export CSV/XLSX). i18n vi/en; Vitest logic thuần.
+- **Không thêm** mã lỗi/event/dependency ngoài ENT-Briefing + 7 EP trên; test `MODEL_GATEWAY_MODE=fixture` (AI-eval Briefing grounding); E2E UC-01 dùng mock BFF.
+
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
 Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:

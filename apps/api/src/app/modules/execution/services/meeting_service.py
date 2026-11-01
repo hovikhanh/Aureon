@@ -245,6 +245,46 @@ class MeetingService(ExecBase):
         items, total = await self.decisions.list_page(**_page(page), filters=filters, where=where)
         return [decision_out(d) for d in items], total
 
+    async def remind_due_reviews(self, as_of: date) -> int:
+        """M3.3 T-821 (R-DEC-135): notify the decision owner when a 30/60/90-day review date is
+        reached and the outcome is not verified yet. Idempotent per `(decision, review_date)` via
+        the notification dedupe (deterministic title). Returns the number of reminders sent."""
+        from datetime import UTC, datetime
+
+        from app.modules.platform.services.notification_service import NotificationService
+
+        reached = literal(as_of, Date) >= any_(Decision.review_at)
+        rows = await self.decisions.where(
+            Decision.outcome_verified_at.is_(None), reached, order=Decision.decided_at
+        )
+        notifier = NotificationService(self.db)
+        # dedupe window spans the whole 30/60/90-day review horizon (title encodes the date)
+        since = datetime.combine(as_of - timedelta(days=400), datetime.min.time(), tzinfo=UTC)
+        sent = 0
+        for d in rows:
+            if d.owner_id is None:
+                continue
+            due = max((r for r in d.review_at if r <= as_of), default=None)
+            if due is None:
+                continue
+            title = f"decision.review.{due.isoformat()}"
+            if await notifier.already_sent(
+                d.owner_id,
+                kind="reminder",
+                since=since,
+                ref_table="decisions",
+                ref_id=d.id,
+                title=title,
+            ):
+                continue
+            await notifier.create(
+                recipient_id=d.owner_id, kind="reminder", title=title, body=d.content,
+                link="/knowledge/decisions", ref_schema="execution", ref_table="decisions",
+                ref_id=d.id,
+            )  # fmt: skip
+            sent += 1
+        return sent
+
     async def get_decision(self, user: Principal, id_: uuid.UUID, action: str = "read") -> Decision:
         d = await self.decisions.get(id_)
         if d is None:

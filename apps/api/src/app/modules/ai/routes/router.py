@@ -14,6 +14,7 @@ import json
 import re
 import uuid
 from collections.abc import AsyncIterator
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Response
@@ -24,10 +25,12 @@ from app.core.deps import DbSession, Principal, require_permission
 from app.core.errors import ai_error
 from app.core.idempotency import Idem
 from app.core.model_gateway.errors import SecretDataBlockedError
+from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.ai.routes.admin import router as admin_router
 from app.modules.ai.schemas import (
     AIActionOut,
+    BriefingOut,
     ChatAnswerOut,
     ChatRequestIn,
     ConfirmActionIn,
@@ -44,6 +47,7 @@ from app.modules.ai.schemas import (
 from app.modules.ai.services import tool_catalog
 from app.modules.ai.services.action_service import ActionService
 from app.modules.ai.services.ai_service import AiService
+from app.modules.ai.services.briefing_service import BriefingService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
 from app.modules.ai.services.cost_service import CostService, period_window
@@ -239,6 +243,33 @@ async def undo_action(
     action_id: uuid.UUID, body: UndoActionIn, user: AiWriter, db: DbSession, idem: Idem
 ) -> AIActionOut:
     out = await ActionService(db).undo(user, action_id, reason=body.reason)
+    await db.commit()
+    return out
+
+
+@router.get("/briefings/today", response_model=BriefingOut, summary="EP-AI-24 Today's briefing")
+async def briefing_today(user: AiUser, db: DbSession) -> BriefingOut:
+    out = await BriefingService(db).today(user)  # generate-if-missing (idempotent)
+    await db.commit()
+    return out
+
+
+@router.get("/briefings", response_model=list[BriefingOut], summary="EP-AI-25 Briefing history")
+async def list_briefings(
+    user: AiUser, db: DbSession,
+    page: Annotated[PageParams, Depends(page_params("briefing_date"))],
+    date_from: date | None = None, date_to: date | None = None,
+) -> Any:  # fmt: skip
+    return await BriefingService(db).history(
+        user, page, date_from=date_from, date_to=date_to
+    )  # fmt: skip
+
+
+@router.post("/briefings/{briefing_id}/open", response_model=BriefingOut, summary="EP-AI-26 Open")
+async def open_briefing(
+    briefing_id: uuid.UUID, user: AiUser, db: DbSession, idem: Idem
+) -> BriefingOut:
+    out = await BriefingService(db).mark_opened(user, briefing_id)  # G1 tracking
     await db.commit()
     return out
 

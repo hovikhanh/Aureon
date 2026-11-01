@@ -1,6 +1,6 @@
-import { ComingSoon } from "@/components/shell/ComingSoon";
+import { KnowledgeView } from "@/features/knowledge/KnowledgeView";
 
-/** SCR-49 `/knowledge` — frame only; full screen in M3.3 / M3.4 (06 §3.4). */
+/** SCR-49 `/knowledge` (M3.3, 03 §3.5–§3.6) — Decision Log + Reports. */
 export default function Page() {
-  return <ComingSoon item="knowledge" scr="SCR-49" phase="M3.3 / M3.4" />;
+  return <KnowledgeView />;
 }

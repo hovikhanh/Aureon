@@ -70,4 +70,10 @@ export const qk = {
   // M3.1 calendar + integrations (T-803F) — one key per widget
   calendarEvents: (params: Record<string, unknown>) => ["calendar", "events", params] as const,
   integrationProviders: () => ["integrations", "providers"] as const,
+  // M3.3 CEO Daily Briefing (user-facing, not admin) — one key per widget
+  briefingToday: () => ["briefing", "today"] as const,
+  briefings: (params: Record<string, unknown>) => ["briefing", "history", params] as const,
+  // M3.3 knowledge (Decision Log + Reports) — one key per widget
+  decisions: (params: Record<string, unknown>) => ["knowledge", "decisions", params] as const,
+  reports: () => ["knowledge", "reports"] as const,
 };

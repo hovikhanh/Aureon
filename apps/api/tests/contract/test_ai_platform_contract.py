@@ -45,7 +45,8 @@ def spec_rows() -> list[tuple[str, str, str, str]]:
 
 
 def test_spec_lists_every_m16_endpoint() -> None:
-    expected = [f"EP-AI-{i:02d}" for i in range(1, 24)] + ["EP-ADM-13", "EP-ADM-14"]
+    # EP-AI-01..23 (M1.6) + EP-AI-24..26 (M3.3 briefing, R-DEC-131/133) + ADM-13/14.
+    expected = [f"EP-AI-{i:02d}" for i in range(1, 27)] + ["EP-ADM-13", "EP-ADM-14"]
     assert sorted(r[0] for r in spec_rows()) == sorted(expected)
 
 

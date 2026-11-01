@@ -98,6 +98,18 @@ async def calendar_pull(db: AsyncSession) -> int:
     return await CalendarSyncService(db).pull_all()
 
 
+async def briefings(db: AsyncSession) -> int:
+    from app.modules.ai.services.briefing_service import BriefingService
+
+    return await BriefingService(db).generate_all()
+
+
+async def decision_reviews(db: AsyncSession) -> int:
+    from app.modules.execution.services.meeting_service import MeetingService
+
+    return await MeetingService(db).remind_due_reviews(business_today())
+
+
 @celery_app.task(name="app.jobs.daily_burn_check", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def daily_burn_check() -> bool:
     return bool(asyncio.run(_run(burn_check)))
@@ -149,3 +161,17 @@ def checkin_reminder_job() -> int:
 def calendar_sync() -> int:
     """M3.1 T-804: every CALENDAR_SYNC_INTERVAL_SECONDS pull incremental changes per account."""
     return int(asyncio.run(_run(calendar_pull)))
+
+
+@celery_app.task(name="app.jobs.generate_briefings", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def generate_briefings() -> int:
+    """M3.3 T-819/T-819b: at BRIEFING_TIME snapshot one CEO Daily Briefing per active CEO/DIR
+    (idempotent per recipient/day) + e-mail summary (no level-3/4 data)."""
+    return int(asyncio.run(_run(briefings)))
+
+
+@celery_app.task(name="app.jobs.decision_reviews", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def decision_reviews_job() -> int:
+    """M3.3 T-821 (R-DEC-135): daily Decision Log 30/60/90 review reminder to the owner,
+    idempotent per (decision, review date)."""
+    return int(asyncio.run(_run(decision_reviews)))

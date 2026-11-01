@@ -2237,5 +2237,47 @@
     "undo": "Undo",
     "undoWindow": "{left} left to undo",
     "undoExpired": "Undo window has passed"
+  },
+  "briefing": {
+    "title": "Today's executive briefing",
+    "new": "New",
+    "openedAt": "Opened at {time}",
+    "generatedAt": "Generated at {time}",
+    "stale": "{count, plural, one {# stale metric} other {# stale metrics}}: {codes}"
+  },
+  "knowledge": {
+    "title": "Knowledge & reports",
+    "tab": {
+      "decisions": "Decision Log",
+      "reports": "Reports"
+    }
+  },
+  "decisions": {
+    "title": "Decision Log",
+    "reviewDueFilter": "Review-due only",
+    "loading": "Loading…",
+    "error": "Couldn't load the decisions.",
+    "empty": "No decisions yet.",
+    "decidedAt": "Decided {date}",
+    "nextReview": "Next review: {date}",
+    "dueChip": "Review due",
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "loading": "Loading…",
+    "loadError": "Couldn't load the report catalog.",
+    "empty": "No reports yet.",
+    "error": "Couldn't download the report file.",
+    "catalog": {
+      "executive-summary": "Executive summary",
+      "decisions": "Decision log",
+      "metrics-health": "Metrics health"
+    }
   }
 }

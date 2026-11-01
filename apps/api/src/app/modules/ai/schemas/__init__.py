@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -180,11 +180,40 @@ class CostSummaryOut(BaseModel):
     rows: list[CostRowOut] = Field(default_factory=list)
 
 
+class BriefingCalendarItemOut(BaseModel):
+    """A today calendar entry in the briefing (title + time only — no level-3 payload leaks)."""
+
+    id: uuid.UUID
+    title: str
+    starts_at: datetime
+    ends_at: datetime | None = None
+
+
+class BriefingOut(BaseModel):
+    """EP-AI-24/25/26 (10 §7.2.10, R-DEC-131/132): a snapshot of the CEO Daily Briefing.
+
+    `dashboard` is the EP-RPT-01 executive payload (7-block content); `recommendations`,
+    `calendar_today` and `stale_metric_codes` are the extra blocks. Every number is grounded
+    (FR-AIQ-01) because it comes from the metric store / tool results via the reporting service.
+    """
+
+    id: uuid.UUID
+    briefing_date: date
+    generated_at: datetime
+    summary_line: str
+    dashboard: dict[str, Any] = Field(default_factory=dict)
+    recommendations: list[InsightOut] = Field(default_factory=list)
+    calendar_today: list[BriefingCalendarItemOut] = Field(default_factory=list)
+    stale_metric_codes: list[str] = Field(default_factory=list)
+    opened_at: datetime | None = None
+    status: Literal["generated", "opened"]
+
+
 __all__ = [
     "AIActionOut", "AIAgentOut", "AgentPatchIn", "AutonomyPolicyCreateIn", "AutonomyPolicyOut",
-    "AutonomyPolicyPatchIn", "ChatAnswerOut", "ChatContext", "ChatRequestIn", "ConfidenceOut",
-    "ConfirmActionIn", "ConversationOut", "CostRowOut", "CostSummaryOut", "FunctionCallOut",
-    "InsightOut", "KillSwitchIn", "KillSwitchOut", "MessageOut", "ModelCallLogOut",
-    "PolicyDefaultOut", "RecommendationOut", "RejectActionIn", "SourceRefOut", "ToolCallLogOut",
-    "ToolOut", "UndoActionIn",
+    "AutonomyPolicyPatchIn", "BriefingCalendarItemOut", "BriefingOut", "ChatAnswerOut",
+    "ChatContext", "ChatRequestIn", "ConfidenceOut", "ConfirmActionIn", "ConversationOut",
+    "CostRowOut", "CostSummaryOut", "FunctionCallOut", "InsightOut", "KillSwitchIn",
+    "KillSwitchOut", "MessageOut", "ModelCallLogOut", "PolicyDefaultOut", "RecommendationOut",
+    "RejectActionIn", "SourceRefOut", "ToolCallLogOut", "ToolOut", "UndoActionIn",
 ]  # fmt: skip

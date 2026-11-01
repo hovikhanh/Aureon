@@ -113,3 +113,11 @@ class ExecutiveTilesOut(BaseModel):
 class ExecutiveTilesIn(BaseModel):
     tiles: list[str] = Field(max_length=4)
     version: int
+
+
+class ReportCatalogOut(BaseModel):
+    """EP-RPT-06 — a basic report in the export catalogue (M3.3, R-DEC-136)."""
+
+    code: str
+    title_key: str
+    formats: list[str] = Field(default_factory=list)

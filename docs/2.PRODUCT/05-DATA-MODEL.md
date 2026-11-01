@@ -494,6 +494,26 @@ Migration `0024_calendar_m31` (down_revision `0023_meeting_m23`; reversible; `do
 
 - Phân loại: `calendar_events` mức 3 CONFIDENTIAL (R-DEC-123) — không gửi LLM cloud; token `EncryptedText`, không bao giờ trả ra API/log/event. Enum mới: `execution.calendar_source`, `platform.calendar_provider`, `platform.calendar_account_status`. Index mọi FK (§5.7).
 
+### §2.11 — Field-level M3.3 (CEO Daily Briefing, R-DEC-131; chi tiết hóa per-domain R-DEC-09)
+
+Migration `0025_briefing_m33` (down_revision `0024_calendar_m31`; reversible; `downgrade` drop bảng + enum mới). Schema `ai` (D27). **Thay đổi schema duy nhất của M3.3** — Decision Log tái dùng `ENT-Decision` (đã có, không sửa), Reporting tái dùng dữ liệu đã có.
+
+**ENT-Briefing — `ai.briefings`** (mới; `BusinessModel`: id UUID, tenant_id, created_at/updated_at, deleted_at)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `recipient_id` | UUID NOT NULL (soft ref `auth.users`), index | Người nhận Briefing; data-scope theo user |
+| `briefing_date` | date NOT NULL | Ngày (giờ địa phương DN); **unique `(recipient_id, briefing_date)`** → idempotent (user, ngày) R-DEC-131 |
+| `generated_at` | timestamptz NOT NULL | Lúc sinh snapshot |
+| `summary_line` | text NOT NULL | Dòng tóm tắt (cho email, không mức 3–4) |
+| `payload` | JSONB NOT NULL | Snapshot `ExecutiveDashboardOut` + `recommendations[]` (Insight) + `calendar_today[]` + `stale_metric_codes[]` — số đã grounding (FR-AIQ-01) |
+| `stale_metric_codes` | ARRAY(text) NOT NULL default `{}` | Metric `is_stale` nêu trong Briefing (T-823, R-DEC-86) |
+| `opened_at` | timestamptz NULL | Lần mở đầu tiên (NULL = chưa mở) → tracking **G1** (R-DEC-134) |
+| `delivered_email_at` | timestamptz NULL | Lúc gửi email tóm tắt (T-619b) |
+| `status` | `ai.briefing_status` enum `generated`/`opened` NOT NULL default `generated` | mở lần đầu → `opened` |
+
+- Phân loại: Briefing `payload` chỉ chứa số đã grounding + id/mã (không PII mức 4; summary email không mức 3–4 — 02 §5.3). Enum mới: `ai.briefing_status`. CK `uq_briefing_recipient_date`. Index mọi FK/`recipient_id` (§5.7). Endpoint EP-AI-24/25/26 + job `generate_briefings` (10 §7.2.10).
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).

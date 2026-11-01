@@ -267,6 +267,26 @@ export type BreakdownRow = {
   record_count: number;
 };
 
+export type BriefingCalendarItemOut = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+};
+
+export type BriefingOut = {
+  id: string;
+  briefing_date: string;
+  generated_at: string;
+  summary_line: string;
+  dashboard?: Record<string, unknown>;
+  recommendations?: InsightOut[];
+  calendar_today?: BriefingCalendarItemOut[];
+  stale_metric_codes?: string[];
+  opened_at?: string | null;
+  status: "generated" | "opened";
+};
+
 export type BudgetCategory = {
   category: "cogs" | "salary" | "infrastructure" | "marketing" | "office" | "travel" | "other";
   allocated_amount: number;
@@ -1042,6 +1062,11 @@ export type Envelope_AutonomyPolicyOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_BriefingOut_ = {
+  data: BriefingOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_BudgetOut_ = {
   data: BudgetOut;
   meta?: Meta | null;
@@ -1552,6 +1577,11 @@ export type Envelope_list_AutonomyPolicyOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_BriefingOut__ = {
+  data: BriefingOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_BudgetOut__ = {
   data: BudgetOut[];
   meta?: Meta | null;
@@ -1814,6 +1844,11 @@ export type Envelope_list_ProviderStatusOut__ = {
 
 export type Envelope_list_ReleaseOut__ = {
   data: ReleaseOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ReportCatalogOut__ = {
+  data: ReportCatalogOut[];
   meta?: Meta | null;
 };
 
@@ -3687,6 +3722,12 @@ export type ReplayOut = {
   queued_at: string;
 };
 
+export type ReportCatalogOut = {
+  code: string;
+  title_key: string;
+  formats?: string[];
+};
+
 export type ResultRefOut = {
   schema: string;
   table: string;
@@ -4766,6 +4807,18 @@ export interface ApiOperations {
     request: AutonomyPolicyPatchIn;
     response: Envelope_AutonomyPolicyOut_;
   };
+  "GET /api/v1/ai/briefings": {
+    request: void;
+    response: Envelope_list_BriefingOut__;
+  };
+  "GET /api/v1/ai/briefings/today": {
+    request: void;
+    response: Envelope_BriefingOut_;
+  };
+  "POST /api/v1/ai/briefings/{briefing_id}/open": {
+    request: void;
+    response: Envelope_BriefingOut_;
+  };
   "POST /api/v1/ai/chat": {
     request: ChatRequestIn;
     response: Envelope_ChatAnswerOut_;
@@ -5753,6 +5806,14 @@ export interface ApiOperations {
   "PUT /api/v1/reporting/preferences/executive-tiles": {
     request: ExecutiveTilesIn;
     response: Envelope_ExecutiveTilesOut_;
+  };
+  "GET /api/v1/reporting/reports": {
+    request: void;
+    response: Envelope_list_ReportCatalogOut__;
+  };
+  "GET /api/v1/reporting/reports/{code}/export": {
+    request: void;
+    response: void;
   };
   "GET /api/v1/risk/dashboard": {
     request: void;

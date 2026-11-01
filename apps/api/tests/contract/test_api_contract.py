@@ -27,11 +27,12 @@ SPEC = Path(REPO_ROOT) / "docs" / "3.EXECUTION" / "10-API-SPECIFICATION.md"
 PUBLIC_ALLOWED = {("POST", "/auth/login"), ("POST", "/auth/refresh"), ("GET", "/health")}
 # SSE (`text/event-stream`, EP-111) streams events, not a JSON envelope (10 §1.3 / CLAUDE.md §5.8).
 STREAMING = {("POST", "/ai/chat/stream")}
-# Binary downloads (EP-DC-21 error rows `.xlsx`; EP-DC-14b source file R-DEC-80, 10 §7.2.4)
-# return the file, not a JSON envelope.
+# Binary downloads (EP-DC-21 error rows `.xlsx`; EP-DC-14b source file R-DEC-80, 10 §7.2.4;
+# EP-RPT-07 report export CSV/XLSX, M3.3 R-DEC-136) return the file, not a JSON envelope.
 BINARY = {
     ("GET", "/data-capture/imports/{batch_id}/error-file"),
     ("GET", "/files/{storage_key:path}"),
+    ("GET", "/reporting/reports/{code}/export"),
 }
 # OAuth redirect callbacks (EP-INT-03, 10 §7.2.8) 302 the browser back to the web app — a
 # `RedirectResponse`, not a JSON envelope.

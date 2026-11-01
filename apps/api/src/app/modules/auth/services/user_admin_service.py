@@ -28,6 +28,7 @@ from app.core.errors import (
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
 from app.core.security import hash_password
+from app.core.tenant import require_tenant
 from app.modules.auth.models import Role, User
 from app.modules.auth.repositories import RefreshTokenRepository, RoleRepository, UserRepository
 from app.modules.auth.schemas import RoleOut, UserAdminOut, UserCreate, UserUpdate
@@ -88,6 +89,33 @@ class UserAdminService:
 
     async def roles_list(self) -> list[RoleOut]:
         return [role_out(r) for r in await self.roles.all()]
+
+    async def executive_principals(self) -> list[Principal]:
+        """Active CEO/DIR users as ready `Principal`s (M3.3 briefing job, R-DEC-134).
+
+        Each carries its role's full permission set + `scope_pillars` so scoped reads behave
+        exactly like a request principal. Service accounts (role AI) are excluded.
+        """
+        roles = {r.code: r for r in await self.roles.all()}
+        role_ids = [roles[c].id for c in ("CEO", "DIR") if c in roles]
+        if not role_ids:
+            return []
+        users = await self.users.active_by_roles(role_ids, None)
+        id_to_role = {r.id: r for r in roles.values()}
+        return [
+            Principal(
+                user_id=u.id,
+                role=id_to_role[u.role_id].code,
+                permissions=frozenset(id_to_role[u.role_id].permissions),
+                department_id=u.department_id,
+                email=u.email,
+                role_id=str(u.role_id),
+                tenant_id=require_tenant(),
+                scope_pillars=frozenset(u.scope_pillars or []),
+                employee_id=u.employee_id or u.id,
+            )
+            for u in users
+        ]
 
     # ---------- helpers ----------
     async def _user(self, user_id: uuid.UUID, *, lock: bool = False) -> User:

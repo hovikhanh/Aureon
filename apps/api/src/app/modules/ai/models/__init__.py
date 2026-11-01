@@ -1,6 +1,6 @@
-"""Schema `ai` — 9 tables (05 §4.8). Column groups follow 05 §2.1.
+"""Schema `ai` — 10 tables (05 §4.8). Column groups follow 05 §2.1.
 
-- business: insights, ai_actions
+- business: insights, ai_actions, briefings (M3.3)
 - config:   autonomy_policies (+ soft delete — its UQ is `WHERE deleted_at IS NULL`),
             agent_profiles (no `deleted_at`; disable via `is_enabled`)
 - log:      conversations (+ soft delete — "xóa hội thoại = xóa mềm ở conversations"),
@@ -17,6 +17,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Index,
     Integer,
@@ -60,6 +61,7 @@ INSIGHT_STATUS = pg_enum(S, "insight_status", "active", "dismissed", "expired")
 AI_ACTION_STATUS = pg_enum(
     S, "ai_action_status", "proposed", "confirmed", "executed", "rejected", "undone", "failed"
 )
+BRIEFING_STATUS = pg_enum(S, "briefing_status", "generated", "opened")  # M3.3, R-DEC-131
 
 MODULE_ENUMS: tuple[ENUM, ...] = (
     MESSAGE_SENDER,
@@ -68,6 +70,7 @@ MODULE_ENUMS: tuple[ENUM, ...] = (
     INSIGHT_KIND,
     INSIGHT_STATUS,
     AI_ACTION_STATUS,
+    BRIEFING_STATUS,
 )
 
 
@@ -306,3 +309,31 @@ class AIAction(BusinessModel):
     undone_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     undone_by: Mapped[uuid.UUID | None] = sr()
     verification: Mapped[Any] = mapped_column(JSONB, nullable=True)
+
+
+class Briefing(BusinessModel):
+    """ENT-Briefing — business (05 §2.11, R-DEC-131): daily snapshot of the CEO briefing.
+
+    One row per `(recipient_id, briefing_date)` (UQ → idempotent job per user/day). `payload`
+    snapshots `ExecutiveDashboardOut` + recommendations/calendar/stale (all grounded numbers,
+    FR-AIQ-01); `opened_at` drives G1 tracking. The email summary carries `summary_line` only
+    (no level-3/4 data, 02 §5.3).
+    """
+
+    __tablename__ = "briefings"
+    __table_args__ = (
+        UniqueConstraint("recipient_id", "briefing_date", name="uq_briefing_recipient_date"),
+        {"schema": S},
+    )
+
+    recipient_id: Mapped[uuid.UUID] = sr(nullable=False)
+    briefing_date: Mapped[Any] = mapped_column(Date, nullable=False, index=True)
+    generated_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    summary_line: Mapped[str] = txt()
+    payload: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    stale_metric_codes: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    opened_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    delivered_email_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    status: Mapped[str] = mapped_column(BRIEFING_STATUS, nullable=False, server_default="generated")

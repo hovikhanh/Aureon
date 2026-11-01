@@ -12,6 +12,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Response
 
+from app.core.audit import record_audit
 from app.core.deps import DbSession, Principal, require_permission
 from app.core.idempotency import Idem
 from app.core.routing import EnvelopeRouter
@@ -21,8 +22,10 @@ from app.modules.dashboard.schemas.reporting import (
     ExecutiveDashboardOut,
     ExecutiveTilesIn,
     ExecutiveTilesOut,
+    ReportCatalogOut,
 )
 from app.modules.dashboard.services.dashboard_service import metric_visible
+from app.modules.dashboard.services.report_service import ReportExportService
 from app.modules.dashboard.services.reporting_service import ReportingService
 from app.modules.platform.services.catalog import BY_CODE
 from app.modules.platform.services.preference_service import UserPreferenceService
@@ -92,3 +95,26 @@ async def set_tiles(body: ExecutiveTilesIn, db: DbSession, user: Writer, idem: I
     out = ExecutiveTilesOut(tiles=tiles, version=version)
     await idem.remember(out)
     return out
+
+
+@router.get("/reports", response_model=list[ReportCatalogOut], summary="EP-RPT-06 Report catalog")
+async def report_catalog(db: DbSession, user: Reader, response: Response) -> Any:
+    response.headers["Cache-Control"] = "no-store"
+    return ReportExportService(db).catalog()
+
+
+@router.get("/reports/{code}/export", summary="EP-RPT-07 Export report (CSV/XLSX)")
+async def export_report(
+    code: str, db: DbSession, user: Reader, response: Response, format: str = "csv"
+) -> Response:
+    content, media_type, filename = await ReportExportService(db).export(user, code, format)
+    await record_audit(
+        db, action="dashboard.report_export", target_schema="dashboard",
+        target_table="reports", metadata={"code": code, "format": format},
+    )  # fmt: skip
+    await db.commit()
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

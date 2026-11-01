@@ -6,6 +6,7 @@ import { AlertTriangle, Bot, ClipboardCheck } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
 import { InsightsPanel } from "@/features/ai/InsightsPanel";
+import { BriefingBanner } from "@/features/briefing/BriefingBanner";
 import { MetricTile } from "./MetricTile";
 import type { ExecutiveDashboard } from "./types";
 
@@ -22,6 +23,7 @@ export function ExecutiveView() {
   const d = q.data;
   return (
     <div className="flex flex-col gap-6" data-testid="exec-view">
+      <BriefingBanner />
       <p className="text-base text-muted-foreground" data-testid="summary-line">{d.summary_line}</p>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="exec-tiles">
         {d.tiles.map((m) => <MetricTile key={m.metric_code} m={m} />)}
