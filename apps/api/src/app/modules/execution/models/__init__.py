@@ -42,6 +42,7 @@ TASK_PRIORITY = pg_enum(S, "task_priority", "low", "medium", "high", "urgent")
 TASK_SOURCE = pg_enum(S, "task_source", "manual", "meeting", "ai", "document", "mitigation")
 PROJECT_STATUS = pg_enum(S, "project_status", "planned", "active", "on_hold", "done", "cancelled")
 OBJECTIVE_LEVEL = pg_enum(S, "objective_level", "company", "department", "team", "individual")
+CALENDAR_SOURCE = pg_enum(S, "calendar_source", "internal", "google", "outlook")  # M3.1 R-DEC-117
 OKR_STATUS = pg_enum(S, "okr_status", "draft", "active", "closed")
 OKR_TYPE = pg_enum(S, "okr_type", "committed", "aspirational")
 KPI_DIRECTION = pg_enum(
@@ -639,3 +640,49 @@ class KrMeasurement(LogModel, TenantMixin):
     confidence: Mapped[str] = mapped_column(CONFIDENCE_BAND, nullable=False)
     measured_at: Mapped[datetime] = mapped_column(TS, nullable=False)
     measured_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+# ---------- calendar (M3.1, 05 §2.10, R-DEC-117) ----------
+class CalendarEvent(BusinessModel):
+    """ENT-CalendarEvent (M3.1) — lịch nội bộ + đồng bộ provider; mức 3 Confidential (R-DEC-123)."""
+
+    __tablename__ = "calendar_events"
+    __table_args__ = schema_args(S)
+
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    title: Mapped[str] = txt()
+    description: Mapped[str | None] = txt(nullable=True)
+    starts_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    location: Mapped[str | None] = txt(nullable=True)
+    event_source: Mapped[str] = mapped_column(
+        CALENDAR_SOURCE, nullable=False, server_default=text("'internal'")
+    )
+    visibility: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'private'"))
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+
+class ExternalEventLink(LogModel, TenantMixin):
+    """ENT-ExternalEventLink (M3.1) — ánh xạ event nội bộ ↔ provider; idempotent push/pull."""
+
+    __tablename__ = "external_event_links"
+    __table_args__ = (
+        Index("uq_external_event_links_acct_ext", "account_id", "external_id", unique=True),
+        schema_args(S),
+    )
+
+    calendar_event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.calendar_events.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    account_id: Mapped[uuid.UUID] = sr(nullable=False)
+    external_id: Mapped[str] = txt()
+    etag: Mapped[str | None] = txt(nullable=True)
+    last_pushed_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)

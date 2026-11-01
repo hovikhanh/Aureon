@@ -54,6 +54,10 @@ REPORT_FORMAT = pg_enum("platform", "report_format", "PDF", "XLSX")
 REPORT_STATUS = pg_enum("platform", "report_status", "QUEUED", "GENERATING", "READY", "FAILED")
 OUTBOX_STATUS = pg_enum("platform", "outbox_status", "PENDING", "PUBLISHED", "FAILED")
 PROCESSING_STATUS = pg_enum("platform", "processing_status", "DONE", "DLQ")
+CALENDAR_PROVIDER = pg_enum("platform", "calendar_provider", "google", "outlook")  # M3.1 R-DEC-117
+CALENDAR_ACCOUNT_STATUS = pg_enum(  # M3.1 R-DEC-117
+    "platform", "calendar_account_status", "connected", "expired", "revoked"
+)
 
 # --- cross-schema owned types ---
 ROLE_CODE = pg_enum(
@@ -67,5 +71,6 @@ SHARED_ENUMS: tuple[ENUM, ...] = (
     METRIC_VALUE_KIND, SCOPE_TYPE, VALUE_ORIGIN, THRESHOLD_STATUS, ALERT_SEVERITY, ALERT_STATUS,
     LINEAGE_KIND, NOTIFICATION_KIND, RECORD_SOURCE, DATA_CLASSIFICATION, APPROVAL_STATUS,
     REPORT_KIND, REPORT_FORMAT, REPORT_STATUS, OUTBOX_STATUS, PROCESSING_STATUS, EMAIL_STATUS,
+    CALENDAR_PROVIDER, CALENDAR_ACCOUNT_STATUS,
     ROLE_CODE, AUTONOMY_LEVEL,
 )  # fmt: skip

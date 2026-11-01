@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -29,12 +30,15 @@ from app.core.base_model import (
     TenantMixin,
 )
 from app.core.columns import currency, fk, measure, money, schema_args, sr, txt
+from app.core.crypto_columns import EncryptedText
 from app.core.enums import (
     ACTOR_TYPE,
     ALERT_SEVERITY,
     ALERT_STATUS,
     APPROVAL_STATUS,
     AUTONOMY_LEVEL,
+    CALENDAR_ACCOUNT_STATUS,
+    CALENDAR_PROVIDER,
     EMAIL_STATUS,
     LINEAGE_KIND,
     METRIC_UNIT,
@@ -445,6 +449,47 @@ class ProcessedEvent(LogModel):
     status: Mapped[str] = mapped_column(PROCESSING_STATUS, nullable=False)
     attempts: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("1"))
     last_error: Mapped[str | None] = txt(nullable=True)
+
+
+# ---------- calendar integration (M3.1, 05 §2.10, R-DEC-117) ----------
+class CalendarAccount(BusinessModel):
+    """ENT-CalendarAccount (M3.1) — OAuth per-user (R-DEC-17); token mã hóa cột, không trả API."""
+
+    __tablename__ = "calendar_accounts"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "user_id", "provider", name="uq_calendar_accounts_user_provider"
+        ),
+        {"schema": S},
+    )
+
+    user_id: Mapped[uuid.UUID] = sr(nullable=False)
+    provider: Mapped[str] = mapped_column(CALENDAR_PROVIDER, nullable=False)
+    access_token: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
+    refresh_token: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
+    scope: Mapped[str | None] = txt(nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    status: Mapped[str] = mapped_column(
+        CALENDAR_ACCOUNT_STATUS, nullable=False, server_default=text("'connected'")
+    )
+
+
+class CalendarSyncState(LogModel, TenantMixin):
+    """ENT-SyncState (M3.1) — con trỏ đồng bộ incremental theo tài khoản (syncToken/deltaLink)."""
+
+    __tablename__ = "calendar_sync_states"
+    __table_args__ = schema_args(S)
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{S}.calendar_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sync_token: Mapped[str | None] = txt(nullable=True)
+    delta_link: Mapped[str | None] = txt(nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    cursor: Mapped[str | None] = txt(nullable=True)
 
 
 class AuditLogImmutableError(RuntimeError):
