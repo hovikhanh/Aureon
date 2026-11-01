@@ -162,6 +162,20 @@ class ConfigService(BaseSettings):
     web_base_url: str = "http://localhost:3000"  # absolute links in e-mails
     notification_email_interval_seconds: float = Field(default=60, gt=0)
 
+    # --- Calendar / Integration Hub (M3.1, R-DEC-118) — OAuth delegated per-user (R-DEC-17) ---
+    # Empty client id/secret → provider "not configured"; `connect` → 503 DEPENDENCY_UNAVAILABLE
+    # (no new error code). `.env.example` carries placeholders only (never real secrets).
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: SecretStr | None = None
+    google_oauth_redirect_uri: str = "http://localhost:4000/api/v1/integrations/google/callback"
+    ms_oauth_client_id: str = ""
+    ms_oauth_client_secret: SecretStr | None = None
+    ms_oauth_tenant: str = "common"
+    ms_oauth_redirect_uri: str = "http://localhost:4000/api/v1/integrations/outlook/callback"
+    # Incremental pull cadence (R-DEC-121). Beat job; one instance. HTTP timeout per provider call.
+    calendar_sync_interval_seconds: float = Field(default=300, gt=0)
+    calendar_http_timeout_seconds: float = Field(default=15, gt=0, le=60)
+
     # --- Demo ---
     demo_mode: bool = False
     demo_reference_date: str = "2026-10-20"
