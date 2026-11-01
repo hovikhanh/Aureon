@@ -443,6 +443,57 @@ Nhóm bảng theo 05 §2.1: **nghiệp vụ** (C3/C4/C19 + `tenant_id` + `delete
 - Phân loại: `meeting_summaries`/`action_items` mức 2 Nội bộ (chuỗi "Họp & quyết định", §2.1); `owner_name_raw` mức 2 — **không** đưa vào payload event (R-DEC-102, chỉ id/mã). `MeetingTranscript` giữ mức 3 CONFIDENTIAL.
 - Enum mới (schema `execution`): `summary_origin`, `name_match_status`. Index mọi FK (§5.7).
 
+### §2.10 — Field-level M3.1 (Integration Hub + Calendar, R-DEC-117; chi tiết hóa per-domain R-DEC-09)
+
+Migration `0024_calendar_m31` (down_revision `0023_meeting_m23`; reversible; `downgrade` drop 4 bảng + enum mới). Schema: lịch ở `execution` (D13), tài khoản/sync Integration Hub ở `platform` (D06). Chuỗi: `CalendarAccount` 1─N `SyncState`, 1─N `ExternalEventLink`; `CalendarEvent` 1─N `ExternalEventLink`.
+
+**ENT-CalendarEvent — `execution.calendar_events`** (mới; `BusinessModel`: id UUID, tenant_id, created_at/updated_at, deleted_at)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `owner_id` | UUID NOT NULL (soft ref `hr.employees`/`auth.users`), index | Chủ sự kiện; data-scope theo user |
+| `title` | text NOT NULL | Tiêu đề |
+| `description` | text NULL | Mô tả |
+| `starts_at` / `ends_at` | timestamptz NOT NULL / NULL | ISO 8601 UTC |
+| `location` | text NULL | Địa điểm/URL họp |
+| `event_source` | `execution.calendar_source` enum `internal`/`google`/`outlook` NOT NULL default `internal` | **`event_source` không dùng `source` trần (DEC-154)** |
+| `visibility` | text NOT NULL default `private` | `private`/`internal` |
+| `classification` | text NOT NULL default `confidential` | Mức 3 — không gửi LLM cloud (R-DEC-123) |
+| `task_id` | UUID NULL FK `execution.tasks.id` (SET NULL), index | Deadline task → event (R-DEC-122), idempotent theo task |
+
+**ENT-CalendarAccount — `platform.calendar_accounts`** (mới; `BusinessModel`)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `user_id` | UUID NOT NULL, index | Người kết nối (R-DEC-17 per-user) |
+| `provider` | `platform.calendar_provider` enum `google`/`outlook` NOT NULL | unique `(tenant_id, user_id, provider)` |
+| `access_token` / `refresh_token` | `EncryptedText` NULL | Mã hóa cột (DEC-141-cùng-họ); **không** log/trả API |
+| `scope` | text NULL | OAuth scope cấp |
+| `expires_at` | timestamptz NULL | Hạn access token |
+| `status` | `platform.calendar_account_status` enum `connected`/`expired`/`revoked` NOT NULL default `connected` | token hết hạn → `expired` + notify (R-DEC-121) |
+
+**ENT-SyncState — `platform.calendar_sync_states`** (mới; `BusinessModel`)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `account_id` | UUID NOT NULL FK `platform.calendar_accounts.id` (CASCADE), index | |
+| `sync_token` | text NULL | Google incremental syncToken |
+| `delta_link` | text NULL | Outlook deltaLink |
+| `last_synced_at` | timestamptz NULL | Lần kéo về cuối |
+| `cursor` | text NULL | Con trỏ phân trang tạm |
+
+**ENT-ExternalEventLink — `execution.external_event_links`** (mới; `BusinessModel`)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `calendar_event_id` | UUID NOT NULL FK `execution.calendar_events.id` (CASCADE), index | |
+| `account_id` | UUID NOT NULL FK `platform.calendar_accounts.id` (CASCADE), index | |
+| `external_id` | text NOT NULL | ID sự kiện bên provider — **unique `(account_id, external_id)`** (idempotent đẩy/kéo) |
+| `etag` | text NULL | Phát hiện xung đột last-writer-wins (R-DEC-121) |
+| `last_pushed_at` | timestamptz NULL | Lần đẩy ra cuối |
+
+- Phân loại: `calendar_events` mức 3 CONFIDENTIAL (R-DEC-123) — không gửi LLM cloud; token `EncryptedText`, không bao giờ trả ra API/log/event. Enum mới: `execution.calendar_source`, `platform.calendar_provider`, `platform.calendar_account_status`. Index mọi FK (§5.7).
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -563,6 +614,7 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - **Version:** 1.2.0 (current)
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
+- **Change 1.6.0 (Spec lock M3.1, 2026-11-01 — agent tự chốt, R-DEC-117; chi tiết hóa per-domain R-DEC-09):** §2.10 field-level M3.1 — **ENT-CalendarEvent** (`execution.calendar_events`: owner_id/title/starts_at/ends_at/`event_source` enum/visibility/classification `confidential`/task_id) + **ENT-CalendarAccount** (`platform.calendar_accounts`: user_id/provider enum/access_token+refresh_token `EncryptedText`/scope/expires_at/status) + **ENT-SyncState** (`platform.calendar_sync_states`: account_id/sync_token/delta_link/last_synced_at) + **ENT-ExternalEventLink** (`execution.external_event_links`: calendar_event_id/account_id/external_id/etag, unique (account_id, external_id)); migration `0024_calendar_m31` (down_revision `0023_meeting_m23`); enum mới `execution.calendar_source`, `platform.calendar_provider`, `platform.calendar_account_status`; lịch mức 3 CONFIDENTIAL (không gửi LLM cloud, R-DEC-123), token mã hóa cột; `event_source` không dùng `source` trần (DEC-154).
 - **Change 1.5.0 (Spec lock M2.3, 2026-10-31 — agent tự chốt, R-DEC-100):** §2.9 field-level M2.3 — **ENT-MeetingSummary** (`execution.meeting_summaries`, 1-1 Meeting, summary_text/key_points/generated_by/model_call_id/status) + **ENT-ActionItem** (`execution.action_items`, meeting_id/decision_id/title/owner_id(fuzzy)/owner_name_raw/due_date/confidence/match_status/task_id(chỉ set sau duyệt)/source_document_id/status); migration `0023_meeting_m23` (down_revision `0022`); enum mới `summary_origin`, `name_match_status` (schema `execution`); mức 2 Nội bộ, `owner_name_raw` không vào payload event (R-DEC-102).
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §2.5 field-level M1.3 (task `parent_task_id`/`source_ref`, `task_dependencies`, `projects.initiative_id`, `approval_rules` — migration `0014`/`0015`); §2.6 M1.4 (`strategies`, `strategic_objectives`, KPITarget effective-dated, KPIMeasurement lịch sử, `kpi_evaluations`, KR measurement/at-risk — `0016`/`0017`); §2.7 M1.5 (`import_batches`/`import_rows`, `document_actions`, schema/rule, incident, `data_lineage` mở rộng — `0018`/`0019`); §2.8 M1.6 (`tool_call_logs`/`model_call_logs` + `request_id`/`tenant_id`, agent, autonomy policy, onboarding state — `0020`, `0021` để trống). §7 ghi chú ánh xạ tên event BRD ↔ mã code. Open questions: thêm OQ-05-09..12.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-24/32/33/34, chờ human duyệt bước S):** §2.4 field-level M1.2: `hr.organizations` (ENT-Organization, effective-dated), `hr.departments` + `organization_id`/`valid_from`/`valid_to` + unique `code` theo tenant, `hr.teams` + `valid_from`/`valid_to`, `hr.employee_assignments` (ENT-EmployeeAssignment, nửa mở, tối đa một hiện hành/NV, không chồng khoảng; cột cache trên `employees`), `platform.notifications` + `tenant_id`/`email_status`/`email_sent_at`/`email_attempts`, `platform.notification_preferences` (mới), bảng classification per-field mức 3/4 cho mask serializer (T-615); §6ter ghi mô hình `valid_from/valid_to`; thêm OQ-05-06..08.

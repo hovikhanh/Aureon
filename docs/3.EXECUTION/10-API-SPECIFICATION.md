@@ -715,6 +715,7 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 | `idp.document_rolled_back` *(M1.5, R-DEC-67 — **mới publish**, đã có registry)* | Undo EP-DC-24 thành công — sau khi đảo mọi ACT, cùng transaction | D03 | Gỡ insight/alert dựa trên bản ghi đã đảo; tính lại metric |
 | `ai.policy_changed` *(M1.6, đề xuất R-DEC-77)* | Bật/tắt/sửa kill switch (EP-AI-13), sửa agent (EP-AI-17), tạo/sửa/xóa autonomy policy (EP-AI-19..21) | D26 AI Platform | Payload `{change ∈ kill_switch/agent/autonomy_policy, ref_id?, agent_code?, tool_name?, enabled?, mode?, level?}` — không PII, không `reason` tự do. Consumer M1.6: chưa có (relay + webhook NFR-INT-01); dự kiến M3.4 Evaluation Engine/AIAudit. Cache resolve_level **không** dựa event (đọc DB mỗi lượt) |
 | `platform.onboarding_completed` *(M1.6, đề xuất R-DEC-77)* | EP-ADM-14 `action=finish` | D02 Admin | Payload `{started_at, completed_at, duration_minutes, within_one_day: bool, counts{departments, employees, users, kpis, objectives}}`. Consumer M1.6: chưa có; M2.1 dùng để bật Executive dashboard đầu tiên + metric time-to-value |
+| `calendar.event_changed` *(M3.1, đề xuất R-DEC-120; mã code `execution.calendar_event_changed`)* | CalendarEvent nội bộ tạo/sửa/xóa (CRUD `/calendar/events`, deadline task→event) — cùng transaction qua `publish_in_tx()` | D13 Calendar | Payload `{calendar_event_id, owner_id, change ∈ created/updated/deleted, starts_at?, ends_at?, event_source, task_id?}` — **chỉ mã + metadata lịch, KHÔNG title/description/location (mức 3)**. Consumer M3.1: `platform.on_calendar_event_changed` → đẩy ra provider đã kết nối của owner (idempotent qua `ExternalEventLink`, last-writer-wins theo etag; retry/backoff 429→DLQ; token hết hạn → `send_notification` reconnect) |
 
 > Danh mục đầy đủ + cặp **publish/consume** chốt khi chi tiết hóa (R-DEC-09); `risk.detected` thuộc D25 (P1) nên chỉ liệt kê, chi tiết ở đợt sau. Tên event giữ convention BRD (`<entity>.<verb>`), ánh xạ sang `EVT-*` của `main` ở đợt code. Các dòng M1.2–M1.6 ghi **mã code** (`event_type` phát thật); ánh xạ tên BRD ↔ mã code ở bảng ngay dưới.
 
@@ -735,6 +736,7 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 | `policy.changed` · `onboarding.completed` | `ai.policy_changed` · `platform.onboarding_completed` | `EXTENSION_EVENT_TYPES` (thêm M1.6, R-DEC-77) |
 | `meeting.summarized` | `execution.meeting_summarized` | `EXTENSION_EVENT_TYPES` (cấp M2.3, R-DEC-102) |
 | `action_item.created` | `execution.action_item_created` | `EXTENSION_EVENT_TYPES` (thêm M2.3, R-DEC-102) |
+| `calendar.event_changed` | `execution.calendar_event_changed` | `EXTENSION_EVENT_TYPES` (thêm M3.1, R-DEC-120) |
 | `decision.logged` · `risk.detected` | (chưa cấp — M2.x / P1) | — |
 
 **Ghi chú publish/consume M1.3–M1.6:**
