@@ -1,4 +1,5 @@
-"""Tool Registry — 53 `TOOL-*` (10 §7 + §7.2.5: 43 v2.0/v2.1 + 10 M1.6), 13 metadata (10 §2.1).
+"""Tool Registry — 54 `TOOL-*` (10 §7: 43 v2.0/v2.1 + 10 M1.6 §7.2.5 + 1 M3.2 §7.2.9
+`TOOL-execute_recommendation`, R-DEC-127), 13 metadata (10 §2.1).
 
 `TOOLS` is the single source; `all_tools()`, `get_tool()` and the filters below are the only
 public API. Every `ToolDef` is validated when constructed (`spec.validate_tool`) so a tool with
@@ -416,6 +417,27 @@ _WRITE_TOOLS: tuple[ToolDef, ...] = (
         "Create an execution task.",
         brd="create_task",
         args=_TASK_ARGS,
+        default="L3",
+        maximum="L3",
+    ),
+    _write(
+        "TOOL-execute_recommendation",
+        "EP-TASK-02",
+        "execution",
+        "execution:write",
+        "execution:record",
+        "Execute an AI recommendation (M3.2): create a task with owner + deadline, put it on the "
+        "caller's calendar, and notify — one undoable L3 action.",
+        brd="execute_recommendation",
+        args=obj(
+            ("title",),
+            title=S,
+            assignee_code=S,
+            due_date=DATE,
+            starts_at={"type": "string", "format": "date-time"},
+            ends_at={"type": "string", "format": "date-time"},
+            description=S,
+        ),
         default="L3",
         maximum="L3",
     ),

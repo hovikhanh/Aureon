@@ -24,6 +24,10 @@ class AgentSpec:
     description_en: str
     model_task: str
     tools: tuple[str, ...]
+    # Agent autonomy cap (`resolve_level` step 3). M3.2 (R-DEC-126/127): the `ceo` agent runs the
+    # Daily-Briefing → recommendation → act loop, so it is raised to L3 to auto-execute the
+    # internal task+calendar composite; every other seeded agent stays L2 (conservative, 02 §7).
+    max_autonomy_level: str = "L2"
 
     @property
     def agent_ref(self) -> str:
@@ -43,7 +47,8 @@ AGENTS: tuple[AgentSpec, ...] = (
            "get_execution_dashboard", "get_kpi_status", "get_okr_status", "get_project_status",
            "get_metric", "list_alerts", "get_lineage", "get_org_tree", "search_documents",
            "get_source_document", "generate_report", "record_decision", "create_task",
-           "request_approval"),
+           "execute_recommendation", "request_approval"),
+        max_autonomy_level="L3",
     ),
     AgentSpec(
         "data_capture", "Agent Thu thập dữ liệu", "Data Capture Agent",

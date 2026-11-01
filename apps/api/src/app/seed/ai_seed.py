@@ -20,13 +20,15 @@ async def seed_agents(session: AsyncSession) -> dict[str, int]:
             "agent_ref": spec.agent_ref, "name_vi": spec.name_vi, "name_en": spec.name_en,
             "description_vi": spec.description_vi, "description_en": spec.description_en,
             "model_task": spec.model_task, "allowed_tools": seed_tools(spec),
+            # M3.2 (R-DEC-126/127): agent cap comes from the catalog (ceo = L3). Refreshing an
+            # un-edited row (version==1) also lifts the cap so an existing seed picks up L3.
+            "max_autonomy_level": spec.max_autonomy_level,
         }  # fmt: skip
         row = (
             await session.execute(select(AgentProfile).where(AgentProfile.code == spec.code))
         ).scalar_one_or_none()
         if row is None:
-            session.add(AgentProfile(code=spec.code, max_autonomy_level="L2", is_enabled=True,
-                                     **values))  # fmt: skip
+            session.add(AgentProfile(code=spec.code, is_enabled=True, **values))
             out["created"] += 1
             continue
         changed = [k for k, v in values.items() if getattr(row, k) != v]

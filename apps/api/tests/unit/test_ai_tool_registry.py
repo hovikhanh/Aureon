@@ -1,7 +1,8 @@
 """T-301 — Tool Registry (10 §7). TC-AI-001.
 
-Verifies: the registry has all 53 `TOOL-*` (43 v2.1 + 10 M1.6, T-645) with the correct kind
-split (31 READ / 19 WRITE / 2 APPROVAL / 1 EXECUTION), every metadata attribute is present and
+Verifies: the registry has all 54 `TOOL-*` (43 v2.1 + 10 M1.6 T-645 + 1 M3.2 T-812
+`TOOL-execute_recommendation`, R-DEC-127) with the correct kind split
+(31 READ / 20 WRITE / 2 APPROVAL / 1 EXECUTION), every metadata attribute is present and
 valid, permission filtering (P06) and classification filtering (§7.4) behave, and APPROVAL tools
 are never advertised to the model (§7.3). No DB / network — pure catalog.
 """
@@ -20,16 +21,16 @@ from app.modules.ai.tools import (
 ALL_PERMS = frozenset(VALID_PERMISSIONS)
 
 
-def test_registry_has_53_tools() -> None:
-    assert len(all_tools()) == 53
-    assert len({t.name for t in TOOLS}) == 53  # unique names
+def test_registry_has_54_tools() -> None:
+    assert len(all_tools()) == 54  # +1 M3.2 TOOL-execute_recommendation (R-DEC-127)
+    assert len({t.name for t in TOOLS}) == 54  # unique names
 
 
 def test_kind_split_matches_spec() -> None:
     c = Counter(t.kind for t in TOOLS)
     assert c["READ"] == 31  # QUERY (v2.1 COMPUTE → READ + compute, R-DEC-70)
     assert sum(t.compute for t in TOOLS) == 2
-    assert c["WRITE"] == 19
+    assert c["WRITE"] == 20  # +1 M3.2 TOOL-execute_recommendation (R-DEC-127)
     assert c["APPROVAL"] == 2
     assert c["EXECUTION"] == 1
 
@@ -75,8 +76,8 @@ def test_permission_filter_scopes_tools_by_role() -> None:
     }
     # no permissions → nothing
     assert available_for(frozenset()) == ()
-    # all permissions → all 53
-    assert len(available_for(ALL_PERMS)) == 53
+    # all permissions → all 54
+    assert len(available_for(ALL_PERMS)) == 54
 
 
 def test_classification_filter_caps_advertised_tools() -> None:

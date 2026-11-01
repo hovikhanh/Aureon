@@ -18,7 +18,7 @@ from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
 
 pytestmark = pytest.mark.integration
 
-TOTAL_TOOLS = 53  # frozen count — a new tool needs a 10 §7 spec change + DEC, not a silent add
+TOTAL_TOOLS = 54  # frozen count (M3.2 +TOOL-execute_recommendation, 10 §7.2.9 + R-DEC-127)
 
 
 def _perms(role: str) -> frozenset[str]:

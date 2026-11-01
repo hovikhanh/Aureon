@@ -1,4 +1,5 @@
-"""Tool Registry package (10 §7 + §7.2.5) — 53 `TOOL-*` with the 13 metadata of 10 §2.1."""
+"""Tool Registry package (10 §7 + §7.2.5 + §7.2.9) — 54 `TOOL-*` with the 13 metadata of
+10 §2.1 (+1 M3.2 `TOOL-execute_recommendation`, R-DEC-127)."""
 
 from app.modules.ai.tools.registry import (
     TOOLS,

@@ -1,6 +1,14 @@
-"""Action Registry v2 (R-DEC-60). Importing the package registers all 14 `ACT-*`."""
+"""Action Registry v2 (R-DEC-60). Importing the package registers every `ACT-*`
+(+ `recommendation` M3.2, R-DEC-127)."""
 
-from app.modules.idp.services.actions import finance, goals, meeting, org, work
+from app.modules.idp.services.actions import (
+    finance,
+    goals,
+    meeting,
+    org,
+    recommendation,
+    work,
+)
 from app.modules.idp.services.actions.registry import (
     ActionContext,
     ActionDef,
@@ -21,5 +29,6 @@ __all__ = [
     "is_finance_action",
     "meeting",
     "org",
+    "recommendation",
     "work",
-]  # finance/goals/meeting/org/work: importing the ACT modules registers their `ActionDef`s
+]  # importing the ACT modules registers their `ActionDef`s

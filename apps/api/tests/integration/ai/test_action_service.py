@@ -29,8 +29,11 @@ def principal(role: str, user_id: uuid.UUID | None = None) -> Principal:
 
 
 # ---------- T-304: lifecycle + undo ----------
-async def test_ceiling_l2_caps_seed_l3_to_a_proposed_card(db_session) -> None:
-    """R-DEC-72: seed default L3 (ACT-create_task) → effective L2 at the M1 ceiling."""
+async def test_ceiling_l2_caps_seed_l3_to_a_proposed_card(db_session, ceiling_l2) -> None:
+    """R-DEC-126/127: seed default L3 (ACT-create_task) capped to L2 by the **L2 ceiling**. Since
+    the `ceo` agent is now seeded max=L3 (R-DEC-127), the default-ceiling path would auto-execute
+    (L3); the `ceiling_l2` fixture pins ceiling L2 + all agents L2 to keep testing the L2-ceiling
+    capping logic itself — the proposed-card outcome under an L2 ceiling is unchanged."""
     svc = ActionService(db_session)
     out = await svc.propose(
         principal("CEO"), action_name="ACT-create_task", tool_name="TOOL-create_task",

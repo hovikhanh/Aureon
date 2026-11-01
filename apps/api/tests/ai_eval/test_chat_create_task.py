@@ -3,9 +3,12 @@
 The gateway is built with `model_gateway_mode="fixture"` here (never the shell's mode) on
 `tests/fixtures/model_gateway/chat_actions/<task>/<prompt_sha256>.json`; a prompt / tool-list
 change breaks the key → `FixtureMissingError` (loud). The CEO agent's `allowed_tools` is pinned
-in the rolled-back transaction so the advertised tool set (part of the key) is stable. Asserts:
-the model's `TOOL-create_task` call becomes an L2 `proposed` card in `suggested_actions[0]`, no
-task row is written before confirmation, and the tool message the model sees carries no id.
+in the rolled-back transaction so the advertised tool set (part of the key) is stable, and its
+`max_autonomy_level` is pinned to **L2** so this case keeps covering the L2 draft-card UX now that
+the `ceo` agent seeds at L3 (M3.2, R-DEC-126/127 — `max_autonomy_level` is not part of the fixture
+key). Asserts: the model's `TOOL-create_task` call becomes an L2 `proposed` card in
+`suggested_actions[0]`, no task row is written before confirmation, and the tool message the model
+sees carries no id. The L3 auto-execute path is covered by `test_execute_recommendation_l3.py`.
 """
 
 from __future__ import annotations
@@ -45,8 +48,10 @@ class SpyGateway:
 
 async def test_create_task_prompt_drafts_l2_card(db_session, monkeypatch) -> None:
     monkeypatch.setattr(chat_service, "replay_enabled", lambda _cfg: False)
+    # R-DEC-126: pin L2 so this keeps covering the draft-card path (ceo now seeds at L3)
     await db_session.execute(update(AgentProfile).where(AgentProfile.code == "ceo")
-                             .values(allowed_tools=TOOLS, is_enabled=True))  # fmt: skip
+                             .values(allowed_tools=TOOLS, is_enabled=True,
+                                     max_autonomy_level="L2"))  # fmt: skip
     ceo = Principal(user_id=uuid.uuid4(), role="CEO",
                     permissions=frozenset(ROLE_PERMISSIONS["CEO"]))  # fmt: skip
     gw = SpyGateway()

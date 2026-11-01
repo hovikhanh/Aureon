@@ -320,6 +320,21 @@ Ngưỡng: TC-M24-01 (grounding), TC-M24-02 (tool P06), TC-M24-06/07 (GR/INJ eva
 
 Ngưỡng: TC-M31-06/07 thuộc nhóm **bảo mật** (coverage ≥ 90%, gap = blocking). TC-M31-04/05/06 phần `Implemented` phụ thuộc Postgres + OAuth credential (bước N trên stack thật, R-DEC-124) — không chặn đóng phase code vì logic đã phủ ở unit (TC-M31-01/02/03/07).
 
+### 1.17. M3.2 — D26 Autonomy L3: khuyến nghị → task + lịch + thông báo (`v3/m3.2-autonomy-l3`, R-DEC-126..130)
+
+| TC | Mô tả | Loại | Task | Spec | Trạng thái |
+|---|---|---|---|---|---|
+| TC-M32-01 | **Trần tự chủ L3** (T-813): `AI_AUTONOMY_CEILING` mặc định `L3` (+ `.env.example`); `resolve_level` giữ thứ tự R-DEC-72; kill switch `WRITE_OFF` vẫn hạ L3→L2, `L0`→L0; L4 khóa | unit + integration | T-813 | R-DEC-126, 02 §6/§7 | Passed static (config `L3`; AUT seed table + `ceiling_l2` fixture pin M1); stack-real (DB) hoãn — cần Postgres |
+| TC-M32-02 | **`ACT-execute_recommendation`** 1 transaction (T-812): Task(owner+due) + CalendarEvent nội bộ (`task_id` FK, Confidential) + Notification; `result_refs` cả 3; dùng lại Task/Calendar/Notification service qua session Action Registry (DEC-125) | unit (registry) + ai-eval | T-812 | R-DEC-127, 10 §7.2.9 | Passed (registry: ACT đăng ký module=execution reversible; tool map `ACT-`; import-boundary 30 pass); ai-eval `test_execute_recommendation_l3.py` (stack-real hoãn — cần DB) |
+| TC-M32-03 | **`TOOL-execute_recommendation`** WRITE (T-812): `ai:write`+`execution:write`+`execution:record`, default/max `L3`, `endpoint_ref` EP-TASK-02, args title/assignee_code/due_date/starts_at/ends_at/description; agent `ceo` mang tool + `max_autonomy_level=L3` | unit | T-812 | R-DEC-127 | Passed (`test_ai_tool_registry.py` 54 tool / 20 WRITE; `validate_tool` OK; ceo seed L3 + tool) |
+| TC-M32-04 | **Undo 24h đảo cả lịch đã đẩy provider** (T-814): undo `ACT-execute_recommendation` soft-delete CalendarEvent → `execution.calendar_event_changed change=deleted` → consumer M3.1 thu hồi provider; soft-delete Task; quá hạn `410 UNDO_EXPIRED` | ai-eval + integration | T-814 | R-DEC-129, DEC-134 | Passed (ai-eval `test_aut02_recommendation_is_undoable_within_window`: undo→status undone + task soft-deleted; `_undo` đảo calendar trước task); stack-real provider-withdrawal hoãn — cần DB |
+| TC-M32-05 | **AIDecision/AIAudit = tái dùng** (T-815): vòng đời L3 ghi đủ 02 §9.2 qua AIAction (proposed→executed→undone + autonomy_level + result_refs + undo_deadline) + AuditLog (`ai.action_*`) + ToolCallLog + ModelCallLog; **không** thêm entity/schema | unit + review | T-815 | R-DEC-128, 05 §2.8 | Passed (không thêm entity; `action_service` đã ghi lifecycle+audit+log; shared-types `--check` up to date) |
+| TC-M32-06 | **AI-eval AUT-\*** (T-816): L3 auto-execute (card `L3`/`executed`, 3 result_refs, undo_deadline >23h, task_source `ai`, 1 CalendarEvent/task) + undo trong cửa sổ | ai-eval (fixture) | T-816 | R-DEC-126/127, §4.3 | Passed (2 case `test_execute_recommendation_l3.py` qua `ScriptedGateway` fixture-free; chạy trên DB hoãn) |
+| TC-M32-07 | **FE "AI đã làm" (L3) feed + undo 24h** (R-DEC-130): logic thuần `ai-feed.ts` (lọc executed L3, newest-first, undoable theo cửa sổ, nhãn còn lại); view `AiFeed` dùng lại ActionCard (nhãn L1/L2/L3) + `/ask/activity`; i18n vi/en | Vitest + typecheck | FE M3.2 | R-DEC-130, 06 §5.1 | Passed (`ai-feed.test.ts` 9 pass; FE typecheck/lint 0; vitest 393/43) |
+| TC-M32-08 | **E2E CEO bước 4–5** (T-817): briefing→khuyến nghị→Action card→"AI đã làm"→undo (mock BFF) | e2e (Playwright mock) | T-817 | R-DEC-130, 03 F1 | Planned (E2E mock BFF; chạy khi luồng UI đủ — cùng M3.3 Briefing) |
+
+Ngưỡng: TC-M32-01/04 thuộc nhóm **bảo mật/autonomy** (coverage ≥ 90%, gap = blocking) — logic phủ ở unit/ai-eval static; phần `stack-real` phụ thuộc Postgres (hoãn, không chặn đóng phase vì không có DB trong môi trường build — như M3.1). TC-M32-08 E2E gộp với M3.3 Briefing (cần UI luồng F1 đầy đủ).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).

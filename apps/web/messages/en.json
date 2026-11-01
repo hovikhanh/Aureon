@@ -1937,7 +1937,8 @@
       "upsert_deal": "Upsert deal",
       "record_decision": "Record decision",
       "record_kr_checkin": "KR check-in",
-      "upsert_kpi": "Upsert KPI"
+      "upsert_kpi": "Upsert KPI",
+      "execute_recommendation": "Execute recommendation"
     },
     "status": {
       "proposed": "Proposed",
@@ -2227,5 +2228,14 @@
       "google": "Google Calendar",
       "outlook": "Outlook Calendar"
     }
+  },
+  "aiFeed": {
+    "title": "AI did this",
+    "subtitle": "Actions the AI carried out for you at level L3 — undoable for 24 hours.",
+    "empty": "The AI hasn't carried out any actions yet.",
+    "error": "Couldn't load the actions.",
+    "undo": "Undo",
+    "undoWindow": "{left} left to undo",
+    "undoExpired": "Undo window has passed"
   }
 }

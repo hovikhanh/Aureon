@@ -4,6 +4,12 @@
 (no `ai_actions` row); kill switch `L0` → no card, `ToolCallLog forbidden/AI_DISABLED`, warning
 `ai.warn.kill_switch`; `WRITE_OFF` → the L2 card is still drafted and the asker may confirm it;
 another user confirming → `403 FORBIDDEN_SCOPE`. Scripted gateway; rolled-back `db_session`.
+
+R-DEC-126/127: the chat agent `ceo` is now seeded max=L3, so the default-ceiling path would
+auto-execute `ACT-create_task` (L3). This file is specifically about the **L2 proposed/confirm
+card UX**, so the tests that assert the drafted card pin `ceiling_l2` (ceiling L2 + all agents L2)
+to keep that path reachable. Tests whose outcome is already below L2 — an L1 policy, kill switch
+L0, kill switch WRITE_OFF (caps L3→L2) — are unaffected and keep the default L3 ceiling.
 """
 
 import json
@@ -59,7 +65,8 @@ async def _cards(db) -> int:
     return int((await db.execute(select(func.count()).select_from(AIAction))).scalar_one())
 
 
-async def test_chat_create_task_drafts_l2_card(api: ApiClient, db_session) -> None:
+async def test_chat_create_task_drafts_l2_card(api: ApiClient, db_session, ceiling_l2) -> None:
+    # R-DEC-126/127: pin ceiling L2 so the ceo-agent card stays an L2 proposed draft (not L3 exec).
     _install(api.app)
     uid = uuid.uuid4()
     r = await _ask(api, uid)
@@ -128,7 +135,8 @@ async def test_write_off_still_drafts_confirmable_card(api: ApiClient, db_sessio
     assert ok.json()["data"]["status"] == "executed"
 
 
-async def test_sse_done_carries_suggested_actions(api: ApiClient, db_session) -> None:
+async def test_sse_done_carries_suggested_actions(api: ApiClient, db_session, ceiling_l2) -> None:
+    # R-DEC-126/127: pin ceiling L2 so the card stays `proposed` (ceo max=L3 would auto-execute).
     _install(api.app)
     r = await _ask(api, uuid.uuid4(), "/ai/chat/stream")
     assert r.status_code == 200
@@ -141,10 +149,15 @@ async def test_sse_done_carries_suggested_actions(api: ApiClient, db_session) ->
     assert names <= {"start", "thinking", "tool_call", "tool_result", "token", "done", "error"}
 
 
-async def test_only_asker_rejects_or_undoes_admin_lists_tenant(api: ApiClient, db_session) -> None:
+async def test_only_asker_rejects_or_undoes_admin_lists_tenant(
+    api: ApiClient, db_session, ceiling_l2
+) -> None:
     """EP-AI-07/09..11: confirm/reject/undo only by `on_behalf_of` (403 FORBIDDEN_SCOPE);
     `ai:admin` lists the whole tenant + `agent_profile_code` filter; audit
-    `ai.action_confirm` / `ai.action_reject` (10 §7.2.5)."""
+    `ai.action_confirm` / `ai.action_reject` (10 §7.2.5).
+
+    R-DEC-126/127: pin ceiling L2 — this flow exercises the `proposed` reject/confirm/undo
+    lifecycle, which only exists when the ceo-agent card is drafted (not L3 auto-executed)."""
     from app.core.audit import AUDIT_LOGS
 
     _install(api.app)

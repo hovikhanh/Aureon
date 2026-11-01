@@ -6,7 +6,8 @@
 2. the most specific matching `ENT-AutonomyPolicy` row (agent+role+amount > agent > role >
    general; several rows of the same rank → the **lowest** level, fail safe);
 3. `min(level, agent.max_autonomy_level)`;
-4. `min(level, AI_AUTONOMY_CEILING)` (`ConfigService`, L2 through M1 — L3 cannot happen);
+4. `min(level, AI_AUTONOMY_CEILING)` (`ConfigService`, L2 through M1; raised to L3 in M3.2 —
+   R-DEC-126 — so a seed-L3 action now auto-executes once the agent cap also allows L3);
 5. kill switch for this agent: `WRITE_OFF` → `min(level, L2)`, `L0` → `L0`.
 
 The kill switch is a `platform.system_settings` row (`key = "ai.kill_switch"`) and may target
@@ -32,6 +33,7 @@ _ORDER = {"L0": 0, "L1": 1, "L2": 2, "L3": 3}
 # seed defaults — 04 §9.1 "Mặc định seed v2": (default_level, max_level)
 AUTONOMY_DEFAULTS: dict[str, tuple[Level, Level]] = {
     "ACT-create_task": ("L3", "L3"),
+    "ACT-execute_recommendation": ("L3", "L3"),  # M3.2 composite (R-DEC-127)
     "ACT-create_meeting": ("L3", "L3"),
     "ACT-record_decision": ("L3", "L3"),
     "ACT-record_kpi_measurement": ("L2", "L3"),
@@ -52,7 +54,8 @@ AUTONOMY_DEFAULTS: dict[str, tuple[Level, Level]] = {
     "ACT-upsert_kpi": ("L2", "L2"),
     "ACT-upsert_metric_value": ("L2", "L2"),
     "ACT-upsert_client": ("L2", "L2"),
-    # M1.6 (T-645, 10 §7.2.5) — ceiling L2 still applies in `resolve_level`
+    # M1.6 (T-645, 10 §7.2.5); the ceiling is L3 from M3.2 (R-DEC-126), so a max-L3 entry can
+    # reach L3 once the agent cap allows it
     "ACT-update_task": ("L2", "L3"),
     "ACT-assign_task": ("L2", "L3"),
     "ACT-record_kr_checkin": ("L2", "L3"),

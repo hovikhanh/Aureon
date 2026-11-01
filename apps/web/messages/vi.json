@@ -1937,7 +1937,8 @@
       "upsert_deal": "Cập nhật cơ hội bán hàng",
       "record_decision": "Ghi quyết định",
       "record_kr_checkin": "Check-in KR",
-      "upsert_kpi": "Cập nhật KPI"
+      "upsert_kpi": "Cập nhật KPI",
+      "execute_recommendation": "Thực hiện khuyến nghị"
     },
     "status": {
       "proposed": "Chờ xác nhận",
@@ -2227,5 +2228,14 @@
       "google": "Google Calendar",
       "outlook": "Outlook Calendar"
     }
+  },
+  "aiFeed": {
+    "title": "AI đã làm",
+    "subtitle": "Những việc AI tự thực hiện ở mức L3 cho bạn — có thể hoàn tác trong 24 giờ.",
+    "empty": "Chưa có hành động nào AI tự thực hiện.",
+    "error": "Không tải được danh sách hành động.",
+    "undo": "Hoàn tác",
+    "undoWindow": "Còn {left} để hoàn tác",
+    "undoExpired": "Đã quá hạn hoàn tác"
   }
 }

@@ -74,7 +74,8 @@ async def test_seed_six_agents_idempotent(db_session) -> None:
     assert set(rows) == {a.code for a in AGENTS}
     for spec in AGENTS:
         a = rows[spec.code]
-        assert a.agent_ref == spec.agent_ref and a.max_autonomy_level == "L2"
+        # R-DEC-126/127: the agent cap comes from the catalog (ceo = L3, every other agent L2).
+        assert a.agent_ref == spec.agent_ref and a.max_autonomy_level == spec.max_autonomy_level
         assert a.allowed_tools == seed_tools(spec)
         for name in a.allowed_tools:
             t = get_tool(name)
@@ -98,13 +99,17 @@ async def test_effective_tools_is_agent_intersect_permissions(db_session) -> Non
 
 
 # ---------- TC-M16-07 resolve_level ----------
-async def test_ceiling_caps_every_seed_default(db_session) -> None:
+async def test_ceiling_caps_every_seed_default(db_session, ceiling_l2) -> None:
+    # R-DEC-126/127: the default ceiling is now L3 and the ceo agent is seeded max=L3, so a seed-L3
+    # action (e.g. ACT-create_task via the default `ceo` agent) would resolve to L3. Pin ceiling L2
+    # + all agents L2 to keep asserting the L2-ceiling capping over every seed default.
     for action in AUTONOMY_DEFAULTS:
         assert await _level(db_session, action) in ("L0", "L1", "L2")
 
 
-async def test_no_path_returns_l3_under_l2_ceiling(db_session) -> None:
-    """Property-style: every seed default × policy level × role × agent max ≤ L2."""
+async def test_no_path_returns_l3_under_l2_ceiling(db_session, ceiling_l2) -> None:
+    """Property-style: every seed default × policy level × role × agent max ≤ L2.
+    R-DEC-126: the default ceiling is now L3, so pin L2 explicitly to assert this capping."""
     db_session.add(_policy(level="L3", max_level="L3", role_code="CEO"))
     db_session.add(_policy(level="L3", max_level="L3", agent_profile_code="task"))
     await db_session.execute(update(AgentProfile).values(max_autonomy_level="L3"))
@@ -192,7 +197,8 @@ async def test_kill_switch_emits_policy_changed(db_session) -> None:
     assert ev and ev[-1].payload["change"] == "kill_switch"
     assert ev[-1].payload["agent_code"] == "ceo" and "reason" not in ev[-1].payload
     st = await KillSwitchService(db_session).status()
-    assert (st.autonomy_ceiling, st.reason) == ("L2", "incident #7")
+    # R-DEC-126: the system default ceiling is now L3 (was L2 through M1).
+    assert (st.autonomy_ceiling, st.reason) == ("L3", "incident #7")
 
 
 # ---------- HTTP: EP-AI-12/16/17 ----------
@@ -202,9 +208,11 @@ async def test_agents_list_month_spend_only_for_admin(api: ApiClient) -> None:
     adm = (await api.call("GET", "/ai/agents", "ADM")).json()["data"]
     assert all("month_spend_usd" in a for a in adm)
     ceo = next(a for a in adm if a["code"] == "ceo")
-    assert ceo["agent_ref"] == "AGT-CEO" and ceo["effective_max_level"] == "L2"
+    # R-DEC-126/127: the ceo agent is now seeded max=L3 and the system ceiling is L3, so
+    # effective_max_level = min(L3, L3) = L3 (the ceo runs the Daily-Briefing auto-execute loop).
+    assert ceo["agent_ref"] == "AGT-CEO" and ceo["effective_max_level"] == "L3"
     ks = (await api.call("GET", "/ai/kill-switch", "EMP")).json()["data"]
-    assert ks["autonomy_ceiling"] == "L2"
+    assert ks["autonomy_ceiling"] == "L3"
 
 
 async def test_patch_agent_rules(api: ApiClient, db_session) -> None:
@@ -233,7 +241,9 @@ async def test_patch_agent_rules(api: ApiClient, db_session) -> None:
 
 
 # ---------- HTTP: EP-AI-18..21 ----------
-async def test_policy_crud_and_rules(api: ApiClient, db_session) -> None:
+async def test_policy_crud_and_rules(api: ApiClient, db_session, ceiling_l2) -> None:
+    # R-DEC-126: asserts the L2-ceiling validation (`above_ceiling` at L3, defaults capped to L2);
+    # the default ceiling is now L3, so pin L2 to keep testing that capping logic.
     async def create(body: dict[str, Any], role: str = "ADM") -> Any:
         base = {"tool_name": "TOOL-create_task", "level": "L1", "max_level": "L2",
                 "reason": "pilot"}  # fmt: skip
@@ -328,7 +338,9 @@ async def test_tools_catalog_agents_and_effective_level(api: ApiClient) -> None:
     rows = {t["name"]: t for t in (await api.call("GET", "/ai/tools", "CEO")).json()["data"]}
     ct = rows["TOOL-create_task"]
     assert {"ceo", "task", "meeting"} <= set(ct["agents"])
-    assert ct["autonomy_default"] == "L3" and ct["effective_level"] == "L2"
+    # R-DEC-126/127: effective_level = resolve_level via the chat agent `ceo` (now max=L3) under
+    # the L3 ceiling on a seed-L3 action → L3 (the static tool default is unchanged at L3).
+    assert ct["autonomy_default"] == "L3" and ct["effective_level"] == "L3"
     assert rows["TOOL-get_metric"]["effective_level"] == "L0"
     assert rows["TOOL-approve_request"]["effective_level"] is None
     only = (await api.call("GET", "/ai/tools", "CEO", params={"agent": "reporting"})).json()

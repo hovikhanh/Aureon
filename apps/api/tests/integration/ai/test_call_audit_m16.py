@@ -39,7 +39,10 @@ def _calls(*names: str) -> ChatResponse:
     )  # fmt: skip
 
 
-async def test_chat_turn_logs_share_request_id(api: ApiClient, db_session) -> None:
+async def test_chat_turn_logs_share_request_id(api: ApiClient, db_session, ceiling_l2) -> None:
+    # R-DEC-126/127: the chat agent `ceo` is now seeded max=L3, so under the default L3 ceiling
+    # ACT-create_task would auto-execute (L3). Pin ceiling L2 to keep the WRITE card at the L2
+    # effective level this tool-call-logging assertion checks.
     _install(
         api.app,
         _calls("TOOL-get_finance_dashboard", "TOOL-get_metric", "TOOL-create_task"),
@@ -66,7 +69,9 @@ async def test_chat_turn_logs_share_request_id(api: ApiClient, db_session) -> No
                .result_refs)  # fmt: skip
 
 
-async def test_propose_links_tool_call_to_action(db_session) -> None:
+async def test_propose_links_tool_call_to_action(db_session, ceiling_l2) -> None:
+    # R-DEC-126/127: pin ceiling L2 so the ceo-agent card stays an L2 proposed row (ceo max=L3
+    # would auto-execute ACT-create_task at L3); this test checks the ToolCallLog↔AIAction link.
     from app.core.deps import Principal
     from app.modules.ai.services.action_service import ActionService
     from app.modules.auth.permission_matrix import ROLE_PERMISSIONS
