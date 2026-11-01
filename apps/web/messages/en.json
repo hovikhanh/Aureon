@@ -2187,5 +2187,45 @@
       "ambiguous": "Ambiguous",
       "unmatched": "Unmatched"
     }
+  },
+  "calendar": {
+    "title": "My calendar",
+    "subtitle": "Personal events and task deadlines, synced two-way with Google/Outlook.",
+    "errorGeneric": "Something went wrong. Please try again in a moment.",
+    "empty": "No events in this time range yet.",
+    "new": {
+      "title": "Add event",
+      "name": "Title",
+      "namePlaceholder": "e.g. Standup",
+      "start": "Starts",
+      "end": "Ends",
+      "submit": "Save event"
+    },
+    "source": {
+      "internal": "Internal",
+      "google": "Google",
+      "outlook": "Outlook"
+    },
+    "delete": "Delete",
+    "manageIntegrations": "Manage calendar connections"
+  },
+  "integrations": {
+    "title": "Connections & integrations",
+    "subtitle": "Connect your Google or Outlook calendar to sync events two-way.",
+    "errorGeneric": "Something went wrong. Please try again in a moment.",
+    "status": {
+      "connected": "Connected",
+      "expired": "Expired — reconnect needed",
+      "revoked": "Revoked",
+      "none": "Not connected"
+    },
+    "connect": "Connect",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "notConfigured": "Not configured on this system",
+    "provider": {
+      "google": "Google Calendar",
+      "outlook": "Outlook Calendar"
+    }
   }
 }

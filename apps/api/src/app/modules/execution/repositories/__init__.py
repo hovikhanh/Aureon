@@ -11,8 +11,10 @@ from app.core.base_model import Base
 from app.core.base_repository import BaseRepository, tenant_ids_where
 from app.modules.execution.models import (
     ActionItem,
+    CalendarEvent,
     CheckIn,
     Decision,
+    ExternalEventLink,
     Initiative,
     KeyResult,
     Kpi,
@@ -434,3 +436,28 @@ class InitiativeRepository(Repo[Initiative]):
 
 class MilestoneRepository(Repo[Milestone]):
     model = Milestone
+
+
+class CalendarEventRepository(Repo[CalendarEvent]):
+    model = CalendarEvent
+
+    async def for_task(self, task_id: uuid.UUID) -> CalendarEvent | None:
+        """The one internal event mirroring a task deadline (R-DEC-122, idempotent)."""
+        stmt = self._live().where(CalendarEvent.task_id == task_id).limit(1)
+        return (await self.db.execute(stmt)).scalars().first()
+
+
+class ExternalEventLinkRepository(Repo[ExternalEventLink]):
+    model = ExternalEventLink
+
+    async def by_account_external(
+        self, account_id: uuid.UUID, external_id: str
+    ) -> ExternalEventLink | None:
+        stmt = self._live().where(
+            ExternalEventLink.account_id == account_id,
+            ExternalEventLink.external_id == external_id,
+        )
+        return (await self.db.execute(stmt)).scalars().first()
+
+    async def for_event(self, calendar_event_id: uuid.UUID) -> Sequence[ExternalEventLink]:
+        return await self.where(ExternalEventLink.calendar_event_id == calendar_event_id)

@@ -209,7 +209,49 @@ class TaskService(ExecBase):
         })  # fmt: skip
         await notify_task(self.db, t, kind="task_assigned", title="Bạn được giao việc mới",
                           to=(t.assignee_id,), actor=user.user_id)  # fmt: skip
+        await self._sync_deadline_event(t)
         return out
+
+    async def _sync_deadline_event(self, t: Task) -> None:
+        """M3.1 T-807 (R-DEC-122): mirror a task deadline to the assignee's calendar, idempotent.
+
+        One internal `CalendarEvent` per task (`CalendarEventRepository.for_task`). A task with no
+        `due_date`/`assignee_id` has none (soft-delete any existing mirror). The mirror is an
+        all-day marker at `due_date`; each change re-publishes `execution.calendar_event_changed`
+        so the push consumer reflects it on connected providers.
+        """
+        from datetime import datetime, time
+
+        from app.modules.execution.repositories import CalendarEventRepository
+        from app.modules.execution.services.calendar_service import CalendarService
+
+        events = CalendarEventRepository(self.db)
+        existing = await events.for_task(t.id)
+        wanted = t.due_date is not None and t.assignee_id is not None
+        if not wanted:
+            if existing is not None:
+                await events.soft_delete(existing)
+                await CalendarService(self.db)._publish_changed(existing, "deleted")
+            return
+        starts_at = datetime.combine(t.due_date, time(9, 0), tzinfo=UTC)  # type: ignore[arg-type]
+        title = f"Hạn: {t.title}"
+        if existing is None:
+            created = await events.create(
+                owner_id=t.assignee_id, source="EVENT", data_classification="CONFIDENTIAL",
+                created_by=t.assignee_id, event_source="internal", visibility="private",
+                title=title, starts_at=starts_at, ends_at=None, description=None, location=None,
+                task_id=t.id,
+            )  # fmt: skip
+            await self.db.flush()
+            await CalendarService(self.db)._publish_changed(created, "created")
+            return
+        if (
+            existing.owner_id != t.assignee_id
+            or existing.title != title
+            or existing.starts_at != starts_at
+        ):
+            await events.update(existing, owner_id=t.assignee_id, title=title, starts_at=starts_at)
+            await CalendarService(self.db)._publish_changed(existing, "updated")
 
     async def _emit(self, event_type: str, t: Task, extra: dict[str, Any]) -> None:
         """Outbox event in the caller's tx (10 §9.2, R-DEC-47) — ids only, no `title`/PII."""
@@ -289,6 +331,7 @@ class TaskService(ExecBase):
             # R-DEC-46: tell whoever assigned it (`owner_id`), kind `system`
             await notify_task(self.db, t, kind="system", title="Việc bạn giao đã hoàn thành",
                               to=(t.owner_id,), actor=user.user_id)  # fmt: skip
+        await self._sync_deadline_event(t)
         return out
 
     async def _approved_target(self, id_: uuid.UUID) -> Task:

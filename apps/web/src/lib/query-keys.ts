@@ -67,4 +67,7 @@ export const qk = {
   financeRunwayWhatIf: (params: Record<string, unknown>) => ["finance", "runway-what-if", params] as const,
   salesPipeline: () => ["sales", "pipeline"] as const,
   salesDashboard: () => ["sales", "dashboard"] as const,
+  // M3.1 calendar + integrations (T-803F) — one key per widget
+  calendarEvents: (params: Record<string, unknown>) => ["calendar", "events", params] as const,
+  integrationProviders: () => ["integrations", "providers"] as const,
 };

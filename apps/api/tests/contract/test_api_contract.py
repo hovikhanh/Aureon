@@ -33,6 +33,9 @@ BINARY = {
     ("GET", "/data-capture/imports/{batch_id}/error-file"),
     ("GET", "/files/{storage_key:path}"),
 }
+# OAuth redirect callbacks (EP-INT-03, 10 §7.2.8) 302 the browser back to the web app — a
+# `RedirectResponse`, not a JSON envelope.
+REDIRECT = {("GET", "/integrations/{provider}/callback")}
 
 
 def _section(title: str) -> str:
@@ -114,10 +117,12 @@ def test_all_routes_under_base_path(app_routes: list[Any]) -> None:
 
 
 def test_every_route_declares_envelope_or_204(app_routes: list[Any]) -> None:
+    exempt = STREAMING | BINARY | REDIRECT
     for r in app_routes:
         if r.status_code == 204:
             continue
-        if any((m, r.path.removeprefix(API_PREFIX)) in STREAMING | BINARY for m in r.methods):
+        rel = r.path.removeprefix(API_PREFIX)
+        if any((m, rel) in exempt for m in r.methods):
             continue
         assert r.response_model is not None, r.path
         assert getattr(r.response_model, "__name__", "").startswith("Envelope["), r.path

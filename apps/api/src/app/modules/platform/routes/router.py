@@ -16,6 +16,7 @@ from app.core.deps import DbSession, Principal, require_permission
 from app.core.envelope import Page
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.modules.platform.routes.integrations import router as integrations_router
 from app.modules.platform.routes.notifications import router as notifications_router
 from app.modules.platform.routes.onboarding import router as onboarding_router
 from app.modules.platform.routes.workflow import router as workflow_router
@@ -99,3 +100,5 @@ module_router.include_router(notifications_router)
 module_router.include_router(onboarding_router)
 # M1.3 T-619C: `/workflow/*` (EP-WF-01..03, R-DEC-40) — replaces `/platform/approvals/*`.
 module_router.include_router(workflow_router)
+# M3.1 T-803: EP-INT-01..04 `/integrations/*` calendar OAuth (R-DEC-118/119).
+module_router.include_router(integrations_router)

@@ -24,6 +24,7 @@ from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.periods import resolve_period
 from app.core.routing import EnvelopeRouter
+from app.modules.execution.routes.calendar import router as calendar_router
 from app.modules.execution.routes.goals import router as goals_router
 from app.modules.execution.routes.kpis import router as kpis_router
 from app.modules.execution.routes.okr import router as okr_router
@@ -163,3 +164,5 @@ module_router.include_router(work_router)
 module_router.include_router(goals_router)
 module_router.include_router(kpis_router)
 module_router.include_router(okr_router)
+# M3.1 T-803: EP-CAL-01..05 `/calendar/*` (R-DEC-117/119).
+module_router.include_router(calendar_router)

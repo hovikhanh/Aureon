@@ -88,6 +88,12 @@ celery_app.conf.update(
             "task": "app.jobs.check_review_sla",
             "schedule": crontab(minute=15),
         },
+        # M3.1 T-804 / R-DEC-121 — two-way calendar sync (pull incremental), every 5 min default
+        "calendar-sync": {
+            "task": "app.jobs.calendar_sync",
+            "schedule": _cfg.calendar_sync_interval_seconds,
+            "options": {"expires": _cfg.calendar_sync_interval_seconds * 2},
+        },
     },
 )
 

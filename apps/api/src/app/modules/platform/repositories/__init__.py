@@ -16,6 +16,8 @@ from app.modules.platform.models import (
     ApprovalRequest,
     ApprovalRule,
     AuditLog,
+    CalendarAccount,
+    CalendarSyncState,
     DataLineage,
     DqDomainScore,
     Metric,
@@ -412,3 +414,34 @@ class DqDomainScoreRepository:
             .order_by(DqDomainScore.domain)
         )
         return (await self.db.execute(stmt)).scalars().all()
+
+
+class CalendarAccountRepository(BaseRepository[CalendarAccount]):
+    """ENT-CalendarAccount (M3.1) — one row per (tenant, user, provider); tokens encrypted."""
+
+    model = CalendarAccount
+
+    async def by_user_provider(self, user_id: uuid.UUID, provider: str) -> CalendarAccount | None:
+        stmt = self._live().where(
+            CalendarAccount.user_id == user_id, CalendarAccount.provider == provider
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def for_user(self, user_id: uuid.UUID) -> Sequence[CalendarAccount]:
+        stmt = self._live().where(CalendarAccount.user_id == user_id)
+        return (await self.db.execute(stmt)).scalars().all()
+
+    async def connected(self) -> Sequence[CalendarAccount]:
+        """All currently-connected accounts of the tenant — driven by the sync beat job."""
+        stmt = self._live().where(CalendarAccount.status == "connected")
+        return (await self.db.execute(stmt)).scalars().all()
+
+
+class CalendarSyncStateRepository(BaseRepository[CalendarSyncState]):
+    """ENT-SyncState (M3.1) — one incremental cursor per account."""
+
+    model = CalendarSyncState
+
+    async def for_account(self, account_id: uuid.UUID) -> CalendarSyncState | None:
+        stmt = self._live().where(CalendarSyncState.account_id == account_id)
+        return (await self.db.execute(stmt)).scalars().first()

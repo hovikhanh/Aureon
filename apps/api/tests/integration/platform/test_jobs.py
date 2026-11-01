@@ -42,13 +42,18 @@ def test_beat_schedule_registers_jobs() -> None:
     assert celery_app.conf.timezone == "Asia/Ho_Chi_Minh"
     # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay + check-review-sla (T-412)
     # + notification e-mail sweep (T-616b) + KR at-risk 07:00 + Friday check-in reminder (T-629)
-    assert len(sched) == 11
+    # + calendar-sync interval (M3.1 T-804 / R-DEC-121)
+    assert len(sched) == 12
     assert sched["execution.kr_at_risk"]["task"] in celery_app.tasks
     remind = sched["execution.checkin_reminder"]
     assert remind["task"] in celery_app.tasks and remind["schedule"]._orig_day_of_week == 5
     assert _hours(remind["schedule"]) == "8"
     mail = sched["dispatch-notification-emails"]
     assert mail["task"] == notifications.dispatch_email.name and mail["task"] in celery_app.tasks
+    # M3.1 T-804: calendar sync runs on the interval schedule (default 300s), task registered
+    cal = sched["calendar-sync"]
+    assert cal["task"] == "app.jobs.calendar_sync" and cal["task"] in celery_app.tasks
+    assert isinstance(cal["schedule"], float) and cal["schedule"] > 0
 
 
 @pytest.fixture

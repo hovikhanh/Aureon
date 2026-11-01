@@ -92,6 +92,12 @@ async def review_sla(db: AsyncSession) -> int:
     return len(await SlaService(db).check_review_sla())
 
 
+async def calendar_pull(db: AsyncSession) -> int:
+    from app.modules.execution.services.calendar_sync import CalendarSyncService
+
+    return await CalendarSyncService(db).pull_all()
+
+
 @celery_app.task(name="app.jobs.daily_burn_check", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def daily_burn_check() -> bool:
     return bool(asyncio.run(_run(burn_check)))
@@ -137,3 +143,9 @@ def detect_kr_at_risk() -> int:
 @celery_app.task(name="app.jobs.checkin_reminder", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def checkin_reminder_job() -> int:
     return int(asyncio.run(_run(weekly_checkin_reminder)))
+
+
+@celery_app.task(name="app.jobs.calendar_sync", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def calendar_sync() -> int:
+    """M3.1 T-804: every CALENDAR_SYNC_INTERVAL_SECONDS pull incremental changes per account."""
+    return int(asyncio.run(_run(calendar_pull)))

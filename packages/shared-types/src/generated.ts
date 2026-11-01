@@ -317,6 +317,42 @@ export type BudgetUpdate = {
   notes?: string | null;
 };
 
+export type CalendarEventCreate = {
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+  description?: string | null;
+  location?: string | null;
+  task_id?: string | null;
+};
+
+export type CalendarEventOut = {
+  id: string;
+  version: number;
+  source: string;
+  data_classification: string;
+  created_at: string;
+  updated_at: string;
+  owner_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  description: string | null;
+  location: string | null;
+  event_source: "internal" | "google" | "outlook";
+  visibility: string;
+  task_id: string | null;
+};
+
+export type CalendarEventUpdate = {
+  version?: number | null;
+  title?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  description?: string | null;
+  location?: string | null;
+};
+
 export type CashFlowAssumptions = {
   collection_on_time_pct?: number;
   fixed_opex_weekly?: number | null;
@@ -522,6 +558,10 @@ export type ConfidenceOut = {
 
 export type ConfirmActionIn = {
   edited_input?: Record<string, unknown> | null;
+};
+
+export type ConnectOut = {
+  authorize_url: string;
 };
 
 export type Contact = {
@@ -1007,6 +1047,11 @@ export type Envelope_BudgetOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_CalendarEventOut_ = {
+  data: CalendarEventOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_CashFlowForecastOut_ = {
   data: CashFlowForecastOut;
   meta?: Meta | null;
@@ -1029,6 +1074,11 @@ export type Envelope_CheckInOut_ = {
 
 export type Envelope_ClientOut_ = {
   data: ClientOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ConnectOut_ = {
+  data: ConnectOut;
   meta?: Meta | null;
 };
 
@@ -1512,6 +1562,11 @@ export type Envelope_list_BudgetStatusOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_CalendarEventOut__ = {
+  data: CalendarEventOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_CashPositionOut__ = {
   data: CashPositionOut[];
   meta?: Meta | null;
@@ -1749,6 +1804,11 @@ export type Envelope_list_ProductOut__ = {
 
 export type Envelope_list_ProjectOut__ = {
   data: ProjectOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ProviderStatusOut__ = {
+  data: ProviderStatusOut[];
   meta?: Meta | null;
 };
 
@@ -3541,6 +3601,12 @@ export type ProjectUpdate = {
   initiative_id?: string | null;
 };
 
+export type ProviderStatusOut = {
+  provider: "google" | "outlook";
+  configured: boolean;
+  status: "connected" | "expired" | "revoked" | "none";
+};
+
 export type ReadAllIn = {
   up_to?: string | null;
 };
@@ -4764,6 +4830,26 @@ export interface ApiOperations {
     request: RefreshIn;
     response: Envelope_TokenOut_;
   };
+  "GET /api/v1/calendar/events": {
+    request: void;
+    response: Envelope_list_CalendarEventOut__;
+  };
+  "POST /api/v1/calendar/events": {
+    request: CalendarEventCreate;
+    response: Envelope_CalendarEventOut_;
+  };
+  "DELETE /api/v1/calendar/events/{event_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/calendar/events/{event_id}": {
+    request: void;
+    response: Envelope_CalendarEventOut_;
+  };
+  "PATCH /api/v1/calendar/events/{event_id}": {
+    request: CalendarEventUpdate;
+    response: Envelope_CalendarEventOut_;
+  };
   "GET /api/v1/dashboard/alerts": {
     request: void;
     response: Envelope_list_AlertOut__;
@@ -5295,6 +5381,22 @@ export interface ApiOperations {
   "POST /api/v1/idp/review-queue/merge": {
     request: MergeIn;
     response: Envelope_MergeOut_;
+  };
+  "GET /api/v1/integrations/providers": {
+    request: void;
+    response: Envelope_list_ProviderStatusOut__;
+  };
+  "GET /api/v1/integrations/{provider}/callback": {
+    request: void;
+    response: void;
+  };
+  "POST /api/v1/integrations/{provider}/connect": {
+    request: void;
+    response: Envelope_ConnectOut_;
+  };
+  "DELETE /api/v1/integrations/{provider}/disconnect": {
+    request: void;
+    response: void;
   };
   "DELETE /api/v1/key-results/{kr_id}": {
     request: void;

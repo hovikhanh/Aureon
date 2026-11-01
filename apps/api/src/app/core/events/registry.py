@@ -52,6 +52,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
         "platform.onboarding_completed",  # M1.6 R-DEC-77 (BRD `onboarding.completed`)
         "execution.meeting_summarized",  # M2.3 R-DEC-102 (BRD `meeting.summarized`)
         "execution.action_item_created",  # M2.3 R-DEC-102 (BRD `action_item.created`)
+        "execution.calendar_event_changed",  # M3.1 R-DEC-120 (BRD `calendar.event_changed`)
     }
 )
 

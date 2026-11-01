@@ -2187,5 +2187,45 @@
       "ambiguous": "Chưa rõ",
       "unmatched": "Không khớp"
     }
+  },
+  "calendar": {
+    "title": "Lịch của tôi",
+    "subtitle": "Sự kiện cá nhân và hạn công việc, đồng bộ hai chiều với Google/Outlook.",
+    "errorGeneric": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút.",
+    "empty": "Chưa có sự kiện nào trong khoảng thời gian này.",
+    "new": {
+      "title": "Thêm sự kiện",
+      "name": "Tiêu đề",
+      "namePlaceholder": "VD: Họp giao ban",
+      "start": "Bắt đầu",
+      "end": "Kết thúc",
+      "submit": "Lưu sự kiện"
+    },
+    "source": {
+      "internal": "Nội bộ",
+      "google": "Google",
+      "outlook": "Outlook"
+    },
+    "delete": "Xóa",
+    "manageIntegrations": "Quản lý kết nối lịch"
+  },
+  "integrations": {
+    "title": "Kết nối & tích hợp",
+    "subtitle": "Kết nối lịch Google hoặc Outlook để đồng bộ sự kiện hai chiều.",
+    "errorGeneric": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút.",
+    "status": {
+      "connected": "Đã kết nối",
+      "expired": "Hết hạn — cần kết nối lại",
+      "revoked": "Đã thu hồi",
+      "none": "Chưa kết nối"
+    },
+    "connect": "Kết nối",
+    "reconnect": "Kết nối lại",
+    "disconnect": "Ngắt kết nối",
+    "notConfigured": "Chưa được cấu hình trên hệ thống",
+    "provider": {
+      "google": "Google Calendar",
+      "outlook": "Outlook Calendar"
+    }
   }
 }

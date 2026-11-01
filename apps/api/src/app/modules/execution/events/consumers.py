@@ -95,3 +95,20 @@ async def on_goal_alert(session: AsyncSession, event: EventEnvelope) -> None:
         await kpi_alert(session, event.payload)
     else:
         await kr_alert(session, event.payload, event.occurred_at.astimezone(LOCAL_TZ).date())
+
+
+# M3.1 R-DEC-121 (10 §7.2.8 / §9.2): push an internal calendar change to every connected provider
+# of the owner — idempotent via `ExternalEventLink`, LWW by etag. 429/5xx bubbles up as
+# `CalendarProviderError(retryable=True)` so the bus retries (5s/30s/120s → DLQ). Payload is code +
+# schedule metadata only (never the mức-3 title/body — R-DEC-123). Consumer name keeps the
+# `platform.on_*` bus prefix (E7) though the handler lives in execution (owns CalendarEvent).
+@consumer("platform.on_calendar_event_changed", "execution.calendar_event_changed")
+async def on_calendar_event_changed(session: AsyncSession, event: EventEnvelope) -> None:
+    from app.modules.execution.services.calendar_sync import CalendarSyncService
+
+    p = event.payload
+    await CalendarSyncService(session).push_event(
+        owner_id=uuid.UUID(str(p["owner_id"])),
+        calendar_event_id=uuid.UUID(str(p["calendar_event_id"])),
+        change=str(p["change"]),
+    )
