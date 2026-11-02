@@ -6,9 +6,10 @@ still queried directly by services; their access is reached through a tenant-sco
 
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
@@ -45,6 +46,17 @@ class SourceDocumentRepository(BaseRepository[SourceDocument]):
         soft-deleted rows only, so a committed/rolled-back source is still viewable."""
         stmt = self._live().where(SourceDocument.storage_key == storage_key)
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def all_storage_keys(self) -> list[str]:
+        """T-1011 — every `storage_key` this tenant references, soft-deleted rows included.
+
+        A rolled-back or archived document keeps its file (it is still the lineage source), so
+        the orphan sweep must treat those keys as referenced.
+        """
+        stmt = self._scoped(select(SourceDocument.storage_key)).where(
+            SourceDocument.storage_key.is_not(None)
+        )
+        return [k for k in (await self.db.execute(stmt)).scalars().all() if k]
 
     async def first_original_by_sha(self, digest: str) -> SourceDocument | None:
         stmt = (
@@ -151,6 +163,10 @@ class DocumentActionRepository(BaseRepository[DocumentAction]):
         return list((await self.db.execute(stmt.order_by(order))).scalars())
 
 
+# A batch stops changing in these states; `open`/`processing` rows are still in use (T-1010).
+FINAL_BATCH_STATES = ("completed", "partially_failed")
+
+
 class ImportRepository(BaseRepository[ImportBatch]):
     """C5 `import_batches` + `import_rows` (R-DEC-62), tenant-scoped."""
 
@@ -183,12 +199,44 @@ class ImportRepository(BaseRepository[ImportBatch]):
         return int((await self.db.execute(select(func.count()).select_from(sub))).scalar_one())
 
     async def replace_rows(self, batch_id: uuid.UUID, rows: list[ImportRow]) -> None:
-        from sqlalchemy import delete
-
         await self.db.execute(delete(ImportRow).where(
             ImportRow.import_batch_id == batch_id, ImportRow.tenant_id == require_tenant()
         ))  # fmt: skip
         self.db.add_all(rows)
+
+    async def batches_past_undo_window(self, now: datetime) -> list[uuid.UUID]:
+        """T-1010 — finished batches whose document's undo window has closed (05 §2.7).
+
+        `open`/`processing` batches are still in use; a batch with no `undo_deadline`, or one
+        still inside it, keeps its rows so the user can review or undo the import.
+        """
+        stmt = (
+            self._scoped(select(ImportBatch.id))
+            .join(SourceDocument, SourceDocument.id == ImportBatch.source_document_id)
+            .where(
+                ImportBatch.status.in_(FINAL_BATCH_STATES),
+                SourceDocument.undo_deadline.is_not(None),
+                SourceDocument.undo_deadline < now,
+            )
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def count_rows_of(self, batch_ids: Sequence[uuid.UUID]) -> int:
+        """Number of `import_rows` belonging to any of `batch_ids` (tenant-scoped)."""
+        if not batch_ids:
+            return 0
+        stmt = select(func.count()).select_from(ImportRow).where(
+            ImportRow.import_batch_id.in_(batch_ids), ImportRow.tenant_id == require_tenant()
+        )  # fmt: skip
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def delete_rows_of(self, batch_ids: Sequence[uuid.UUID]) -> None:
+        """Hard-delete the `import_rows` of `batch_ids` — `extracted_fields` are untouched."""
+        if not batch_ids:
+            return
+        await self.db.execute(delete(ImportRow).where(
+            ImportRow.import_batch_id.in_(batch_ids), ImportRow.tenant_id == require_tenant()
+        ))  # fmt: skip
 
 
 class IncidentRepository(BaseRepository[CaptureIncident]):

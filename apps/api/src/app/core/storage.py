@@ -15,6 +15,7 @@ import shutil
 import time
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -31,6 +32,10 @@ class ObjectStore(Protocol):
     def read(self, storage_key: str) -> bytes: ...
     def move(self, storage_key: str, *, to_bucket: str) -> str: ...
     def exists(self, storage_key: str) -> bool: ...
+    # Retention / hygiene (T-1011): list what the store holds, drop one object. A MinIO/S3
+    # implementation maps these to `list_objects_v2` / `delete_object` behind the same names.
+    def iter_keys(self) -> Iterator[tuple[str, datetime]]: ...
+    def delete(self, storage_key: str) -> bool: ...
 
 
 class LocalObjectStore:
@@ -77,6 +82,28 @@ class LocalObjectStore:
             return self._path(storage_key).is_file()
         except ValueError:
             return False
+
+    def iter_keys(self) -> Iterator[tuple[str, datetime]]:
+        """`(storage_key, last-modified)` for every object, buckets included (T-1011)."""
+        if not self.root.is_dir():
+            return
+        for bucket in sorted(p for p in self.root.iterdir() if p.is_dir()):
+            for obj in sorted(p for p in bucket.iterdir() if p.is_file()):
+                yield (
+                    f"{bucket.name}/{obj.name}",
+                    datetime.fromtimestamp(obj.stat().st_mtime, tz=UTC),
+                )
+
+    def delete(self, storage_key: str) -> bool:
+        """Remove one object; `False` when it was already gone (idempotent)."""
+        try:
+            path = self._path(storage_key)
+        except ValueError:
+            return False
+        if not path.is_file():
+            return False
+        path.unlink()
+        return True
 
 
 def iter_file_chunks(path: Path, chunk_size: int = _CHUNK) -> Iterator[bytes]:

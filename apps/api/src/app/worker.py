@@ -116,6 +116,16 @@ celery_app.conf.update(
             "task": "app.jobs.decision_reviews",
             "schedule": crontab(minute=30, hour=7),
         },
+        # T-1010 / 05 §2.7 (OQ-05-11) — purge C5 import rows past the undo window, daily 02:00
+        "purge-import-rows": {
+            "task": "app.jobs.purge_import_rows",
+            "schedule": crontab(minute=0, hour=2),
+        },
+        # T-1011 — report (and, when IDP_ORPHAN_SWEEP_DELETE=true, remove) orphan storage files
+        "sweep-orphan-storage": {
+            "task": "app.jobs.sweep_orphan_storage",
+            "schedule": crontab(minute=30, hour=2),
+        },
     },
 )
 

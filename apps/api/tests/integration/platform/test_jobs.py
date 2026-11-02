@@ -25,6 +25,10 @@ EXPECTED = {
     "verify-action-outcome": ("app.jobs.verify_action_outcome", "*", "5"),
     "recompute-metrics": ("app.jobs.recompute_metrics", "1", "0"),
     "check-review-sla": ("app.jobs.check_review_sla", "*", "15"),  # T-412 IDP SLA escalation
+    # T-1010/T-1011 (R-DEC-152): IDP retention — purge C5 rows past the undo window, then
+    # report (and only with IDP_ORPHAN_SWEEP_DELETE delete) unreferenced storage files.
+    "purge-import-rows": ("app.jobs.purge_import_rows", "2", "0"),
+    "sweep-orphan-storage": ("app.jobs.sweep_orphan_storage", "2", "30"),
 }
 
 
@@ -43,7 +47,8 @@ def test_beat_schedule_registers_jobs() -> None:
     # 5 DEC-203 jobs + 01:00 recompute + task_overdue (T-131) + relay + check-review-sla (T-412)
     # + notification e-mail sweep (T-616b) + KR at-risk 07:00 + Friday check-in reminder (T-629)
     # + calendar-sync interval (M3.1 T-804 / R-DEC-121) + daily briefings (M3.3 T-819)
-    assert len(sched) == 14
+    # + 2 IDP retention sweeps (M4 T-1010/T-1011)
+    assert len(sched) == 16
     assert sched["execution.kr_at_risk"]["task"] in celery_app.tasks
     remind = sched["execution.checkin_reminder"]
     assert remind["task"] in celery_app.tasks and remind["schedule"]._orig_day_of_week == 5

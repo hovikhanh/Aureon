@@ -120,6 +120,9 @@ class ConfigService(BaseSettings):
     # OCR backend: `stub` (deterministic, demo/CI default) | `paddle` (in-process, 07 §47).
     # `paddle` is only used when the optional package is importable (DEC-049 fixture/replay demo).
     ocr_provider: Literal["stub", "paddle"] = "stub"
+    # Retention / hygiene (OQ-05-11, T-1010/T-1011): the daily orphan sweep only *reports*
+    # unreferenced object-store files; set this true to let it delete them as well.
+    idp_orphan_sweep_delete: bool = False
     # --- IDP review SLA (04 §8.3, FR-DC-21) ---
     # Default review SLA: documents in NEEDS_REVIEW beyond this → escalate to manager; a
     # second SLA span (2×) → escalate to the department head (hourly `check_review_sla` beat).

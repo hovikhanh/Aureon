@@ -86,6 +86,22 @@ camera Playwright ✓; BE ruff/format/mypy ✓, pytest 547 ✓ (unit + idp + ai_
 
 ## 5. Safe document cleanup
 
+> **Since 2026-11-02 (T-1010/T-1011, R-DEC-152) most of this is automated** — prefer the jobs over
+> the manual SQL below:
+>
+> * `app.jobs.purge_import_rows` (beat, 02:00) hard-deletes `idp.import_rows` of finished batches
+>   once the document's 7-day undo window has closed, keeping `extracted_fields` (lineage source).
+>   Idempotent, writes an `idp.purge_import_rows` audit row with the counters.
+> * `app.jobs.sweep_orphan_storage` (beat, 02:30) does §5.1 as code: it lists the object store
+>   (`ObjectStore.iter_keys()`), reports files with no `source_documents` row — skipping anything
+>   younger than the undo window — and **only deletes** them when `IDP_ORPHAN_SWEEP_DELETE=true`.
+>   Audit row: `idp.sweep_orphan_storage`.
+>
+> Run either on demand: `docker compose -f docker-compose.full.yml exec celery-worker \
+>   celery -A app.worker call app.jobs.purge_import_rows`. The SQL below stays as the escape hatch
+> for a single stale artifact (§5.2) and for verification (§5.3).
+
+
 > **Rules:** dry-run first; back up before any delete; never delete `auth.*` audit or
 > `ENT-AuditLog` history; delete DB rows in FK-safe order **and** remove the matching storage file;
 > verify no dangling references afterwards.
