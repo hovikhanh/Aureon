@@ -57,6 +57,10 @@ async def serve_file(
             "Content-Disposition": safe_name,
             "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "default-src 'none'; sandbox",
+            # `sandbox allow-same-origin` (not allow-scripts): lets the browser's native PDF viewer
+            # render the file in an <iframe> while still blocking script/plugin execution, forms and
+            # popups — so a hostile upload cannot run active content. Images never needed this; PDFs
+            # do. Matches the iframe `sandbox="allow-same-origin"` in SourceDrawer.tsx.
+            "Content-Security-Policy": "default-src 'none'; sandbox allow-same-origin",
         },
     )

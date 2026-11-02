@@ -212,6 +212,9 @@ async def test_serve_file_happy_path_and_headers(api, db_session, idp_store) -> 
     assert r.headers["content-disposition"].startswith("inline")
     assert r.headers["cache-control"] == "private, no-store"
     assert r.headers["x-content-type-options"] == "nosniff"
+    # CSP sandbox keeps active content (scripts/plugins/forms/popups) blocked but allows
+    # same-origin so the browser's native PDF viewer can render the file inline (not just images).
+    assert r.headers["content-security-policy"] == "default-src 'none'; sandbox allow-same-origin"
     # level-3 → audited on serve as well (idempotent concept with EP-DC-14)
     audits = (
         (await db_session.execute(

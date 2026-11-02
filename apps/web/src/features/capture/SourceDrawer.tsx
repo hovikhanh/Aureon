@@ -54,7 +54,10 @@ export function SourceDrawer({ documentId, filename, page: initial = 1, onClose 
               {canFrame && <a href={state.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary" data-testid="source-open"><ExternalLink className="h-4 w-4" aria-hidden />{t("capture.source.open")}</a>}
             </div>
             {state.kind === "frame" && (
-              <iframe src={state.url} title={title} className="h-[70vh] w-full rounded border bg-muted" data-testid="source-frame" sandbox="" onError={() => setFrameFailed(true)} />
+              // sandbox="allow-same-origin" (NOT allow-scripts): the browser's built-in PDF viewer
+              // needs same-origin to render, but active content (JS/forms/popups) stays blocked so a
+              // malicious upload cannot execute. The served file adds a matching CSP (files.py).
+              <iframe src={state.url} title={title} className="h-[70vh] w-full rounded border bg-muted" data-testid="source-frame" sandbox="allow-same-origin" onError={() => setFrameFailed(true)} />
             )}
             {state.kind === "text" && (
               <pre className="h-[70vh] overflow-auto whitespace-pre-wrap rounded border bg-muted p-3 text-xs" data-testid="source-text">{state.text}</pre>
