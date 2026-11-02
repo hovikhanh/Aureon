@@ -30,11 +30,14 @@ ADMIN_ROLE_CODE = "ADM"
 
 
 def _env(name: str) -> str:
-    """Process env wins; else parse .env with the same quote-safe parser pydantic-settings uses
-    (bash `source .env` breaks on secrets containing quotes/specials, so never rely on it)."""
+    """Process env wins; else parse .env with the same quote-safe parser pydantic-settings uses.
+
+    An unquoted secret containing a quote/space/metacharacter parses differently in bash than in
+    dotenv (and breaks `source .env` outright) — `scripts/check_env.sh` now fails on that, so the
+    two readers agree; this helper still uses the dotenv parser as the single source."""
     if name in os.environ:
         return os.environ[name] or ""
-    return (dotenv_values(REPO_ROOT / ".env").get(name) or "")
+    return dotenv_values(REPO_ROOT / ".env").get(name) or ""
 
 
 async def _run() -> int:
@@ -51,9 +54,12 @@ async def _run() -> int:
         with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: ghi như system tenant
             report = SeedReport()
             roles = await seed_roles(session, report)
-            admin_role = roles.get(ADMIN_ROLE_CODE) or (
-                await session.execute(select(Role).where(Role.code == ADMIN_ROLE_CODE))
-            ).scalar_one()
+            admin_role = (
+                roles.get(ADMIN_ROLE_CODE)
+                or (
+                    await session.execute(select(Role).where(Role.code == ADMIN_ROLE_CODE))
+                ).scalar_one()
+            )
             await session.flush()
 
             user = (

@@ -41,3 +41,29 @@ def test_config_service_declares_v21_vars() -> None:
 def test_local_chat_model_is_not_embedding_model() -> None:
     env = _example_vars()
     assert env["LOCAL_CHAT_MODEL"] != env["EMBEDDING_MODEL"] == "bge-m3"
+
+
+def test_env_example_is_shell_sourceable() -> None:
+    """T-1020 — `set -a; . ./.env` is the documented way scripts load config (STATE.md, handover
+    `IDP_Operations.md`), so every line of the template must parse under `source`: an unbalanced
+    quote makes bash fail with `unexpected EOF` and `cp .env.example .env` hands the user a file
+    no script can read. `scripts/check_env.sh` runs the real bash + dotenv cross-check on `.env`.
+    """
+    bad: list[str] = []
+    for key, value in _example_vars().items():
+        quoted = len(value) > 1 and value[0] == value[-1] and value[0] in "'\""
+        if value.count("'") % 2 or (not quoted and value.count('"') % 2):
+            bad.append(key)
+    assert not bad, f"unbalanced quotes in .env.example (bash `source` fails): {sorted(bad)}"
+
+
+def test_env_example_values_needing_quotes_are_quoted() -> None:
+    """T-1020 — the same value must come out of bash and of python-dotenv (ConfigService)."""
+    unsafe = {
+        key: value
+        for key, value in _example_vars().items()
+        if value
+        and not (value[0] == value[-1] and value[0] in "'\"")
+        and any(char in value for char in "\"'`$ \\&|;<>()*?!#~")
+    }
+    assert not unsafe, f"unquoted values in .env.example: {sorted(unsafe)}"
