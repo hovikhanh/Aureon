@@ -6,7 +6,7 @@
 #   4. purge Celery queues + restart worker/beat
 #   5. put 1 INVOICE in NEEDS_REVIEW (fixture extraction, no live LLM)
 #   6. verify (seed v3, T-603b/T-649): 7 departments · 154 employees · 10 demo users + AI actor ·
-#      34 metrics · 14 OPEN alerts · 1 NEEDS_REVIEW · 6 AI agents · 0 autonomy policies ·
+#      34 metrics · 13 OPEN alerts · 1 NEEDS_REVIEW · 6 AI agents · 0 autonomy policies ·
 #      onboarding completed; then export seed_snapshot.json (mock FE)
 # Usage: ./scripts/demo_reset.sh [-y] [--host]
 #   -y      skips the confirmation prompt
@@ -93,7 +93,7 @@ check "employees" "$emps" 154
 check "demo users" "$users" 10
 check "AI actor" "$ai" 1
 check "metrics" "$metrics" 34
-check "open alerts" "$alerts" 14
+check "open alerts" "$alerts" 13
 check "invoices NEEDS_REVIEW" "$review" 1
 check "AI agents" "$agents" 6
 check "autonomy policies" "$policies" 0

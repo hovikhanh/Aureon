@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 
 from app.core.deps import Principal
 from app.core.model_gateway.types import ChatRequest, ChatResponse, ToolCall, Usage
@@ -92,9 +92,16 @@ async def test_aut01_recommendation_auto_executes_at_l3_with_undo(db_session) ->
     task = (await db_session.execute(
         select(Task).where(Task.id == uuid.UUID(task_ref["id"])))).scalar_one()  # fmt: skip
     assert task.task_source == "ai"
-    n_events = (await db_session.execute(select(func.count()).select_from(CalendarEvent)
-                .where(CalendarEvent.task_id == task.id))).scalar_one()  # fmt: skip
-    assert n_events == 1
+    # Two internal events are linked to the task, each with a distinct owner (M3.1 + M3.2):
+    #   · the composite's own event for the caller (`event_ref` below, undone by the action), and
+    #   · the M3.1 `_sync_deadline_event` deadline mirror owned by the assignee (R-DEC-122).
+    events = (await db_session.execute(select(CalendarEvent)
+              .where(CalendarEvent.task_id == task.id))).scalars().all()  # fmt: skip
+    event_ref = next(r for r in row.result_refs if r["table"] == "execution.calendar_events")
+    caller_event = next(e for e in events if e.id == uuid.UUID(event_ref["id"]))
+    mirror = next(e for e in events if e.id != caller_event.id)
+    assert caller_event.owner_id == row.on_behalf_of  # the CEO who acted
+    assert mirror.owner_id == task.assignee_id and mirror.title.startswith("Hạn:")  # NV-0001
 
 
 async def test_aut02_recommendation_is_undoable_within_window(db_session) -> None:
@@ -104,11 +111,12 @@ async def test_aut02_recommendation_is_undoable_within_window(db_session) -> Non
         "Đã làm.",
         args={"title": "Chuẩn bị báo cáo quý", "due_date": "2026-11-12"},
     )
-    turn = await ChatService(db_session, gw).chat(ceo(), "Làm giúp việc này", locale="vi")
+    user = ceo()  # same principal must ask and undo — only the asker decides the card (TC-M16-18)
+    turn = await ChatService(db_session, gw).chat(user, "Làm giúp việc này", locale="vi")
     card = turn.suggested_actions[0]
     from app.modules.ai.services.action_service import ActionService
 
-    out = await ActionService(db_session).undo(ceo(), uuid.UUID(card["id"]))
+    out = await ActionService(db_session).undo(user, uuid.UUID(card["id"]))
     assert out.status == "undone"
     task_ref = next(r for r in card["result_refs"] if r["table"] == "execution.tasks")
     task = (await db_session.execute(

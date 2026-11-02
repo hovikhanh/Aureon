@@ -70,7 +70,11 @@ def test_registry_and_routing() -> None:
         "execution.on_goal_alert",
         "ai.on_kpi_below_threshold",
     }
-    assert REGISTRY.consumers_for("execution.okr_at_risk") == ["execution.on_goal_alert"]
+    # M3.4 R-DEC-143: AI also observes the KR at-risk transition for a 9-part insight (UC-04).
+    assert set(REGISTRY.consumers_for("execution.okr_at_risk")) == {
+        "execution.on_goal_alert",
+        "ai.on_okr_at_risk",
+    }
     assert "execution.kpi_measured" not in platform_consumers._group("execution.")
 
 
@@ -123,7 +127,7 @@ async def test_target_change_can_raise_alert(
     from app.modules.execution.services import kpi_service
 
     at = datetime(2037, 1, 5, 3, tzinfo=UTC)
-    monkeypatch.setattr(kpi_service, "now_utc", lambda: at)
+    monkeypatch.setattr(kpi_service, "measured_now", lambda: at)
     k = await make(api, "/kpis", {"code": _code(), "name": "DT", "unit": "tỷ", "target": 10,
                                   "owner_id": str(uuid.uuid4())})  # fmt: skip
     m = await api.call("POST", f"/kpis/{k['id']}/measurements", "CEO",

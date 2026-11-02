@@ -151,13 +151,18 @@ async def seed_invoices(db: AsyncSession) -> int:
             paid = total
         status = "paid" if paid >= total else "partial" if paid else "sent"
         due_d = date.fromisoformat(due)
+        issue_d = date.fromisoformat(issued)
         inv = Invoice(
             direction="OUT", series="AB/26E", number=number,
-            issue_date=date.fromisoformat(issued), due_date=due_d,
+            issue_date=issue_d, due_date=due_d,
             client_id=seed_uuid("client", tax), client_name_snapshot=client,
             client_tax_code=tax, subtotal=subtotal, vat_rate_pct=vat, vat_amount=vat_amount,
             total_amount=total, paid_amount=paid, currency="VND",
             status=status, paid_at=_at(min(due_d, REFERENCE)) if status == "paid" else None,
+            # Anchor `created_at` to the issue date (08 §1 DD-05) so METRIC-DQ-02's business-month
+            # window is deterministic regardless of wall-clock — else no October-created capture
+            # rows exist once real time passes the demo month and DQ-02 drifts to `no_data`.
+            created_at=_at(issue_d),
             **SEED,
         )  # fmt: skip
         db.add(inv)

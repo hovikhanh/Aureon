@@ -215,7 +215,9 @@ async def test_agents_list_month_spend_only_for_admin(api: ApiClient) -> None:
     assert ks["autonomy_ceiling"] == "L3"
 
 
-async def test_patch_agent_rules(api: ApiClient, db_session) -> None:
+async def test_patch_agent_rules(api: ApiClient, db_session, ceiling_l2) -> None:
+    # R-DEC-126: default ceiling is now L3, so pin L2 to keep exercising the `above_ceiling`
+    # validation (patching an agent above the active ceiling → 422).
     async def patch(body: dict[str, Any], role: str = "ADM", code: str = "task") -> Any:
         return await api.call("PATCH", f"/ai/agents/{code}", role,
                               json={"reason": "tune", "version": 1} | body)  # fmt: skip

@@ -667,8 +667,11 @@ class CalendarEvent(BusinessModel):
     )
 
 
-class ExternalEventLink(LogModel, TenantMixin):
-    """ENT-ExternalEventLink (M3.1) — ánh xạ event nội bộ ↔ provider; idempotent push/pull."""
+class ExternalEventLink(BusinessModel):
+    """ENT-ExternalEventLink (M3.1) — ánh xạ event nội bộ ↔ provider; idempotent push/pull.
+
+    05 §2.10: `BusinessModel` (C19: `version` + `data_classification` + `source`), tenant-scoped.
+    """
 
     __tablename__ = "external_event_links"
     __table_args__ = (

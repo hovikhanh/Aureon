@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.base_model import BusinessModel
-from app.core.clock import business_today
+from app.core.clock import business_now, business_today
 from app.core.errors import BusinessRuleError, DuplicateResourceError, NotFoundError
 from app.modules.execution.models import (
     Decision,
@@ -41,6 +41,12 @@ REFS: dict[str, type[BusinessModel]] = {
 
 def now_utc() -> datetime:
     return datetime.now(UTC)
+
+
+def measured_now() -> datetime:
+    """Timestamp for KPI/OKR check-ins & measurements: pinned to the business day (08 §1, DD-05)
+    so a check-in "now" lands inside its derived `period_key`. See `core.clock.business_now`."""
+    return business_now()
 
 
 def today() -> date:

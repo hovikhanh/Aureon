@@ -82,7 +82,9 @@ async def test_seed_product_risk_execution_populate_all_metrics(db_session: Asyn
     assert await _count(db_session, Product) == 3 and await _count(db_session, Feature) == 5
     assert await _count(db_session, Risk) == 8 and await _count(db_session, Mitigation) == 4
     assert await _count(db_session, Risk, Risk.status == "proposed") == 2
-    assert await _count(db_session, Initiative) == 4 and await _count(db_session, Task) == 100
+    # 100 operating tasks + the 1 `SEED`-source capture task (`_capture`, M1.5 DQ-02 footprint);
+    # the 2 `IDP`-source capture tasks are not `source == "SEED"` so they fall outside `_count`.
+    assert await _count(db_session, Initiative) == 4 and await _count(db_session, Task) == 101
     unlinked = select(func.count()).select_from(Revenue).where(
         Revenue.source == "SEED", Revenue.client_id.is_(None))  # fmt: skip
     assert (await db_session.execute(unlinked)).scalar_one() == 0

@@ -1,0 +1,96 @@
+{
+  "content": "",
+  "model": "fixture",
+  "usage": {
+    "tokens_in": 0,
+    "tokens_out": 0
+  },
+  "tool_calls": [],
+  "data": {
+    "department_code": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "department_name": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "team_code": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "team_name": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "title": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "employee_code": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "full_name": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "manager_code": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "hire_date": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "status": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "email": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "phone": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "salary": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "date_of_birth": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "address": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "national_id": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    },
+    "bank_account": {
+      "value": null,
+      "raw_text": null,
+      "confidence": 0
+    }
+  }
+}

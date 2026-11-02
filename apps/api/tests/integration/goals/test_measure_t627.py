@@ -1,7 +1,7 @@
 """T-627 — KPITarget effective-dated, measurement history, KPIEvaluation, KRMeasurement
 (05 §2.6, R-DEC-51..53): TC-M14-02, TC-M14-07, TC-M14-08, TC-M14-09.
 
-Time is pinned through `kpi_service.now_utc` so "measured before / after a target change" is
+Time is pinned through `kpi_service.measured_now` so "measured before / after a target change" is
 deterministic; periods live in 2037 to stay clear of the demo seed.
 """
 
@@ -32,7 +32,7 @@ pytestmark = pytest.mark.integration
 def clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
     def set_(iso: str) -> None:
         at = datetime.fromisoformat(iso).replace(tzinfo=UTC)
-        monkeypatch.setattr(kpi_service, "now_utc", lambda: at)
+        monkeypatch.setattr(kpi_service, "measured_now", lambda: at)
 
     return set_
 

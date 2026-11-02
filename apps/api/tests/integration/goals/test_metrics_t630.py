@@ -80,7 +80,7 @@ async def _kpi_measured_at(api: ApiClient, monkeypatch: pytest.MonkeyPatch,
                                   "owner_id": str(uuid.uuid4()),
                                   "period_type": "MONTH"})  # fmt: skip
     if at is not None:
-        monkeypatch.setattr(kpi_service, "now_utc", lambda: at)
+        monkeypatch.setattr(kpi_service, "measured_now", lambda: at)
         r = await api.call("POST", f"/kpis/{k['id']}/measurements", "CEO",
                            json={"period_key": "2037-05", "actual_value": 10})  # fmt: skip
         assert r.status_code == 201, r.text

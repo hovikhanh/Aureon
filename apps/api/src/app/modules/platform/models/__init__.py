@@ -474,8 +474,11 @@ class CalendarAccount(BusinessModel):
     )
 
 
-class CalendarSyncState(LogModel, TenantMixin):
-    """ENT-SyncState (M3.1) — con trỏ đồng bộ incremental theo tài khoản (syncToken/deltaLink)."""
+class CalendarSyncState(BusinessModel):
+    """ENT-SyncState (M3.1) — con trỏ đồng bộ incremental theo tài khoản (syncToken/deltaLink).
+
+    05 §2.10: `BusinessModel` (C19: `version` + `data_classification` + `source`), tenant-scoped.
+    """
 
     __tablename__ = "calendar_sync_states"
     __table_args__ = schema_args(S)

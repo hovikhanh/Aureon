@@ -10,7 +10,7 @@ Idempotent: skipped when SEED tasks already exist.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -159,6 +159,31 @@ def _tasks(owner: uuid.UUID) -> list[Task]:
     return rows
 
 
+def _capture(owner: uuid.UUID) -> list[Task]:
+    """METRIC-DQ-02 (G3, R-DEC-68) demo footprint: a few records *created in the reference month*
+    (2026-10) through IDP vs typed by hand, so G3 = captured ÷ total has real, wall-clock-stable
+    data (08 §1 DD-05 — the rest of the seed is dated Jul–Sep, leaving October otherwise empty).
+    Tasks are `done` on time with a September due date so they stay out of the October OPS-01 due
+    set and the HR-03 open-workload count — they only move DQ-02. 2 of 3 captured → G3 ≈ 66.7 %."""
+    created = datetime(2026, 10, 6, 3, tzinfo=UTC)
+    done = datetime(2026, 9, 28, 9, tzinfo=UTC)
+    specs = (  # (key, assignee person, provenance) — IDP rows are "captured", SEED is typed by hand
+        ("CAP-IDP-1", X.ASSIGNEES[0], "IDP"),
+        ("CAP-IDP-2", X.ASSIGNEES[1], "IDP"),
+        ("CAP-MAN-1", X.ASSIGNEES[2], "SEED"),
+    )
+    rows: list[Task] = []
+    for key, who, prov in specs:
+        rows.append(Task(
+            id=seed_uuid("task", key), title=f"{key} — bản ghi nhập tháng 10",
+            owner_id=owner, assignee_id=emp_id(who.code), department_id=_dept(who.dept),
+            priority="low", status="done", due_date=date(2026, 9, 30), done_at=done,
+            is_critical=False, task_source="document" if prov == "IDP" else "manual",
+            created_at=created, source=prov,
+        ))  # fmt: skip
+    return rows
+
+
 def _links(_owner: uuid.UUID) -> list[Any]:
     """M1.3: dependencies (R-DEC-43) + project milestones (R-DEC-49)."""
     rows: list[Any] = [
@@ -255,7 +280,7 @@ async def seed_execution(db: AsyncSession, owner: uuid.UUID | None) -> dict[str,
     if owner is None or int((await db.execute(has)).scalar_one()):
         return {"execution": 0}
     total = 0
-    for build in (_strategy, _meeting, _tasks, _links, _kpis, _okrs):
+    for build in (_strategy, _meeting, _tasks, _capture, _links, _kpis, _okrs):
         rows = build(owner)
         for row in rows:
             db.add(row)

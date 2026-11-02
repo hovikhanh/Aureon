@@ -65,8 +65,12 @@ async def make_employee(api: ApiClient, dept: str, **kw: Any) -> dict[str, Any]:
 
 
 async def events(db: AsyncSession, aggregate_id: str, event_type: str | None = None) -> list[Any]:
-    stmt = select(OUTBOX.c.event_type, OUTBOX.c.payload).where(
-        OUTBOX.c.aggregate_id == uuid.UUID(aggregate_id)
+    # Order by publish time (`occurred_at`, tie-broken by `created_at`) so the row order is
+    # deterministic — without it Postgres may return create/update/archive in any order.
+    stmt = (
+        select(OUTBOX.c.event_type, OUTBOX.c.payload)
+        .where(OUTBOX.c.aggregate_id == uuid.UUID(aggregate_id))
+        .order_by(OUTBOX.c.occurred_at, OUTBOX.c.created_at)
     )
     if event_type:
         stmt = stmt.where(OUTBOX.c.event_type == event_type)

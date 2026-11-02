@@ -133,6 +133,7 @@ class BriefingService:
             payload=payload,
             stale_metric_codes=stale,
             status="generated",
+            source="AI",
         )
 
     async def _email(self, user: Principal, row: Briefing) -> None:

@@ -95,6 +95,8 @@ class FakeLinkRepo:
 
     async def create(self, **values: Any) -> FakeLink:
         values.pop("tenant_id", None)
+        values.pop("source", None)  # ExternalEventLink is a BusinessModel now (05 §2.10); the
+        # fake double does not model the C19 `source` column the real repo stores.
         link = FakeLink(id=uuid.uuid4(), **values)
         self.rows[link.id] = link
         return link

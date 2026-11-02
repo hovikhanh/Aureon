@@ -82,7 +82,7 @@ class CalendarSyncService:
             )  # fmt: skip
             await self.db.flush()
             await self.links.create(
-                tenant_id=require_tenant(), calendar_event_id=event.id,
+                tenant_id=require_tenant(), source="EVENT", calendar_event_id=event.id,
                 account_id=ref.account_id, external_id=remote.external_id, etag=remote.etag,
             )  # fmt: skip
             return True
@@ -141,7 +141,7 @@ class CalendarSyncService:
             return False
         if link is None:
             await self.links.create(
-                tenant_id=require_tenant(), calendar_event_id=calendar_event_id,
+                tenant_id=require_tenant(), source="EVENT", calendar_event_id=calendar_event_id,
                 account_id=ref.account_id, external_id=saved.external_id, etag=saved.etag,
                 last_pushed_at=datetime.now(UTC),
             )  # fmt: skip

@@ -15,6 +15,20 @@ def business_today() -> date:
     return datetime.now(UTC).date()
 
 
+def business_now() -> datetime:
+    """Wall-clock instant pinned to the business calendar day (08 §1, DD-05).
+
+    In demo mode a KPI/OKR check-in recorded "now" must land inside the business period
+    (`period_key` derives from `business_today()`), so we keep the live time-of-day but move the
+    date onto `DEMO_REFERENCE_DATE`. Outside demo mode this is plain `datetime.now(UTC)`.
+    """
+    now = datetime.now(UTC)
+    day = business_today()
+    if day == now.date():
+        return now
+    return now.replace(year=day.year, month=day.month, day=day.day)
+
+
 def month_key(d: date) -> str:
     return f"{d.year:04d}-{d.month:02d}"
 

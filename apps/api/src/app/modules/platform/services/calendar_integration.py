@@ -166,7 +166,7 @@ class CalendarIntegrationService:
         existing = await self.sync_states.for_account(account_id)
         if existing is None:
             await self.sync_states.create(
-                tenant_id=require_tenant(), account_id=account_id, **values
+                tenant_id=require_tenant(), source="EVENT", account_id=account_id, **values
             )
         else:
             await self.sync_states.update(existing, **values)

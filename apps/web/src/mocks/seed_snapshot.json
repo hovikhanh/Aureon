@@ -3134,15 +3134,15 @@
    "pillar": null,
    "status": "ok",
    "unit": "SCORE",
-   "value": 88.6
+   "value": 89.2
   },
   {
    "code": "METRIC-DQ-02",
    "period_key": "2026-10",
    "pillar": null,
-   "status": "critical",
+   "status": "ok",
    "unit": "PCT",
-   "value": 0.0
+   "value": 66.7
   },
   {
    "code": "METRIC-FIN-01",

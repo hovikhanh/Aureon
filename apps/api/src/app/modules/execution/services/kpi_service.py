@@ -63,7 +63,13 @@ from app.modules.execution.schemas.okr import (
 )
 from app.modules.execution.services import goal_scope
 from app.modules.execution.services.at_risk import AtRiskService
-from app.modules.execution.services.base import ExecBase, not_found, now_utc, num, today
+from app.modules.execution.services.base import (
+    ExecBase,
+    measured_now,
+    not_found,
+    num,
+    today,
+)
 from app.modules.execution.services.kpi_rules import (
     achievement_pct,
     band,
@@ -303,7 +309,7 @@ class KpiService(ExecBase):
     ) -> MeasurementOut:  # fmt: skip
         check_period(k.period_type, period_key)
         k = await self.target_svc.lock_kpi(k.id)
-        at = now_utc()
+        at = measured_now()
         versions = list(await self.targets.versions(k.id, period_key))
         self.target_svc.require_open(versions, period_key)
         t = await self.target_svc.target_for(k, period_key, local_day(at), user_id)
@@ -509,7 +515,8 @@ class KpiService(ExecBase):
     async def _new_check_in(
         self, user: Principal, body: CheckInCreate, **target: uuid.UUID
     ) -> CheckIn:
-        c = await self.check_ins.create(**body.model_dump(), **target, checked_in_at=now_utc(),
+        c = await self.check_ins.create(**body.model_dump(), **target,
+                                        checked_in_at=measured_now(),
                                         user_id=user.user_id)  # fmt: skip
         await self.db.refresh(c)
         return c
