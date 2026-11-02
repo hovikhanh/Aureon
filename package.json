@@ -17,6 +17,7 @@
     "lint": "pnpm -r run lint",
     "test": "pnpm test:web",
     "test:web": "pnpm --filter @aureon/web test",
+    "test:coverage": "pnpm --filter @aureon/web test:coverage",
     "test:e2e": "pnpm --filter @aureon/web test:e2e",
     "contract:validate": "uv run pytest -m contract"
   }
