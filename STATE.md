@@ -1,6 +1,10 @@
 # Aureon v3 — AI-EOS · Build State
 
-## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02) — IN PROGRESS
+## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02→03) — DONE, chờ human review/merge
+
+**Gate cuối:** pytest full **1383 passed / 0 failed**, cov **94%** (DB cô lập `aureon_m4`) · contract **41** · ruff/format/mypy (387 file) xanh · Vitest **50 file / 437 test** · FE coverage 88,26% / 71,29% / 88,66% · Playwright mock **95/95** · axe-core AA 0 violation · shared-types drift 0 · `scripts/check_env.sh` xanh. 6 commit `7329c4f..590833a`, **chưa push**.
+
+> Môi trường: sau khi session khởi động lại, Docker CLI không còn trong WSL (mất tích hợp Docker Desktop) → stack compose không truy cập được; mọi test cần DB đã chạy xong trước đó trên code backend cuối (`.coverage` 23:40 > mtime backend cuối 23:16). Cần bật lại WSL integration của Docker Desktop để chạy stack.
 
 Human giao: "phân tích tài liệu @docs/ và cải tiến dự án" → chốt phạm vi **toàn bộ doc set 00–14 vs
 codebase**, 4 ưu tiên (audit API, hoàn thiện module theo docs, siết chất lượng, doc-sync), môi trường
