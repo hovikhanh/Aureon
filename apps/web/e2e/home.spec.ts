@@ -22,7 +22,10 @@ test.describe("SCR-40 Executive home (CEO)", { tag: "@mock" }, () => {
     await firstTile.getByTestId("metric-value").click();
     const panel = page.getByTestId("metric-detail-panel");
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId("metric-detail-lineage")).toHaveAttribute("href", `/dashboard/metrics/${code}/lineage`);
+    await expect(panel).toHaveAttribute("data-code", code ?? "");
+    await page.getByTestId("metric-detail-lineage").click();
+    await expect(page.getByTestId("metric-detail-lineage-info")).toContainText(`/dashboard/metrics/${code}`);
+    await expect(page).toHaveURL(/\/home$/);
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();
 

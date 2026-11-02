@@ -190,6 +190,10 @@
     "fivePillarLink": "Xem bố cục 5 trụ"
   },
   "metricDetail": {
+    "title": "Chi tiết chỉ số",
+    "lineageSource": "Nguồn",
+    "lineageComputedAt": "Tính lúc",
+    "lineageRef": "Tham chiếu",
     "loading": "Đang tải chi tiết chỉ số…",
     "error": "Không tải được chi tiết chỉ số.",
     "retry": "Thử lại",

@@ -1,6 +1,45 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: M3 (Hành động) DONE — M3.1→M3.5 XANH, đã merge fast-forward vào `main` + tag `v3.0.0-mvp` (2026-11-02). MVP 3 mốc (M1+M2+M3) hoàn tất ở mức code.
+## Status: M3 (Hành động) DONE — M3.1→M3.5 XANH, đã merge fast-forward vào `main` + tag `v3.0.0-mvp` (2026-11-02). MVP 3 mốc (M1+M2+M3) hoàn tất ở mức code. **Nghiệm thu M3.5 chạy trên STACK THẬT (2026-11-02): T-901/903/full-test xanh (xem dưới).**
+
+## LIVE CUTOVER — xóa data demo + chạy live (2026-11-02, human yêu cầu)
+
+Human yêu cầu: "xóa data demo, triển khai chạy live". Đã thực hiện trong môi trường; phần cần tài nguyên ngoài (OCR dep/DEC, OAuth credential, data thật DN) chờ human.
+
+| Bước | Kết quả |
+|---|---|
+| **Backup** | `var/backup/aureon_predeploy_20261102_171136.dump` (pg_dump -Fc, đường lùi) |
+| **Xóa data demo** | TRUNCATE 10 schema nghiệp vụ (giữ `platform.alembic_version`), KHÔNG re-seed demo → users/orgs/metrics = 0. MinIO `source-documents` emptied (0 object), `var/idp-storage` sạch, redis FLUSHDB, Celery queues purged |
+| **Config live** | `.env`: `DEMO_MODE=false`, `NEXT_PUBLIC_DEMO_MODE=false`, `AI_DEMO_REPLAY=false`, `DEMO_LOGIN_AUTOFILL=false`. Recreate api/web/worker/beat (`up -d --force-recreate` — `restart` KHÔNG nạp lại env_file) |
+| **Admin thật** | Script mới `apps/api/src/app/scripts/bootstrap_admin.py` (seed 7 roles + tạo 1 ROLE-ADM từ `ADMIN_BOOTSTRAP_EMAIL/PASSWORD`, idempotent, đọc .env quote-safe qua dotenv_values). Tạo `admin@abc.com` (role ADM). Mật khẩu do human đặt trong .env |
+| **Verify live** | `/health` 200; EP-04 role-switch demo → 404 (DEMO_MODE off); login admin → 200 + JWT; chat tự do → model thật trả lời, **KHÔNG** có `ai.warn.demo_replay`, `sources:[]` (DB trống). `ai.model_call_logs`: provider=omniroute, model=claude-sonnet-5, status=ok, prompt_sha256 có → bằng chứng gọi gateway thật |
+
+**CHẶN — chờ human/DEC (không làm được trong môi trường):**
+1. ~~**OCR thật** (`OCR_PROVIDER=paddle`)~~ — **ĐÃ XONG (2026-11-02, R-DEC-146)**: hợp thức hóa dependency OCR thật (`paddleocr==2.10.0` + `paddlepaddle==3.0.0` + `setuptools`) làm optional-dependency group `ocr`; image `aureon-api:local` rebuild có cài + **bake sẵn model** (det/rec/cls lang vi) → OCR chạy **offline** (`--network none` xanh). Xác minh: OCR `data/DOC-10-anh-hoa-don-gtgt.png` → 267 ký tự đúng số liệu hóa đơn, conf 0,958; 13/13 file `/data` qua `extract_pages` đều có text (`app.scripts.ocr_verify_data`). Dev/CI giữ `stub` (`base sync --no-dev` không kéo gói nặng). Nội dung đề xuất: `deliverables/T-906-DEC-PROPOSALS.md §A`.
+2. **OAuth Calendar live**: cần domain+TLS+callback công khai + `GOOGLE_CLIENT_ID/SECRET`, `OUTLOOK_CLIENT_ID/SECRET/TENANT_ID`.
+3. **Data thật DN**: có 13 file mẫu thật trong `/data` (báo cáo tài chính/sales Q3, hóa đơn, hợp đồng, biên bản họp, danh sách nhân sự, KPI/OKR, sao kê, ảnh hóa đơn GTGT). Import qua IDP (C3 file / C4 ảnh / C5 bảng) khi stack chạy; DB nghiệp vụ hiện trống (chỉ roles + 1 admin) cho tới khi import/nhập tay.
+
+> Lưu ý: image api `aureon-api:local` nay serve version `3.0.0` (đã rebuild với extra `ocr` + model OCR baked, ~5,25GB) — `docker compose -f docker-compose.full.yml up -d --force-recreate api` để chạy. Mật khẩu admin NÊN đổi sau lần đăng nhập đầu.
+
+**Bỏ dropdown chọn tài khoản demo ở /login (2026-11-02):** `apps/web/src/app/(auth)/login/page.tsx` — gỡ nhánh `|| process.env.NEXT_PUBLIC_DEMO_MODE === "true"`. Lý do: đây là Server Component, `NEXT_PUBLIC_*` bị Next **inline lúc build** (image cũ build với `=true`) nên luôn bật dropdown dù `.env` runtime đã `false` — bẫy cutover live. Nay chỉ dựa `DEMO_MODE` runtime. Rebuild image web (buildx cần BuildKit; `DOCKER_CONFIG=$PWD/var/docker-config` để tránh sandbox chặn ghi `~/.docker`) + recreate. Verify: HTML `/login` live **không** còn `<select id="demo-account">` và 0 email `@abc.demo`. Mock E2E (`login.spec.ts` 7/7) vẫn xanh vì mock server set `DEMO_MODE=true` → dropdown vẫn render ở demo. Không đổi API/schema/dependency.
+
+## NGHIỆM THU M3.5 TRÊN STACK THẬT — T-901/903/906 + full test + version drift (2026-11-02)
+
+Stack compose 9 service healthy (postgres/redis/minio/ollama/clamav/api/celery-worker/beat/web + mailpit + clamav). Backlog M3.5 "stack-real/pilot" xử lý xong phần chạy được trong môi trường; phần cần tài nguyên ngoài codebase (OAuth live, OCR thật, chọn DN pilot) để human/DEC.
+
+| Hạng mục | Kết quả | Bằng chứng |
+|---|---|---|
+| **Version drift 2.1.0→v3** | ✅ sửa source | `apps/api/src/app/__init__.py` + `apps/api/pyproject.toml` = `3.0.0`; **cần rebuild image** để `/health` serve v3 (container đang chạy image cũ 2.1.0) |
+| **T-901 E2E CEO 7 bước (real)** | ✅ **5/5** | `apps/web/e2e/ceo-7steps-real.spec.ts`: Ask+Understand (chat grounded + citation→lineage `METRIC-`), Investigate (sources), Decide (InsightsPanel), Act+Follow-up (Action Registry EP-AI-07/09/11), Verify (Decision Log) |
+| **T-903 NFR (real)** | ✅ security 6/6 + responsive 4/4 + a11y 5/5 + perf | `nfr-real.spec.ts` (401/403, cache `private`+`Vary: Authorization`+`X-Request-Id`, health `no-store`, PWA manifest+SW); `responsive.spec.ts` 1440/1280/768/390; `a11y-m2.spec.ts` WCAG AA; `perf_m2_gate.sh` dashboard p95 **0.032s**, chat TTFT p95 **0.080s** |
+| **Full test backend (real DB)** | ✅ **1368 pass / 1 isolation-flake** cov **94%** | DB cô lập `aureon_fulltest` seeded; 144 fail ban đầu = thiếu seed (ORG_ID cố định) → re-run seeded **343/343 pass**; flake `test_chat_demo_mode` leak config cache (pass khi chạy riêng 5/5) |
+| **Contract + Vitest** | ✅ contract **34** · Vitest **424** | `pytest -m contract`; `pnpm test:web` 48 file |
+| **T-906 pilot checklist** | ✅ deliverable | `deliverables/T-906-PILOT-CHECKLIST.md` (§1–§9 + OAuth Google/Outlook config + OCR `paddle`) |
+| **DEC đề xuất (không tự cài)** | ✅ đề xuất | `deliverables/T-906-DEC-PROPOSALS.md`: A=`paddleocr` (OCR thật), B=`@vitest/coverage-v8` (coverage FE), C=`@axe-core/playwright` (a11y sâu) |
+
+**Còn ngoài code (human/DEC):** (1) OAuth Calendar Google/Outlook **live** — cần domain+TLS+callback công khai + app OAuth (hướng dẫn ở pilot checklist §2.4bis); (2) OCR provider thật — `paddleocr` chưa cài, cần DEC dependency (§2.3bis); (3) đo coverage FE + a11y axe-core — chờ DEC `@vitest/coverage-v8` / `@axe-core/playwright`; (4) chọn DN pilot thật (OQ-09-04); (5) PR `ai-eos→main` (đã ở `main` qua merge ff + tag); (6) rebuild image api để `/health` serve version `3.0.0`.
+
+**Đề xuất cập nhật `docs/` (chờ human duyệt — CLAUDE §6.6 cấm agent sửa docs/ ngoài 14):** `docs/DEMO-SCRIPT.md` §8.0 + dòng 3–4 và `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` §6.17 (T-901/903 ☐→☑, T-906 ☐→◑) nên chuyển "M3.5 đang tiến hành" → "M3.5 DONE cho phần code-env; OAuth/OCR/pilot ngoài code". Nội dung đề xuất ở cuối STATE (§ "Đề xuất doc-sync").
 
 ## M3 — Hành động (M3.1→M3.5, chuỗi auto liên tục, human ủy quyền) — DONE 2026-11-02
 
@@ -584,3 +623,24 @@ upload → `UPLOADED` + QUEUED job → scan `SKIPPED/CLEAN` → text-layer extra
 - **mypy:** added `[[tool.mypy.overrides]]` for `clamd`/`openpyxl`/`paddleocr` (no stubs; approved deps DEC-138/DEC-120).
 - **Status mapping:** brief's `READY_FOR_REVIEW` = real enum `NEEDS_REVIEW` (05 §6 `document_status`). STP path → `AUTO_APPROVED` (commit itself is S4c).
 - Celery worker/beat restarted after S2 merge (2026-10-22 06:25).
+
+---
+
+## Đề xuất doc-sync (chờ human duyệt — agent KHÔNG sửa docs/ ngoài 14 theo CLAUDE §6.6)
+
+Sau nghiệm thu stack-thật 2026-11-02, hai file trong `docs/` còn ghi "M3.5 đang tiến hành" (lệch với thực tế + với STATE/14). Đề xuất human cập nhật:
+
+### `docs/DEMO-SCRIPT.md`
+- **Dòng 3–4 (header trạng thái):** đổi "M3.5 (Nghiệm thu MVP) đang tiến hành" → "**M3.5 (Nghiệm thu MVP) DONE cho phần code-env**: trang đo G1–G4 + E2E CEO 7 bước (5/5) + NFR (security/responsive/a11y/PWA/perf) + full test backend (1368 pass, cov 94%) xanh trên stack thật. Còn **ngoài codebase** (human/DEC): OAuth Calendar live, OCR thật, chọn DN pilot."
+- **§8.0 tiêu đề:** "Mốc M3.5 — Nghiệm thu MVP (đang tiến hành)" → "(DONE — phần code-env)".
+- **Bảng §8.0 các dòng 🟡 Hoãn:** E2E CEO 7 bước (T-901) 🟡→🟢 **DONE** (`ceo-7steps-real.spec.ts` 5/5); NFR (T-903) 🟡→🟢 **DONE** (nfr-real 6/6 + responsive/a11y/perf); Checklist pilot (T-906) 🟡→◑ **deliverable** (`deliverables/T-906-PILOT-CHECKLIST.md`). Giữ 🟡 cho OAuth live + OCR thật + chọn DN pilot (ngoài code).
+- **§26 "Chưa demo được":** giữ OAuth live + OCR thật; gỡ "E2E CEO 7 bước / NFR trên stack thật" khỏi danh sách hoãn (đã chạy xanh).
+
+### `docs/3.EXECUTION/09-BUILD-PLAN-TASKS.md` §6.17 (M3.5)
+- `T-901` ☐ → ☑ (E2E CEO 7 bước real 5/5 — `ceo-7steps-real.spec.ts`).
+- `T-903` ☐ → ☑ (NFR security/responsive/a11y/PWA/perf real — `nfr-real.spec.ts` + responsive + a11y + perf gate).
+- `T-906` ☐ → ◑ (checklist `deliverables/T-906-PILOT-CHECKLIST.md`; chọn DN pilot thật = OQ-09-04 ngoài code).
+- `T-907..T-910` ☐ giữ (sửa nghiệm thu + PR `ai-eos→main` — human; đã ở `main` qua merge ff + tag `v3.0.0-mvp`).
+
+### Version (đã sửa source, cần rebuild image)
+- `apps/api/src/app/__init__.py` + `apps/api/pyproject.toml`: `2.1.0` → `3.0.0`. Endpoint `/health` + `/openapi.json` sẽ trả `3.0.0` sau khi **rebuild image api** (`docker compose -f docker-compose.full.yml up -d --build api`).

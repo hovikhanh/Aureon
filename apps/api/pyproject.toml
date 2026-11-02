@@ -1,7 +1,7 @@
 [project]
 name = "aureon-api"
-version = "2.1.0"
-description = "Aureon v2.1 backend — FastAPI modular monolith (DEC-125)"
+version = "3.0.0"
+description = "Aureon v3 — AI-EOS backend — FastAPI modular monolith (DEC-125)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.143.3",
@@ -23,6 +23,18 @@ dependencies = [
     "python-docx==1.1.2",
     "openpyxl==3.1.5",
     "clamd>=1.0.2",  # DEC-138 ClamAV client
+]
+
+[project.optional-dependencies]
+# Real OCR engine for IDP image/scan capture (R-DEC-146 — activates the existing
+# `OCR_PROVIDER=paddle` path in idp/services/preprocess.py, DEC-049). Heavy (paddlepaddle
+# CPU wheel) so it is kept out of core deps: dev/CI run with OCR_PROVIDER=stub and skip it;
+# the API image installs it via `uv sync --extra ocr`. `setuptools` is a runtime import of
+# `paddle.utils.cpp_extension` on first PaddleOCR init.
+ocr = [
+    "paddleocr==2.10.0",
+    "paddlepaddle==3.0.0",
+    "setuptools>=70",
 ]
 
 [build-system]

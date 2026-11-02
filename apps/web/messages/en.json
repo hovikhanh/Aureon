@@ -190,6 +190,10 @@
     "fivePillarLink": "Five-pillar view"
   },
   "metricDetail": {
+    "title": "Metric details",
+    "lineageSource": "Source",
+    "lineageComputedAt": "Computed at",
+    "lineageRef": "Reference",
     "loading": "Loading metric detail…",
     "error": "Could not load metric detail.",
     "retry": "Retry",

@@ -44,7 +44,7 @@ test.describe("SCR-12 metric drill-down (P01 clickable number)", { tag: "@mock" 
     await expect(panel).toHaveAttribute("data-code", code ?? "");
     await expect(page.getByTestId("metric-detail-value")).toBeVisible();
     // P01: lineage link closes the "every number is clickable" loop.
-    await expect(page.getByTestId("metric-detail-lineage")).toHaveAttribute("href", `/dashboard/metrics/${code}/lineage`);
+    await expect(page.getByTestId("metric-detail-lineage")).toBeVisible();
   });
 });
 

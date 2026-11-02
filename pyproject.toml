@@ -8,6 +8,12 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = ["aureon-api"]
 
+[project.optional-dependencies]
+# Real OCR engine (R-DEC-146) — re-exports the `ocr` extra of aureon-api so the workspace
+# root (uv commands + the API Docker image built from root) can activate it with
+# `uv sync --extra ocr`. Kept optional: dev/CI default OCR_PROVIDER=stub and skip it.
+ocr = ["aureon-api[ocr]"]
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",

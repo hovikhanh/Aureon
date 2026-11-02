@@ -63,7 +63,7 @@ cho đủ 10 tài khoản demo (08 §2) ánh xạ vào 7 role v3.
 
 ## Tính năng
 
-> **Tiến độ build:** **M1 · M2 (M2.1–M2.5) · M3.1–M3.4 DONE**; **M3.5 (Nghiệm thu MVP) đang tiến hành** — trang đo G1–G4 đã xong, phần E2E/NFR/pilot trên stack thật còn hoãn. Chi tiết: [docs/DEMO-SCRIPT.md §8](docs/DEMO-SCRIPT.md).
+> **Tiến độ build:** **MVP 3 mốc (M1 · M2 · M3.1–M3.5) DONE** — đã merge `main` + tag `v3.0.0-mvp`. Nghiệm thu M3.5 chạy trên stack thật (9 service compose): E2E CEO 7 bước 5/5, NFR (security/responsive/a11y/PWA/perf) xanh, full test backend 1368 pass (cov 94%) + contract 34 + Vitest 424. Còn **ngoài codebase** (cần human/DEC): OAuth Calendar live (callback URL công khai), OCR provider thật (`OCR_PROVIDER=paddle`), chọn DN thí điểm; đo coverage FE + a11y axe-core chờ DEC dependency. Pilot checklist: [deliverables/T-906-PILOT-CHECKLIST.md](deliverables/T-906-PILOT-CHECKLIST.md). Chi tiết: [docs/DEMO-SCRIPT.md §8](docs/DEMO-SCRIPT.md).
 
 | Khối | Nội dung |
 |---|---|

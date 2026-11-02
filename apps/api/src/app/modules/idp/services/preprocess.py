@@ -20,6 +20,7 @@ from __future__ import annotations
 import csv
 import io
 from dataclasses import dataclass, field
+from typing import Any
 
 from app.core.config import get_config
 from app.modules.idp.services.mime import EXT_MIME
@@ -75,18 +76,37 @@ def _deskew_image(data: bytes) -> bytes:
         return data
 
 
+_PADDLE_ENGINE: Any = None  # lazily-built, process-wide singleton (model load is expensive)
+
+
+def _paddle_engine() -> Any:  # pragma: no cover - optional paddle dependency, gated by R-DEC-146
+    """Build the PaddleOCR engine once per process. Vietnamese model, angle classifier on.
+    `show_log` is a legacy kwarg (ignored in paddleocr 2.10) kept for older versions.
+    `paddleocr` ships no type stubs, hence the `Any` return."""
+    global _PADDLE_ENGINE
+    if _PADDLE_ENGINE is None:
+        from paddleocr import PaddleOCR
+
+        _PADDLE_ENGINE = PaddleOCR(use_angle_cls=True, lang="vi", show_log=False)
+    return _PADDLE_ENGINE
+
+
 def _ocr_image(_data: bytes, *, preprocess: bool = False) -> tuple[str, float]:
-    """OCR a single image. `stub` yields empty text (low confidence); `paddle` when available.
-    `preprocess=True` (C4 photo) runs `_deskew_image` first (FR-DC-08)."""
+    """OCR a single image. `stub` yields empty text (low confidence); `paddle` when available
+    (R-DEC-146 — optional `ocr` extra). `preprocess=True` (C4 photo) runs `_deskew_image` first
+    (FR-DC-08). Returns `(text, mean_confidence)`; any failure degrades to `("", 0.0)` so the
+    document is routed to review rather than crashing the pipeline."""
     if preprocess:
         _data = _deskew_image(_data)
     provider = get_config().ocr_provider
     if provider == "paddle":
         try:  # pragma: no cover - heavy optional dependency, not installed in CI
-            from paddleocr import PaddleOCR
+            import numpy as np
+            from PIL import Image
 
-            engine = PaddleOCR(use_angle_cls=True, lang="vi", show_log=False)
-            result = engine.ocr(_data, cls=True)
+            with Image.open(io.BytesIO(_data)) as opened:
+                img = np.asarray(opened.convert("RGB"))
+            result = _paddle_engine().ocr(img, cls=True)
             lines = [line[1][0] for block in (result or []) for line in block]
             confs = [line[1][1] for block in (result or []) for line in block]
             conf = sum(confs) / len(confs) if confs else 0.0

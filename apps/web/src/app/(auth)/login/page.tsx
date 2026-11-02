@@ -4,7 +4,9 @@ import { LoginForm } from "@/features/auth/LoginForm";
 
 export default async function LoginPage() {
   const t = await getTranslations("auth");
-  const demo = process.env.DEMO_MODE === "true" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  // Server Component → đọc runtime env. KHÔNG dùng NEXT_PUBLIC_* ở đây: Next inline nó lúc build,
+  // nên giá trị build-time sẽ ghi đè .env runtime (bẫy khi cutover live). DEMO_MODE runtime là đủ.
+  const demo = process.env.DEMO_MODE === "true";
   return (
     <main className="flex min-h-dvh items-center justify-center bg-muted p-4">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">

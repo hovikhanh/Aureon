@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Database, ExternalLink } from "lucide-react";
@@ -22,10 +22,26 @@ export function MetricDetailPanel({ code, onClose }: { code: string | null; onCl
   const locale = useLocale() as AppLocale;
   const open = Boolean(code);
   const { detail, loading, error, refetch } = useMetricDetail(code);
+  const [showLineage, setShowLineage] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setShowLineage(false);
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-2xl" data-testid="metric-detail-panel" data-code={code ?? undefined}>
+        {!detail && (
+          <>
+            {/* Radix a11y: DialogTitle/Description luôn có mặt, kể cả khi đang tải / lỗi. */}
+            <DialogTitle className="sr-only">{t("title")}</DialogTitle>
+            <DialogDescription className="sr-only">{error ? t("error") : t("loading")}</DialogDescription>
+          </>
+        )}
         {loading && <p className="py-8 text-center text-sm text-muted-foreground">{t("loading")}</p>}
         {error && (
           <div className="flex items-center justify-between gap-3 py-6 text-sm">
@@ -121,14 +137,28 @@ export function MetricDetailPanel({ code, onClose }: { code: string | null; onCl
                 <Database className="h-3.5 w-3.5" aria-hidden />
                 {t("dataSource")}: {detail.data_source.module} · {detail.data_source.entities.join(", ")}
               </span>
-              <Link
-                href={detail.lineage_url}
+              {/* lineage_url là đường dẫn API, không phải page route → không dùng <Link>/<a> (tránh prefetch/điều hướng 404). */}
+              <button
+                type="button"
+                onClick={() => setShowLineage((v) => !v)}
+                aria-expanded={showLineage}
+                aria-controls="metric-detail-lineage-info"
                 className="flex items-center gap-1 font-medium text-primary hover:underline"
                 data-testid="metric-detail-lineage"
               >
                 {t("lineage")} <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </Link>
+              </button>
             </footer>
+            {showLineage && (
+              <dl id="metric-detail-lineage-info" className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border bg-muted/40 p-3 text-xs" data-testid="metric-detail-lineage-info">
+                <dt className="text-muted-foreground">{t("lineageSource")}</dt>
+                <dd>{detail.data_source.module} · {detail.data_source.entities.join(", ")}</dd>
+                <dt className="text-muted-foreground">{t("lineageComputedAt")}</dt>
+                <dd className="tabular-nums">{detail.computed_at}</dd>
+                <dt className="text-muted-foreground">{t("lineageRef")}</dt>
+                <dd className="break-all font-mono">{detail.lineage_url}</dd>
+              </dl>
+            )}
           </div>
         )}
       </DialogContent>

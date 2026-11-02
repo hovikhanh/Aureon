@@ -8,17 +8,39 @@ ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
 WORKDIR /app
 
-# Dependency layer (cached until lockfile changes).
+# Build arg: which uv extra to install. Default `ocr` (R-DEC-146) bakes the real PaddleOCR
+# engine for IDP image/scan capture; build with `--build-arg UV_EXTRAS=none` for a lean image.
+ARG UV_EXTRAS=ocr
+
+# System libraries PaddleOCR / paddlepaddle need at runtime (OpenMP, OpenGL, glib). Harmless
+# when OCR is not installed; kept in a single cached layer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dependency layer (cached until lockfile changes). `--extra <x>` is passed only when
+# UV_EXTRAS is a real extra name (not the sentinel `none`).
 COPY --chmod=a+r pyproject.toml uv.lock ./
 COPY --chmod=a+r apps/api/pyproject.toml apps/api/pyproject.toml
 RUN mkdir -p apps/api/src/app && touch apps/api/src/app/__init__.py \
-    && uv sync --frozen --no-dev --no-install-workspace
+    && EXTRA="$([ \"$UV_EXTRAS\" != none ] && echo --extra $UV_EXTRAS)" \
+    && uv sync --frozen --no-dev --no-install-workspace $EXTRA
 
 COPY --chmod=a+rX apps/api apps/api
 COPY --chmod=a+r alembic.ini ./
-RUN uv sync --frozen --no-dev
+RUN EXTRA="$([ \"$UV_EXTRAS\" != none ] && echo --extra $UV_EXTRAS)" \
+    && uv sync --frozen --no-dev $EXTRA
 
 RUN useradd --create-home --uid 1000 aureon \
     && mkdir -p /app/var/idp-storage && chown -R aureon:aureon /app/var
 USER aureon
+
+# Bake the PaddleOCR detection/recognition/angle models into the image (R-DEC-146) so OCR
+# runs fully offline at runtime — no download from bcebos.com on the first scanned document.
+# Runs as the `aureon` user so the cache lands in /home/aureon/.paddleocr (the runtime HOME).
+# Skipped automatically when the `ocr` extra was not installed (`import paddleocr` fails).
+RUN python -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('paddleocr') else 1)" \
+    && python -c "import warnings; warnings.filterwarnings('ignore'); from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)" \
+    || echo "paddleocr not installed — skipping model warm-up"
+
 EXPOSE 4000
