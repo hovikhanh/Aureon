@@ -57,10 +57,12 @@ async def serve_file(
             "Content-Disposition": safe_name,
             "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
-            # `sandbox allow-same-origin` (not allow-scripts): lets the browser's native PDF viewer
-            # render the file in an <iframe> while still blocking script/plugin execution, forms and
-            # popups — so a hostile upload cannot run active content. Images never needed this; PDFs
-            # do. Matches the iframe `sandbox="allow-same-origin"` in SourceDrawer.tsx.
-            "Content-Security-Policy": "default-src 'none'; sandbox allow-same-origin",
+            # `default-src 'none'` blocks the framed file from running scripts or loading ANY
+            # sub-resource, and `frame-ancestors 'self'` stops it being embedded by a foreign origin
+            # — so a hostile upload cannot execute even though the SourceDrawer iframe is NOT
+            # sandboxed. We deliberately dropped the CSP `sandbox` directive: Chromium's built-in
+            # PDF viewer refuses to render in any sandboxed context, which left PDFs blank in drawer
+            # (images were unaffected). This header + `nosniff` is what enforces isolation now.
+            "Content-Security-Policy": "default-src 'none'; frame-ancestors 'self'",
         },
     )
