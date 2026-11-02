@@ -41,7 +41,9 @@ SPEC_API = DOCS / "3.EXECUTION" / "10-API-SPECIFICATION.md"
 SPEC_DASH = DOCS / "2.PRODUCT" / "03-DASHBOARD-SPEC.md"
 
 ALL_METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
-EP_ID = r"EP-(?:[A-Z]+-)?\d+[a-z]?"
+# `EP-ORG-01`, legacy `EP-24`, `EP-DC-14b`, and range rows such as `EP-STR-17..21` (one row
+# declaring several ids over the same resource — missing this form once produced a duplicate id).
+EP_ID = r"EP-(?:[A-Z]+-)?\d+[a-z]?(?:\.\.\d+)?"
 # `| EP-ORG-01 | GET | `/org/organizations` | `hr:read` | … |` — the §7.2/§7.3 tables.
 EP_ROW = re.compile(rf"^\|\s*({EP_ID})\s*\|\s*([A-Z/* ]+?)\s*\|\s*(.+?)\s*\|\s*(.*?)\s*\|", re.M)
 # `- **EP-TASK-19 (mới, R-DEC-45) — `POST /work/tasks/{id}/reassign-requests` · `execution:write`…`
@@ -282,3 +284,60 @@ def test_event_registry_is_documented_both_ways() -> None:
     assert not undocumented, (
         f"event types accepted by publish_in_tx but named in no v3 doc: {undocumented}"
     )
+
+
+def _legacy_ids(route: APIRoute) -> set[str]:
+    """The v2.1 EP number a route carries in code — what 10 §7.3's "EP v2.1" column must quote.
+
+    Looked up in the order the codebase annotates routes: the `summary="EP-56 …"` of the
+    decorator, else the endpoint docstring (`\"\"\"EP-90 (10 §5) …\"\"\"`), else the nearest
+    `# ---------- EP-83 salary history ----------` section header above the function, else the
+    module docstring (`\"\"\"EP-95 product metric snapshots …`).
+    """
+    import inspect
+
+    legacy = re.compile(r"\bEP-(\d+)\b")
+    if route.summary and (m := legacy.match(route.summary)):
+        return {f"EP-{m.group(1)}"}
+    fn = inspect.unwrap(route.endpoint)  # `core/routing.py` wraps endpoints (route commit)
+    if (doc := inspect.getdoc(fn)) and (m := legacy.match(doc)):
+        return {f"EP-{m.group(1)}"}
+    start = inspect.getsourcelines(fn)[1]
+    source = Path(inspect.getsourcefile(fn) or "").read_text(encoding="utf-8").splitlines()
+    for line in reversed(source[: start - 1]):
+        if line.startswith("# -") and (m := legacy.search(line)):
+            return {f"EP-{m.group(1)}"}
+    module = inspect.getmodule(fn)
+    if module and (doc := inspect.getdoc(module)) and (m := legacy.match(doc)):
+        return {f"EP-{m.group(1)}"}  # a file holding one resource names it in its docstring
+    return set()
+
+
+def test_legacy_ep_column_matches_route_annotations() -> None:
+    """TC-M4-16 — 10 §7.3 quotes the v2.1 EP number each route is annotated with in code.
+
+    The first §7.3 draft filled this column from number ranges and got 17 of 29 rows wrong;
+    this pins every row to the annotation on the routes it covers.
+    """
+    text = SPEC_API.read_text(encoding="utf-8")
+    start = text.index("### 7.3. EP catalog nền v2.1")
+    end = text.index("\n## ", start)
+    routes = app_route_map()
+    rows = re.findall(
+        rf"^\|\s*({EP_ID})\s*\|\s*([A-Z/* ]+?)\s*\|\s*(.+?)\s*\|\s*[^|]*\|\s*([^|]*?)\s*\|",
+        text[start:end],
+        re.M,
+    )
+    assert rows, "10 §7.3 table not found"
+    bad: list[str] = []
+    for ep, method_cell, path_cell, legacy_cell in rows:
+        methods = [m.strip() for m in method_cell.split("/") if m.strip() in ALL_METHODS]
+        paths = [norm(p) for p in re.findall(r"`(/[^`]+)`", path_cell)]
+        hits = [routes[(m, p)] for m in methods for p in paths if (m, p) in routes]
+        want = set().union(*(_legacy_ids(r) for r in hits)) if hits else set()
+        have = set(re.findall(r"EP-\d+", legacy_cell))
+        if not want:
+            bad.append(f"{ep}: no route annotation found in code")
+        elif have != want:
+            bad.append(f"{ep}: doc says {sorted(have)}, code annotates {sorted(want)}")
+    assert not bad, "10 §7.3 'EP v2.1' column drifts from code:\n  " + "\n  ".join(bad)
