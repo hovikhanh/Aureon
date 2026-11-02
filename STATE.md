@@ -1,6 +1,24 @@
 # Aureon v3 — AI-EOS · Build State
 
-## Status: M2 (Trí tuệ) DONE — M2.1→M2.5 XANH (2026-11-01) — nhánh xếp chồng chờ human review/PR
+## Status: M3 (Hành động) DONE — M3.1→M3.5 XANH, đã merge fast-forward vào `main` + tag `v3.0.0-mvp` (2026-11-02). MVP 3 mốc (M1+M2+M3) hoàn tất ở mức code.
+
+## M3 — Hành động (M3.1→M3.5, chuỗi auto liên tục, human ủy quyền) — DONE 2026-11-02
+
+Đóng vòng OBSERVE→UNDERSTAND→REASON→RECOMMEND→APPROVE→ACT→VERIFY→LEARN. Mỗi mốc 1 nhánh từ đỉnh mốc trước; agent tự chốt Spec lock + đề xuất R-DEC (human ủy quyền R-DEC-09/14). **Đã merge fast-forward cả 5 nhánh vào `main` (đỉnh `0effd10`) + push origin/main + tag `v3.0.0-mvp`.**
+
+| Mốc | Nhánh | Commit | Nội dung | R-DEC |
+|---|---|---|---|---|
+| M3.1 | `v3/m3.1-calendar` | `1168311` | Integration Hub + Calendar Google/Outlook 2 chiều (OAuth per-user, polling dev), EP-INT-01..04 + EP-CAL-01..05, migration 0024, deadline task→sự kiện lịch | R-DEC-117..125 |
+| M3.2 | `v3/m3.2-autonomy-l3` | `e74db2d` | Autonomy L3: khuyến nghị → thực thi (task+owner+deadline+lịch+thông báo trong 1 transaction) qua Action Registry, feed "AI đã làm", undo 24h; Approval Matrix L3 cấu hình | R-DEC-126..130 |
+| M3.3 | `v3/m3.3-briefing` | `c225ecc` | CEO Daily Briefing 7 khối (≤1 trang, email, tracking G1, EP-AI-24/25/26), ENT-Briefing + migration 0025; Decision Log 30/60/90 review+verify (/knowledge/decisions); Reports export CSV/XLSX; nêu chỉ số stale | R-DEC-131..137 |
+| M3.4 | `v3/m3.4-eval-knowledge` | `77a6a73` | Evaluation Engine (bộ test chuẩn 3 trục grounding/accuracy/tool_choice, CLI `run_eval`, EP-AI-27/28, ENT-AIEvaluation + migration 0026); Knowledge/RAG plumbing (embed bge-m3→pgvector→TOOL-search_documents, EP-24 /idp/documents/search, /knowledge Documents) — tắt khi `MODEL_EMBED` trống (fallback keyword); UC-04 glue (KR at-risk→blocker insight→L3→verify) | R-DEC-138..144b |
+| M3.5 | `v3/m3.5-acceptance` | `0effd10` | Trang đo nghiệm thu G1–G4 (EP-RPT-08 `/reporting/acceptance`, FE `/admin/acceptance`, reuse-only, AcceptanceService đặt ở module `ai` tránh chu trình `dashboard→ai`); refresh README + DEMO-SCRIPT v3; doc-reviewer sweep 00–14 vs code (không drift blocking) | R-DEC-145 |
+
+**Gate đóng M3 (2026-11-02, subset khả dụng không-DB):** ruff + `ruff format --check` + mypy (**384 source files**) xanh · architecture **34 pass** (gồm import-boundary + `test_no_cycles_between_modules` sau khi dời AcceptanceService sang `ai`) · pytest non-DB **499 passed** (chỉ còn lỗi môi trường DB-connection ở `test_pii.py` + contract client-DB — không hồi quy) · `contract:validate` spec-row/route/envelope xanh (gồm EP-RPT-08/EP-AI-27/28/EP-24) · FE lint + typecheck xanh · Vitest **47 files / 419 tests** · shared-types regen **561 types** · i18n vi/en parity (2105 keys).
+
+**Hoãn (stack-real / pilot / human — không có Postgres/Redis/MinIO trong môi trường code):** T-901 E2E kịch bản CEO 7 bước trên real; T-903 NFR perf/bảo mật/a11y/responsive/PWA; T-906 checklist pilot 1 DN 50–200 NV; T-907–910 sửa nghiệm thu + PR `ai-eos→main`. Các TC phụ thuộc DB ghi "Implemented, stack-real deferred" ở `14-TEST-TRACEABILITY.md` §1.16–1.20 (TC-M31..M35), nhất quán toàn M3. Calendar OAuth live cần callback URL công khai → test `@live` cho human; dev dùng respx/fixture + polling.
+
+---
 
 ## M2 — Trí tuệ (M2.1→M2.5, chuỗi auto liên tục, human ủy quyền 2026-10-31) — DONE 2026-11-01
 
