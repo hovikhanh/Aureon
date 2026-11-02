@@ -16,6 +16,8 @@ from app.core.tenant import require_tenant
 from app.modules.idp.models import (
     CaptureIncident,
     DocumentAction,
+    DocumentPage,
+    DocumentType,
     ExtractedField,
     ExtractionJob,
     ExtractionReview,
@@ -202,3 +204,60 @@ class IncidentRepository(BaseRepository[CaptureIncident]):
         key = CaptureIncident.reported_at.desc() if desc else CaptureIncident.reported_at.asc()
         rows = await self.db.execute(base.order_by(key).limit(limit).offset(offset))
         return list(rows.scalars()), int(total.scalar_one())
+
+
+class DocumentPageSearchRepository(BaseRepository[SourceDocument]):
+    """Knowledge/RAG page search (M3.4, R-DEC-141) — tenant-scoped join DocumentPage→
+    SourceDocument→DocumentType. Keeps the SQL in the repository layer (TC-M11-05); the service
+    supplies the caller's visibility filter (EP-DC-13 `inbox_filter`) and the query vector."""
+
+    model = SourceDocument
+
+    def _base(self, scope: ColumnElement[bool] | None) -> Any:
+        stmt = (
+            select(
+                DocumentPage.source_document_id,
+                DocumentPage.page_number,
+                DocumentPage.text_content,
+                SourceDocument.original_filename,
+                DocumentType.code,
+            )
+            .join(SourceDocument, SourceDocument.id == DocumentPage.source_document_id)
+            .join(DocumentType, DocumentType.id == SourceDocument.document_type_id, isouter=True)
+            .where(
+                SourceDocument.deleted_at.is_(None), SourceDocument.tenant_id == require_tenant()
+            )
+        )
+        return stmt.where(scope) if scope is not None else stmt
+
+    async def keyword(
+        self, scope: ColumnElement[bool] | None, pattern: str, *, limit: int, offset: int
+    ) -> tuple[list[Any], int]:
+        from sqlalchemy import literal
+
+        stmt = (
+            self._base(scope)
+            .add_columns(literal(1.0).label("score"))
+            .where(DocumentPage.text_content.ilike(pattern))
+        )
+        total = (
+            await self.db.execute(select(func.count()).select_from(stmt.subquery()))
+        ).scalar_one()
+        stmt = stmt.order_by(DocumentPage.source_document_id, DocumentPage.page_number)
+        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).all()
+        return list(rows), int(total)
+
+    async def semantic(
+        self, scope: ColumnElement[bool] | None, vec: list[float], *, limit: int, offset: int
+    ) -> tuple[list[Any], int]:
+        distance = DocumentPage.embedding.op("<=>")(vec)  # pgvector cosine; smaller = closer
+        stmt = (
+            self._base(scope)
+            .add_columns((1.0 - distance).label("score"))
+            .where(DocumentPage.embedding.isnot(None))
+        )
+        total = (
+            await self.db.execute(select(func.count()).select_from(stmt.subquery()))
+        ).scalar_one()
+        rows = (await self.db.execute(stmt.order_by(distance).limit(limit).offset(offset))).all()
+        return list(rows), int(total)

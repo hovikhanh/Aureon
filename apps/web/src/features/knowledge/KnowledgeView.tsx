@@ -7,10 +7,11 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { DocumentsPanel } from "./DocumentsPanel";
 import { ReportsPanel } from "./ReportsPanel";
 
-type Tab = "decisions" | "reports";
-const TABS: Tab[] = ["decisions", "reports"];
+type Tab = "decisions" | "documents" | "reports";
+const TABS: Tab[] = ["decisions", "documents", "reports"];
 
 export function KnowledgeView() {
   const t = useTranslations("knowledge");
@@ -36,6 +37,7 @@ export function KnowledgeView() {
         </div>
       </div>
       {tab === "decisions" && <DecisionsPanel />}
+      {tab === "documents" && <DocumentsPanel />}
       {tab === "reports" && <ReportsPanel />}
     </div>
   );

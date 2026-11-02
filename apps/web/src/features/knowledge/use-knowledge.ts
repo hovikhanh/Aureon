@@ -42,6 +42,20 @@ export function useReports() {
 }
 
 /**
+ * EP-24 `GET /idp/documents/search` (M3.4) — Knowledge/RAG over document pages. Disabled until the
+ * query is non-empty (TanStack `enabled`), so no request fires on an empty search box.
+ */
+export function useDocumentSearch(q: string) {
+  const query = { q: q.trim() };
+  return useQuery({
+    queryKey: qk.documentSearch(query),
+    queryFn: ({ signal }) => apiRequest<Api.DocumentSearchHit[]>("/idp/documents/search", { query, signal }),
+    enabled: q.trim().length > 0,
+    staleTime: 30_000,
+  });
+}
+
+/**
  * Stream `GET /reporting/reports/{code}/export?format=…` to a file download. Same-origin BFF
  * (credentials forward the httpOnly session), blob → temporary `<a download>`, filename taken from
  * Content-Disposition. Throws an ApiError on failure so the caller can toast it.

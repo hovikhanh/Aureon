@@ -1,6 +1,6 @@
-"""Schema `ai` — 10 tables (05 §4.8). Column groups follow 05 §2.1.
+"""Schema `ai` — 11 tables (05 §4.8). Column groups follow 05 §2.1.
 
-- business: insights, ai_actions, briefings (M3.3)
+- business: insights, ai_actions, briefings (M3.3), ai_evaluations (M3.4)
 - config:   autonomy_policies (+ soft delete — its UQ is `WHERE deleted_at IS NULL`),
             agent_profiles (no `deleted_at`; disable via `is_enabled`)
 - log:      conversations (+ soft delete — "xóa hội thoại = xóa mềm ở conversations"),
@@ -337,3 +337,35 @@ class Briefing(BusinessModel):
     opened_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     delivered_email_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
     status: Mapped[str] = mapped_column(BRIEFING_STATUS, nullable=False, server_default="generated")
+
+
+class AIEvaluation(BusinessModel):
+    """ENT-AIEvaluation — business (05 §2.12, R-DEC-138): one standard-suite run.
+
+    Each row scores an agent prompt/model version on three axes — grounding (FR-AIQ-01),
+    accuracy, tool-choice — over a curated fixture corpus (CI always `fixture`, no live LLM).
+    `cases` keeps per-case pass/detail only (no raw prompt, no PII, §5.5). Append-only in meaning.
+    """
+
+    __tablename__ = "ai_evaluations"
+    __table_args__ = (
+        Index("ix_ai_evaluations_suite", "suite"),
+        Index("ix_ai_evaluations_finished_at", "finished_at"),
+        {"schema": S},
+    )
+
+    suite: Mapped[str] = txt()
+    prompt_version: Mapped[str] = txt()
+    model: Mapped[str] = txt()
+    provider: Mapped[str] = txt()
+    gateway_mode: Mapped[str] = txt()
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    passed: Mapped[int] = mapped_column(Integer, nullable=False)
+    grounding_pct: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    accuracy_pct: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    tool_choice_pct: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    score_pct: Mapped[Any] = mapped_column(Numeric(5, 2), nullable=False)
+    cases: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    triggered_by: Mapped[uuid.UUID | None] = sr(nullable=True)

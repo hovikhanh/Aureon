@@ -123,6 +123,8 @@ class ToolExecutor:
             return await self._metric(tool.name, str(arguments.get("metric_code", "")), started)
         if tool.name == "TOOL-list_alerts":
             return await self._alerts(tool.name, started)
+        if tool.name == "TOOL-search_documents":
+            return await self._search_documents(tool.name, arguments, started)
         if tool.name in _RECORD_TOOLS:
             data, sources = await getattr(self, _RECORD_TOOLS[tool.name])(arguments)
             return self._done(tool.name, data, sources, started)
@@ -191,6 +193,37 @@ class ToolExecutor:
                 {"code": a.alert_code, "metric": a.metric_code, "severity": a.severity,
                  "pillar": a.pillar}
                 for a in alerts
+            ],
+        }  # fmt: skip
+        return self._done(tool, data, sources, started)
+
+    async def _search_documents(
+        self, tool: str, args: dict[str, Any], started: float
+    ) -> ToolResult:
+        """TOOL-search_documents (M3.4, R-DEC-141): Knowledge/RAG over document pages.
+
+        Returns an aggregate hit count + page `SourceRef`s (document_id + page_number); never a raw
+        storage URL to the LLM (05 §11). Scoped by `idp:read` + the caller's document scope inside
+        the search service. Empty/no-data queries surface AI_NO_DATA_AVAILABLE (no fabrication).
+        """
+        from app.modules.idp.services.knowledge_search import KnowledgeSearchService
+
+        query = str(args.get("query", "")).strip()
+        if not query:
+            return self._fail(tool, "error", "AI_MISSING_ARGUMENT", started)
+        limit = int(args.get("limit") or 5)
+        hits, total = await KnowledgeSearchService(self.db).search(self.user, query, limit=limit)
+        sources = [
+            SourceRef("document_page", f"{h.document_id}#p{h.page_number}",
+                      f"{h.title} · tr.{h.page_number}")
+            for h in hits
+        ]  # fmt: skip
+        data = {
+            "matches": total,
+            "results": [
+                {"document_id": str(h.document_id), "page_number": h.page_number,
+                 "title": h.title, "doc_type": h.doc_type, "snippet": h.snippet}
+                for h in hits
             ],
         }  # fmt: skip
         return self._done(tool, data, sources, started)

@@ -76,4 +76,8 @@ export const qk = {
   // M3.3 knowledge (Decision Log + Reports) — one key per widget
   decisions: (params: Record<string, unknown>) => ["knowledge", "decisions", params] as const,
   reports: () => ["knowledge", "reports"] as const,
+  // M3.4 knowledge Documents (EP-24 search) + AI Evaluation runs (EP-AI-27/28)
+  documentSearch: (params: Record<string, unknown>) => ["knowledge", "documents", params] as const,
+  aiEvaluations: (params: Record<string, unknown>) => ["ai-admin", "evaluations", params] as const,
+  aiEvaluation: (id: string) => ["ai-admin", "evaluation", id] as const,
 };

@@ -704,6 +704,32 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 - **FE M3.3** (R-DEC-137): `/home` CEO khung Briefing 7 khối ≤1 trang (mọi số click được) + `openBriefing` gọi EP-AI-26 khi mount; `/knowledge/decisions`; `/knowledge/reports` (export CSV/XLSX). i18n vi/en; Vitest logic thuần.
 - **Không thêm** mã lỗi/event/dependency ngoài ENT-Briefing + 7 EP trên; test `MODEL_GATEWAY_MODE=fixture` (AI-eval Briefing grounding); E2E UC-01 dùng mock BFF.
 
+#### 7.2.11. M3.4 — D26 Evaluation Engine + D14 Knowledge RAG + UC-04 follow-up (Spec lock M3.4 — agent tự chốt 2026-11-02, R-DEC-138..144b)
+
+**Evaluation Engine (D26, R-DEC-138..140):**
+
+| EP | Method | Path | Perm | Mô tả |
+|---|---|---|---|---|
+| EP-AI-27 | GET | `/ai/evaluations` | `ai:admin` | Lịch sử chạy bộ test chuẩn; lọc `suite`, `model`, `provider`; sort `finished_at` desc (mặc định) → `AIEvaluationOut[]` `{id, suite, prompt_version, model, provider, gateway_mode, total, passed, grounding_pct, accuracy_pct, tool_choice_pct, score_pct, started_at, finished_at, triggered_by}` + `meta.pagination`. `no-store` |
+| EP-AI-28 | GET | `/ai/evaluations/{id}` | `ai:admin` | → `AIEvaluationOut` (gồm `cases: [{id, kind, passed, detail}]`). Ngoài → `404` |
+
+Eval **chạy bằng CLI** `python -m app.scripts.run_eval [--suite S] [--prompt-version V]` (fixture, không gọi provider thật) — ghi một `ENT-AIEvaluation` mỗi run; **không** có endpoint chạy eval qua HTTP (tránh LLM call tùy tiện). Chấm 3 trục grounding/accuracy/tool_choice (R-DEC-139).
+
+**Knowledge RAG + tìm kiếm tài liệu (D14, R-DEC-141/142b):**
+
+| EP | Method | Path | Perm | Mô tả |
+|---|---|---|---|---|
+| EP-24 | GET | `/idp/documents/search` | `idp:read` | Tìm tài liệu (ngữ nghĩa khi có embedding; fallback keyword khi `MODEL_EMBED` trống). Query `q` (bắt buộc), `limit` (≤ 20) → `DocumentSearchHit[]` `{document_id, title, doc_type, page_number, snippet, score}` + `meta.pagination`, lọc theo quyền người gọi. `no-store`. Cùng engine `KnowledgeSearchService` mà `TOOL-search_documents` dùng (một nguồn) |
+
+- **`TOOL-search_documents`** (đã có trong Tool Registry §7, EP-24, `idp:read`+`idp:document`): M3.4 **thêm executor** trả `SourceRef` tới `{document_id, page_number}` (không URL thô cho LLM, 05 §11). Không thêm TOOL mới.
+- `ModelGateway.embed(texts)` nối adapter `/embeddings` (bge-m3, DEC-142) qua `httpx`; fixture → vector tất định từ hash (không mạng). Embedding ghi `idp.document_pages.embedding` + `embedding_model` khi ingest doc type #5 (SOP/policy) — offline, không chặn request. **Không** LlamaIndex (DEC-150). Tắt hoàn toàn khi `MODEL_EMBED` trống (chỉ keyword).
+
+**UC-04 follow-up (R-DEC-143):** `execution.okr_at_risk` (event M1.4 đã có) → insight `recommendation` phân tích blocker (dependency/workload, tái dùng `insight_service`) → duyệt → `ACT-execute_recommendation` L3 (M3.2) → `verification.py` theo dõi + Decision Log review (M3.3). **Không** ENT/endpoint/tool mới cho UC-04; chỉ nối + E2E.
+
+**Schema (R-DEC-138):** `ENT-AIEvaluation` = bảng mới `ai.ai_evaluations`; migration `0026_ai_evaluation_m34` reversible (down_revision `0025_briefing_m33`). **Đây là thay đổi schema duy nhất của M3.4** (document_pages.embedding + HNSW đã có sẵn 05 §11, không đổi).
+
+- **FE M3.4** (R-DEC-144b): `/knowledge` thêm tab Documents (thư viện SOP + tìm kiếm EP-24, snippet + link trang); `/admin/ai/evaluation` bảng run eval (điểm theo suite + prompt/model). i18n vi/en; Vitest logic thuần. E2E UC-04 mock BFF.
+
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
 Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:

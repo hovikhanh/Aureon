@@ -172,6 +172,65 @@ class InsightService:
         draft = InsightDraft(pillar, "recommendation", severity, observation, structured, evidence)
         return await self._persist(draft, "MEDIUM")
 
+    async def generate_for_okr(self, payload: dict[str, Any]) -> Insight | None:
+        """A KR at-risk transition (`execution.okr_at_risk`) → one 9-part insight whose root cause
+        is a **blocker analysis** (the KR's own at-risk reasons + the owner's overdue workload) and
+        an **L2** recommendation: an intervention task tied to the KR (MGR approves; executed at L3
+        via the Action Registry, then followed up/verified — R-DEC-143, UC-04). Grounded on the KR
+        progress number itself. Reuses existing signals only (no new engine).
+        """
+        kr_id = str(payload.get("key_result_id", ""))
+        obj_id = str(payload.get("objective_id", ""))
+        period = str(payload.get("period_key", ""))
+        raw = payload.get("progress_pct")
+        if raw is None:
+            return None
+        try:
+            progress = float(raw)
+        except (TypeError, ValueError):
+            return None
+        expected = payload.get("expected_progress_pct")
+        reasons = [str(r) for r in (payload.get("reasons") or [])]
+        overdue = await self._owner_overdue(payload)
+        evidence = [
+            SourceRefOut(
+                type="metric_value",
+                id=f"KR:{kr_id}",
+                label="Tiến độ KR",
+                period_key=period,
+                value=progress,
+                lineage_url=f"/goals/okrs/{obj_id}",
+            ).model_dump()
+        ]
+        blockers = ", ".join(reasons) if reasons else "chưa rõ lý do cụ thể"
+        root = f"Phân tích blocker: {blockers}" + (
+            f"; {overdue} việc quá hạn của người phụ trách (workload)." if overdue else "."
+        )
+        impact = f"KR đạt {progress:g}% (kỳ vọng {expected}%) — rủi ro lệch mục tiêu kỳ {period}."
+        conf_reason = "Tiến độ KR tươi + tín hiệu blocker/việc trễ."
+        structured = {
+            "impact": impact,
+            "root_cause": root,
+            "risk": "Giữ nguyên đà này KR sẽ không về đích kỳ.",
+            "expected_outcome": {"metric_id": f"KR:{kr_id}", "target": "về kỳ vọng", "by": "+14d"},
+            # L2: a proposed intervention task tied to the KR — MGR confirms via an ActionCard.
+            "action": [{
+                "text": "Giao việc can thiệp gỡ blocker cho KR (chờ MGR duyệt)",
+                "tool": "TOOL-create_task", "autonomy_level": "L2",
+                "input": {"key_result_id": kr_id, "objective_id": obj_id, "period_key": period},
+            }],
+            "evidence": evidence,
+            "confidence": {"band": "MEDIUM", "reason": conf_reason},
+            "alternatives": ["Điều chỉnh phạm vi KR thay vì thêm việc."],
+            "timeline": "Trong 14 ngày; theo dõi + verify 24h/7d sau khi giao việc (UC-04).",
+            "owner": "MGR",
+        }  # fmt: skip
+        observation = (
+            f"KR đang ở mức rủi ro: đạt {progress:g}% so với kỳ vọng {expected}% kỳ {period}."
+        )
+        draft = InsightDraft("O", "recommendation", "WARNING", observation, structured, evidence)
+        return await self._persist(draft, "MEDIUM")
+
     async def _owner_overdue(self, payload: dict[str, Any]) -> int:
         """Count the KPI owner's overdue tasks (root-cause signal) via the `execution` public
         service — scoped to a system MGR principal for the owner's department (no cross-schema

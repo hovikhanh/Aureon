@@ -27,6 +27,7 @@ from app.modules.idp.schemas import (
     ApproveIn,
     ApproveOut,
     DocumentOut,
+    DocumentSearchHit,
     ExtractionResultOut,
     FieldPatchIn,
     FieldPatchOut,
@@ -41,6 +42,7 @@ from app.modules.idp.schemas import (
     UploadResultOut,
 )
 from app.modules.idp.services.commit_service import CommitService
+from app.modules.idp.services.knowledge_search import KnowledgeSearchService
 from app.modules.idp.services.query_service import IdpQueryService
 from app.modules.idp.services.review_service import QueueFilters, ReviewService
 from app.modules.idp.services.scope import ensure_doc_type_scope
@@ -101,6 +103,24 @@ async def upload_documents(
         batch_id=result.batch_id,
         duplicates=result.duplicates,
     )
+
+
+# EP-24 must precede `/documents/{document_id}` so "search" is not read as an id (M3.4).
+@router.get(
+    "/documents/search",
+    response_model=list[DocumentSearchHit],
+    summary="EP-24 Search documents (Knowledge/RAG)",
+)
+async def search_documents(
+    user: IdpReader,
+    db: DbSession,
+    page: Annotated[PageParams, Depends(page_params("score"))],
+    q: Annotated[str, Query(min_length=1, description="search query")],
+) -> Page[DocumentSearchHit]:
+    items, total = await KnowledgeSearchService(db).search(
+        user, q, limit=page.limit, offset=page.offset
+    )
+    return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
 
 @router.get(

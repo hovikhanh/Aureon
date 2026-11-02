@@ -30,6 +30,7 @@ from app.core.routing import EnvelopeRouter
 from app.modules.ai.routes.admin import router as admin_router
 from app.modules.ai.schemas import (
     AIActionOut,
+    AIEvaluationOut,
     BriefingOut,
     ChatAnswerOut,
     ChatRequestIn,
@@ -51,6 +52,7 @@ from app.modules.ai.services.briefing_service import BriefingService
 from app.modules.ai.services.chat_service import ChatService, ChatTurnResult
 from app.modules.ai.services.conversation_service import ConversationService
 from app.modules.ai.services.cost_service import CostService, period_window
+from app.modules.ai.services.evaluation_service import EvaluationService
 from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
 
@@ -272,6 +274,30 @@ async def open_briefing(
     out = await BriefingService(db).mark_opened(user, briefing_id)  # G1 tracking
     await db.commit()
     return out
+
+
+@router.get(
+    "/evaluations", response_model=list[AIEvaluationOut], summary="EP-AI-27 Evaluation runs"
+)
+async def list_evaluations(
+    admin: AiAdmin, db: DbSession,
+    page: Annotated[PageParams, Depends(page_params("finished_at"))],
+    suite: str | None = None, model: str | None = None, provider: str | None = None,
+) -> Any:  # fmt: skip
+    return await EvaluationService(db).list_runs(
+        admin, suite=suite, model=model, provider=provider, limit=page.limit, offset=page.offset
+    )
+
+
+@router.get(
+    "/evaluations/{evaluation_id}",
+    response_model=AIEvaluationOut,
+    summary="EP-AI-28 Evaluation run",
+)
+async def get_evaluation(
+    evaluation_id: uuid.UUID, admin: AiAdmin, db: DbSession
+) -> AIEvaluationOut:
+    return await EvaluationService(db).get(admin, evaluation_id)
 
 
 @router.get("/kill-switch", response_model=KillSwitchOut, summary="EP-AI-12 Kill switch status")

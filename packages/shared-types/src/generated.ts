@@ -43,6 +43,32 @@ export type AIAgentOut = {
   updated_at?: string | null;
 };
 
+export type AIEvaluationCaseOut = {
+  id: string;
+  kind: string;
+  passed: boolean;
+  detail: string;
+};
+
+export type AIEvaluationOut = {
+  id: string;
+  suite: string;
+  prompt_version: string;
+  model: string;
+  provider: string;
+  gateway_mode: string;
+  total: number;
+  passed: number;
+  grounding_pct: number;
+  accuracy_pct: number;
+  tool_choice_pct: number;
+  score_pct: number;
+  cases?: AIEvaluationCaseOut[];
+  started_at: string;
+  finished_at: string;
+  triggered_by?: string | null;
+};
+
 export type AcceptIn = {
   reason: string;
 };
@@ -898,6 +924,15 @@ export type DocumentPageOut = {
   text_content: string | null;
 };
 
+export type DocumentSearchHit = {
+  document_id: string;
+  title: string;
+  doc_type?: string | null;
+  page_number: number;
+  snippet: string;
+  score: number;
+};
+
 export type DocumentTypeConfidenceOut = {
   code: string;
   confidence: number;
@@ -1029,6 +1064,11 @@ export type Envelope_AIActionOut_ = {
 
 export type Envelope_AIAgentOut_ = {
   data: AIAgentOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_AIEvaluationOut_ = {
+  data: AIEvaluationOut;
   meta?: Meta | null;
 };
 
@@ -1552,6 +1592,11 @@ export type Envelope_list_AIAgentOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_AIEvaluationOut__ = {
+  data: AIEvaluationOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_AlertOut__ = {
   data: AlertOut[];
   meta?: Meta | null;
@@ -1649,6 +1694,11 @@ export type Envelope_list_DepartmentOut__ = {
 
 export type Envelope_list_DocumentActionOut__ = {
   data: DocumentActionOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_DocumentSearchHit__ = {
+  data: DocumentSearchHit[];
   meta?: Meta | null;
 };
 
@@ -4835,6 +4885,14 @@ export interface ApiOperations {
     request: void;
     response: Envelope_list_MessageOut__;
   };
+  "GET /api/v1/ai/evaluations": {
+    request: void;
+    response: Envelope_list_AIEvaluationOut__;
+  };
+  "GET /api/v1/ai/evaluations/{evaluation_id}": {
+    request: void;
+    response: Envelope_AIEvaluationOut_;
+  };
   "GET /api/v1/ai/insights": {
     request: void;
     response: Envelope_list_InsightOut__;
@@ -5390,6 +5448,10 @@ export interface ApiOperations {
   "POST /api/v1/idp/documents": {
     request: void;
     response: Envelope_UploadResultOut_;
+  };
+  "GET /api/v1/idp/documents/search": {
+    request: void;
+    response: Envelope_list_DocumentSearchHit__;
   };
   "GET /api/v1/idp/documents/{document_id}": {
     request: void;

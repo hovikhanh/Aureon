@@ -13,6 +13,7 @@ from app.core.tenant import current_tenant, require_tenant
 from app.modules.ai.models import (
     AgentProfile,
     AIAction,
+    AIEvaluation,
     AutonomyPolicy,
     Briefing,
     Insight,
@@ -250,3 +251,39 @@ class CallLogQueryRepository:
         stmt = stmt.order_by(col.asc() if order == "asc" else col.desc(), model.id)
         rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
         return rows, int(total or 0)
+
+
+class AIEvaluationRepository(BaseRepository[AIEvaluation]):
+    """ENT-AIEvaluation — tenant-scoped (R-DEC-21); one row per standard-suite run."""
+
+    model = AIEvaluation
+
+    async def by_id(self, evaluation_id: uuid.UUID) -> AIEvaluation | None:
+        stmt = self._live().where(AIEvaluation.id == evaluation_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def page(
+        self, *, suite: str | None, model: str | None, provider: str | None,
+        limit: int, offset: int,
+    ) -> tuple[Sequence[AIEvaluation], int]:  # fmt: skip
+        where = []
+        if suite is not None:
+            where.append(AIEvaluation.suite == suite)
+        if model is not None:
+            where.append(AIEvaluation.model == model)
+        if provider is not None:
+            where.append(AIEvaluation.provider == provider)
+        base = self._live().where(*where)
+        total = (
+            await self.db.execute(select(func.count()).select_from(base.subquery()))
+        ).scalar_one()
+        rows = (
+            (
+                await self.db.execute(
+                    base.order_by(AIEvaluation.finished_at.desc()).limit(limit).offset(offset)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return rows, total

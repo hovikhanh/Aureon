@@ -1911,7 +1911,8 @@
         "input_schema": "input_schema",
         "output_schema": "output_schema"
       }
-    }
+    },
+    "openEvaluation": "Mở đánh giá"
   },
   "killSwitch": {
     "banner": {
@@ -2249,7 +2250,8 @@
     "title": "Tri thức & báo cáo",
     "tab": {
       "decisions": "Nhật ký quyết định",
-      "reports": "Báo cáo"
+      "reports": "Báo cáo",
+      "documents": "Tài liệu"
     }
   },
   "decisions": {
@@ -2278,6 +2280,29 @@
       "executive-summary": "Tổng quan điều hành",
       "decisions": "Nhật ký quyết định",
       "metrics-health": "Sức khỏe chỉ số"
+    }
+  },
+  "documents": {
+    "title": "Tìm kiếm tài liệu",
+    "placeholder": "Tìm trong thư viện tài liệu / SOP…",
+    "hint": "Nhập từ khóa để tìm trong các trang tài liệu đã nạp.",
+    "loading": "Đang tìm…",
+    "loadError": "Không tải được kết quả tìm kiếm.",
+    "empty": "Không có tài liệu nào khớp.",
+    "page": "Trang {n}"
+  },
+  "aiEvaluation": {
+    "title": "Đánh giá AI",
+    "subtitle": "Kết quả chạy bộ đánh giá chuẩn (grounding · độ chính xác · chọn tool). Chạy qua CLI run_eval.",
+    "loading": "Đang tải…",
+    "loadError": "Không tải được kết quả đánh giá.",
+    "empty": "Chưa có lần chạy đánh giá nào.",
+    "passed": "Đạt {passed}/{total}",
+    "axis": {
+      "score": "Tổng điểm",
+      "grounding": "Grounding",
+      "accuracy": "Chính xác",
+      "toolChoice": "Chọn tool"
     }
   }
 }

@@ -52,6 +52,9 @@ def test_routes_match_spec_with_one_permission(routes: dict[tuple[str, str], API
 
 def test_no_unspecified_capture_route(routes: dict[tuple[str, str], APIRoute]) -> None:
     spec = {(m, norm(p)) for _, m, p, _ in spec_rows()}
+    # EP-24 (Knowledge/RAG search) is served under `/idp` but specified in §7.2.11, not §7.2.4
+    # (M3.4, R-DEC-142b) — allowlist it here so this EP-DC check stays scoped to §7.2.4.
+    spec.add(("GET", "/idp/documents/search"))
     prefixes = ("/idp/", "/data-capture/", "/lineage/")
     extra = [k for k in routes if k[1].startswith(prefixes) and k not in spec]
     assert extra == []

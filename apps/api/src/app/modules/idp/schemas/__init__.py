@@ -260,3 +260,18 @@ class MergeIn(BaseModel):
 class MergeOut(BaseModel):
     parent: DocumentOut
     children: list[DocumentOut]
+
+
+class DocumentSearchHit(BaseModel):
+    """EP-24 (10 §7.2.11, R-DEC-142b): one Knowledge/document search hit → a specific page.
+
+    `score` is the semantic similarity (1.0 = best) when embeddings are enabled, else a keyword
+    rank. `snippet` is a short excerpt of the page text; no raw storage URL is exposed (05 §11).
+    """
+
+    document_id: uuid.UUID
+    title: str
+    doc_type: str | None = None
+    page_number: int
+    snippet: str
+    score: float

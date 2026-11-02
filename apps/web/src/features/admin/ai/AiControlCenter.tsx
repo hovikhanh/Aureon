@@ -39,6 +39,7 @@ export function AiControlCenter({ viewer }: { viewer: Viewer }) {
     <div className="mx-auto flex max-w-7xl flex-col gap-4" data-testid="ai-admin" data-scr="SCR-64">
       <AdminHeader title={t("title")} hint={t("subtitle")}>
         <Button asChild variant="outline" size="sm"><Link href="/admin/ai/logs" data-testid="ai-open-logs">{t("openLogs")}</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link href="/admin/ai/evaluation" data-testid="ai-open-evaluation">{t("openEvaluation")}</Link></Button>
       </AdminHeader>
       <div role="tablist" aria-label={t("title")} className="flex gap-1 border-b">
         {TABS.map((k, i) => (

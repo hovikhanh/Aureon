@@ -209,8 +209,37 @@ class BriefingOut(BaseModel):
     status: Literal["generated", "opened"]
 
 
+class AIEvaluationCaseOut(BaseModel):
+    id: str
+    kind: str
+    passed: bool
+    detail: str
+
+
+class AIEvaluationOut(BaseModel):
+    """EP-AI-27/28 (10 §7.2.11, R-DEC-138/140): one standard-suite run score."""
+
+    id: uuid.UUID
+    suite: str
+    prompt_version: str
+    model: str
+    provider: str
+    gateway_mode: str
+    total: int
+    passed: int
+    grounding_pct: float
+    accuracy_pct: float
+    tool_choice_pct: float
+    score_pct: float
+    cases: list[AIEvaluationCaseOut] = Field(default_factory=list)
+    started_at: datetime
+    finished_at: datetime
+    triggered_by: uuid.UUID | None = None
+
+
 __all__ = [
-    "AIActionOut", "AIAgentOut", "AgentPatchIn", "AutonomyPolicyCreateIn", "AutonomyPolicyOut",
+    "AIActionOut", "AIAgentOut", "AIEvaluationCaseOut", "AIEvaluationOut", "AgentPatchIn",
+    "AutonomyPolicyCreateIn", "AutonomyPolicyOut",
     "AutonomyPolicyPatchIn", "BriefingCalendarItemOut", "BriefingOut", "ChatAnswerOut",
     "ChatContext", "ChatRequestIn", "ConfidenceOut", "ConfirmActionIn", "ConversationOut",
     "CostRowOut", "CostSummaryOut", "FunctionCallOut", "InsightOut", "KillSwitchIn",

@@ -10,8 +10,10 @@ Every attempt (ok, error, fallback, template/blocked decision) goes to the `Call
 """
 
 import asyncio
+import hashlib
 import json
 import logging
+import math
 import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -38,6 +40,24 @@ log = logging.getLogger("app.model_gateway")
 CallStatus = Literal["ok", "error", "forbidden", "timeout"]
 RETRY_BACKOFF_S: tuple[float, ...] = (1.0, 3.0)  # 07 §6.2: ≤ 2 retries per provider
 BREAKER_FAILURES, BREAKER_WINDOW_S, BREAKER_OPEN_S = 5, 60.0, 120.0
+EMBED_DIM = 1024  # 05 §11 (matches idp.document_pages.embedding Vector dim)
+
+
+def hash_embedding(text: str, *, dim: int = EMBED_DIM) -> list[float]:
+    """Deterministic unit-norm pseudo-embedding from a text's SHA-256 (fixture mode only).
+
+    Streams the hash through a counter so the same text always maps to the same L2-normalised
+    vector; different texts spread apart, so cosine similarity still ranks related queries higher.
+    Never used in live mode — it is a stand-in for a real embedding model (DEC-150 deferred).
+    """
+    raw = bytearray()
+    counter = 0
+    while len(raw) < dim * 2:
+        raw += hashlib.sha256(f"{text}\x00{counter}".encode()).digest()
+        counter += 1
+    vals = [((raw[2 * i] << 8) | raw[2 * i + 1]) / 65535.0 - 0.5 for i in range(dim)]
+    norm = math.sqrt(sum(v * v for v in vals)) or 1.0
+    return [v / norm for v in vals]
 
 
 @dataclass(frozen=True)
@@ -231,6 +251,22 @@ class ModelGateway:
             return await self._fixture(req, rt)
         raise ai_error(
             "AI_PROVIDER_ERROR", "live STT not configured (fixture-only at P0, R-DEC-97)"
+        )
+
+    async def embed(self, texts: list[str], *, caller_module: str) -> list[list[float]]:
+        """Embed texts for Knowledge RAG (task=embed, R-DEC-141, DEC-142 bge-m3).
+
+        Gated off when `embedding_model` is empty (RAG disabled → the caller falls back to keyword
+        search). Fixture mode returns a deterministic unit vector derived from each text's hash —
+        no network, stable across runs, cosine-comparable — so RAG wiring is testable without a
+        live embedding model (DEC-150 defers the real provider). Live embed is backlog.
+        """
+        if not self.cfg.embedding_model:
+            raise ai_error("AI_DISABLED", "embedding model disabled (keyword-only RAG)")
+        if self.cfg.model_gateway_mode == "fixture":
+            return [hash_embedding(t) for t in texts]
+        raise ai_error(
+            "AI_PROVIDER_ERROR", "live embeddings not configured (fixture-only, DEC-150)"
         )
 
     async def _fixture(self, req: ChatRequest, rt: Route) -> ChatResponse:

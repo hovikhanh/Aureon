@@ -1911,7 +1911,8 @@
         "input_schema": "input_schema",
         "output_schema": "output_schema"
       }
-    }
+    },
+    "openEvaluation": "Open evaluation"
   },
   "killSwitch": {
     "banner": {
@@ -2249,7 +2250,8 @@
     "title": "Knowledge & reports",
     "tab": {
       "decisions": "Decision Log",
-      "reports": "Reports"
+      "reports": "Reports",
+      "documents": "Documents"
     }
   },
   "decisions": {
@@ -2278,6 +2280,29 @@
       "executive-summary": "Executive summary",
       "decisions": "Decision log",
       "metrics-health": "Metrics health"
+    }
+  },
+  "documents": {
+    "title": "Document search",
+    "placeholder": "Search the document / SOP library…",
+    "hint": "Type a keyword to search across ingested document pages.",
+    "loading": "Searching…",
+    "loadError": "Could not load search results.",
+    "empty": "No documents match.",
+    "page": "Page {n}"
+  },
+  "aiEvaluation": {
+    "title": "AI Evaluation",
+    "subtitle": "Standard evaluation-suite runs (grounding · accuracy · tool choice). Produced by the run_eval CLI.",
+    "loading": "Loading…",
+    "loadError": "Could not load evaluation runs.",
+    "empty": "No evaluation runs yet.",
+    "passed": "Passed {passed}/{total}",
+    "axis": {
+      "score": "Overall",
+      "grounding": "Grounding",
+      "accuracy": "Accuracy",
+      "toolChoice": "Tool choice"
     }
   }
 }

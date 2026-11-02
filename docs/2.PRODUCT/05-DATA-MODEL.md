@@ -514,6 +514,32 @@ Migration `0025_briefing_m33` (down_revision `0024_calendar_m31`; reversible; `d
 
 - Phân loại: Briefing `payload` chỉ chứa số đã grounding + id/mã (không PII mức 4; summary email không mức 3–4 — 02 §5.3). Enum mới: `ai.briefing_status`. CK `uq_briefing_recipient_date`. Index mọi FK/`recipient_id` (§5.7). Endpoint EP-AI-24/25/26 + job `generate_briefings` (10 §7.2.10).
 
+### §2.12 — Field-level M3.4 (Evaluation Engine, R-DEC-138; chi tiết hóa per-domain R-DEC-09)
+
+Migration `0026_ai_evaluation_m34` (down_revision `0025_briefing_m33`; reversible; `downgrade` drop bảng). Schema `ai` (D26). **Thay đổi schema duy nhất của M3.4** — Knowledge RAG tái dùng `idp.document_pages.embedding` + HNSW (đã có §11, không đổi); UC-04 tái dùng entity có sẵn.
+
+**ENT-AIEvaluation — `ai.ai_evaluations`** (mới; `BusinessModel`: id UUID, tenant_id, created_at/updated_at, deleted_at) — một dòng mỗi lần chạy bộ test chuẩn (append-only về ý nghĩa)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `suite` | text NOT NULL, index | Mã bộ test chuẩn (VD `core-v1`) |
+| `prompt_version` | text NOT NULL | Phiên bản prompt chấm |
+| `model` | text NOT NULL | Model dùng khi chạy |
+| `provider` | text NOT NULL | Provider (hoặc `fixture`) |
+| `gateway_mode` | text NOT NULL | `fixture`/`live` (CI luôn `fixture`) |
+| `total` | int NOT NULL | Tổng số case |
+| `passed` | int NOT NULL | Số case đạt |
+| `grounding_pct` | Numeric(5,2) NOT NULL | Trục grounding (FR-AIQ-01), thang 0–100 |
+| `accuracy_pct` | Numeric(5,2) NOT NULL | Trục accuracy (khớp expected) |
+| `tool_choice_pct` | Numeric(5,2) NOT NULL | Trục tool-choice (gọi đúng tool) |
+| `score_pct` | Numeric(5,2) NOT NULL | Tổng hợp = trung bình 3 trục |
+| `cases` | JSONB NOT NULL | `[{id, kind, passed, detail}]` — không prompt thô, không PII |
+| `started_at` | timestamptz NOT NULL | Bắt đầu run |
+| `finished_at` | timestamptz NOT NULL | Kết thúc run |
+| `triggered_by` | UUID NULL (soft ref `auth.users`) | User chạy (NULL = CLI/job) |
+
+- Phân loại: `cases` chỉ chứa id/kind/pass + detail ngắn (không prompt thô — §5.5, không PII). Index `suite`, `finished_at`. Endpoint đọc EP-AI-27/28; chạy bằng CLI `run_eval` (10 §7.2.11). Không enum mới.
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
