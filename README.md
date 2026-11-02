@@ -30,7 +30,7 @@ open http://localhost:3000              # Web · API: http://localhost:4000/heal
 Service `api` tự chạy `alembic upgrade head` + seed (idempotent) khi khởi động. 9 service
 (`postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web`) healthy trong
 ~2 phút (ClamAV lần đầu tải signature lâu hơn). Reset dữ liệu demo: `./scripts/demo_reset.sh -y`.
-Kịch bản trình diễn 5 phút: [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
+Kịch bản trình diễn theo vai trò (9 chặng, ~55 phút): [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
 
 ## Vai trò (R-DEC-08) — 7 role BRD + AI Agent
 
@@ -63,12 +63,16 @@ cho đủ 10 tài khoản demo (08 §2) ánh xạ vào 7 role v3.
 
 ## Tính năng
 
+> **Tiến độ build:** **M1 · M2 (M2.1–M2.5) · M3.1–M3.4 DONE**; **M3.5 (Nghiệm thu MVP) đang tiến hành** — trang đo G1–G4 đã xong, phần E2E/NFR/pilot trên stack thật còn hoãn. Chi tiết: [docs/DEMO-SCRIPT.md §8](docs/DEMO-SCRIPT.md).
+
 | Khối | Nội dung |
 |---|---|
-| **Dashboard F.O.C.U.S** | 5 trụ: **F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk. **32 metric** tính sẵn (metric store), **13 alert** mở trong seed demo (11 WARNING + 2 CRITICAL). Layout demo: F🟢 C🟢 U🟡 O🟡 S🔴. Pillar card thu hẹp theo khối của DIR |
-| **Finance drill-down** | 6 metric với sparkline 12 tháng, lineage 3 cấp: metric → bản ghi → tài liệu gốc |
-| **AI Assistant** | Chat SSE, **43 tool** lọc theo quyền người hỏi, citation `[n]` → nguồn, không bịa số (P05), PII filter, Autonomy L0–L3 + undo + kill switch (L4 khóa) |
-| **IDP (D03)** | **5 kênh upload C1–C5**, quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry vào Finance |
+| **Dashboard 3 cấp** | Executive / Department / Employee (M2.1): dòng tóm tắt 1 câu, 4 ô CEO tự chọn, "Cần anh quyết", "Rủi ro", "AI đã làm", Strategy Execution Index. Reporting v3 `GET /reporting/dashboards/{executive·department·employee}` (EP-RPT-01..05), metric có `group` + `freshness`, ngưỡng là cấu hình |
+| **Dashboard F.O.C.U.S** | 5 trụ: **F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk. Metric tính sẵn (metric store). Pillar card thu hẹp theo khối của DIR. Finance drill-down: sparkline 12 tháng, lineage 3 cấp metric → bản ghi → tài liệu gốc. Trang nghiệp vụ `/business` Finance Lite / Sales pipeline / HR (M2.2) |
+| **CEO Assistant & AI** | Chat SSE, **43 tool** lọc theo quyền người hỏi, citation `[n]` → nguồn, không bịa số (P05, grounding validator), PII filter. **Insight 9 phần** + panel **⌘K** toàn app (M2.4). **Autonomy L0–L3**: L3 AI tự thực thi (task + owner + deadline + lịch + thông báo trong 1 transaction) qua Action Registry, feed "AI đã làm", undo 24h, Approval Matrix cấu hình (M3.2); kill switch (L4 khóa). **CEO Daily Briefing** 7 khối gửi e-mail + tracking G1 (EP-AI-24/25/26, M3.3). **Evaluation Engine** chấm điểm theo phiên bản prompt/model, CLI `python -m app.scripts.run_eval`, `/admin/ai/evaluation` (EP-AI-27/28, M3.4) |
+| **Capture & IDP (D03)** | **Kênh C1–C5** + **C2 nhập bằng lời (STT)** + **C4 ảnh/OCR** + **PWA** (M2.3), quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry. **Họp `/meetings`**: transcript → action item → task (M2.3). **Knowledge / RAG**: embedding bge-m3 → pgvector → `TOOL-search_documents` có nguồn tới trang (EP-24 `/idp/documents/search`, `/knowledge`), keyword fallback khi `MODEL_EMBED` trống (M3.4) |
+| **Calendar & Decision Log** | **Calendar Google/Outlook 2 chiều** (OAuth theo từng user, polling ở dev), `/settings/integrations`, deadline task → sự kiện lịch (M3.1). **Decision Log 30/60/90** + nhắc review + verify (`/knowledge/decisions`), export báo cáo CSV/XLSX (M3.3) |
+| **Nghiệm thu MVP** | Trang đo G1–G4 `/admin/acceptance` + `GET /reporting/acceptance` (EP-RPT-08, CEO/DIR, `dashboard:read`): G1 áp dụng Briefing · G2 METRIC-STR-01 · G3 METRIC-DQ-02 · G4 sự cố trường trọng yếu lọt lưới (M3.5) |
 | **Governance** | RBAC 7 role (`<domain>:<action>`) + ABAC pillar-scope + field-level (mức 4), JWT RS256, `tenant_id` mọi entity, audit log append-only, Transactional Outbox + Celery |
 
 ## Kiến trúc

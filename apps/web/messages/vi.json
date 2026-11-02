@@ -583,6 +583,10 @@
       "title": "Onboarding doanh nghiệp",
       "body": "Wizard 6 bước: doanh nghiệp → cơ cấu → user → KPI.",
       "pending": "Chưa hoàn tất"
+    },
+    "acceptance": {
+      "title": "Nghiệm thu MVP",
+      "body": "Bốn cổng G1–G4 của MVP."
     }
   },
   "adminCommon": {
@@ -2304,5 +2308,31 @@
       "accuracy": "Chính xác",
       "toolChoice": "Chọn tool"
     }
+  },
+  "acceptance": {
+    "title": "Nghiệm thu MVP",
+    "subtitle": "Bốn cổng G1–G4 (BRD §19.1). Ngưỡng thật xác nhận ở thí điểm.",
+    "loading": "Đang tải…",
+    "loadError": "Không tải được dữ liệu nghiệm thu.",
+    "empty": "Chưa có dữ liệu.",
+    "source": "Nguồn",
+    "status": {
+      "pass": "Đạt",
+      "warning": "Cảnh báo",
+      "fail": "Chưa đạt",
+      "no_data": "Chưa có dữ liệu"
+    },
+    "g1": "CEO dùng Daily Briefing",
+    "g1_threshold": "≥ 4 ngày/tuần (4 tuần)",
+    "g1_detail": "Số ngày CEO mở briefing trung bình mỗi tuần.",
+    "g2": "KPI/OKR cập nhật đúng kỳ",
+    "g2_threshold": "≥ 80%",
+    "g2_detail": "Tỷ lệ KPI/OKR cập nhật đúng kỳ (METRIC-STR-01).",
+    "g3": "Dữ liệu mới qua tài liệu/NL",
+    "g3_threshold": "≥ 60%",
+    "g3_detail": "Tỷ lệ bản ghi mới vào qua tài liệu hoặc ngôn ngữ tự nhiên (METRIC-DQ-02).",
+    "g4": "Sự cố ghi sai trường trọng yếu",
+    "g4_threshold": "= 0",
+    "g4_detail": "Số sự cố AI ghi sai trường trọng yếu mà không bị phát hiện."
   }
 }

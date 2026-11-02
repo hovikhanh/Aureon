@@ -583,6 +583,10 @@
       "title": "Company onboarding",
       "body": "6-step wizard: company → structure → users → KPIs.",
       "pending": "Not finished"
+    },
+    "acceptance": {
+      "title": "MVP Acceptance",
+      "body": "The four MVP gates G1–G4."
     }
   },
   "adminCommon": {
@@ -2304,5 +2308,31 @@
       "accuracy": "Accuracy",
       "toolChoice": "Tool choice"
     }
+  },
+  "acceptance": {
+    "title": "MVP Acceptance",
+    "subtitle": "The four gates G1–G4 (BRD §19.1). True thresholds confirmed at pilot.",
+    "loading": "Loading…",
+    "loadError": "Could not load acceptance data.",
+    "empty": "No data yet.",
+    "source": "Source",
+    "status": {
+      "pass": "Pass",
+      "warning": "Warning",
+      "fail": "Fail",
+      "no_data": "No data"
+    },
+    "g1": "CEO uses Daily Briefing",
+    "g1_threshold": "≥ 4 days/week (4 weeks)",
+    "g1_detail": "Average days per week the CEO opened a briefing.",
+    "g2": "KPI/OKR updated on time",
+    "g2_threshold": "≥ 80%",
+    "g2_detail": "Share of KPI/OKR updated on time (METRIC-STR-01).",
+    "g3": "New data via document/NL",
+    "g3_threshold": "≥ 60%",
+    "g3_detail": "Share of new records captured from documents or natural language (METRIC-DQ-02).",
+    "g4": "Critical-field write errors",
+    "g4_threshold": "= 0",
+    "g4_detail": "Undetected AI write errors on critical fields."
   }
 }

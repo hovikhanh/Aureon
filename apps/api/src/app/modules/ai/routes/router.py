@@ -27,6 +27,7 @@ from app.core.idempotency import Idem
 from app.core.model_gateway.errors import SecretDataBlockedError
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.modules.ai.routes.acceptance import router as acceptance_router
 from app.modules.ai.routes.admin import router as admin_router
 from app.modules.ai.schemas import (
     AIActionOut,
@@ -351,3 +352,4 @@ def _chunks(text: str, size: int = 48) -> list[str]:
 module_router = EnvelopeRouter()
 module_router.include_router(router)
 module_router.include_router(admin_router)
+module_router.include_router(acceptance_router)  # EP-RPT-08 /reporting/acceptance (M3.5)

@@ -1,9 +1,9 @@
 # DEMO-SCRIPT — Aureon v3 (AI-EOS) · Kịch bản demo theo vai trò
 
-> **Trạng thái code:** mốc **M1 (M1.1 → M1.6) DONE** — nền móng dữ liệu + bảo mật + thực thi + Data Capture + AI Platform nền.
-> M2 (Trí tuệ) và M3 (Hành động) **chưa build** → xem §8 "Chưa làm — hoàn thành ở phase nào".
+> **Trạng thái code:** **M1 (M1.1 → M1.6) DONE · M2 (M2.1 → M2.5) DONE · M3.1 → M3.4 DONE** — nền móng + Trí tuệ (dashboard 3 cấp, Reporting v3, trang nghiệp vụ, Capture C2/C4, CEO Assistant Insight 9 phần) + Hành động (Calendar 2 chiều, Autonomy L3, Daily Briefing, Decision Log 30/60/90, Evaluation Engine, Knowledge/RAG).
+> **M3.5 (Nghiệm thu MVP) đang tiến hành:** trang đo nghiệm thu G1–G4 (`/admin/acceptance`, `GET /reporting/acceptance`) đã xong; còn **hoãn** phần cần stack thật / pilot / người làm: E2E CEO 7 bước trên stack thật, NFR hiệu năng/bảo mật/a11y/responsive/PWA, checklist pilot, và merge ai-eos→main. Lý do: môi trường code **không có Postgres/Redis/MinIO** nên các test phụ thuộc DB là "Implemented, stack-real deferred" (giống M3.1–M3.4). → xem §8.
 > **Doanh nghiệp demo:** Công ty TNHH TM&DV ABC — 7 phòng ban, 154 nhân sự. `DEMO_REFERENCE_DATE=2026-10-20`, kỳ báo cáo mặc định **T9/2026**.
-> **Ngày cập nhật:** 2026-10-26 · **Nguồn:** `STATE.md`, `09-BUILD-PLAN-TASKS.md` §6, e2e `apps/web/e2e/*.spec.ts` (real 75/75 — T-652), seed thật trên DB `aureon`.
+> **Ngày cập nhật:** 2026-11-02 · **Nguồn:** `STATE.md`, `09-BUILD-PLAN-TASKS.md` §6, e2e `apps/web/e2e/*.spec.ts`, seed thật trên DB `aureon`.
 
 **Ký hiệu:** 🟢 = đã chạy end-to-end trên stack thật (có E2E `real` hoặc đã kiểm chứng tay) · 🟡 = chạy được nhưng có giới hạn (ghi rõ) · ⛔ = chưa có, thuộc phase sau.
 
@@ -21,7 +21,9 @@
 | 6 | **Quản trị AI nhìn thấy được** — Tool Registry 53 tool, agent, autonomy, kill switch, log mọi tool/model call | 9 | SCR-64/65, M1.6 |
 | 7 | **Mục tiêu → việc → đo lường nối liền nhau** | 1, 7, 8 | D07–D11, M1.3/M1.4 |
 
-**Chưa demo được ở mốc này:** Daily Briefing, Insight 9 phần, Decision Log, Calendar 2 chiều, họp/transcript, Knowledge/RAG, dashboard 3 cấp cho MGR/EMP, Autonomy L3 (AI tự thực thi). → §8.
+**Đã bổ sung ở M2–M3.4 (demo được):** dashboard 3 cấp cho MGR/EMP, Reporting v3, trang nghiệp vụ Finance/Sales/HR, Capture C2 (STT) + C4 (OCR ảnh) + PWA, họp/transcript, CEO Assistant Insight 9 phần + ⌘K, Daily Briefing, Decision Log 30/60/90, Calendar Google/Outlook 2 chiều, Autonomy L3 (AI tự thực thi + undo 24h), Evaluation Engine, Knowledge/RAG. → §8.1/§8.2.
+
+**Chưa demo được ở mốc này (còn hoãn, cần điều kiện ngoài code):** đồng bộ OAuth **live** với Google/Outlook (cần callback URL public), trích xuất **OCR thật** trên stack đang chạy (`OCR_PROVIDER=stub` ở môi trường code), và E2E CEO 7 bước / NFR / pilot trên **stack thật** (M3.5 — không có Postgres/Redis/MinIO trong môi trường code). → §8.
 
 ---
 
@@ -434,44 +436,54 @@ Dùng để kiểm "UI có khớp dữ liệu không" khi bị hỏi.
 
 ---
 
-## 8. Tính năng CHƯA làm được — và sẽ hoàn thành ở phase nào
+## 8. Tiến độ tính năng theo mốc — đã làm và còn hoãn
 
-Nguồn: `09-BUILD-PLAN-TASKS.md` §6.8–§6.17 (MVP) và §3 (phase 2–5 sau MVP).
+Nguồn: `09-BUILD-PLAN-TASKS.md` §6.8–§6.17 (MVP) và §3 (phase 2–5 sau MVP). **M1 · M2 · M3.1–M3.4 DONE**; M3.5 đang tiến hành (xem §8.0).
 
-### 8.1. Mốc M2 — Trí tuệ (ngày 31–60)
+### 8.0. Mốc M3.5 — Nghiệm thu MVP (đang tiến hành)
 
-| Tính năng chưa có | Hiện trạng trong demo | Phase | Task |
-|---|---|---|---|
-| **Dashboard 3 cấp theo vai trò** (Executive / Department / Employee): dòng tóm tắt 1 câu, 4 ô CEO tự chọn, "Cần anh quyết", "Rủi ro", "AI đã làm", Strategy Execution Index trên trang chủ | MGR/EMP/REV/ADM thấy "Sắp có"; CEO/DIR dùng dashboard 5 trụ tạm của nền v2.1 | **M2.1** | T-701..T-709 |
-| Catalog METRIC v3 đầy đủ + ngưỡng là cấu hình + freshness theo `SLA_FRESHNESS_*` | 34 chỉ số, ngưỡng còn cứng theo seed | **M2.1** | T-701/702 |
-| `GET /reporting/dashboards/{executive · department · employee}` | Chưa có endpoint | **M2.1** | T-704 |
-| **Trang `/business` đầy đủ**: Finance Lite (ngân sách, chi phí, dòng tiền, runway), Sales pipeline kanban, HR list | Chỉ có `/business/finance/invoices` + `/business/hr/employees` | **M2.2** | T-710..T-716 |
-| Doc type **#6 báo cáo tài chính / sao kê số dư** → Revenue/Expense/CashBalance (nhập `DOC-02`) | Chưa nhập được | **M2.2** | T-711 |
-| Lead / Opportunity (CRM Lite) + event `opportunity.*` | Chưa có | **M2.2** | T-712/713 |
-| **Kênh C2 — nhập bằng lời / ngôn ngữ tự nhiên** (STT qua ModelGateway) | Chưa có | **M2.3** | T-717 |
-| **Kênh C4 — chụp ảnh đầy đủ** (tiền xử lý ảnh, khử nghiêng, OCR thật) | Nút "Chụp ảnh" có, nhưng `OCR_PROVIDER=stub` → không trích xuất | **M2.3** | T-718 |
-| **PWA cài được trên điện thoại**, layout 390 px | Chưa có manifest/service worker | **M2.3** | T-717..T-719 |
-| **Họp (`/meetings`)**: transcript/biên bản → action item → task, ENT-MeetingSummary, khớp tên → nhân sự | Trang hiện "Sắp có"; `DOC-05` chưa dùng được | **M2.3** | T-719..T-726 |
-| **CEO Assistant đầy đủ**: grounding validator cứng, **Insight 9 phần**, panel **⌘K** toàn app, chuỗi "Tại sao?" | Chat có citation + tool, nhưng chưa có Insight/⌘K/validator cứng | **M2.4** | T-728..T-736 |
-| AI điền sẵn check-in (F4) | Chỉ là placeholder trên UI | **M2.4** | T-732 |
-| Bộ AI-eval `GR-*` (grounding), routing classification | Có `INJ-*` (anti-injection) ở M1.5 | **M2.4** | T-733 |
-| Đo hiệu năng TTFT chat + a11y WCAG AA tự động | Chưa đo | **M2.5** | T-738/739 |
-
-### 8.2. Mốc M3 — Hành động (ngày 61–90)
-
-| Tính năng chưa có | Phase | Task |
+| Hạng mục | Hiện trạng | Task |
 |---|---|---|
-| **Calendar Google/Outlook 2 chiều** (OAuth theo từng user, đồng bộ 5 phút, xử lý xung đột), `/meetings/calendar`, `/settings/integrations` | **M3.1** | T-801..T-811 |
-| Deadline task → sự kiện trên lịch của người thực hiện | **M3.1** | T-807 |
-| **Autonomy L3**: AI tự thực thi (tạo task + owner + deadline + lịch + thông báo trong 1 transaction), feed **"AI đã làm"**, **undo 24 giờ** | **M3.2** | T-812..T-818 |
-| Approval Matrix với ngưỡng L3 là cấu hình | **M3.2** | T-813 |
-| **CEO Daily Briefing** (7 khối, ≤ 1 trang, gửi e-mail, tracking cổng G1) | **M3.3** | T-819..T-826 |
-| **Decision Log 30/60/90** + nhắc review + verify kết quả (`/knowledge/decisions`) | **M3.3** | T-821 |
-| Báo cáo + export CSV/XLSX; nêu chỉ số stale trong Briefing | **M3.3** | T-822/823 |
-| **Evaluation Engine** (bộ test chuẩn, điểm theo phiên bản prompt/model, `/admin/ai/evaluation`) | **M3.4** | T-827 |
-| **Knowledge / RAG**: doc type #5 → embedding bge-m3 → pgvector → `TOOL-search_knowledge` có nguồn tới trang (`/knowledge`) | **M3.4** | T-828 |
-| UC-04 đầy đủ: KR at-risk → phân tích blocker → can thiệp L3 → follow-up → verify | **M3.4** | T-829/830 |
-| Nghiệm thu: kịch bản CEO 7 bước E2E, **trang đo G1–G4**, NFR hiệu năng/bảo mật/a11y/responsive/PWA | **M3.5** | T-901..T-910 |
+| **Trang đo nghiệm thu G1–G4** `/admin/acceptance` + `GET /reporting/acceptance` (EP-RPT-08, CEO/DIR, `dashboard:read`): G1 = tỷ lệ áp dụng Briefing · G2 = METRIC-STR-01 · G3 = METRIC-DQ-02 · G4 = sự cố trường trọng yếu lọt lưới | 🟢 **DONE** | T-902/905 |
+| `docker-compose.full.yml` 9 service + **Mailpit**; `demo_reset.sh` | 🟢 **DONE** | — |
+| E2E kịch bản CEO 7 bước trên **stack thật** | 🟡 **Hoãn** — không có Postgres/Redis/MinIO trong môi trường code (Implemented, stack-real deferred) | T-901 |
+| NFR hiệu năng / bảo mật / a11y / responsive / PWA trên stack thật | 🟡 **Hoãn** — như trên | T-903 |
+| Checklist pilot + fix + merge PR `ai-eos → main` | 🟡 **Hoãn** — pilot/người làm | T-906..T-910 |
+
+### 8.1. Mốc M2 — Trí tuệ (ngày 31–60) · **DONE**
+
+| Tính năng | Hiện trạng | Phase | Task |
+|---|---|---|---|
+| **Dashboard 3 cấp theo vai trò** (Executive / Department / Employee): dòng tóm tắt 1 câu, 4 ô CEO tự chọn, "Cần anh quyết", "Rủi ro", "AI đã làm", Strategy Execution Index trên trang chủ | 🟢 **DONE — M2.1** | **M2.1** | T-701..T-709 |
+| Catalog METRIC v3 + ngưỡng là cấu hình + freshness theo `SLA_FRESHNESS_*`; `MetricValueOut` thêm `group` + `freshness`; SEI METRIC-STR-02 | 🟢 **DONE — M2.1** | **M2.1** | T-701/702 |
+| `GET /reporting/dashboards/{executive · department · employee}` + preferences tiles (EP-RPT-01..05) | 🟢 **DONE — M2.1** | **M2.1** | T-704 |
+| **Trang `/business` đầy đủ**: Finance Lite (ngân sách, chi phí, dòng tiền, runway), Sales pipeline, HR list | 🟢 **DONE — M2.2** | **M2.2** | T-710..T-716 |
+| Doc type báo cáo tài chính / sao kê số dư → Revenue/Expense/CashBalance | 🟢 **DONE — M2.2** | **M2.2** | T-711 |
+| Lead / Opportunity (CRM Lite) + event `opportunity.*` | 🟢 **DONE — M2.2** | **M2.2** | T-712/713 |
+| **Kênh C2 — nhập bằng lời / ngôn ngữ tự nhiên** (STT qua ModelGateway) | 🟢 **DONE — M2.3** | **M2.3** | T-717 |
+| **Kênh C4 — chụp ảnh** (OCR ảnh qua ModelGateway) | 🟢 **DONE — M2.3** · 🟡 OCR thật cần stack chạy (`OCR_PROVIDER=stub` ở môi trường code) | **M2.3** | T-718 |
+| **PWA cài được trên điện thoại**, layout 390 px | 🟢 **DONE — M2.3** | **M2.3** | T-717..T-719 |
+| **Họp (`/meetings`)**: transcript/biên bản → action item → task, ENT-MeetingSummary, khớp tên → nhân sự | 🟢 **DONE — M2.3** | **M2.3** | T-719..T-726 |
+| **CEO Assistant đầy đủ**: grounding validator cứng, **Insight 9 phần**, panel **⌘K** toàn app, chuỗi "Tại sao?" | 🟢 **DONE — M2.4** | **M2.4** | T-728..T-736 |
+| AI điền sẵn check-in (F4) | 🟢 **DONE — M2.4** | **M2.4** | T-732 |
+| Bộ AI-eval `GR-*` (grounding) + routing classification | 🟢 **DONE — M2.4** | **M2.4** | T-733 |
+| Đo hiệu năng TTFT chat + a11y WCAG AA tự động | 🟢 **DONE — M2.5** | **M2.5** | T-738/739 |
+
+### 8.2. Mốc M3 — Hành động (ngày 61–90) · **M3.1–M3.4 DONE**
+
+| Tính năng | Hiện trạng | Phase | Task |
+|---|---|---|---|
+| **Calendar Google/Outlook 2 chiều** (OAuth theo từng user, polling ở dev, xử lý xung đột), `/settings/integrations` | 🟢 **DONE — M3.1** · 🟡 đồng bộ **live** cần callback URL public | **M3.1** | T-801..T-811 |
+| Deadline task → sự kiện trên lịch của người thực hiện | 🟢 **DONE — M3.1** | **M3.1** | T-807 |
+| **Autonomy L3**: AI tự thực thi (tạo task + owner + deadline + lịch + thông báo trong 1 transaction) qua Action Registry, feed **"AI đã làm"**, **undo 24 giờ** | 🟢 **DONE — M3.2** | **M3.2** | T-812..T-818 |
+| Approval Matrix với ngưỡng L3 là cấu hình | 🟢 **DONE — M3.2** | **M3.2** | T-813 |
+| **CEO Daily Briefing** (7 khối, ≤ 1 trang, gửi e-mail, tracking cổng G1, EP-AI-24/25/26) | 🟢 **DONE — M3.3** | **M3.3** | T-819..T-826 |
+| **Decision Log 30/60/90** + nhắc review + verify kết quả (`/knowledge/decisions`) | 🟢 **DONE — M3.3** | **M3.3** | T-821 |
+| Báo cáo + export CSV/XLSX; nêu chỉ số stale trong Briefing | 🟢 **DONE — M3.3** | **M3.3** | T-822/823 |
+| **Evaluation Engine** (bộ test chuẩn, điểm theo phiên bản prompt/model, CLI `python -m app.scripts.run_eval`, `/admin/ai/evaluation`, EP-AI-27/28) | 🟢 **DONE — M3.4** | **M3.4** | T-827 |
+| **Knowledge / RAG**: doc type #5 → embedding bge-m3 → pgvector → `TOOL-search_documents` có nguồn tới trang (EP-24 `/idp/documents/search`, tab Documents của `/knowledge`) | 🟢 **DONE — M3.4** · 🟡 tắt về keyword fallback khi `MODEL_EMBED` trống | **M3.4** | T-828 |
+| UC-04 đầy đủ: KR at-risk → phân tích blocker → can thiệp L3 → follow-up → verify | 🟢 **DONE — M3.4** | **M3.4** | T-829/830 |
+| Nghiệm thu: kịch bản CEO 7 bước E2E, trang đo G1–G4, NFR | ⇒ xem **§8.0** (M3.5) | **M3.5** | T-901..T-910 |
 
 ### 8.3. Sau MVP (phase 2–5 theo BRD §19.2)
 
@@ -482,22 +494,19 @@ Nguồn: `09-BUILD-PLAN-TASKS.md` §6.8–§6.17 (MVP) và §3 (phase 2–5 sau 
 | **Governance & Strategy** | D24 Governance & Compliance · D25 Risk Intelligence nâng cao — **gỡ đóng băng trụ S** · scenario planning · Strategy nâng cao | **Phase 4** |
 | **Autonomous Enterprise** | Multi-Agent / Enterprise Orchestrator · **mở Autonomy L4** cho tool đã chứng minh độ tin cậy qua Evaluation Engine | **Phase 5** |
 
-### 8.4. Nợ kỹ thuật / giới hạn đã biết ở M1 (không chặn demo)
+### 8.4. Nợ kỹ thuật / giới hạn đã biết (không chặn demo)
 
 | Mục | Ảnh hưởng khi demo | Xử lý dự kiến |
 |---|---|---|
-| `OCR_PROVIDER=stub` (PaddleOCR chưa cài) | Ảnh/PDF scan không trích xuất | M2.3 |
-| Phân loại tự động đôi khi trả `OTHER` (vd DOC-08) | Chọn trước doc type | tinh chỉnh ở M2.x |
+| `OCR_PROVIDER=stub` trong môi trường code | Ảnh/PDF scan không trích xuất chữ; OCR ảnh (C4) đã có từ M2.3 nhưng cần provider thật trên stack chạy | bật provider OCR khi chạy stack thật |
+| Đồng bộ Calendar **live** cần callback URL public | Dev chỉ polling; OAuth thật Google/Outlook cần domain công khai | cấu hình khi pilot (M3.5) |
+| Phân loại tự động đôi khi trả `OTHER` (vd DOC-08) | Chọn trước doc type | tinh chỉnh tiếp |
 | Trụ **U (product)** và **S (risk)** đóng băng P1 | Không có card U/S mặc định; tool product/risk không quảng bá cho model | Phase 3 / 4 |
-| Dashboard cố định kỳ T9/2026 (có picker tương đối) | Nói rõ "kỳ báo cáo demo" | M2.1 |
-| Tiêu đề thông báo còn text thô, chưa có i18n key | E-mail/chuông hiển thị tên task thô | M2.x (nợ #9 của M1.3) |
-| `reviewer@` thuộc phòng Hành chính | Người **ghi** hóa đơn trong demo là `office@` | xem lại seed/UX ở M2.x |
-| SCR-18b chưa highlight ô nguồn trên trang với lưới C5 | Chỉ highlight ở tài liệu 1 bản ghi (hóa đơn) | M2.x |
-| ADM xem incident (EP-DC-37) cần `idp:approve` | ADM không mở được tab sự cố | OQ M3.x |
+| `reviewer@` thuộc phòng Hành chính | Người **ghi** hóa đơn trong demo là `office@` | xem lại seed/UX |
 | `ACT-create_department` không có cột `organization` | Phòng ban nhập vào nằm ở tổ chức đầu tiên của tenant | 10 §7.2.5 |
 | Coverage FE chưa đo (thiếu `@vitest/coverage-v8` — cần DEC) | Chỉ ảnh hưởng báo cáo chất lượng | DEC dependency |
-| Agent `assistant` của nền v2.1 còn trên dòng cũ | Nhãn i18n `aiAdmin.queue.legacyAgent` | dọn ở M2.x |
 | R-DEC-80 (EP-DC-14b phục vụ file gốc) **chờ human cấp số DEC chính thức** | Tính năng đã chạy; chỉ là việc governance | 13-DECISION-LOG |
+| E2E CEO 7 bước / NFR / pilot cần **stack thật** (Postgres/Redis/MinIO) | Không chạy được trong môi trường code; đã Implemented, stack-real deferred | M3.5 (T-901/903/906) |
 
 ---
 

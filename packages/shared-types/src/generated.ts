@@ -73,6 +73,22 @@ export type AcceptIn = {
   reason: string;
 };
 
+export type AcceptanceGateOut = {
+  gate: string;
+  label_key: string;
+  status: string;
+  value?: number | null;
+  unit: string;
+  threshold_key: string;
+  detail_key: string;
+  source_ref: string;
+};
+
+export type AcceptanceSnapshotOut = {
+  generated_at: string;
+  gates?: AcceptanceGateOut[];
+};
+
 export type AcknowledgeIn = {
   note?: string | null;
 };
@@ -1069,6 +1085,11 @@ export type Envelope_AIAgentOut_ = {
 
 export type Envelope_AIEvaluationOut_ = {
   data: AIEvaluationOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_AcceptanceSnapshotOut_ = {
+  data: AcceptanceSnapshotOut;
   meta?: Meta | null;
 };
 
@@ -5848,6 +5869,10 @@ export interface ApiOperations {
   "PATCH /api/v1/product/roadmap-items/{item_id}": {
     request: RoadmapUpdate;
     response: Envelope_RoadmapOut_;
+  };
+  "GET /api/v1/reporting/acceptance": {
+    request: void;
+    response: Envelope_AcceptanceSnapshotOut_;
   };
   "GET /api/v1/reporting/dashboards/department": {
     request: void;

@@ -13,6 +13,7 @@ const CARDS = [
   { href: "/admin/audit", key: "audit", scr: "SCR-14" },
   { href: "/admin/data-capture", key: "dataCapture", scr: "SCR-63" },
   { href: "/admin/ai", key: "ai", scr: "SCR-64" },
+  { href: "/admin/acceptance", key: "acceptance", scr: "SCR-64" },
 ] as const;
 
 /** SCR-50 `/admin` (T-617F) — overview + cards to the sub-pages the role may open (default deny). */

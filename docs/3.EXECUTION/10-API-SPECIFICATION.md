@@ -730,6 +730,16 @@ Eval **chạy bằng CLI** `python -m app.scripts.run_eval [--suite S] [--prompt
 
 - **FE M3.4** (R-DEC-144b): `/knowledge` thêm tab Documents (thư viện SOP + tìm kiếm EP-24, snippet + link trang); `/admin/ai/evaluation` bảng run eval (điểm theo suite + prompt/model). i18n vi/en; Vitest logic thuần. E2E UC-04 mock BFF.
 
+#### 7.2.12. M3.5 — Nghiệm thu MVP: trang đo G1–G4 (Spec lock M3.5 — agent tự chốt 2026-11-02, R-DEC-145)
+
+| EP | Method | Path | Perm | Mô tả |
+|---|---|---|---|---|
+| EP-RPT-08 | GET | `/reporting/acceptance` | `dashboard:read` | **Chỉ đọc** ảnh chụp 4 cổng nghiệm thu G1–G4 (09 §2.2 / BRD §19.1) — tổng hợp từ dữ liệu **đã có**, không engine/metric mới. Query `weeks` (G1 window, mặc định 4, 1–12). → `AcceptanceSnapshotOut` `{generated_at, gates: [AcceptanceGateOut]}` với `AcceptanceGateOut = {gate ∈ G1\|G2\|G3\|G4, label_key, status ∈ pass\|warning\|fail\|no_data, value (number\|null), unit ∈ pct\|count\|days_per_week, threshold_key, detail_key, source_ref (metric_code\|endpoint path)}`. CEO toàn DN / DIR theo scope; EMP/REV → `403 FORBIDDEN_ROLE`. `no-store` |
+
+- **Nguồn G1–G4 (reuse-only, R-DEC-145):** G1 = adoption Briefing (đếm ngày có `opened_at` trong `weeks` tuần qua **BriefingService**, ngưỡng ≥ 4 ngày/tuần × 4 tuần); G2 = `METRIC-STR-01` (giá trị mới nhất qua **MetricQueryService**, ngưỡng ≥ 80%); G3 = `METRIC-DQ-02` (ngưỡng ≥ 60%); G4 = số sự cố ghi sai trường trọng yếu **không bị phát hiện** (`IncidentService.list(undetected_only=True)`, ngưỡng = 0 → `pass` khi count=0, ngược lại `fail`). **Không** ENT/metric/event/tool mới; chỉ một EP đọc hợp nhất. `AcceptanceService` đặt ở module **`ai`** (lớp aggregator trên cùng — đã phụ thuộc dashboard/idp/platform) để tránh chu trình import `dashboard → ai`; EP vẫn mount ở `/reporting/acceptance`.
+- **Instrumentation G1–G4 đã có** (R-DEC-26): EP-AI-26 ghi `opened_at` (G1), consumer recompute `METRIC-STR-01` (G2), `METRIC-DQ-02` (G3), `ENT-CaptureIncident.undetected` (G4). Trang đo chỉ **đọc** — ngưỡng G1–G4 thật xác nhận ở thí điểm (OQ-09-04), ngoài đợt code.
+- **FE M3.5** (R-DEC-145): `/admin/acceptance` bảng 4 cổng (status badge pass/warning/fail/no_data, value + ngưỡng, link nguồn); logic thuần Vitest; i18n vi/en. Phần stack-real (E2E 7 bước, NFR, pilot) hoãn (không có DB trong môi trường code).
+
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
 Mọi con số AI đưa ra phải truy nguyên nguồn (P05, P06). Contract mức khái niệm:

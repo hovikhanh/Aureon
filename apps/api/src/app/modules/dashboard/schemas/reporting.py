@@ -121,3 +121,23 @@ class ReportCatalogOut(BaseModel):
     code: str
     title_key: str
     formats: list[str] = Field(default_factory=list)
+
+
+class AcceptanceGateOut(BaseModel):
+    """EP-RPT-08 — one MVP acceptance gate G1–G4 (M3.5, R-DEC-145, 09 §2.2 / BRD §19.1)."""
+
+    gate: str  # G1 | G2 | G3 | G4
+    label_key: str
+    status: str  # pass | warning | fail | no_data
+    value: float | None = None
+    unit: str  # pct | count | days_per_week
+    threshold_key: str
+    detail_key: str
+    source_ref: str  # metric_code or endpoint path (grounding P05)
+
+
+class AcceptanceSnapshotOut(BaseModel):
+    """EP-RPT-08 — read-only snapshot of the four MVP acceptance gates (M3.5, R-DEC-145)."""
+
+    generated_at: datetime
+    gates: list[AcceptanceGateOut] = Field(default_factory=list)

@@ -80,4 +80,6 @@ export const qk = {
   documentSearch: (params: Record<string, unknown>) => ["knowledge", "documents", params] as const,
   aiEvaluations: (params: Record<string, unknown>) => ["ai-admin", "evaluations", params] as const,
   aiEvaluation: (id: string) => ["ai-admin", "evaluation", id] as const,
+  // M3.5 MVP acceptance snapshot G1-G4 (EP-RPT-08)
+  acceptance: (params: Record<string, unknown>) => ["admin", "acceptance", params] as const,
 };
