@@ -547,6 +547,7 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1031 | Đính chính `10` §7.3 (17 số EP v2.1, bỏ `EP-GOL-01` trùng `EP-STR-17..21`, ghi chú route theo code, EP-HR-07 mức 4 = CEO + DIR khối O) + parser nhận ID dạng dải + `TC-M4-16` | 10 §7.3, R-DEC-148 | TC-M4-02, 16 | ☑ |
 | T-1032 | Dockerfile api: bake model OCR trước `COPY apps/api`, fail build khi thiếu model; build + xác minh offline | 07 §8.1, R-DEC-146 | TC-M4-17 | ☑ |
 | T-1033 | R-DEC-153: giữ `CHAT_TIMEOUT_SECONDS=90` cho `task=chat` (ngoại lệ `07` §145), ghi lý do/ảnh hưởng/theo dõi | 07 §145, R-DEC-153 | — | ☑ |
+| T-1034 | Triển khai M4 lên stack: backup DB + tag `:pre-m4`, build web, recreate api/worker/beat/web sau 02:30, kiểm runtime + E2E real + axe real | `M4-SYNC-AUDIT` §8 | TC-M4-18 | ☑ |
 
 ## 7. Open questions
 

@@ -1,6 +1,6 @@
 # Aureon v3 — AI-EOS · Build State
 
-## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02→03) — DONE, chờ human review/merge
+## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02→03) — DONE + ĐÃ TRIỂN KHAI lên stack (03/11 02:31), chờ human review/merge
 
 **Gate cuối:** pytest full **1383 passed / 0 failed**, cov **94%** (DB cô lập `aureon_m4`) · contract **41** · ruff/format/mypy (387 file) xanh · Vitest **50 file / 437 test** · FE coverage 88,26% / 71,29% / 88,66% · Playwright mock **95/95** · axe-core AA 0 violation · shared-types drift 0 · `scripts/check_env.sh` xanh. 6 commit `7329c4f..590833a`, **chưa push**.
 
@@ -19,7 +19,8 @@ codebase**, 4 ưu tiên (audit API, hoàn thiện module theo docs, siết chấ
 | **P5 — Dockerfile OCR** | bake model trước `COPY apps/api`, fail build khi thiếu model. Image mới `aureon-api:local` = `fcb10365d0c1`: đủ det/rec/cls; OCR `--network none` 13/13 file, `DOC-10` conf 0,958; build lại sau đổi source → bake `CACHED`; source = HEAD 389/389 |
 | **P4 — chat timeout** | **R-DEC-153**: giữ 90 s cho `task=chat` (human duyệt), ghi chú ngoại lệ ở `07` §145; theo dõi p95 latency live |
 | Đường lùi | `aureon-api:pre-m4` (`96a7fd9cbeec`), `aureon-web:pre-m4` (`033391240532`) |
-| **Chưa làm (chờ duyệt)** | build image web; recreate api/worker/beat/web — container **vẫn chạy image cũ** |
+| **Triển khai (human duyệt, 2026-11-03)** | backup `var/backup/aureon_prerecreate_20261103_021058.dump` (PGDMP, 115 bảng) · build web `27226314241e` · recreate api/worker/beat/web lúc **02:31** (sau khung job; hàng đợi broker rỗng, không task đang chạy) → 4 container healthy |
+| **Kiểm sau triển khai** | source container = HEAD (api 389/389, web 338/338) · beat **16** · worker có 2 task retention · CSS phục vụ token mới + ⌘K `bg-card` · purge `{0,0}`, sweep `{scanned 25, orphans 0, deleted 0}` · `/health` ok v3.0.0 · Playwright **real 17/17** · **axe AA real 6/6** · dữ liệu demo nguyên |
 
 ### Audit bằng máy (không phỏng đoán)
 

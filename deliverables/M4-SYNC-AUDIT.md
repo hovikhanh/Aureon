@@ -214,9 +214,9 @@ rồi recreate lại 4 container (không có migration nên không cần downgra
 | P1 (M-1, M-2, M-3) | ✅ xong — sửa 17 số EP (bảng §7.1 đếm EP-PLT-01/02 là 1 dòng), bỏ `EP-GOL-01`, viết lại 13 ghi chú route + EP-HR-07; parser nhận ID dạng dải; `TC-M4-16` | contract 42 xanh; kiểm âm fail đúng |
 | P4 (X-3) | ✅ R-DEC-153 — giữ 90 s, ghi ngoại lệ ở `07` §145 | `13`, `07` |
 | P5 (X-4) | ✅ Dockerfile sửa; image api build lại, model đủ, OCR offline xanh, bake `CACHED` khi đổi source | `TC-M4-17`, `var/m4/build_api*.log` |
-| Bước 3 (backup) | ◑ đã tag `:pre-m4` cho api + web; **chưa** `pg_dump` mới | — |
-| Bước 4 (build) | ◑ api xong; **web chưa build** | — |
-| Bước 5–7 (recreate + kiểm runtime + E2E real) | ☐ chờ human duyệt | — |
+| Bước 3 (backup) | ✅ tag `:pre-m4` (api `96a7fd9cbeec`, web `033391240532`) + `aureon_prerecreate_20261103_021058.dump` | header PGDMP, 115 bảng |
+| Bước 4 (build) | ✅ api `fcb10365d0c1`, web `27226314241e` | source image = HEAD |
+| Bước 5–7 (recreate + kiểm runtime + E2E real) | ✅ recreate 02:31; beat 16, 2 task retention, CSS mới, ⌘K `bg-card`; real 17/17; axe real 6/6 | `TC-M4-18` |
 
 ## Version
 
