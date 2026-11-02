@@ -7,7 +7,7 @@ import { periodBounds, periodKeyFor, periodMatchesType } from "./goals-rules";
 import { base, currentTarget, goalStore, latestEvaluation, measure, newGoalId, type MKpi, type MKpiTarget, type Pillar } from "./goals-store";
 import { evaluationBrief } from "./goals-tree";
 import { notifyKpiAlert } from "./goals-notify";
-import { biz, body, CONFIDENCES, err, expectVersion, invalid, isDate, notFound, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
+import { biz, body, CONFIDENCES, err, expectVersion, invalid, isDate, notFound, measuredNowIso, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
 import { workStore, workToday } from "./work-store";
 
 const DIRECTIONS = ["HIGHER_IS_BETTER", "LOWER_IS_BETTER", "WITHIN_RANGE", "BINARY"] as const;
@@ -113,7 +113,7 @@ export function recordMeasurement(req: MockRequest, k: MKpi, o: { period: string
   if (t.locked_at) throw err(409, "CONFLICT_STATE", "period is locked", { reason: "period_locked" });
   const before = latestEvaluation(s, k.id);
   const prevBand = s.evaluations.find((e) => !e.deleted && e.kpi_id === k.id && e.period_key === o.period)?.band ?? before?.band ?? null;
-  const m = measure(s, k, t, { period_key: o.period, actual_value: o.value, measured_at: nowIso(), measured_by: req.claims.sub, data_source: o.dataSource, note: o.note,
+  const m = measure(s, k, t, { period_key: o.period, actual_value: o.value, measured_at: measuredNowIso(), measured_by: req.claims.sub, data_source: o.dataSource, note: o.note,
     check_in_id: o.checkInId, source_document_id: o.sourceDocumentId });
   recordAudit(req.claims, "execution.kpi_measure", "kpi_measurements", m.id);
   // execution.kpi_below_threshold: only when the band moves into BELOW/CRITICAL
@@ -203,7 +203,7 @@ function createKpiCheckIn(req: MockRequest) {
   if (!canCheckIn(req.claims, k)) throw forbiddenScope("kpi");
   const b = parseCheckIn(req);
   const s = goalStore();
-  const at = nowIso();
+  const at = measuredNowIso();
   const ci = { id: newGoalId("check_in"), created_at: at, key_result_id: null, kpi_id: k.id, ...b, checked_in_at: at, user_id: req.claims.sub };
   const period = periodKeyFor(k.period_type === "ROLLING_12M" ? "MONTH" : k.period_type, workToday());
   recordMeasurement(req, k, { period, value: b.value, note: b.note, dataSource: "manual", sourceDocumentId: null, checkInId: ci.id });

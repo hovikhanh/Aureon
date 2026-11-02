@@ -36,13 +36,14 @@ test.describe("IA v3 sidebar per role (TC-M11-12)", { tag: "@mock" }, () => {
     });
   }
 
-  test("a not-yet-built item shows the 'Sắp có' frame", async ({ page }) => {
+  test("knowledge (SCR-49) is now built — renders the /knowledge view, not the 'Sắp có' frame", async ({ page }) => {
     await login(page, "employee@abc.demo");
-    // /knowledge (SCR-49) is still a frame — full screen lands in M3.3 / M3.4.
+    // SCR-49 was a ComingSoon frame until M3.3 (Decision Log + Reports) / M3.4 (Documents).
     await page.getByTestId("nav-knowledge").click();
     await expect(page).toHaveURL(/\/knowledge$/);
-    await expect(page.getByTestId("coming-soon")).toHaveAttribute("data-scr", "SCR-49");
-    await expect(page.getByTestId("coming-soon")).toContainText("Sắp có");
+    await expect(page.getByTestId("knowledge-view")).toBeVisible();
+    await expect(page.getByTestId("knowledge-tabs")).toBeVisible();
+    await expect(page.getByTestId("coming-soon")).toHaveCount(0);
   });
 
   test("meetings (SCR-44) is now built — renders the /meetings view", async ({ page }) => {

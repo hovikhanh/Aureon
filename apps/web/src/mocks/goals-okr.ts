@@ -7,7 +7,7 @@ import { daysBetween, krProgressPct, periodBounds, periodKeyFor, KR_CHECKIN_MAX_
 import { base, checkInKr, goalStore, newGoalId, recomputeObjective, type MCheckIn, type MKr, type MObjective, type Pillar } from "./goals-store";
 import { notifyKrAlert } from "./goals-notify";
 import { parseCheckIn } from "./goals-kpi";
-import { biz, body, err, expectVersion, invalid, notFound, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
+import { biz, body, err, expectVersion, invalid, notFound, measuredNowIso, nowIso, num, oneOf, PILLARS, requireIdem, str, strip } from "./goals-http";
 import { workToday } from "./work-store";
 
 const LEVELS = ["company", "department", "team", "individual"] as const;
@@ -183,7 +183,7 @@ function createKrCheckIn(req: MockRequest) {
   const s = goalStore();
   const o = s.objectives.find((x) => x.id === k.objective_id)!;
   if (o.status !== "active") throw err(409, "CONFLICT_STATE", "objective is not active", { reason: "objective_not_active" });
-  const { checkIn, becameAtRisk, expectedPct } = checkInKr(s, k, b, req.claims.sub, nowIso());
+  const { checkIn, becameAtRisk, expectedPct } = checkInKr(s, k, b, req.claims.sub, measuredNowIso());
   recordAudit(req.claims, "execution.check_in_create", "check_ins", checkIn.id);
   if (becameAtRisk) {
     notifyKrAlert(k, o, { progress: k.progress_pct, expected: expectedPct });
