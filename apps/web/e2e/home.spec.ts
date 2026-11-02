@@ -16,9 +16,15 @@ test.describe("SCR-40 Executive home (CEO)", { tag: "@mock" }, () => {
     await expect(page.getByTestId("exec-risks")).toBeVisible();
     await expect(page.getByTestId("exec-ai-done")).toBeVisible();
 
-    // số trong ô click được → lineage (BRD-P01)
+    // số trong ô click được → mở drill-down EP-12; panel chứa link lineage (BRD-P01)
     const firstTile = page.getByTestId("metric-tile").first();
-    await expect(firstTile.getByRole("link")).toHaveAttribute("href", /\/dashboard\/metrics\//);
+    const code = await firstTile.getAttribute("data-code");
+    await firstTile.getByTestId("metric-value").click();
+    const panel = page.getByTestId("metric-detail-panel");
+    await expect(panel).toBeVisible();
+    await expect(page.getByTestId("metric-detail-lineage")).toHaveAttribute("href", `/dashboard/metrics/${code}/lineage`);
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
 
     // CEO có 3 cấp — chuyển sang Department
     await page.getByTestId("level-department").click();
