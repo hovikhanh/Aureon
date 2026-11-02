@@ -173,8 +173,9 @@
     "ageDays": "{days} days ago",
     "alertTitle": "{metric}: {value} (threshold {threshold})",
     "pillarPageTitle": "Pillar {pillar}",
-    "pillarPagePending": "The detailed drill-down screen arrives in S5b.",
+    "pillarPagePending": "Click a metric to see its trend, thresholds and data source.",
     "metricsOfPillar": "Pillar metrics",
+    "openMetric": "Open metric detail for {metric}",
     "sparkline": "12-period trend",
     "period": {
       "label": "Reporting period: {period}",
@@ -187,6 +188,27 @@
       }
     },
     "fivePillarLink": "Five-pillar view"
+  },
+  "metricDetail": {
+    "loading": "Loading metric detail…",
+    "error": "Could not load metric detail.",
+    "retry": "Retry",
+    "formula": "Formula",
+    "thresholds": "Thresholds",
+    "warning": "Warning",
+    "critical": "Critical",
+    "directionUp": "Higher is better",
+    "directionDown": "Lower is better",
+    "trend": "Recent trend",
+    "trendEmpty": "Not enough data to draw a trend.",
+    "breakdown": "Breakdown",
+    "records": "{count, plural, =0 {no records} one {# record} other {# records}}",
+    "relatedAlerts": "Related alerts",
+    "noAlerts": "No related alerts.",
+    "dataSource": "Data source",
+    "lineage": "View data lineage",
+    "stale": "Stale data (over {hours}h old)",
+    "freshnessStale": "stale"
   },
   "metric": {
     "METRIC-FIN-01": "Revenue vs target",

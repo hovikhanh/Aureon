@@ -11,7 +11,7 @@
  */
 import { ok } from "./http";
 import type { Route } from "./router";
-import { SNAPSHOT } from "./reporting-shared";
+import { SNAPSHOT, metricOut } from "./reporting-shared";
 
 const CURRENCY = "VND";
 const PERIOD_Q3 = { key: "2026-Q3", type: "quarter", start_date: "2026-07-01", end_date: "2026-09-30" };
@@ -19,6 +19,9 @@ const PERIOD_Q3 = { key: "2026-Q3", type: "quarter", start_date: "2026-07-01", e
 function cusValue(code: string): number | null {
   return SNAPSHOT.metrics.find((m) => m.code === code)?.value ?? null;
 }
+
+// C-pillar metrics the BE SalesDashboardOut returns (METRIC-CUS-01..06), from the snapshot.
+const CUS_METRICS = SNAPSHOT.metrics.filter((m) => m.pillar === "C").map(metricOut);
 
 // Pipeline by stage (canonical order). weighted_value ≈ value × stage win probability.
 const STAGE_DATA: { stage: string; count: number; value: number; weighted_value: number; avg_days_in_stage: number | null }[] = [
@@ -69,7 +72,7 @@ function dashboard(): Response {
       pipeline_coverage: cusValue("METRIC-CUS-01"), // 2.7
       currency: CURRENCY,
     },
-    metrics: [],
+    metrics: CUS_METRICS,
     pipeline_trend: [
       { period_key: "2026-07", pipeline_value: 58_000_000_000, weighted_pipeline: 22_100_000_000 },
       { period_key: "2026-08", pipeline_value: 64_500_000_000, weighted_pipeline: 24_000_000_000 },

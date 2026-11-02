@@ -38,3 +38,31 @@ export interface AlertOut {
   message_key: string;
   message_params: Record<string, unknown>;
 }
+
+/** 10 §5 EP-12 MetricDetail — full drill-down contract (SCR-02..06, 12). */
+export interface TrendPoint {
+  period_key: string;
+  value: number | null;
+}
+
+export interface BreakdownRow {
+  key: string;
+  label: string;
+  value: number | null;
+  record_count: number;
+}
+
+export interface MetricDetail extends MetricValue {
+  name: string;
+  formula_display: string;
+  direction: "up" | "down";
+  status_reason?: string | null;
+  data_quality_pct?: number | null;
+  is_stale?: boolean;
+  max_age_hours?: number;
+  thresholds: { warning: number; critical: number };
+  trend: TrendPoint[];
+  breakdown: BreakdownRow[];
+  related_alerts: AlertOut[];
+  data_source: { module: string; entities: string[] };
+}

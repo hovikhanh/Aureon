@@ -2,6 +2,7 @@
 export const qk = {
   pillar: (domain: string, period: string) => ["pillar", domain, period] as const,
   alerts: () => ["alerts"] as const,
+  metricDetail: (code: string) => ["dashboard", "metric-detail", code] as const,
   conversations: () => ["ai", "conversations"] as const,
   messages: (id: string) => ["ai", "messages", id] as const,
   reviewQueue: (params: Record<string, unknown>) => ["idp", "review-queue", params] as const,

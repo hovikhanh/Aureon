@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils";
 import type { ReviewField, ReviewPage } from "./types";
 
 /**
- * Source viewer placeholder (S5a): renders the page text layer; the active field's
- * `source_location` is highlighted (bbox overlay when present, else matching text line).
+ * SCR review source viewer (P01 lineage): renders each page's text layer and highlights the
+ * active field's `source_location` — a bbox overlay when present, otherwise the matching text
+ * line. Empty `pages` shows a no-preview note (e.g. image-only docs without a text layer).
  */
 export function SourceViewer({ pages, active, fieldLabel }: { pages: ReviewPage[]; active: ReviewField | null; fieldLabel: (f: ReviewField) => string }) {
   const t = useTranslations("idp");
