@@ -1374,7 +1374,9 @@
     },
     "channel": {
       "C1": "Manual (C1)",
+      "C2": "Natural language (C2)",
       "C3": "File upload (C3)",
+      "C4": "Image (C4)",
       "C5": "Table import (C5)"
     },
     "action": {

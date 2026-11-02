@@ -27,7 +27,7 @@ export interface UndoOut { document: CaptureDocument; reverted_actions: ActionRe
 
 export const INBOX_GROUPS = ["processing", "needs_review", "approved", "committed", "rejected", "failed", "rolled_back"] as const;
 export type InboxGroup = (typeof INBOX_GROUPS)[number];
-export const CHANNELS = ["C1", "C3", "C5"] as const;
+export const CHANNELS = ["C1", "C2", "C3", "C4", "C5"] as const;
 export const UNDO_REASONS = ["mistake", "critical_field_wrong", "duplicate", "other"] as const;
 export type UndoReason = (typeof UNDO_REASONS)[number];
 /** Statuses still moving through the pipeline — the inbox polls while any is visible. */
