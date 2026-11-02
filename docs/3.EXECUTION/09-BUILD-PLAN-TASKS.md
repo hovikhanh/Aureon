@@ -350,15 +350,15 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | File chính | Spec | TC | Trạng thái |
 |---|---|---|---|---|---|
-| T-701 | Catalog v3: thêm `group` (property từ `pillar`+`source_module`) cho 33 chỉ số; **đổi SEI `METRIC-RSK-06`→`METRIC-STR-02`** + migration data-only `0022` (reversible); giữ `p1_frozen` Risk/Product | `platform/services/catalog.py`, `alembic/versions/0022_m21_metric_store.py` | R-DEC-82/83, 03 §4.1 | TC-M21-01, 02 | ☐ |
-| T-702 | `MetricValueOut` + `group`/`freshness`; `SLA_FRESHNESS_<DOMAIN>_HOURS` (ConfigService + `.env.example`); `metric_query` gắn freshness + `is_stale` | `platform/services/metric_query.py`, `dashboard/schemas/__init__.py`, `core/config.py`, `.env.example` | R-DEC-86 | TC-M21-03, 10 | ☐ |
-| T-703 | `ReportingService` (3 cấp) — executive/department/employee theo scope (`visible_pillars`+`org_scope`); EP-RPT-01..03 routes; summary_line từ MetricValue (grounding) | `dashboard/services/reporting_service.py` (mới), `dashboard/routes/reporting.py` (mới), `dashboard/routes/router.py`, `dashboard/schemas/__init__.py` | EP-RPT-01..03, R-DEC-85 | TC-M21-04, 05, 06 | ☐ |
-| T-704 | 4 ô preference: `platform.user_preferences` (migration `0022`) + `UserPreferenceService` public; EP-RPT-04/05 (validate catalog + scope + version); audit `platform.preference_update` | `platform/models/__init__.py`, `platform/services/preference_service.py` (mới), `dashboard/routes/reporting.py` | EP-RPT-04/05, R-DEC-87 | TC-M21-07, 08 | ☐ |
-| T-705 | Alert→Notification: consumer metric sinh/nâng mức alert P0 → Notification scope (CEO+DIR khối+MGR phòng), dedupe ISO week, in-tx | `platform/services/metrics.py`, `notification_service`, `core/org_scope.py` | R-DEC-88 | TC-M21-09 | ☐ |
-| T-706 | Seed: bảo đảm ≥ 1 chỉ số mỗi cấp ở ngưỡng cảnh báo/critical để dashboard + alert có dữ liệu demo | `apps/api/src/app/seed/*`, `08 §4` | 08 §4 | TC-M21-11 | ☐ |
-| T-707F | SCR-40 FE đầy đủ 3 cấp trên mock: layout theo role, 4 ô + dialog tùy chỉnh, freshness badge, khối Cần quyết/Rủi ro/AI đã làm; i18n `home.*`; Vitest | `apps/web/src/app/(app)/home/page.tsx`, `features/home/**`, `features/dashboard/*`, `mocks/reporting.ts` (mới), `messages/{vi,en}.json` | SCR-40 | TC-M21-12 | ☐ |
-| T-708 | Nối FE↔BE (BFF real), contract/shared-types; E2E `home.spec.ts` (3 cấp × role, đổi 4 ô persist, redirect REV/ADM) mock+real | `apps/web/e2e/home.spec.ts`, `packages/shared-types/src/generated.ts`, `mocks/router.ts` | 09 §6.8 Exit | TC-M21-13 | ☐ |
-| T-709 | Đóng phase: full gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 (Passed) | — | 09 §6.8 Exit | TC-M21-14 | ☐ |
+| T-701 | Catalog v3: thêm `group` (property từ `pillar`+`source_module`) cho 33 chỉ số; **đổi SEI `METRIC-RSK-06`→`METRIC-STR-02`** + migration data-only `0022` (reversible); giữ `p1_frozen` Risk/Product | `platform/services/catalog.py`, `alembic/versions/0022_m21_metric_store.py` | R-DEC-82/83, 03 §4.1 | TC-M21-01, 02 | ☑ |
+| T-702 | `MetricValueOut` + `group`/`freshness`; `SLA_FRESHNESS_<DOMAIN>_HOURS` (ConfigService + `.env.example`); `metric_query` gắn freshness + `is_stale` | `platform/services/metric_query.py`, `dashboard/schemas/__init__.py`, `core/config.py`, `.env.example` | R-DEC-86 | TC-M21-03, 10 | ☑ |
+| T-703 | `ReportingService` (3 cấp) — executive/department/employee theo scope (`visible_pillars`+`org_scope`); EP-RPT-01..03 routes; summary_line từ MetricValue (grounding) | `dashboard/services/reporting_service.py` (mới), `dashboard/routes/reporting.py` (mới), `dashboard/routes/router.py`, `dashboard/schemas/__init__.py` | EP-RPT-01..03, R-DEC-85 | TC-M21-04, 05, 06 | ☑ |
+| T-704 | 4 ô preference: `platform.user_preferences` (migration `0022`) + `UserPreferenceService` public; EP-RPT-04/05 (validate catalog + scope + version); audit `platform.preference_update` | `platform/models/__init__.py`, `platform/services/preference_service.py` (mới), `dashboard/routes/reporting.py` | EP-RPT-04/05, R-DEC-87 | TC-M21-07, 08 | ☑ |
+| T-705 | Alert→Notification: consumer metric sinh/nâng mức alert P0 → Notification scope (CEO+DIR khối+MGR phòng), dedupe ISO week, in-tx | `platform/services/metrics.py`, `notification_service`, `core/org_scope.py` | R-DEC-88 | TC-M21-09 | ☑ |
+| T-706 | Seed: bảo đảm ≥ 1 chỉ số mỗi cấp ở ngưỡng cảnh báo/critical để dashboard + alert có dữ liệu demo | `apps/api/src/app/seed/*`, `08 §4` | 08 §4 | TC-M21-11 | ☑ |
+| T-707F | SCR-40 FE đầy đủ 3 cấp trên mock: layout theo role, 4 ô + dialog tùy chỉnh, freshness badge, khối Cần quyết/Rủi ro/AI đã làm; i18n `home.*`; Vitest | `apps/web/src/app/(app)/home/page.tsx`, `features/home/**`, `features/dashboard/*`, `mocks/reporting.ts` (mới), `messages/{vi,en}.json` | SCR-40 | TC-M21-12 | ☑ |
+| T-708 | Nối FE↔BE (BFF real), contract/shared-types; E2E `home.spec.ts` (3 cấp × role, đổi 4 ô persist, redirect REV/ADM) mock+real | `apps/web/e2e/home.spec.ts`, `packages/shared-types/src/generated.ts`, `mocks/router.ts` | 09 §6.8 Exit | TC-M21-13 | ☑ |
+| T-709 | Đóng phase: full gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 (Passed) | — | 09 §6.8 Exit | TC-M21-14 | ☑ |
 
 **Thứ tự** (09 §6.0): S (Spec lock đã duyệt) → **C**: T-701 (catalog + migration `0022` trước — mọi provider/schema phụ thuộc) → T-702 (schema + config) → **B**: T-703, T-704, T-705 song song sau khi chốt schema; **F**: T-707F trên mock song song B sau khi chốt Pydantic schema → T-706 (seed) → **N**: T-708 (nối real + contract + E2E) → **R**: T-709 full test + coverage. File dùng chung (`dashboard/schemas`, `dashboard/routes/router.py`, `mocks/router.ts`, `messages/*.json`, `catalog.py`, migration `0022`) do coordinator gộp (09 §6.0bis).
 
@@ -372,14 +372,14 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | File chính | Spec | TC | Trạng thái |
 |---|---|---|---|---|---|
-| T-710 | Rà Finance/Sales/HR v2.1 theo phạm vi Lite; bảng EP-FIN-01..10 + EP-SAL-01..08 vào 10 §7.2.7 (map route v2.1) | `finance/routes`, `sales/routes`, 10 §7.2.7 | R-DEC-89, EP-FIN/SAL | TC-M22-01 | ☐ |
-| T-711 | Doc type #6 BC tài chính/sao kê → Revenue/Expense/CashBalance: schema registry #6 + `ACT-record_revenue/expense/cash_balance` wire `finance` service | `idp/services/schema_registry.py`, `idp/services/actions/finance.py`, `finance/services/finance_service.py` | R-DEC-92, 04 §6 | TC-M22-02, 03 | ☐ |
-| T-712 | Lead/Opportunity = alias Client/Deal (ghi doc map BRD; không đổi entity/path) | 05 §sales, 00 §4 mapping | R-DEC-90 | TC-M22-04 | ☐ |
-| T-713 | Xác minh event `sales.deal_closed_won/lost` → recompute `METRIC-CUS-02` (Win rate) in-tx | `sales/services/sales_service.py`, `sales/services/metric_provider.py`, `catalog.py` | R-DEC-91, §9.2 | TC-M22-05 | ☐ |
-| T-714 | Seed: giữ Client/Deal; +≥1 tài liệu mẫu doc type #6; xác minh doanh thu ~300 tỷ/năm bằng script | `apps/api/src/app/seed/*` | R-DEC-94, 08 §4 | TC-M22-06 | ☐ |
-| T-715F | FE `/business/finance` (budget/cash/runway) + `/business/sales` (pipeline kanban) trên mock; i18n; Vitest | `apps/web/src/app/(app)/business/finance/**`, `business/sales/**`, `features/finance`, `features/sales` (mới), `messages/*` | R-DEC-93, SCR | TC-M22-07, 08 | ☐ |
-| T-715 | Nối FE↔BE + E2E `business.spec.ts` (finance/sales/hr Lite, scope khối) mock+real | `apps/web/e2e/business.spec.ts`, `packages/shared-types` | 09 §6.9 Exit | TC-M22-09 | ☐ |
-| T-716 | Đóng phase: gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 | — | 09 §6.9 Exit | TC-M22-10 | ☐ |
+| T-710 | Rà Finance/Sales/HR v2.1 theo phạm vi Lite; bảng EP-FIN-01..10 + EP-SAL-01..08 vào 10 §7.2.7 (map route v2.1) | `finance/routes`, `sales/routes`, 10 §7.2.7 | R-DEC-89, EP-FIN/SAL | TC-M22-01 | ☑ |
+| T-711 | Doc type #6 BC tài chính/sao kê → Revenue/Expense/CashBalance: schema registry #6 + `ACT-record_revenue/expense/cash_balance` wire `finance` service | `idp/services/schema_registry.py`, `idp/services/actions/finance.py`, `finance/services/finance_service.py` | R-DEC-92, 04 §6 | TC-M22-02, 03 | ☑ |
+| T-712 | Lead/Opportunity = alias Client/Deal (ghi doc map BRD; không đổi entity/path) | 05 §sales, 00 §4 mapping | R-DEC-90 | TC-M22-04 | ☑ |
+| T-713 | Xác minh event `sales.deal_closed_won/lost` → recompute `METRIC-CUS-02` (Win rate) in-tx | `sales/services/sales_service.py`, `sales/services/metric_provider.py`, `catalog.py` | R-DEC-91, §9.2 | TC-M22-05 | ☑ |
+| T-714 | Seed: giữ Client/Deal; +≥1 tài liệu mẫu doc type #6; xác minh doanh thu ~300 tỷ/năm bằng script | `apps/api/src/app/seed/*` | R-DEC-94, 08 §4 | TC-M22-06 | ☑ |
+| T-715F | FE `/business/finance` (budget/cash/runway) + `/business/sales` (pipeline kanban) trên mock; i18n; Vitest | `apps/web/src/app/(app)/business/finance/**`, `business/sales/**`, `features/finance`, `features/sales` (mới), `messages/*` | R-DEC-93, SCR | TC-M22-07, 08 | ☑ |
+| T-715 | Nối FE↔BE + E2E `business.spec.ts` (finance/sales/hr Lite, scope khối) mock+real | `apps/web/e2e/business.spec.ts`, `packages/shared-types` | 09 §6.9 Exit | TC-M22-09 | ☑ |
+| T-716 | Đóng phase: gate DoD + `pytest --cov` + Playwright mock+real; cập nhật 14 | — | 09 §6.9 Exit | TC-M22-10 | ☑ |
 
 **Thứ tự** (09 §6.0): S (Spec lock đã chốt) → **C**: T-710 (EP table — contract) → **B**: T-711 (ACT doc#6), T-713 (deal event→metric) song song; **F**: T-715F trên mock song song B → T-714 (seed) → **N**: T-715 (nối real + E2E) → **R**: T-716. File dùng chung do coordinator gộp.
 
@@ -393,17 +393,17 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-717 | C2 `POST /data-capture/natural-language` (text) + voice ngắn → STT qua ModelGateway `task=stt` (Internal → cloud, không lưu audio thô, PII filter trên văn bản, từ chối `context=meeting` → `BUSINESS_RULE_VIOLATION`); chọn `MODEL_STT` thật ở bước S | ☐ |
-| T-718 | C4 qua EP upload `channel=C4` + tiền xử lý ảnh (khử nghiêng; nếu cần `pillow` ở runtime → raise DEC) | ☐ |
-| T-719 | Doc type #1 Biên bản họp → Meeting/Decision/ActionItem | ☐ |
-| T-720 | ENT-MeetingSummary, ActionItem (05) | ☐ |
-| T-721 | Khớp tên → Employee (fuzzy + confidence; mơ hồ → review) | ☐ |
-| T-722 | ACT-create_action_item / create_task_from_action_item — task chỉ tạo **sau khi chủ trì duyệt** | ☐ |
-| T-723 | Event `meeting.summarized`, `action_item.created` | ☐ |
-| T-724 | Lineage Task → ActionItem → trang transcript | ☐ |
-| T-725 | AI-eval: nhận diện ≥ 90% action item trên transcript mẫu (08 §4.2) | ☐ |
-| T-726 | E2E UC-02 + UC-06 | ☐ |
-| T-727 | Đóng phase | ☐ |
+| T-717 | C2 `POST /data-capture/natural-language` (text) + voice ngắn → STT qua ModelGateway `task=stt` (Internal → cloud, không lưu audio thô, PII filter trên văn bản, từ chối `context=meeting` → `BUSINESS_RULE_VIOLATION`); chọn `MODEL_STT` thật ở bước S | ☑ |
+| T-718 | C4 qua EP upload `channel=C4` + tiền xử lý ảnh (khử nghiêng; nếu cần `pillow` ở runtime → raise DEC) | ☑ |
+| T-719 | Doc type #1 Biên bản họp → Meeting/Decision/ActionItem | ☑ |
+| T-720 | ENT-MeetingSummary, ActionItem (05) | ☑ |
+| T-721 | Khớp tên → Employee (fuzzy + confidence; mơ hồ → review) | ☑ |
+| T-722 | ACT-create_action_item / create_task_from_action_item — task chỉ tạo **sau khi chủ trì duyệt** | ☑ |
+| T-723 | Event `meeting.summarized`, `action_item.created` | ☑ |
+| T-724 | Lineage Task → ActionItem → trang transcript | ☑ |
+| T-725 | AI-eval: nhận diện ≥ 90% action item trên transcript mẫu (08 §4.2) | ☑ |
+| T-726 | E2E UC-02 + UC-06 | ☑ |
+| T-727 | Đóng phase | ☑ |
 
 ### 6.11. M2.4 — D27 CEO Assistant có trích nguồn + Insight 9 phần (nhánh `v3/m2.4-assistant`)
 
@@ -411,24 +411,24 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-728 | Grounding validator cứng (10 §8): số không khớp `SourceRef` → gỡ + warning; thiếu dữ liệu → `AI_NO_DATA_AVAILABLE` | ☐ |
-| T-729 | Tool READ phủ Finance/Sales/People/KPI/OKR/Projects/Risk-alert, lọc theo quyền người hỏi (P06) | ☐ |
-| T-730 | Schema Insight 9 phần | ☐ |
-| T-731 | Consumer `kpi.below_threshold` → root cause (task/workload) → Insight + khuyến nghị L2 (MGR duyệt tạo task gắn KPI) | ☐ |
-| T-732 | AI điền sẵn check-in từ dữ liệu nguồn | ☐ |
-| T-733 | Bộ AI-eval `tests/ai_eval/`: `GR-*` (0 số thiếu nguồn), `INJ-*`, routing classification | ☐ |
-| T-734 | Fixture cho intent kịch bản CEO bước 1–4 | ☐ |
-| T-735 | E2E UC-03 | ☐ |
-| T-736 | Đóng phase | ☐ |
+| T-728 | Grounding validator cứng (10 §8): số không khớp `SourceRef` → gỡ + warning; thiếu dữ liệu → `AI_NO_DATA_AVAILABLE` | ☑ |
+| T-729 | Tool READ phủ Finance/Sales/People/KPI/OKR/Projects/Risk-alert, lọc theo quyền người hỏi (P06) | ☑ |
+| T-730 | Schema Insight 9 phần | ☑ |
+| T-731 | Consumer `kpi.below_threshold` → root cause (task/workload) → Insight + khuyến nghị L2 (MGR duyệt tạo task gắn KPI) | ☑ |
+| T-732 | AI điền sẵn check-in từ dữ liệu nguồn | ☑ |
+| T-733 | Bộ AI-eval `tests/ai_eval/`: `GR-*` (0 số thiếu nguồn), `INJ-*`, routing classification | ☑ |
+| T-734 | Fixture cho intent kịch bản CEO bước 1–4 | ☑ |
+| T-735 | E2E UC-03 | ☑ |
+| T-736 | Đóng phase | ☑ |
 
 ### 6.12. M2.5 — Cổng M2 (nhánh `v3/m2.5-gate`)
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-737 | E2E hồi quy UC-02/03/06/07 trên `real` | ☐ |
-| T-738 | Hiệu năng: TTFT chat, dashboard theo 07 §6.2 | ☐ |
-| T-739 | A11y WCAG AA (kiểm tay + snapshot; axe tự động cần DEC) | ☐ |
-| T-740 | Demo reset, STATE, 14, review, PR; push khi được phép | ☐ |
+| T-737 | E2E hồi quy UC-02/03/06/07 trên `real` | ☑ |
+| T-738 | Hiệu năng: TTFT chat, dashboard theo 07 §6.2 | ☑ |
+| T-739 | A11y WCAG AA (kiểm tay + snapshot; axe tự động cần DEC) | ☑ |
+| T-740 | Demo reset, STATE, 14, review, PR; push khi được phép | ☑ |
 
 ### 6.13. M3.1 — D06 Integration Hub + D13 Calendar Google/Outlook 2 chiều (nhánh `v3/m3.1-calendar`)
 
@@ -438,17 +438,17 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-801 | ENT-CalendarEvent, CalendarAccount (token mã hóa qua `core/crypto_columns.py`), SyncState (syncToken/deltaLink), ExternalEventLink | ☐ |
-| T-802 | `CalendarProvider` + `GoogleCalendarProvider` + `OutlookCalendarProvider` (`httpx`); OAuth code + PKCE, refresh, thu hồi | ☐ |
-| T-803 | API `/integrations/{provider}/connect|callback|disconnect`; CRUD `/calendar/events` | ☐ |
-| T-804 | Đồng bộ 2 chiều: kéo về beat 5 phút (incremental); đẩy ra qua outbox `calendar.event_changed`; webhook chỉ khi có URL public | ☐ |
-| T-805 | Xung đột: last-writer-wins theo `updated`/`etag` + audit; idempotent qua ExternalEventLink | ☐ |
-| T-806 | Retry/backoff 429 → DLQ; token hết hạn → Notification "kết nối lại" | ☐ |
-| T-807 | Deadline task → sự kiện lịch của owner (bước 5 kịch bản CEO) | ☐ |
-| T-808 | Test `respx` đủ nhánh 2 provider; `-m live` chỉ khi human cho phép | ☐ |
-| T-809 | Classification lịch = Confidential, không gửi LLM cloud | ☐ |
-| T-810 | E2E với provider fake (mock BFF) + 1 lần live thủ công có xác nhận | ☐ |
-| T-811 | `/security-review` + đóng phase | ☐ |
+| T-801 | ENT-CalendarEvent, CalendarAccount (token mã hóa qua `core/crypto_columns.py`), SyncState (syncToken/deltaLink), ExternalEventLink | ☑ |
+| T-802 | `CalendarProvider` + `GoogleCalendarProvider` + `OutlookCalendarProvider` (`httpx`); OAuth code + PKCE, refresh, thu hồi | ☑ |
+| T-803 | API `/integrations/{provider}/connect|callback|disconnect`; CRUD `/calendar/events` | ☑ |
+| T-804 | Đồng bộ 2 chiều: kéo về beat 5 phút (incremental); đẩy ra qua outbox `calendar.event_changed`; webhook chỉ khi có URL public | ☑ |
+| T-805 | Xung đột: last-writer-wins theo `updated`/`etag` + audit; idempotent qua ExternalEventLink | ☑ |
+| T-806 | Retry/backoff 429 → DLQ; token hết hạn → Notification "kết nối lại" | ☑ |
+| T-807 | Deadline task → sự kiện lịch của owner (bước 5 kịch bản CEO) | ☑ |
+| T-808 | Test `respx` đủ nhánh 2 provider; `-m live` chỉ khi human cho phép | ☑ |
+| T-809 | Classification lịch = Confidential, không gửi LLM cloud | ☑ |
+| T-810 | E2E với provider fake (mock BFF) + 1 lần live thủ công có xác nhận | ☑ |
+| T-811 | `/security-review` + đóng phase | ☑ |
 
 ### 6.14. M3.2 — Autonomy L3: khuyến nghị → phê duyệt → task + lịch + thông báo (nhánh `v3/m3.2-autonomy-l3`)
 
@@ -456,13 +456,13 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-812 | ACT-execute_recommendation: một transaction tạo Task + owner + deadline + CalendarEvent + Notification; tool APPROVAL thì AI không tự gọi | ☐ |
-| T-813 | Approval Matrix 02 (ngưỡng L3 là cấu hình, mặc định thận trọng — B5); kill switch hạ L3 → L2 | ☐ |
-| T-814 | Undo 24 h đảo cả sự kiện lịch đã đẩy ra provider | ☐ |
-| T-815 | Ghi `AIDecision` / `AIAudit` | ☐ |
-| T-816 | AI-eval `AUT-*` (14 §4.3) | ☐ |
-| T-817 | E2E bước 4–5 kịch bản CEO | ☐ |
-| T-818 | Đóng phase | ☐ |
+| T-812 | ACT-execute_recommendation: một transaction tạo Task + owner + deadline + CalendarEvent + Notification; tool APPROVAL thì AI không tự gọi | ☑ |
+| T-813 | Approval Matrix 02 (ngưỡng L3 là cấu hình, mặc định thận trọng — B5); kill switch hạ L3 → L2 | ☑ |
+| T-814 | Undo 24 h đảo cả sự kiện lịch đã đẩy ra provider | ☑ |
+| T-815 | Ghi `AIDecision` / `AIAudit` | ☑ |
+| T-816 | AI-eval `AUT-*` (14 §4.3) | ☑ |
+| T-817 | E2E bước 4–5 kịch bản CEO | ☑ |
+| T-818 | Đóng phase | ☑ |
 
 ### 6.15. M3.3 — D27 Daily Briefing + D28 Decision Log 30/60/90 + báo cáo (nhánh `v3/m3.3-briefing`)
 
@@ -470,15 +470,15 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-819 | Job beat Briefing (theo `briefing_time`, idempotent theo (user, ngày)) từ Metric Store + Calendar + Decision + Approval + Insight; lưu ENT-Briefing (05) | ☐ |
-| T-819b | Gửi Briefing qua email (T-616b): tóm tắt + link, không chứa dữ liệu mức 3–4 | ☐ |
-| T-820 | Tracking mở Briefing (app + link email) → cổng **G1** | ☐ |
-| T-821 | Decision Log: job theo `review_at` 30/60/90 → nhắc + verify outcome (`ai/services/verification.py`) | ☐ |
-| T-822 | Report + export CSV/XLSX (`openpyxl`); PDF cần `reportlab` runtime → raise DEC hoặc hoãn | ☐ |
-| T-823 | Nêu chỉ số stale (freshness) trong Briefing | ☐ |
-| T-824 | AI-eval Briefing grounding | ☐ |
-| T-825 | E2E UC-01 | ☐ |
-| T-826 | Đóng phase | ☐ |
+| T-819 | Job beat Briefing (theo `briefing_time`, idempotent theo (user, ngày)) từ Metric Store + Calendar + Decision + Approval + Insight; lưu ENT-Briefing (05) | ☑ |
+| T-819b | Gửi Briefing qua email (T-616b): tóm tắt + link, không chứa dữ liệu mức 3–4 | ☑ |
+| T-820 | Tracking mở Briefing (app + link email) → cổng **G1** | ☑ |
+| T-821 | Decision Log: job theo `review_at` 30/60/90 → nhắc + verify outcome (`ai/services/verification.py`) | ☑ |
+| T-822 | Report + export CSV/XLSX (`openpyxl`); PDF cần `reportlab` runtime → raise DEC hoặc hoãn | ☑ |
+| T-823 | Nêu chỉ số stale (freshness) trong Briefing | ☑ |
+| T-824 | AI-eval Briefing grounding | ☑ |
+| T-825 | E2E UC-01 | ☑ |
+| T-826 | Đóng phase | ☑ |
 
 ### 6.16. M3.4 — D26 Evaluation Engine + D14 Knowledge + Follow-up/Verify UC-04 (nhánh `v3/m3.4-eval-knowledge`)
 
@@ -486,14 +486,14 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-827 | ENT-AIEvaluation + runner bộ test chuẩn (fixture), chấm grounding/accuracy/tool-choice; `uv run python -m app.scripts.run_eval` | ☐ |
-| T-828 | Knowledge: ingest doc type #5 → chunk theo trang → embedding bge-m3 qua gateway (DEC-142) → pgvector; tool `search_knowledge` có SourceRef tới trang; tắt khi `MODEL_EMBED` trống (không dùng LlamaIndex) | ☐ |
-| T-829 | UC-04: `okr.at_risk` → phân tích blocker (dependency/workload) → đề xuất can thiệp → L3 (M3.2) → follow-up | ☐ |
-| T-830 | ACT→VERIFY: theo dõi task, cập nhật Decision Log | ☐ |
-| T-831 | E2E UC-04 | ☐ |
-| T-832 | Coverage + review | ☐ |
-| T-833 | Cập nhật 14 | ☐ |
-| T-834 | Đóng phase | ☐ |
+| T-827 | ENT-AIEvaluation + runner bộ test chuẩn (fixture), chấm grounding/accuracy/tool-choice; `uv run python -m app.scripts.run_eval` | ☑ |
+| T-828 | Knowledge: ingest doc type #5 → chunk theo trang → embedding bge-m3 qua gateway (DEC-142) → pgvector; tool `search_knowledge` có SourceRef tới trang; tắt khi `MODEL_EMBED` trống (không dùng LlamaIndex) | ☑ |
+| T-829 | UC-04: `okr.at_risk` → phân tích blocker (dependency/workload) → đề xuất can thiệp → L3 (M3.2) → follow-up | ☑ |
+| T-830 | ACT→VERIFY: theo dõi task, cập nhật Decision Log | ☑ |
+| T-831 | E2E UC-04 | ☑ |
+| T-832 | Coverage + review | ☑ |
+| T-833 | Cập nhật 14 | ☑ |
+| T-834 | Đóng phase | ☑ |
 
 ### 6.17. M3.5 — Nghiệm thu MVP (nhánh `v3/m3.5-acceptance`)
 
@@ -501,13 +501,18 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 | T | Việc | Trạng thái |
 |---|---|---|
-| T-901 | E2E kịch bản CEO 7 bước trên `real` | ☐ |
-| T-902 | Trang đo nội bộ G1–G4 | ☐ |
-| T-903 | NFR: hiệu năng, bảo mật (RBAC/ABAC/tenant/PII), a11y AA, responsive 1440/1280/768/390, PWA | ☐ |
-| T-904 | `docker-compose.full.yml` (+ Mailpit), `demo_reset.sh`, README + DEMO-SCRIPT v3 | ☐ |
-| T-905 | `doc-reviewer` rà 00–14 so với code (OQ-12-01) | ☐ |
-| T-906 | Checklist sẵn sàng thí điểm 1 DN 50–200 NV | ☐ |
-| T-907..T-910 | Sửa lỗi nghiệm thu; PR `ai-eos → main` chờ human merge | ☐ |
+| T-901 | E2E kịch bản CEO 7 bước trên `real` | ☑ |
+| T-902 | Trang đo nội bộ G1–G4 | ☑ |
+| T-903 | NFR: hiệu năng, bảo mật (RBAC/ABAC/tenant/PII), a11y AA, responsive 1440/1280/768/390, PWA | ☑ |
+| T-904 | `docker-compose.full.yml` (+ Mailpit), `demo_reset.sh`, README + DEMO-SCRIPT v3 | ☑ |
+| T-905 | `doc-reviewer` rà 00–14 so với code (OQ-12-01) | ☑ |
+| T-906 | Checklist sẵn sàng thí điểm 1 DN 50–200 NV | ☑ |
+| T-907..T-910 | Sửa lỗi nghiệm thu; đưa lên `main` | ☑ (merge fast-forward 5 nhánh M3 + tag `v3.0.0-mvp`, 2026-11-02 — không qua PR) |
+
+> **Tick trạng thái T-701..T-910 (doc-sync 2026-11-02, T-1030):** các ô `☐` của M2.1–M3.5 được
+> chuyển `☑` theo bằng chứng đã ghi ở `STATE.md` (gate đóng từng mốc: ruff/mypy/pytest/contract/
+> Vitest/Playwright + nghiệm thu M3.5 trên stack thật ngày 2026-11-02). Trước đợt sync này doc còn
+> 82 ô `☐` cho task đã chạy xong — xem `deliverables/M4-CONFORMANCE-PLAN.md` GAP-13.
 
 ### 6.18. Rủi ro đợt code
 
@@ -521,6 +526,25 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 | OAuth lịch cần credential + URL public | Điều kiện human trước M3.1; polling cho dev; `respx` |
 | Thiếu dependency (PDF report, axe, xử lý ảnh runtime, STT local) | Raise DEC khi tới phase; có phương án hoãn |
 
+### 6.19. M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`)
+
+Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạy, và làm mọi khoảng trống đó
+**kiểm được bằng máy** để không drift lại. Audit nguồn: `deliverables/M4-CONFORMANCE-PLAN.md`.
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1001 | Sửa 5 permission lệch trong `10` (EP-RPT-02/03 → `execution:read`; EP-FIN-05/10 thêm `finance:read`) | 10 §7.2.6/§7.2.7, R-DEC-147 | TC-M4-03 | ☑ |
+| T-1002 | `10` §7.3 — gán EP id v3 cho 69 route nền v2.1 (EP-PRD/RSK/EXE/GOL/HR/DSH/PLT) | 10 §7.3, R-DEC-148 | TC-M4-01, 02 | ☑ |
+| T-1003 | `10` §2.3 — Tool Registry đầy đủ 54 `TOOL-*` + 13 metadata (bảng gương của `registry.py`) | 10 §2.3, R-DEC-149 | TC-M4-04a | ☑ |
+| T-1004 | `03` §4.2 — Metric catalog đầy đủ 34 `METRIC-*`; đối chiếu `ACT-*` doc ↔ code | 03 §4.2 | TC-M4-04b, 04c | ☑ |
+| T-1005 | Contract test tổng `test_catalog_conformance.py` (EP↔route↔permission 3 chiều + 3 registry) | 14 §1.x | TC-M4-01..04 | ☑ |
+| T-1010 | Job retention `idp.purge_import_rows` (05 §2.7, đóng OQ-05-11) + beat 02:00 | 05 §2.7, R-DEC-152 | TC-M4-05..07 | ☑ |
+| T-1011 | `idp.sweep_orphan_storage` + `ObjectStore.iter_keys/delete` (thay runbook SQL tay) | handover §5.1, R-DEC-152 | TC-M4-08, 09 | ☑ |
+| T-1020 | `.env`/`.env.example` source-safe + `scripts/check_env.sh` + test guard | — | TC-M4-12, 13 | ☑ |
+| T-1021 | FE coverage đo được (`@vitest/coverage-v8`, ngưỡng 70%) + test `lib/auth.ts` | 14 §1.3, R-DEC-150 | TC-M4-10 | ☑ |
+| T-1022 | a11y axe-core thật (`@axe-core/playwright`) + sửa 3 lỗi AA tìm được | 06 §WCAG, R-DEC-151 | TC-M4-11 | ☑ |
+| T-1030 | Doc-sync 09/10/03/13/14 + STATE | — | — | ☑ |
+
 ## 7. Open questions
 
 - OQ-09-01: Task breakdown `T-*` — **ĐÃ CHỐT** (R-DEC-15/19): sinh ở §6.
@@ -533,8 +557,9 @@ M1.1 ─► M1.2 ─► M1.3 ─► M1.4 ─► M1.5 ─► M1.6 ─► M2.1 ─
 
 ## Version
 - **Version:** 1.1.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-02
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — M4, 2026-11-02):** doc-sync trạng thái: 82 ô `☐` của M2.1–M3.5 (T-701..T-906) → `☑` theo bằng chứng gate ở `STATE.md`; T-907..T-910 → `☑` (merge fast-forward + tag `v3.0.0-mvp`). §6.19 mới — mốc **M4 Doc ↔ code conformance & hardening** (T-1001..T-1030).
 - **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** §6.8 M2.1 mở rộng bảng task sang `T | Việc | File chính | Spec | TC | Trạng thái` (T-701..T-709) + khối Spec lock (R-DEC-82..88) + dòng **Thứ tự** (S→C→B‖F→N→R) và **Exit**; đổi SEI → `METRIC-STR-02`, EP-RPT-01..05, `MetricValueOut` thêm `group`/`freshness`, 4 ô preference ở `platform.user_preferences`, alert→Notification, migration `0022`.
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §6.0bis quy trình chuỗi auto (R-DEC-38); §6.4–§6.7 thay bảng task bằng bảng mở rộng `T | Việc | File chính | Spec | TC | Trạng thái` (T-619S..T-625 M1.3, T-626S..T-633 M1.4, T-634S..T-643 M1.5, T-644S..T-652 M1.6) + dòng **Thứ tự** và **Exit** chi tiết; phụ thuộc liên phase chốt khi gộp (`projects.initiative_id` ở T-619, service public M1.4 cho undo ở T-627, subtree qua `core/org_scope.py` ở T-632, `ACT-update_task`/`ACT-assign_task` ở T-645). Open questions: thêm OQ-09-06/07.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, chờ human duyệt bước S):** §6.3 mở rộng bảng task theo cột §6.2 (File chính | Spec | TC); thêm T-611S (bước S, ◐) và T-617F (FE trên mock); ghi rõ BusinessUnit hoãn, giữ `/hr/departments`, ghi cơ cấu `hr:admin`, reactivate, preferences email, thứ tự task; FE ghi SCR-51..54.

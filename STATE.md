@@ -1,5 +1,61 @@
 # Aureon v3 — AI-EOS · Build State
 
+## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02) — IN PROGRESS
+
+Human giao: "phân tích tài liệu @docs/ và cải tiến dự án" → chốt phạm vi **toàn bộ doc set 00–14 vs
+codebase**, 4 ưu tiên (audit API, hoàn thiện module theo docs, siết chất lượng, doc-sync), môi trường
+**re-seed demo để dev**, agent **toàn quyền** code + docs + dependency. Kế hoạch + audit:
+`deliverables/M4-CONFORMANCE-PLAN.md`.
+
+### Audit bằng máy (không phỏng đoán)
+
+| Phát hiện | Trước | Sau |
+|---|---|---|
+| EP trong `10` §7 thiếu route | 0 | 0 |
+| Route **không có** EP id nào | **69** (product/risk/execution/goals/hr/dashboard/platform) | **0** — `10` §7.3 mới (R-DEC-148) |
+| Permission spec ↔ code lệch | **5** (EP-RPT-02/03, EP-FIN-05, EP-FIN-10) | **0** — code đúng, sửa spec (R-DEC-147) |
+| Tool Registry trong doc v3 | **không có bảng** (code 54 `TOOL-*`, doc nhắc 29 id) | `10` §2.3 bảng gương 54 tool × 13 metadata (R-DEC-149) |
+| Metric catalog trong doc v3 | **không liệt kê** (code 34) | `03` §4.2 bảng gương 34 chỉ số |
+| `ACT-*` doc ↔ code | nghi lệch 2 id | **không lệch** (`ACT-reassign_review`/`merge_review` do review-service sở hữu) |
+| Kiểm chứng máy toàn catalog | không có (contract test theo phase, hard-code) | `tests/contract/test_catalog_conformance.py` — 6 test, 3 chiều; contract **34 → 40** |
+
+### Module hoàn thiện theo docs
+
+- **T-1010 retention `idp.purge_import_rows`** — đóng `OQ-05-11` (05 §2.7 chốt từ M1.5, chưa code): service `idp/services/retention_service.py`, beat 02:00, idempotent, chỉ xóa `import_rows` của batch `completed`/`partially_failed` khi `undo_deadline` đã qua, giữ `extracted_fields`, audit `idp.purge_import_rows`. 5 test integration.
+- **T-1011 `idp.sweep_orphan_storage`** — biến runbook SQL tay (`docs/handover/IDP_Operations.md` §5.1) thành job: `ObjectStore` thêm `iter_keys()`/`delete()` (LocalObjectStore; MinIO/S3 map sang `list_objects_v2`/`delete_object` cùng tên), beat 02:30, **mặc định chỉ báo cáo** (`IDP_ORPHAN_SWEEP_DELETE=false` — CLAUDE §6.6 rule 9), bỏ qua file trẻ hơn cửa sổ undo 7 ngày.
+
+### Chất lượng
+
+- **T-1020 `.env` không source được** — `ADMIN_BOOTSTRAP_PASSWORD` chứa `"` không quote → `bash: .env: line 93: unexpected EOF`, đứt quy trình `set -a; . ./.env` mà STATE/handover ghi là bắt buộc. Đã quote `.env` + 26 placeholder trong `.env.example`; thêm `scripts/check_env.sh` (kiểm chéo bash ↔ dotenv ↔ Compose `env_file`, **chỉ in tên key**) + 2 test guard.
+- **T-1021 FE coverage lần đầu đo được** (R-DEC-150, `@vitest/coverage-v8`): statements **88,26%** · functions **71,29%** · branches **88,66%** (ngưỡng 70%, `14` §1.3). Phạm vi: module logic `*.ts` của `features/`+`lib/`; loại trừ hook TanStack Query (`use-*.ts`, phủ bằng Playwright). Thêm 11 test cho `lib/auth.ts` (**0% trước đó** — nơi duy nhất xử lý access/refresh token).
+- **T-1022 a11y axe-core thật** (R-DEC-151, `@axe-core/playwright`): 6 test trên `/home`, `/ask`, `/data`, `/business`, `/goals/check-ins` + ⌘K. Lần chạy đầu phát hiện **3 lỗi AA thật** mà kiểm structural (T-739) không thấy — đã sửa:
+  1. token `text-success/warning/danger` trên nền `-subtle` chỉ 2,40–4,30:1 → hạ lightness (tính theo công thức WCAG, có cả override dark mode);
+  2. `text-primary` trên `bg-primary/15` = 4,46:1 (avatar/chip) → `--primary` 0,52 → 0,50 (4,84:1);
+  3. panel ⌘K dùng class `bg-popover` — **token không tồn tại** trong `@theme` → panel trong suốt, chữ nằm trên overlay `bg-black/40` (1,83:1) → đổi `bg-card`.
+
+### Gate bắt được 2 lỗi của chính đợt này (đã sửa, không nới lỏng test)
+
+1. `architecture/test_tenant_query_boundary.py` — `retention_service.py` build SQL trực tiếp trên entity nghiệp vụ (`select/delete` ngoài `repositories/`) → bỏ qua lớp lọc `tenant_id` thứ nhất (CLAUDE §4.3, R-DEC-21). **Sửa:** chuyển 4 query vào `ImportRepository.batches_past_undo_window/count_rows_of/delete_rows_of` + `SourceDocumentRepository.all_storage_keys`; service chỉ gọi repository.
+2. `integration/platform/test_jobs.py` — beat schedule có 16 entry nhưng test khai 14. **Sửa:** thêm 2 job mới vào `EXPECTED` kèm giờ chạy (02:00 / 02:30) và nâng số đếm — test vẫn khóa chặt từng entry.
+
+**E2E mock tiền tồn từ M3.5 (không do M4):** `e2e/admin-screens.spec.ts:97` đếm cứng 2 card `/admin` cho DIR khối O; M3.5 (`0effd10`) thêm card `/admin/acceptance` (`dashboard:read`, mọi DIR — khớp EP-RPT-08) → thực tế 3 card, spec chưa chạy lại sau M3.5. **Code đúng, test cũ** → sửa spec assert **danh tính** 3 card (org, positions, acceptance) + số đếm, thay vì chỉ đếm.
+
+**Thêm 2 E2E mock tiền tồn (lộ ra khi chạy full mock suite 95 test — 93 pass / 2 fail):**
+- `navigation.spec.ts:39` — test "item chưa xây hiện khung *Sắp có*" dùng `/knowledge` (SCR-49), nhưng SCR-49 đã xây ở M3.3/M3.4 → spec stale. Đổi theo đúng mẫu test "meetings (SCR-44) is now built" ngay dưới: assert `knowledge-view` + `knowledge-tabs` hiển thị, `coming-soon` = 0.
+- `goals.spec.ts:93` — **date drift trong mock BFF**: UI hỏi feed theo tuần của `businessToday()` = `DEMO_REFERENCE_DATE` (20/10), nhưng mock ghi `checked_in_at`/`measured_at` bằng **đồng hồ thật** → check-in mới (03/11) nằm ngoài tuần → MGR thấy feed rỗng. Backend thật **không** có lỗi này (`measured_now()` → `core.clock.business_now()` giữ giờ thực, dời ngày về ngày nghiệp vụ — DD-05). **Sửa mock cho khớp backend:** `measuredNowIso()` ở `mocks/goals-http.ts`, dùng đúng 3 chỗ backend dùng `measured_now()` (KPI check-in, KPI measurement, KR check-in); `created_at` các entity khác giữ đồng hồ thật như backend. +2 unit test. Spec xanh khi viết (tuần 20/10) và đỏ từ ~26/10 — đó là lý do M3.5 không thấy.
+
+**Test tiền tồn ghi ở M2/M3 (`inj02`/`inj03`, `goal_events_t629`, `seed_s2`, `test_chat_demo_mode`) đều PASS** trên DB seed sạch `aureon_m4` → không còn nợ GAP-12.
+
+### Doc-sync
+
+`10` (§2.3, §7.3, 5 ô permission) · `03` (§4.2) · `05` (đóng OQ-05-11) · `09` (82 ô ☐→☑ theo bằng chứng gate + §6.19 M4) · `12` (last_reviewed 6 file) · `13` (R-DEC-147..152) · `14` (§1.21 TC-M4-01..13) · `docs/handover/IDP_Operations.md` §5 (trỏ sang job).
+
+### Môi trường
+
+Re-seed demo: backup `var/backup/aureon_predev_20261102_222021.dump` → `./scripts/demo_reset.sh -y` → 7 phòng/154 NV/10 user demo/34 metric/13 alert/1 NEEDS_REVIEW/6 AI agent. DB test cô lập `aureon_m4` (migrate + seed riêng) cho full suite — không chạm DB demo.
+
+---
+
 ## Status: M3 (Hành động) DONE — M3.1→M3.5 XANH, đã merge fast-forward vào `main` + tag `v3.0.0-mvp` (2026-11-02). MVP 3 mốc (M1+M2+M3) hoàn tất ở mức code. **Nghiệm thu M3.5 chạy trên STACK THẬT (2026-11-02): T-901/903/full-test xanh (xem dưới).**
 
 ## LIVE CUTOVER — xóa data demo + chạy live (2026-11-02, human yêu cầu)
@@ -22,6 +78,8 @@ Human yêu cầu: "xóa data demo, triển khai chạy live". Đã thực hiện
 > Lưu ý: image api `aureon-api:local` nay serve version `3.0.0` (đã rebuild với extra `ocr` + model OCR baked, ~5,25GB) — `docker compose -f docker-compose.full.yml up -d --force-recreate api` để chạy. Mật khẩu admin NÊN đổi sau lần đăng nhập đầu.
 
 **Bỏ dropdown chọn tài khoản demo ở /login (2026-11-02):** `apps/web/src/app/(auth)/login/page.tsx` — gỡ nhánh `|| process.env.NEXT_PUBLIC_DEMO_MODE === "true"`. Lý do: đây là Server Component, `NEXT_PUBLIC_*` bị Next **inline lúc build** (image cũ build với `=true`) nên luôn bật dropdown dù `.env` runtime đã `false` — bẫy cutover live. Nay chỉ dựa `DEMO_MODE` runtime. Rebuild image web (buildx cần BuildKit; `DOCKER_CONFIG=$PWD/var/docker-config` để tránh sandbox chặn ghi `~/.docker`) + recreate. Verify: HTML `/login` live **không** còn `<select id="demo-account">` và 0 email `@abc.demo`. Mock E2E (`login.spec.ts` 7/7) vẫn xanh vì mock server set `DEMO_MODE=true` → dropdown vẫn render ở demo. Không đổi API/schema/dependency.
+
+**Bật lại tự điền mật khẩu demo ở /login (2026-11-02, human yêu cầu "thêm lại phần tự điền mật khẩu để demo cho nhanh"):** feature SCR-13 autofill (R-DEC-28/T-610c) vốn **còn nguyên trong code** (`LoginForm` dropdown + `features/auth/demo-autofill.ts` + Route Handler `api/demo-credentials` + `lib/demo-credentials.ts` + `lib/server-env.ts`), chỉ bị **tắt bằng cờ runtime**. Hiện `DEMO_MODE=true` (dropdown đã render) nhưng `DEMO_LOGIN_AUTOFILL=false` → endpoint autofill trả 404 nên không điền mật khẩu. Sửa `.env`: `DEMO_LOGIN_AUTOFILL=true` + `docker compose up -d --force-recreate --no-deps web` (restart không nạp lại env_file). **Không đổi code / API / schema / dependency.** Verify: `POST /api/demo-credentials {email:"ceo@abc.demo"}` → `200 {data:{email,password}}` (CEO/CFO/sales điền được); email ngoài whitelist (`attacker@evil.com`, `admin@abc.com` thật) → `404` (giữ an toàn, không oracle mật khẩu); flow đầy đủ autofill→login backend → JWT ok; Vitest `demo-credentials`/`demo-accounts` 11/11 xanh.
 
 ## NGHIỆM THU M3.5 TRÊN STACK THẬT — T-901/903/906 + full test + version drift (2026-11-02)
 
