@@ -534,7 +534,7 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T | Việc | Spec | TC | Trạng thái |
 |---|---|---|---|---|
 | T-1001 | Sửa 5 permission lệch trong `10` (EP-RPT-02/03 → `execution:read`; EP-FIN-05/10 thêm `finance:read`) | 10 §7.2.6/§7.2.7, R-DEC-147 | TC-M4-03 | ☑ |
-| T-1002 | `10` §7.3 — gán EP id v3 cho 69 route nền v2.1 (EP-PRD/RSK/EXE/GOL/HR/DSH/PLT) | 10 §7.3, R-DEC-148 | TC-M4-01, 02 | ☑ |
+| T-1002 | `10` §7.3 — gán EP id v3 cho 64 route nền v2.1 (EP-PRD/RSK/EXE/HR/DSH/PLT); đính chính 03/11: bỏ `EP-GOL-01` trùng `EP-STR-17..21`, sửa cột EP v2.1 + ghi chú route theo code | 10 §7.3, R-DEC-148 | TC-M4-01, 02, 16 | ☑ |
 | T-1003 | `10` §2.3 — Tool Registry đầy đủ 54 `TOOL-*` + 13 metadata (bảng gương của `registry.py`) | 10 §2.3, R-DEC-149 | TC-M4-04a | ☑ |
 | T-1004 | `03` §4.2 — Metric catalog đầy đủ 34 `METRIC-*`; đối chiếu `ACT-*` doc ↔ code | 03 §4.2 | TC-M4-04b, 04c | ☑ |
 | T-1005 | Contract test tổng `test_catalog_conformance.py` (EP↔route↔permission 3 chiều + 3 registry) | 14 §1.x | TC-M4-01..04 | ☑ |
@@ -544,6 +544,9 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1021 | FE coverage đo được (`@vitest/coverage-v8`, ngưỡng 70%) + test `lib/auth.ts` | 14 §1.3, R-DEC-150 | TC-M4-10 | ☑ |
 | T-1022 | a11y axe-core thật (`@axe-core/playwright`) + sửa 3 lỗi AA tìm được | 06 §WCAG, R-DEC-151 | TC-M4-11 | ☑ |
 | T-1030 | Doc-sync 09/10/03/13/14 + STATE | — | — | ☑ |
+| T-1031 | Đính chính `10` §7.3 (17 số EP v2.1, bỏ `EP-GOL-01` trùng `EP-STR-17..21`, ghi chú route theo code, EP-HR-07 mức 4 = CEO + DIR khối O) + parser nhận ID dạng dải + `TC-M4-16` | 10 §7.3, R-DEC-148 | TC-M4-02, 16 | ☑ |
+| T-1032 | Dockerfile api: bake model OCR trước `COPY apps/api`, fail build khi thiếu model; build + xác minh offline | 07 §8.1, R-DEC-146 | TC-M4-17 | ☑ |
+| T-1033 | R-DEC-153: giữ `CHAT_TIMEOUT_SECONDS=90` cho `task=chat` (ngoại lệ `07` §145), ghi lý do/ảnh hưởng/theo dõi | 07 §145, R-DEC-153 | — | ☑ |
 
 ## 7. Open questions
 

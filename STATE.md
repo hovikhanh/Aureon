@@ -11,12 +11,22 @@ codebase**, 4 ưu tiên (audit API, hoàn thiện module theo docs, siết chấ
 **re-seed demo để dev**, agent **toàn quyền** code + docs + dependency. Kế hoạch + audit:
 `deliverables/M4-CONFORMANCE-PLAN.md`.
 
+### Sau audit trước-rebuild (`deliverables/M4-SYNC-AUDIT.md`, human duyệt 2026-11-03)
+
+| Hạng mục | Kết quả |
+|---|---|
+| **P1 — đính chính `10` §7.3** (lỗi do M4) | 17 số EP v2.1 sửa theo chú thích route trong code; bỏ `EP-GOL-01` (trùng `EP-STR-17..21` — parser cũ không nhận ID dạng dải → "69 route" thực ra là **64**); 13 ghi chú route sửa theo code (vd scenario **có** lưu DB, workload là `METRIC-HR-03`, audit alert là `dashboard.*`, `platform:admin` = CEO + ADM, khối "Cần quyết" đọc hàng chờ phê duyệt); EP-HR-07 mức 4 = **CEO + DIR khối O**. Khóa bằng `TC-M4-16` (kiểm âm: đổi EP-PLT-01 về `EP-59` → fail). Contract **42** |
+| **P5 — Dockerfile OCR** | bake model trước `COPY apps/api`, fail build khi thiếu model. Image mới `aureon-api:local` = `fcb10365d0c1`: đủ det/rec/cls; OCR `--network none` 13/13 file, `DOC-10` conf 0,958; build lại sau đổi source → bake `CACHED`; source = HEAD 389/389 |
+| **P4 — chat timeout** | **R-DEC-153**: giữ 90 s cho `task=chat` (human duyệt), ghi chú ngoại lệ ở `07` §145; theo dõi p95 latency live |
+| Đường lùi | `aureon-api:pre-m4` (`96a7fd9cbeec`), `aureon-web:pre-m4` (`033391240532`) |
+| **Chưa làm (chờ duyệt)** | build image web; recreate api/worker/beat/web — container **vẫn chạy image cũ** |
+
 ### Audit bằng máy (không phỏng đoán)
 
 | Phát hiện | Trước | Sau |
 |---|---|---|
 | EP trong `10` §7 thiếu route | 0 | 0 |
-| Route **không có** EP id nào | **69** (product/risk/execution/goals/hr/dashboard/platform) | **0** — `10` §7.3 mới (R-DEC-148) |
+| Route **không có** EP id nào | **64** (product/risk/execution/hr/dashboard/platform; ban đầu ghi nhầm 69 — 5 route milestones đã có `EP-STR-17..21`) | **0** — `10` §7.3 mới (R-DEC-148) |
 | Permission spec ↔ code lệch | **5** (EP-RPT-02/03, EP-FIN-05, EP-FIN-10) | **0** — code đúng, sửa spec (R-DEC-147) |
 | Tool Registry trong doc v3 | **không có bảng** (code 54 `TOOL-*`, doc nhắc 29 id) | `10` §2.3 bảng gương 54 tool × 13 metadata (R-DEC-149) |
 | Metric catalog trong doc v3 | **không liệt kê** (code 34) | `03` §4.2 bảng gương 34 chỉ số |

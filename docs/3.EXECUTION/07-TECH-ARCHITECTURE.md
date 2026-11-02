@@ -143,6 +143,7 @@ Vòng LEARN đưa phản hồi đúng/sai (FR-AIQ-04) về Evaluation Engine đ�
 - Định tuyến theo **tác vụ × chi phí × mức phân loại dữ liệu** (02 §5): Nội bộ/Công khai → cloud; **Mật → local-only**; **Tuyệt mật → không LLM**.
 - Mọi call đi qua gateway; log `ENT-ModelCallLog` (token/chi phí/provider/fallback/`prompt_sha256` — **không lưu prompt thô**).
 - Giới hạn lượt gọi: temperature thấp, ≤2048 output token, 30s/lượt, ≤8 tool call/lượt, 5s/tool; quá ngân sách tháng → chặn (`AI_QUOTA_EXCEEDED`, FR-AIQ-05).
+  - *Ngoại lệ đã duyệt (R-DEC-153, 2026-11-03):* timeout **mỗi lần gọi provider** của `task=chat` là `CHAT_TIMEOUT_SECONDS=90` (không phải 30 s); các task khác giữ `AI_TURN_TIMEOUT_SEC=30`. Xem lại sau khi có số đo latency live.
 - **Model governance (BRD §17.1.7):** chỉ dùng model trong danh mục đã duyệt; đánh giá (Evaluation) trước khi đưa model mới vào dùng. Thêm provider → DEC blocking.
 
 ## 5. Chất lượng & chi phí AI (BRD §11.7)
