@@ -264,7 +264,7 @@
     "METRIC-RSK-05": "Biện pháp quá hạn",
     "METRIC-DQ-01": "Điểm chất lượng dữ liệu",
     "METRIC-STR-01": "KPI/OKR cập nhật đúng kỳ",
-    "METRIC-STR-02": "Strategy execution index (SEI)",
+    "METRIC-STR-02": "Chỉ số thực thi chiến lược (SEI)",
     "stale": "Dữ liệu cũ (> {hours} giờ)"
   },
   "unit": {
