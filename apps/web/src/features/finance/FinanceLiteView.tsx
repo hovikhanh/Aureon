@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/api-client";
 import { formatMoney, formatMoneyShort, formatNumber, formatPct, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/QueryError";
 
 interface FinanceSummary {
   total_revenue: number;
@@ -91,7 +92,7 @@ export function FinanceLiteView() {
       {/* Summary cards */}
       <section aria-label={t("financeLite.summaryTitle")}>
         {dash.isPending && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{SUMMARY_KEYS.map((k) => <div key={k} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>}
-        {dash.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+        {dash.isError && <QueryError error={dash.error} onRetry={() => void dash.refetch()} />}
         {dash.isSuccess && !summary && <p className="text-muted-foreground">{t("financeLite.empty")}</p>}
         {dash.isSuccess && summary && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -113,7 +114,7 @@ export function FinanceLiteView() {
       <section aria-label={t("financeLite.budgetTitle")} className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">{t("financeLite.budgetTitle")}</h2>
         {budgets.isPending && <div className="h-40 animate-pulse rounded-lg bg-muted" />}
-        {budgets.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+        {budgets.isError && <QueryError error={budgets.error} onRetry={() => void budgets.refetch()} />}
         {budgets.isSuccess && !budgetRows.length && <p className="text-muted-foreground">{t("financeLite.empty")}</p>}
         {budgetRows.length > 0 && (
           <Card className="overflow-x-auto">
@@ -145,7 +146,7 @@ export function FinanceLiteView() {
       <section aria-label={t("financeLite.runwayTitle")} className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">{t("financeLite.runwayTitle")}</h2>
         {runway.isPending && <div className="h-28 animate-pulse rounded-lg bg-muted" />}
-        {runway.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+        {runway.isError && <QueryError error={runway.error} onRetry={() => void runway.refetch()} />}
         {runway.isSuccess && !runwayData && <p className="text-muted-foreground">{t("financeLite.empty")}</p>}
         {runwayData && (
           <Card>

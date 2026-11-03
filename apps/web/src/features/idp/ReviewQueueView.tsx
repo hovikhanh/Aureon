@@ -15,6 +15,7 @@ import { formatNumber, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { DOC_TYPES, QUEUE_STATUSES, type ReviewQueueItem } from "./types";
 import { UploadButton } from "./UploadButton";
+import { QueryError } from "@/components/QueryError";
 
 const PAGE = 20;
 
@@ -72,7 +73,7 @@ export function ReviewQueueView({ userId }: { userId: string }) {
         </div>
         {filtered && <Button variant="ghost" size="sm" onClick={() => { setStatus(""); setDocType(""); setAssigned(""); setOffset(0); }}>{t("buttons.clearFilters")}</Button>}
       </Card>
-      {q.isError && <p role="alert" className="text-sm text-danger">{t("errors.generic")} <Button size="sm" variant="outline" onClick={() => void q.refetch()}>{t("buttons.retry")}</Button></p>}
+      {q.isError && <QueryError error={q.error} onRetry={() => void q.refetch()} testId="review-queue-error" />}
       {q.isPending && <div className="h-40 animate-pulse rounded-lg bg-muted" />}
       {q.isSuccess && items.length === 0 && (
         <Card className="flex flex-col items-center gap-3 p-10 text-center" data-testid="queue-empty">

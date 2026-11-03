@@ -3,14 +3,15 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 import { authOptions } from "@/lib/auth";
-import { visibleGoalsTabs, type GoalsTabKey } from "@/lib/permissions";
+import { canDomain, visibleGoalsTabs, type GoalsTabKey } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-export interface GoalsUser { id: string; role: string; permissions: string[] }
+export interface GoalsUser { id: string; role: string; permissions: string[]; scopePillars: string[] }
 
 export async function goalsUser(): Promise<GoalsUser> {
   const session = await getServerSession(authOptions);
-  return { id: session?.user.id ?? "", role: session?.user.role ?? "", permissions: session?.user.permissions ?? [] };
+  const u = session?.user;
+  return { id: u?.id ?? "", role: u?.role ?? "", permissions: u?.permissions ?? [], scopePillars: u?.scopePillars ?? [] };
 }
 
 /** Session capabilities (display only — the API enforces scope, R-DEC-57). */
@@ -18,7 +19,8 @@ export const goalCaps = (u: GoalsUser) => ({
   userId: u.id,
   isEmployee: u.role === "EMP",
   canManage: u.role !== "EMP" && u.permissions.includes("execution:write"),
-  canFilterDepartment: (u.role === "CEO" || u.role === "DIR") && u.permissions.includes("hr:read"),
+  // `/hr/departments` (EP-81) is `require_pillar_permission("hr:read")`: only CEO and DIR khối O read it (M6)
+  canFilterDepartment: (u.role === "CEO" || u.role === "DIR") && canDomain(u.permissions, u.scopePillars, "hr"),
   /** CEO goals may sit at company level (no department); DIR/MGR goals are pinned to their scope (`goal_scope.pin_department`). */
   companyWide: u.role === "CEO",
   /** KPI/OKR owner picker reads `/platform/users` (EP-ADM, `platform:read`: CEO/ADM); others own what they create. */

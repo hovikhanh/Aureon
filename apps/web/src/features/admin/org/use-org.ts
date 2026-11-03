@@ -32,9 +32,11 @@ export function useAssignmentHistory(employeeId: string | null) {
   });
 }
 
-export function useDepartments() {
+/** EP-81 `/hr/departments` is `require_pillar_permission("hr:read")` — pass `enabled=false` where the role cannot read it (DIR outside khối O) instead of firing a 403 (M6). */
+export function useDepartments(enabled = true) {
   return useQuery({
     queryKey: qk.departments(),
+    enabled,
     queryFn: ({ signal }) => apiRequest<DepartmentOut[]>("/hr/departments", { query: { limit: 100 }, signal }),
   });
 }

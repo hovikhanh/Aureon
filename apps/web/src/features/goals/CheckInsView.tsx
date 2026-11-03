@@ -59,7 +59,7 @@ function TeamFeed({ caps }: { caps: GoalCaps }) {
   const range = weekRangeOf(week === "this" ? today : addDays(today, -7));
   const feed = useCheckInFeed({ from: range.from, to: range.to, department_id: dept || undefined, confidence: conf || undefined });
   const tree = useGoalTree({ period_key: periodKeyOf("QUARTER", today), department_id: dept || undefined });
-  const departments = useDepartments();
+  const departments = useDepartments(caps.canFilterDepartment);
   const missing = treeKrs(tree.data).filter((k) => !checkedInThisWeek(k.last_checked_in_at, today));
   return (
     <div className="flex flex-col gap-4" data-testid="checkins-team">

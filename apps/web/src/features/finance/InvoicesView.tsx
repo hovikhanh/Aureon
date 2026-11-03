@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/api-client";
 import { formatDate, formatMoney, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/QueryError";
 
 interface InvoiceOut {
   id: string;
@@ -49,7 +50,7 @@ export function InvoicesView() {
         ))}
       </div>
       {q.isPending && <div className="h-40 animate-pulse rounded-lg bg-muted" />}
-      {q.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+      {q.isError && <QueryError error={q.error} onRetry={() => void q.refetch()} testId="invoices-error" />}
       {q.isSuccess && !items.length && <p className="text-muted-foreground">{t("finance.empty")}</p>}
       {items.length > 0 && (
         <Card className="overflow-x-auto">

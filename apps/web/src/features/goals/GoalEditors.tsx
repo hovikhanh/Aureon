@@ -57,7 +57,7 @@ function useOwners(caps: GoalCaps, current?: string | null) {
  */
 function DepartmentSelect<F extends FieldValues>({ form, id, caps }: { form: UseFormReturn<F>; id: string; caps: GoalCaps }) {
   const t = useTranslations("goals.editor");
-  const depts = useDepartments();
+  const depts = useDepartments(caps.canFilterDepartment); // hook before the early return: never fetch for a role that cannot read it
   if (!caps.canFilterDepartment) return null;
   return (
     <Field id={id} label={t("department")}>

@@ -4,6 +4,7 @@
  * report. Each download streams the export file straight to the browser (Content-Disposition).
  */
 import { useState } from "react";
+import { QueryError } from "@/components/QueryError";
 import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import type { Api } from "@aureon/shared-types";
@@ -36,7 +37,7 @@ export function ReportsPanel() {
     <div className="flex flex-col gap-4" data-testid="reports-panel">
       <h2 className="text-lg font-semibold">{t("title")}</h2>
       {q.isLoading && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
-      {q.isError && <p className="text-sm text-danger">{t("loadError")}</p>}
+      {q.isError && <QueryError error={q.error} onRetry={() => void q.refetch()} />}
       {q.data && q.data.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="reports-empty">{t("empty")}</p>
       )}

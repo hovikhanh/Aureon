@@ -22,10 +22,12 @@ import { RowGrid } from "./RowGrid";
 import { SourceViewer } from "./SourceViewer";
 import type { ApproveOut, FieldPatchOut, ReviewField } from "./types";
 import { useReview, useReviewLock } from "./use-review";
+import { QueryError } from "@/components/QueryError";
+import { errorText } from "@/lib/error-text";
 
 const KNOWN = ["REVIEW_LOCKED", "CONFLICT_STATE", "VALIDATION_ERROR", "ACTION_REJECTED", "FORBIDDEN_ROLE"];
 const reviewErr = (t: ReturnType<typeof useTranslations>, e: unknown) =>
-  e instanceof ApiError && (typeof e.details.reason === "string" || Array.isArray(e.details.missing)) ? captureError(t, e) : e instanceof ApiError && KNOWN.includes(e.code) ? t(`errors.${e.code}` as "errors.generic") : t("errors.generic");
+  e instanceof ApiError && (typeof e.details.reason === "string" || Array.isArray(e.details.missing)) ? captureError(t, e) : e instanceof ApiError && KNOWN.includes(e.code) ? t(`errors.${e.code}` as "errors.generic") : errorText(t, e);
 
 export function ReviewDetailView({ documentId }: { documentId: string }) {
   const t = useTranslations();
@@ -117,7 +119,8 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
   };
 
   if (review.isPending) return <div className="h-96 animate-pulse rounded-lg bg-muted" />;
-  if (review.isError || !review.data) return <p role="alert" className="text-danger">{errMsg(review.error)}</p>;
+  // load: 404 = not found / outside the review scope (the API hides existence), 403 = no permission
+  if (review.isError || !review.data) return <QueryError error={review.error} onRetry={() => void review.refetch()} testId="review-load-error" />;
   const d = review.data;
   const active = fields.find((f) => f.id === activeId) ?? null;
   const decidable = ["NEEDS_REVIEW", "IN_REVIEW"].includes(d.document.status) && !committed;

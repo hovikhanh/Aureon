@@ -8,6 +8,7 @@ import { formatMoneyShort, formatPct, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { DIMMED_STAGES, orderStages, type DealStage, type PipelineOut, type SalesDashboardOut } from "./pipeline";
+import { QueryError } from "@/components/QueryError";
 
 const SUMMARY_KEYS = ["pipeline_value", "weighted_pipeline", "win_rate_pct", "deals_open"] as const;
 type SummaryKey = (typeof SUMMARY_KEYS)[number];
@@ -54,7 +55,7 @@ export function SalesPipelineView() {
       {/* Summary strip */}
       <section aria-label={t("sales.summaryTitle")}>
         {dash.isPending && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{SUMMARY_KEYS.map((k) => <div key={k} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>}
-        {dash.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+        {dash.isError && <QueryError error={dash.error} onRetry={() => void dash.refetch()} />}
         {dash.isSuccess && !summary && <p className="text-muted-foreground">{t("sales.empty")}</p>}
         {summary && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,7 +74,7 @@ export function SalesPipelineView() {
       {/* Kanban board */}
       <section aria-label={t("sales.boardTitle")} className="flex flex-col gap-2">
         {pipeline.isPending && <div className="h-64 animate-pulse rounded-lg bg-muted" />}
-        {pipeline.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+        {pipeline.isError && <QueryError error={pipeline.error} onRetry={() => void pipeline.refetch()} />}
         {pipeline.isSuccess && !stages.length && <p className="text-muted-foreground">{t("sales.empty")}</p>}
         {stages.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

@@ -2,14 +2,20 @@
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 import { authOptions } from "@/lib/auth";
-import { visibleWorkTabs, type WorkTabKey } from "@/lib/permissions";
+import { canDomain, visibleWorkTabs, type WorkTabKey } from "@/lib/permissions";
 import { WorkTabs } from "./WorkTabs";
 
-export interface WorkUser { id: string; role: string; permissions: string[] }
+export interface WorkUser { id: string; role: string; permissions: string[]; scopePillars: string[] }
 
 export async function workUser(): Promise<WorkUser> {
   const session = await getServerSession(authOptions);
-  return { id: session?.user.id ?? "", role: session?.user.role ?? "", permissions: session?.user.permissions ?? [] };
+  const u = session?.user;
+  return { id: u?.id ?? "", role: u?.role ?? "", permissions: u?.permissions ?? [], scopePillars: u?.scopePillars ?? [] };
+}
+
+/** Members / org tree readable (EP-ORG-24): `hr:read` inside khối O, never EMP / REV (→ `FORBIDDEN_SCOPE`, 10 §7.2.1). */
+export function canReadOrg(user: WorkUser): boolean {
+  return canDomain(user.permissions, user.scopePillars, "hr") && user.role !== "EMP" && user.role !== "REV";
 }
 
 /** Capabilities of the task panel from the session (server-side; the API still enforces every rule). */
@@ -17,7 +23,9 @@ export function detailCaps(user: WorkUser) {
   return {
     isEmployee: user.role === "EMP",
     canReadAudit: user.permissions.includes("platform:read"),
-    canReadOrg: user.permissions.includes("hr:read") && user.role !== "EMP",
+    // EP-ORG-24 `/org/tree` is `require_pillar_permission("hr:read")`: a DIR outside khối O (CFO,
+    // Sales) gets 403 — pickers then fall back to ids instead of calling it (M6).
+    canReadOrg: canReadOrg(user),
   };
 }
 

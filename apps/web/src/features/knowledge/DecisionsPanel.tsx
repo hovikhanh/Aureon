@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Api } from "@aureon/shared-types";
 import { Card } from "@/components/ui/card";
+import { QueryError } from "@/components/QueryError";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, type AppLocale } from "@/lib/format";
@@ -42,7 +43,7 @@ export function DecisionsPanel() {
       </div>
 
       {q.isLoading && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
-      {q.isError && <p className="text-sm text-danger">{t("error")}</p>}
+      {q.isError && <QueryError error={q.error} onRetry={() => void q.refetch()} />}
       {q.data && q.data.data.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="decisions-empty">{t("empty")}</p>
       )}

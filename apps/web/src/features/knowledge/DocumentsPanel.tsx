@@ -6,6 +6,7 @@
  * Empty query → no request (hook `enabled`); no numbers are fabricated — results are page excerpts.
  */
 import { useEffect, useState } from "react";
+import { QueryError } from "@/components/QueryError";
 import { useTranslations } from "next-intl";
 import { FileText, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -42,7 +43,7 @@ export function DocumentsPanel() {
 
       {q.length === 0 && <p className="text-sm text-muted-foreground">{t("hint")}</p>}
       {search.isLoading && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
-      {search.isError && <p className="text-sm text-danger">{t("loadError")}</p>}
+      {search.isError && <QueryError error={search.error} onRetry={() => void search.refetch()} />}
       {search.data && hits.length === 0 && q.length > 0 && (
         <p className="text-sm text-muted-foreground" data-testid="documents-empty">{t("empty")}</p>
       )}

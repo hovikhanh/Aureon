@@ -56,8 +56,12 @@ const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/data/new", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
   { prefix: "/data/imports", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
   { prefix: "/admin/data-capture", roles: ["ADM"], anyOf: ["idp:admin"] },
+  // M6: record screens follow the API's khối isolation (`require_pillar_permission`) — a DIR of another
+  // khối is sent to /403 instead of a page whose every call answers 403. Overviews built on the
+  // cross-khối `:query` endpoints (/finance/dashboard, /sales/pipeline) stay open to every DIR.
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
-  { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"] },
+  { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"], dirPillars: ["F"] },
+  { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"], dirPillars: ["O"] },
   { prefix: "/admin/audit", roles: ["ADM"], anyOf: ["platform:read"] },
   { prefix: "/admin/org", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
   { prefix: "/admin/positions", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
@@ -75,6 +79,25 @@ export const ROUTE_RULES: readonly RouteRule[] = [
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 export const PROTECTED_PREFIXES = ROUTE_RULES.map((r) => r.prefix);
+
+/**
+ * Domain ↔ khối F.O.C.U.S — mirror of `core/permissions.py` `DOMAIN_PILLAR` (R-DEC-12a). The API
+ * isolates a DIR to the khối of `finance`/`hr`/`sales`/`product`/`risk` (`require_pillar_permission`:
+ * DIR ngoài khối → `403 FORBIDDEN_ROLE`, 10 §7.2.1), so the UI must not offer — or call — another
+ * khối's records: e.g. Finance-DIR has `hr:read` but `/org/tree`, `/hr/departments` answer 403.
+ */
+export const DOMAIN_PILLAR: Readonly<Record<string, string>> = { finance: "F", hr: "O", sales: "C", product: "U", risk: "S" };
+
+/** `Principal.in_pillar` (display only): empty khối (CEO, non-DIR, DIR toàn khối) or cross-pillar domain → true. */
+export function inPillar(domain: string, pillars: readonly string[]): boolean {
+  const p = DOMAIN_PILLAR[domain];
+  return pillars.length === 0 || p === undefined || pillars.includes(p);
+}
+
+/** `<domain>:<action>` held **and** inside the caller's khối — what a `require_pillar_permission` endpoint accepts. */
+export function canDomain(perms: readonly string[], pillars: readonly string[], domain: string, action = "read"): boolean {
+  return perms.includes(`${domain}:${action}`) && inPillar(domain, pillars);
+}
 
 export function hasAny(perms: readonly string[], anyOf: readonly string[]): boolean {
   return anyOf.length === 0 || anyOf.some((p) => perms.includes(p));

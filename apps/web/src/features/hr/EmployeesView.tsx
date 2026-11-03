@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/api-client";
 import { formatDate, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
+import { QueryError } from "@/components/QueryError";
 
 interface EmployeeOut {
   id: string;
@@ -42,7 +43,7 @@ export function EmployeesView() {
       </div>
       <Input className="max-w-sm" placeholder={t("hr.search")} aria-label={t("hr.search")} value={q} onChange={(e) => { setQ(e.target.value); setOffset(0); }} data-testid="employee-search" />
       {res.isPending && <div className="h-40 animate-pulse rounded-lg bg-muted" />}
-      {res.isError && <p role="alert" className="text-danger">{t("errors.generic")}</p>}
+      {res.isError && <QueryError error={res.error} onRetry={() => void res.refetch()} testId="employees-error" />}
       {res.isSuccess && !items.length && <p className="text-muted-foreground">{t("hr.empty")}</p>}
       {items.length > 0 && (
         <Card className="overflow-x-auto">

@@ -31,10 +31,10 @@ export function ProgressBar({ progress, planned }: { progress: number | null | u
   );
 }
 
-export function ProjectsView({ canCreate, canReadOrg, userId }: { canCreate: boolean; canReadOrg: boolean; userId: string }) {
+export function ProjectsView({ canCreate, canReadOrg, userId, initialLate = false }: { canCreate: boolean; canReadOrg: boolean; userId: string; initialLate?: boolean }) {
   const t = useTranslations("work");
   const locale = useLocale() as AppLocale;
-  const [late, setLate] = React.useState(false);
+  const [late, setLate] = React.useState(initialLate); // `?late=1` from the Home "Dự án trễ hạn" card
   const [status, setStatus] = React.useState("");
   const [dept, setDept] = React.useState("");
   const [creating, setCreating] = React.useState(false);

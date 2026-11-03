@@ -52,8 +52,8 @@ export function GoalTreeView({ caps }: { caps: GoalCaps }) {
   };
   const tree = useGoalTree({ period_key: period, strategy_id: strategyId || undefined, department_id: dept || undefined });
   const strategies = useStrategies();
-  const departments = useDepartments();
   const showDept = caps.canFilterDepartment;
+  const departments = useDepartments(showDept);
   const [editor, setEditor] = React.useState<"kpi" | "objective" | null>(null);
 
   return (
