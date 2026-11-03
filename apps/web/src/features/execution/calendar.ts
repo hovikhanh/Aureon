@@ -3,13 +3,17 @@ import type { Api } from "@aureon/shared-types";
 
 type CalendarEventOut = Api.CalendarEventOut;
 
-/** A 30-day window from local midnight today → ISO `Z` bounds for EP-CAL-01. */
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * A 30-day window from today (local calendar day) → `YYYY-MM-DD` bounds: EP-CAL-01 `from`/`to` are
+ * **dates** (10 §7.2.8). Sending `toISOString()` passed only where local midnight is `T00:00:00Z`;
+ * at UTC+7 it was `…T17:00:00.000Z` → `422` and an empty calendar (M6).
+ */
 export function defaultRange(now: Date = new Date()): { from: string; to: string } {
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-  const to = new Date(from);
+  const to = new Date(now);
   to.setDate(to.getDate() + 30);
-  return { from: from.toISOString(), to: to.toISOString() };
+  return { from: ymd(now), to: ymd(to) };
 }
 
 /** Group key = the start day, localized (vi-VN). */

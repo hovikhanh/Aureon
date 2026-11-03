@@ -24,12 +24,10 @@ const ev = (over: Partial<CalendarEventOut>): CalendarEventOut => ({
 });
 
 describe("defaultRange", () => {
-  it("spans 30 days from local midnight, as ISO Z", () => {
-    const r = defaultRange(new Date("2026-10-20T09:30:00Z"));
-    expect(r.from.endsWith("Z")).toBe(true);
-    expect(r.to.endsWith("Z")).toBe(true);
-    const days = (new Date(r.to).getTime() - new Date(r.from).getTime()) / 86_400_000;
-    expect(days).toBe(30);
+  it("spans 30 local calendar days as plain dates (EP-CAL-01 takes `date`, not datetime)", () => {
+    const r = defaultRange(new Date(2026, 9, 20, 23, 30)); // local 20/10 23:30 — any time zone
+    expect(r).toEqual({ from: "2026-10-20", to: "2026-11-19" });
+    expect(defaultRange(new Date(2026, 11, 15, 0, 5))).toEqual({ from: "2026-12-15", to: "2027-01-14" });
   });
 });
 

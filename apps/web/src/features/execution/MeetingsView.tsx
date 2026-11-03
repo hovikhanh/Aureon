@@ -4,7 +4,9 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
+import { errorText } from "@/lib/error-text";
 import { useNaturalLanguage } from "./use-meetings";
+import { MeetingList } from "./MeetingList";
 import { PredictedActionList } from "./PredictedActionList";
 import { VoiceCapture } from "./VoiceCapture";
 import { visibleExtracted } from "./meetings";
@@ -16,15 +18,18 @@ import { visibleExtracted } from "./meetings";
  */
 export function MeetingsView({ viewerId, permissions }: { viewerId: string; permissions: string[] }) {
   const t = useTranslations("meetings");
+  const tAll = useTranslations();
   const [text, setText] = React.useState("");
   const nl = useNaturalLanguage();
   const preview = nl.data;
 
+  const [viaVoice, setViaVoice] = React.useState(false);
   const submitText = () => {
     if (!text.trim()) return;
+    setViaVoice(false);
     nl.mutate({ text, channel: "C2" });
   };
-  const submitAudio = (audioRef: string) => nl.mutate({ audio_ref: audioRef, channel: "C2" });
+  const submitAudio = (audioRef: string) => { setViaVoice(true); nl.mutate({ audio_ref: audioRef, channel: "C2" }); };
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4" data-testid="meetings-view">
@@ -59,9 +64,13 @@ export function MeetingsView({ viewerId, permissions }: { viewerId: string; perm
         <p role="alert" className="text-sm text-danger" data-testid="meetings-error">
           {nl.error instanceof ApiError && nl.error.code === "BUSINESS_RULE_VIOLATION"
             ? t("voice.error.meetingBlocked")
-            : t("errorGeneric")}
+            : viaVoice && nl.error instanceof ApiError && nl.error.code === "AI_PROVIDER_ERROR"
+              ? t("voice.error.sttUnavailable") // live STT is not configured (R-DEC-97: MODEL_STT=fixture) — the transcript box still works
+              : errorText(tAll, nl.error)}
         </p>
       )}
+
+      <MeetingList />
 
       {preview && (
         <section className="flex flex-col gap-4" data-testid="meetings-preview" aria-live="polite">

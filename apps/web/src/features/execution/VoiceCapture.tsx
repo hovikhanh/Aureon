@@ -26,9 +26,12 @@ export function VoiceCapture({ onTranscribe, disabled }: { onTranscribe: (audioR
   const recorderRef = React.useRef<MediaRecorder | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
 
-  const supported =
-    typeof window !== "undefined" &&
-    voiceSupported(navigator, window.isSecureContext, (window as unknown as { MediaRecorder?: unknown }).MediaRecorder);
+  // Decided after mount: the server has no `window`, so computing it during render made the SSR
+  // HTML ("unsupported") differ from the first client render (button) → React #418 (M6).
+  const [supported, setSupported] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    setSupported(voiceSupported(navigator, window.isSecureContext, (window as unknown as { MediaRecorder?: unknown }).MediaRecorder));
+  }, []);
 
   const start = async () => {
     setError(null);
@@ -58,6 +61,7 @@ export function VoiceCapture({ onTranscribe, disabled }: { onTranscribe: (audioR
     onTranscribe(`voice-note/${Date.now()}.webm`);
   };
 
+  if (supported === null) return null; // same (empty) markup on the server and the first client render
   if (!supported) {
     return (
       <span className="text-xs text-muted-foreground" data-testid="voice-unsupported">

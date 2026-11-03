@@ -28,7 +28,10 @@ export function DepartmentView() {
         <Link href={d.workload.heatmap_ref} className="block">
           <Card className="p-4" data-testid="dept-workload">{t("overloaded", { count: d.workload.overloaded_count })}</Card>
         </Link>
-        <Card className="p-4" data-testid="dept-late">{t("lateProjects", { count: d.late_projects })}</Card>
+        {/* same `project_rules.is_late` as the projects list filter → the count and the list agree */}
+        <Link href="/work/projects?late=1" className="block" data-testid="dept-late-link">
+          <Card className="p-4 transition-colors hover:border-primary hover:bg-muted" data-testid="dept-late">{t("lateProjects", { count: d.late_projects })}</Card>
+        </Link>
       </section>
     </div>
   );

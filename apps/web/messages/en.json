@@ -94,7 +94,10 @@
     "FILE_TOO_LARGE": "File exceeds the limit",
     "UNSUPPORTED_MEDIA_TYPE": "Unsupported format (save .xls as .xlsx)",
     "DUPLICATE_RESOURCE": "This file was already imported",
-    "AI_PROVIDER_ERROR": "The AI model provider could not be reached. Check the model service (e.g. OmniRoute) or try again later."
+    "AI_PROVIDER_ERROR": "The AI model provider could not be reached. Check the model service (e.g. OmniRoute) or try again later.",
+    "forbiddenData": "You do not have permission to access this data (role or area of responsibility).",
+    "notFoundData": "Not found, or outside your scope.",
+    "FORBIDDEN_SALARY": "You do not have permission to view salary data."
   },
   "auth": {
     "title": "Sign in to Aureon",
@@ -197,7 +200,8 @@
         "q4": "Q4 ({period})"
       }
     },
-    "fivePillarLink": "Five-pillar view"
+    "fivePillarLink": "Five-pillar view",
+    "alertsPageTitle": "Open alerts & risks"
   },
   "metricDetail": {
     "title": "Metric details",
@@ -1876,6 +1880,10 @@
         "fieldName": "Field name",
         "send": "Send"
       }
+    },
+    "failReason": {
+      "EXTRACTION_FAILED": "AI could not extract the data — re-upload the document or enter it manually.",
+      "MALWARE": "The file contains malware and was quarantined."
     }
   },
   "aiAdmin": {
@@ -2313,7 +2321,8 @@
         "in_use": "The microphone is busy.",
         "too_long": "Recording too long — short notes only.",
         "unknown": "Recording failed. Please try again.",
-        "meetingBlocked": "Meeting audio cannot be captured via this channel (R-DEC-22)."
+        "meetingBlocked": "Meeting audio cannot be captured via this channel (R-DEC-22).",
+        "sttUnavailable": "Speech-to-text is not enabled on the server. Please paste or type the text above."
       }
     },
     "preview": {
@@ -2335,6 +2344,17 @@
       "matched": "Matched",
       "ambiguous": "Ambiguous",
       "unmatched": "Unmatched"
+    },
+    "tabs": {
+      "label": "Meetings & calendar",
+      "meetings": "Meetings",
+      "calendar": "Calendar"
+    },
+    "list": {
+      "title": "Recent meetings",
+      "empty": "No meetings in your scope yet.",
+      "noSummary": "No summary yet.",
+      "fromDocument": "From an uploaded minutes document"
     }
   },
   "calendar": {
@@ -2399,7 +2419,8 @@
       "decisions": "Decision Log",
       "reports": "Reports",
       "documents": "Documents"
-    }
+    },
+    "noTabs": "Your role has no Knowledge & Reports section to view. The admin audit log is under Admin → Audit."
   },
   "decisions": {
     "title": "Decision Log",

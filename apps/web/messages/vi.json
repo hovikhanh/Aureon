@@ -94,7 +94,10 @@
     "FILE_TOO_LARGE": "File vượt giới hạn",
     "UNSUPPORTED_MEDIA_TYPE": "Định dạng không hỗ trợ (.xls cần lưu lại thành .xlsx)",
     "DUPLICATE_RESOURCE": "File này đã được import trước đó",
-    "AI_PROVIDER_ERROR": "Không kết nối được nhà cung cấp mô hình AI. Kiểm tra dịch vụ model (vd OmniRoute) hoặc thử lại sau."
+    "AI_PROVIDER_ERROR": "Không kết nối được nhà cung cấp mô hình AI. Kiểm tra dịch vụ model (vd OmniRoute) hoặc thử lại sau.",
+    "forbiddenData": "Anh/chị không có quyền truy cập dữ liệu này (theo vai trò hoặc khối phụ trách).",
+    "notFoundData": "Không tìm thấy dữ liệu, hoặc dữ liệu nằm ngoài phạm vi của anh/chị.",
+    "FORBIDDEN_SALARY": "Anh/chị không có quyền xem thông tin lương."
   },
   "auth": {
     "title": "Đăng nhập Aureon",
@@ -197,7 +200,8 @@
         "q4": "Quý 4 ({period})"
       }
     },
-    "fivePillarLink": "Xem bố cục 5 trụ"
+    "fivePillarLink": "Xem bố cục 5 trụ",
+    "alertsPageTitle": "Cảnh báo & rủi ro đang mở"
   },
   "metricDetail": {
     "title": "Chi tiết chỉ số",
@@ -1876,6 +1880,10 @@
         "fieldName": "Tên trường",
         "send": "Gửi"
       }
+    },
+    "failReason": {
+      "EXTRACTION_FAILED": "AI không trích xuất được dữ liệu — tải lại tài liệu hoặc nhập tay.",
+      "MALWARE": "Tệp chứa mã độc, đã cô lập."
     }
   },
   "aiAdmin": {
@@ -2313,7 +2321,8 @@
         "in_use": "Micro đang bận.",
         "too_long": "Ghi âm quá dài — chỉ dùng cho ghi chú ngắn.",
         "unknown": "Không ghi âm được. Anh/chị thử lại.",
-        "meetingBlocked": "Không ghi âm cuộc họp qua kênh này (R-DEC-22)."
+        "meetingBlocked": "Không ghi âm cuộc họp qua kênh này (R-DEC-22).",
+        "sttUnavailable": "Máy chủ chưa bật chuyển giọng nói thành văn bản (STT). Anh/chị dán hoặc gõ nội dung vào ô bên trên."
       }
     },
     "preview": {
@@ -2335,6 +2344,17 @@
       "matched": "Khớp",
       "ambiguous": "Chưa rõ",
       "unmatched": "Không khớp"
+    },
+    "tabs": {
+      "label": "Họp & lịch",
+      "meetings": "Cuộc họp",
+      "calendar": "Lịch"
+    },
+    "list": {
+      "title": "Cuộc họp gần đây",
+      "empty": "Chưa có cuộc họp nào trong phạm vi của anh/chị.",
+      "noSummary": "Chưa có biên bản tóm tắt.",
+      "fromDocument": "Từ biên bản tải lên"
     }
   },
   "calendar": {
@@ -2399,7 +2419,8 @@
       "decisions": "Nhật ký quyết định",
       "reports": "Báo cáo",
       "documents": "Tài liệu"
-    }
+    },
+    "noTabs": "Vai trò của anh/chị không có mục Tri thức & báo cáo nào để xem. Nhật ký quản trị nằm ở Quản trị → Nhật ký."
   },
   "decisions": {
     "title": "Nhật ký quyết định",

@@ -29,22 +29,21 @@ export function ExecutiveView() {
         {d.tiles.map((m) => <MetricTile key={m.metric_code} m={m} />)}
       </section>
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {d.sei && (
-          <Card className="p-4" data-testid="exec-sei">
-            <h2 className="text-sm font-medium text-muted-foreground">{t("sei")}</h2>
-            <MetricTile m={d.sei} />
-          </Card>
-        )}
+        {/* SEI is one metric tile like Revenue / Runway — the tile already carries its name, status and drill-down (no second card + heading) */}
+        {d.sei && <div data-testid="exec-sei"><MetricTile m={d.sei} /></div>}
         <Link href="/work/approvals" className="block">
-          <Card className="flex items-center gap-3 p-4" data-testid="exec-decisions">
+          <Card className="flex items-center gap-3 p-4 transition-colors hover:border-primary hover:bg-muted" data-testid="exec-decisions">
             <ClipboardCheck className="h-5 w-5 text-primary" aria-hidden />
             <span>{t("decisionsWaiting", { count: d.decisions_waiting.count })}</span>
           </Card>
         </Link>
-        <Card className="flex items-center gap-3 p-4" data-testid="exec-risks">
-          <AlertTriangle className="h-5 w-5 text-danger" aria-hidden />
-          <span>{t("openRisks", { count: d.open_risks.count })}</span>
-        </Card>
+        {/* `open_risks` = open alerts (EP-15) → their list, each alert opens its metric (03 §4) */}
+        <Link href="/home/alerts" className="block" data-testid="exec-risks-link">
+          <Card className="flex items-center gap-3 p-4 transition-colors hover:border-primary hover:bg-muted" data-testid="exec-risks">
+            <AlertTriangle className="h-5 w-5 text-danger" aria-hidden />
+            <span>{t("openRisks", { count: d.open_risks.count })}</span>
+          </Card>
+        </Link>
       </section>
       <InsightsPanel />
       <Card className="p-4" data-testid="exec-ai-done">

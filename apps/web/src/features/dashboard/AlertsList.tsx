@@ -1,10 +1,12 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
+import { QueryError } from "@/components/QueryError";
 import { api, apiRequest } from "@/lib/api-client";
 import { formatMetric, type AppLocale } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
@@ -59,12 +61,7 @@ export function AlertsList({ units, canWrite }: { units: Record<string, string>;
       </CardHeader>
       <CardContent>
         {query.isPending && <div className="h-24 animate-pulse rounded bg-muted" />}
-        {query.isError && (
-          <div className="flex items-center gap-3 text-sm text-danger">
-            {t("dashboard.alertsError")}
-            <Button size="sm" variant="outline" onClick={() => void query.refetch()}>{t("buttons.retry")}</Button>
-          </div>
-        )}
+        {query.isError && <QueryError error={query.error} onRetry={() => void query.refetch()} testId="alerts-error" />}
         {query.isSuccess && alerts.length === 0 && <p className="text-sm text-muted-foreground">{t("dashboard.alertsEmpty")}</p>}
         <ul className="divide-y">
           {alerts.map((a) => (
@@ -73,13 +70,14 @@ export function AlertsList({ units, canWrite }: { units: Record<string, string>;
                 <span aria-hidden>{a.severity === "critical" ? "○" : "◐"}</span>
                 {t(`dashboard.severity.${a.severity}`)}
               </Badge>
-              <span className="min-w-0 flex-1 text-sm font-medium">
+              {/* detail = the metric's own page (EP-12 + lineage, R-DEC-156) */}
+              <Link href={`/home/metrics/${encodeURIComponent(a.metric_code)}`} className="min-w-0 flex-1 text-sm font-medium hover:text-primary hover:underline" data-testid="alert-open">
                 {t("dashboard.alertTitle", {
                   metric: t(`metric.${a.metric_code}` as "metric.METRIC-FIN-01"),
                   value: fmt(a.metric_code, a.value),
                   threshold: fmt(a.metric_code, a.threshold),
                 })}
-              </span>
+              </Link>
               {a.pillar && <Badge variant="outline">{a.pillar} · {t(`pillar.${a.pillar}.name`)}</Badge>}
               <span className="text-xs text-muted-foreground tabular-nums">{age(a.raised_at)}</span>
               {a.status === "acknowledged" ? (
