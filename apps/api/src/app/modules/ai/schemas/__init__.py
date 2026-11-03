@@ -168,6 +168,9 @@ class CostRowOut(BaseModel):
     cost_usd: float
     error_rate: float
     p95_ms: int = 0
+    # R-DEC-155: calls that used tokens on a cloud provider but were stored at $0 because
+    # `MODEL_PRICING_JSON` had no `provider:model` price → the cost is unknown, not zero.
+    unpriced_calls: int = 0
 
 
 class CostSummaryOut(BaseModel):

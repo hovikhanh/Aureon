@@ -63,7 +63,9 @@ function usage(req: MockRequest): Response {
   }
   const round = (x: number) => Number(x.toFixed(4));
   const rows = [...by.entries()].map(([key, ms]) => ({ key, calls: ms.length, tokens_in: ms.reduce((s, m) => s + m.tokens_in, 0), tokens_out: ms.reduce((s, m) => s + m.tokens_out, 0),
-    cost_usd: round(ms.reduce((s, m) => s + m.cost_usd, 0)), error_rate: round(ms.filter((m) => m.status !== "ok").length / ms.length), p95_ms: p95(ms.map((m) => m.latency_ms)) }))
+    cost_usd: round(ms.reduce((s, m) => s + m.cost_usd, 0)), error_rate: round(ms.filter((m) => m.status !== "ok").length / ms.length), p95_ms: p95(ms.map((m) => m.latency_ms)),
+    // R-DEC-155: a cloud call with tokens stored at $0 has no price (local Ollama is free by design)
+    unpriced_calls: ms.filter((m) => m.cost_usd === 0 && m.tokens_in + m.tokens_out > 0 && m.provider !== "ollama").length }))
     .sort((a, b) => b.cost_usd - a.cost_usd);
   const used = round(calls.reduce((s, m) => s + m.cost_usd, 0));
   const pct = Number(((used / BUDGET_USD) * 100).toFixed(1));

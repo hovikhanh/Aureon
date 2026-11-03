@@ -697,6 +697,7 @@ export type CostRowOut = {
   cost_usd: number;
   error_rate: number;
   p95_ms?: number;
+  unpriced_calls?: number;
 };
 
 export type CostSummaryOut = {

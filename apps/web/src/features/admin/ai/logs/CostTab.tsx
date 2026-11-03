@@ -2,6 +2,7 @@
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +49,7 @@ export function CostTab() {
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-            <tr>{["key", "calls", "tokens", "cost", "errorRate", "p95"].map((c) => <th key={c} className="px-3 py-2">{t(`cost.${c}`)}</th>)}</tr>
+            <tr>{["key", "calls", "tokens", "cost", "unpriced", "errorRate", "p95"].map((c) => <th key={c} className="px-3 py-2">{t(`cost.${c}`)}</th>)}</tr>
           </thead>
           <tbody>
             {rows.map((r) => (
@@ -57,11 +58,12 @@ export function CostTab() {
                 <td className="px-3 py-2">{formatNumber(r.calls, locale, 0)}</td>
                 <td className="px-3 py-2">{formatNumber(r.tokens_in, locale, 0)} / {formatNumber(r.tokens_out, locale, 0)}</td>
                 <td className="px-3 py-2 font-mono text-xs">{usd4(r.cost_usd)}</td>
+                <td className="px-3 py-2" data-testid="cost-unpriced">{r.unpriced_calls ? <Badge variant="warning" title={t("unpricedHint")}>{formatNumber(r.unpriced_calls, locale, 0)}</Badge> : "—"}</td>
                 <td className="px-3 py-2">{formatPct(r.error_rate * 100, locale)}</td>
                 <td className="px-3 py-2">{r.p95_ms != null ? `${formatNumber(r.p95_ms, locale, 0)} ms` : "—"}</td>
               </tr>
             ))}
-            {u.isSuccess && rows.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{t("empty")}</td></tr>}
+            {u.isSuccess && rows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{t("empty")}</td></tr>}
           </tbody>
         </table>
       </div>

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
 from app.core.errors import BadRequestError
+from app.core.model_gateway.routing import LOCAL_PROVIDERS
 from app.core.tenant import require_tenant
 from app.modules.ai.models import ModelCallLog
 from app.modules.ai.schemas import CostRowOut, CostSummaryOut
@@ -71,6 +72,16 @@ class CostService:
         end = end or now
         key_col = _GROUP_COLUMN[group_by]
         is_error = case((ModelCallLog.status != "ok", 1), else_=0)
+        # local (on-prem) models are free by design; a cloud call with tokens but $0 is unpriced
+        unpriced = case(
+            (
+                (ModelCallLog.estimated_cost_micro_usd == 0)
+                & ((ModelCallLog.tokens_in + ModelCallLog.tokens_out) > 0)
+                & ModelCallLog.provider.not_in(LOCAL_PROVIDERS),
+                1,
+            ),
+            else_=0,
+        )
         stmt = (
             select(
                 key_col.label("key"),
@@ -78,6 +89,7 @@ class CostService:
                 func.coalesce(func.sum(ModelCallLog.tokens_in), 0).label("tokens_in"),
                 func.coalesce(func.sum(ModelCallLog.tokens_out), 0).label("tokens_out"),
                 func.coalesce(func.sum(ModelCallLog.estimated_cost_micro_usd), 0).label("micro"),
+                func.coalesce(func.sum(unpriced), 0).label("unpriced"),
                 func.coalesce(cast(func.avg(cast(is_error, Float)), Float), 0.0).label(
                     "error_rate"
                 ),
@@ -107,6 +119,7 @@ class CostService:
                     cost_usd=int(r.micro) / _MICRO,
                     error_rate=round(float(r.error_rate), 4),
                     p95_ms=int(r.p95_ms),
+                    unpriced_calls=int(r.unpriced),
                 )
             )
         budget = float(get_config().ai_monthly_budget_usd)

@@ -93,7 +93,8 @@
     "UNDO_EXPIRED": "The 7-day undo window has passed",
     "FILE_TOO_LARGE": "File exceeds the limit",
     "UNSUPPORTED_MEDIA_TYPE": "Unsupported format (save .xls as .xlsx)",
-    "DUPLICATE_RESOURCE": "This file was already imported"
+    "DUPLICATE_RESOURCE": "This file was already imported",
+    "AI_PROVIDER_ERROR": "The AI model provider could not be reached. Check the model service (e.g. OmniRoute) or try again later."
   },
   "auth": {
     "title": "Sign in to Aureon",
@@ -221,7 +222,10 @@
     "dataSource": "Data source",
     "lineage": "View data lineage",
     "stale": "Stale data (over {hours}h old)",
-    "freshnessStale": "stale"
+    "freshnessStale": "stale",
+    "forbidden": "You are not allowed to view this metric.",
+    "notFound": "This metric was not found.",
+    "backHome": "Back to home"
   },
   "metric": {
     "METRIC-FIN-01": "Revenue vs target",
@@ -1334,6 +1338,87 @@
       "BAD_REQUEST": "Invalid request.",
       "IDEMPOTENCY_CONFLICT": "Duplicate request.",
       "generic": "Something went wrong. Please try again shortly."
+    },
+    "editor": {
+      "required": "Required.",
+      "number": "Enter a number (comma or dot for decimals).",
+      "tooLong": "Too long.",
+      "periodInvalid": "Period must be YYYY, YYYY-MM or YYYY-Qn (e.g. 2026-Q4).",
+      "codeInvalid": "Code may only contain letters, digits and . _ -",
+      "ownerSelf": "Me (creator)",
+      "createKpi": "Create KPI",
+      "editKpi": "Edit KPI",
+      "code": "KPI code",
+      "unit": "Unit",
+      "name": "Name",
+      "target": "Target",
+      "periodType": "Period type",
+      "direction": "Good direction",
+      "valueType": "Value type",
+      "statusLabel": "Status",
+      "owner": "Owner",
+      "kpiCreated": "KPI {code} created.",
+      "kpiUpdated": "KPI {code} updated.",
+      "createObjective": "Create Objective",
+      "editObjective": "Edit Objective",
+      "title": "Title",
+      "period": "Period",
+      "level": "Level",
+      "okrType": "OKR type",
+      "objectiveCreated": "Objective created.",
+      "objectiveUpdated": "Objective updated.",
+      "activateHint": "A new OKR starts as Draft. Add 2–5 key results, then set it to Active.",
+      "createKr": "Add key result",
+      "editKr": "Edit key result",
+      "baseline": "Baseline",
+      "krCreated": "Key result added.",
+      "krUpdated": "Key result updated.",
+      "progressHint": "Current value and progress only change through a check-in.",
+      "archive": {
+        "kpi": "Archive KPI",
+        "objective": "Archive objective",
+        "kr": "Archive key result"
+      },
+      "archiveConfirm": "Archive \"{name}\"? It disappears from the goal tree; its measurement history is kept.",
+      "archiveAction": "Archive",
+      "archived": "\"{name}\" archived.",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "closed": "Closed"
+      },
+      "periodTypes": {
+        "MONTH": "Month",
+        "QUARTER": "Quarter",
+        "YEAR": "Year",
+        "ROLLING_12M": "Rolling 12 months"
+      },
+      "directions": {
+        "HIGHER_IS_BETTER": "Higher is better",
+        "LOWER_IS_BETTER": "Lower is better",
+        "WITHIN_RANGE": "Within range",
+        "BINARY": "Met / not met"
+      },
+      "valueTypes": {
+        "numeric": "Number",
+        "percentage": "Percentage",
+        "ratio": "Ratio",
+        "currency": "Currency",
+        "duration": "Duration",
+        "count": "Count"
+      },
+      "levels": {
+        "company": "Company",
+        "department": "Department",
+        "team": "Team",
+        "individual": "Individual"
+      },
+      "okrTypes": {
+        "committed": "Committed",
+        "aspirational": "Aspirational"
+      }
     }
   },
   "capture": {
@@ -2072,8 +2157,26 @@
       "tokens": "Tokens in/out",
       "cost": "Cost (USD)",
       "errorRate": "Error rate",
-      "p95": "p95"
-    }
+      "p95": "p95",
+      "unpriced": "Unpriced"
+    },
+    "summary": {
+      "title": "{period}: model calls",
+      "calls": "Model calls",
+      "tokens": "Tokens in / out",
+      "cost": "Estimated cost",
+      "errors": "Errors / timeouts",
+      "error": "Could not load the AI usage summary.",
+      "unpriced": "{count} cloud provider calls have no price (MODEL_PRICING_JSON) — the real cost is higher than shown."
+    },
+    "filter": {
+      "provider": "Provider",
+      "model": "Model",
+      "status": "Status",
+      "all": "All"
+    },
+    "unpriced": "unpriced",
+    "unpricedHint": "This call used tokens but provider:model has no MODEL_PRICING_JSON price, so it was stored at $0 — the cost is unknown, not free."
   },
   "onboarding": {
     "title": "Company onboarding",

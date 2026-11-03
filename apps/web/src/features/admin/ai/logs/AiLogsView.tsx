@@ -9,6 +9,7 @@ import { CostTab } from "./CostTab";
 import { ModelCallsTab } from "./ModelCallsTab";
 import { ToolCallsTab } from "./ToolCallsTab";
 import { defaultRange, rangeQuery, type LogFilter } from "./log-logic";
+import { UsageSummary } from "./UsageSummary";
 
 const TABS = ["tool", "model", "cost"] as const;
 type Tab = (typeof TABS)[number];
@@ -34,6 +35,7 @@ export function AiLogsView() {
       <AdminHeader title={t("title")} hint={t("subtitle")}>
         <Link href="/admin/ai" className="text-sm text-primary hover:underline">{t("back")}</Link>
       </AdminHeader>
+      <UsageSummary />
       <div role="tablist" aria-label={t("title")} className="flex gap-1 border-b">
         {TABS.map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} aria-controls={`logs-panel-${k}`} onClick={() => setTab(k)} data-testid={`logs-tab-${k}`}

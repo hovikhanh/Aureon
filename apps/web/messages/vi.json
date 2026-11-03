@@ -93,7 +93,8 @@
     "UNDO_EXPIRED": "Đã quá hạn hoàn tác 7 ngày",
     "FILE_TOO_LARGE": "File vượt giới hạn",
     "UNSUPPORTED_MEDIA_TYPE": "Định dạng không hỗ trợ (.xls cần lưu lại thành .xlsx)",
-    "DUPLICATE_RESOURCE": "File này đã được import trước đó"
+    "DUPLICATE_RESOURCE": "File này đã được import trước đó",
+    "AI_PROVIDER_ERROR": "Không kết nối được nhà cung cấp mô hình AI. Kiểm tra dịch vụ model (vd OmniRoute) hoặc thử lại sau."
   },
   "auth": {
     "title": "Đăng nhập Aureon",
@@ -221,7 +222,10 @@
     "dataSource": "Nguồn dữ liệu",
     "lineage": "Xem nguồn gốc dữ liệu (lineage)",
     "stale": "Dữ liệu cũ (quá {hours} giờ)",
-    "freshnessStale": "cũ"
+    "freshnessStale": "cũ",
+    "forbidden": "Bạn không có quyền xem chỉ số này.",
+    "notFound": "Không tìm thấy chỉ số này.",
+    "backHome": "Về trang chủ"
   },
   "metric": {
     "METRIC-FIN-01": "Doanh thu vs kế hoạch",
@@ -1334,6 +1338,87 @@
       "BAD_REQUEST": "Yêu cầu chưa hợp lệ.",
       "IDEMPOTENCY_CONFLICT": "Yêu cầu trùng lặp.",
       "generic": "Đã có lỗi xảy ra. Anh/chị thử lại sau ít phút."
+    },
+    "editor": {
+      "required": "Bắt buộc nhập.",
+      "number": "Nhập một số (dùng dấu phẩy hoặc chấm cho phần thập phân).",
+      "tooLong": "Quá dài.",
+      "periodInvalid": "Kỳ phải có dạng YYYY, YYYY-MM hoặc YYYY-Qn (vd 2026-Q4).",
+      "codeInvalid": "Mã chỉ gồm chữ không dấu, số và . _ -",
+      "ownerSelf": "Tôi (người tạo)",
+      "createKpi": "Tạo KPI",
+      "editKpi": "Sửa KPI",
+      "code": "Mã KPI",
+      "unit": "Đơn vị",
+      "name": "Tên",
+      "target": "Mục tiêu",
+      "periodType": "Loại kỳ",
+      "direction": "Chiều tốt",
+      "valueType": "Kiểu giá trị",
+      "statusLabel": "Trạng thái",
+      "owner": "Người phụ trách",
+      "kpiCreated": "Đã tạo KPI {code}.",
+      "kpiUpdated": "Đã cập nhật KPI {code}.",
+      "createObjective": "Tạo Objective",
+      "editObjective": "Sửa Objective",
+      "title": "Tiêu đề",
+      "period": "Kỳ",
+      "level": "Cấp",
+      "okrType": "Loại OKR",
+      "objectiveCreated": "Đã tạo Objective.",
+      "objectiveUpdated": "Đã cập nhật Objective.",
+      "activateHint": "OKR mới ở trạng thái Nháp. Thêm 2–5 Key Result rồi chuyển sang Đang chạy.",
+      "createKr": "Thêm Key Result",
+      "editKr": "Sửa Key Result",
+      "baseline": "Giá trị đầu kỳ",
+      "krCreated": "Đã thêm Key Result.",
+      "krUpdated": "Đã cập nhật Key Result.",
+      "progressHint": "Giá trị hiện tại và tiến độ chỉ cập nhật qua check-in.",
+      "archive": {
+        "kpi": "Lưu trữ KPI",
+        "objective": "Lưu trữ Objective",
+        "kr": "Lưu trữ Key Result"
+      },
+      "archiveConfirm": "Lưu trữ \"{name}\"? Mục này sẽ ẩn khỏi cây mục tiêu; lịch sử đo lường được giữ lại.",
+      "archiveAction": "Lưu trữ",
+      "archived": "Đã lưu trữ \"{name}\".",
+      "cancel": "Hủy",
+      "edit": "Sửa",
+      "status": {
+        "draft": "Nháp",
+        "active": "Đang chạy",
+        "closed": "Đã đóng"
+      },
+      "periodTypes": {
+        "MONTH": "Tháng",
+        "QUARTER": "Quý",
+        "YEAR": "Năm",
+        "ROLLING_12M": "12 tháng cuốn chiếu"
+      },
+      "directions": {
+        "HIGHER_IS_BETTER": "Càng cao càng tốt",
+        "LOWER_IS_BETTER": "Càng thấp càng tốt",
+        "WITHIN_RANGE": "Trong khoảng",
+        "BINARY": "Đạt / không đạt"
+      },
+      "valueTypes": {
+        "numeric": "Số",
+        "percentage": "Phần trăm",
+        "ratio": "Tỷ lệ",
+        "currency": "Tiền tệ",
+        "duration": "Thời lượng",
+        "count": "Số lượng"
+      },
+      "levels": {
+        "company": "Công ty",
+        "department": "Phòng ban",
+        "team": "Nhóm",
+        "individual": "Cá nhân"
+      },
+      "okrTypes": {
+        "committed": "Cam kết",
+        "aspirational": "Kỳ vọng"
+      }
     }
   },
   "capture": {
@@ -2072,8 +2157,26 @@
       "tokens": "Token vào/ra",
       "cost": "Chi phí (USD)",
       "errorRate": "Tỷ lệ lỗi",
-      "p95": "p95"
-    }
+      "p95": "p95",
+      "unpriced": "Chưa có giá"
+    },
+    "summary": {
+      "title": "Tháng {period}: lượt gọi model",
+      "calls": "Lượt gọi model",
+      "tokens": "Token vào / ra",
+      "cost": "Chi phí ước tính",
+      "errors": "Lỗi / timeout",
+      "error": "Không tải được tổng hợp sử dụng AI.",
+      "unpriced": "{count} lượt gọi provider cloud chưa có bảng giá (MODEL_PRICING_JSON) — chi phí thực tế cao hơn số hiển thị."
+    },
+    "filter": {
+      "provider": "Provider",
+      "model": "Model",
+      "status": "Trạng thái",
+      "all": "Tất cả"
+    },
+    "unpriced": "chưa có giá",
+    "unpricedHint": "Lượt gọi có token nhưng provider:model chưa có giá trong MODEL_PRICING_JSON nên lưu $0 — đây là chi phí chưa biết, không phải miễn phí."
   },
   "onboarding": {
     "title": "Onboarding doanh nghiệp",
