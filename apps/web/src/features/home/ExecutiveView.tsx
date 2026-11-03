@@ -28,9 +28,11 @@ export function ExecutiveView() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="exec-tiles">
         {d.tiles.map((m) => <MetricTile key={m.metric_code} m={m} />)}
       </section>
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {/* SEI is one metric tile like Revenue / Runway — the tile already carries its name, status and drill-down (no second card + heading) */}
-        {d.sei && <div data-testid="exec-sei"><MetricTile m={d.sei} /></div>}
+      {/* same grid as the tile row → SEI gets the exact column width of Revenue / Runway */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="exec-row2">
+        {/* SEI = one MetricTile (the tile already shows name, value, status, drill-down) — no outer Card + heading.
+            The wrapper only carries the test id; `grid` makes the single Card fill the cell like the tiles above. */}
+        {d.sei && <div className="grid" data-testid="exec-sei"><MetricTile m={d.sei} /></div>}
         <Link href="/work/approvals" className="block">
           <Card className="flex items-center gap-3 p-4 transition-colors hover:border-primary hover:bg-muted" data-testid="exec-decisions">
             <ClipboardCheck className="h-5 w-5 text-primary" aria-hidden />

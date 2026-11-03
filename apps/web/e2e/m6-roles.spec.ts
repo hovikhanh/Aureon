@@ -45,6 +45,29 @@ test.describe("M6 · CEO", () => {
     }
   });
 
+  test("SEI tile has the same single-Card box as Revenue / Runway; no Card-in-Card in any Home level", { tag: "@mock" }, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginSettled(page, "ceo@abc.demo");
+    await page.goto("/home");
+    const sei = page.getByTestId("exec-sei").getByTestId("metric-tile");
+    const revenue = page.getByTestId("exec-tiles").getByTestId("metric-tile").first();
+    await expect(sei).toBeVisible();
+    const box = (l: typeof sei) => l.evaluate((el) => {
+      const r = el.getBoundingClientRect(); const c = getComputedStyle(el);
+      return { w: Math.round(r.width), h: Math.round(r.height), pad: c.padding, border: `${c.borderTopWidth} ${c.borderTopStyle}`, radius: c.borderTopLeftRadius, shadow: c.boxShadow, bg: c.backgroundColor };
+    });
+    expect(await box(sei)).toEqual(await box(revenue));
+    // a metric tile (itself the Card) must never sit inside another Card (`rounded-lg border bg-card`)
+    const nested = () => page.locator("[data-testid=metric-tile]").evaluateAll((els) =>
+      els.filter((el) => el.parentElement?.closest(".rounded-lg.border.bg-card")).length);
+    expect(await nested()).toBe(0);
+    for (const level of ["department", "employee", "executive"] as const) {
+      await page.getByTestId(`level-${level}`).click();
+      await expect(page.getByTestId({ executive: "exec-view", department: "dept-view", employee: "emp-view" }[level])).toBeVisible();
+      expect(await nested(), level).toBe(0);
+    }
+  });
+
   test("Khối/Phòng · Dự án trễ hạn opens the projects list filtered to late projects", { tag: "@mock" }, async ({ page }) => {
     await loginSettled(page, "ceo@abc.demo");
     await page.goto("/home");
