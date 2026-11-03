@@ -110,6 +110,19 @@ async def decision_reviews(db: AsyncSession) -> int:
     return await MeetingService(db).remind_due_reviews(business_today())
 
 
+async def purge_import_rows(db: AsyncSession) -> dict[str, int]:
+    from app.modules.idp.services.retention_service import purge_import_rows as purge
+
+    return await purge(db)
+
+
+async def sweep_orphan_storage(db: AsyncSession) -> dict[str, int]:
+    from app.modules.idp.services.retention_service import sweep_orphan_storage as sweep
+
+    out = await sweep(db)
+    return {k: v for k, v in out.items() if isinstance(v, int)}
+
+
 @celery_app.task(name="app.jobs.daily_burn_check", **JOB_LIMITS)  # type: ignore[untyped-decorator]
 def daily_burn_check() -> bool:
     return bool(asyncio.run(_run(burn_check)))
@@ -175,3 +188,19 @@ def decision_reviews_job() -> int:
     """M3.3 T-821 (R-DEC-135): daily Decision Log 30/60/90 review reminder to the owner,
     idempotent per (decision, review date)."""
     return int(asyncio.run(_run(decision_reviews)))
+
+
+@celery_app.task(name="app.jobs.purge_import_rows", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def purge_import_rows_job() -> dict[str, int]:
+    """T-1010 (05 §2.7 / OQ-05-11): drop C5 `import_rows` of finished batches whose 7-day undo
+    window closed. Idempotent — a second run finds nothing. `extracted_fields` are kept."""
+    out = asyncio.run(_run(purge_import_rows))
+    return dict(out or {"batches": 0, "rows": 0})
+
+
+@celery_app.task(name="app.jobs.sweep_orphan_storage", **JOB_LIMITS)  # type: ignore[untyped-decorator]
+def sweep_orphan_storage_job() -> dict[str, int]:
+    """T-1011 (handover `IDP_Operations.md` §5.1 as code): report object-store files with no
+    `source_documents` row; deletes them only when `IDP_ORPHAN_SWEEP_DELETE=true`."""
+    out = asyncio.run(_run(sweep_orphan_storage))
+    return dict(out or {"scanned": 0, "orphans": 0, "deleted": 0})

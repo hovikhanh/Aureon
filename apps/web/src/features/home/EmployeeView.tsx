@@ -20,7 +20,7 @@ export function EmployeeView() {
   return (
     <div className="flex flex-col gap-6" data-testid="emp-view">
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Link href="/work/tasks?mine=true&overdue=true" className="block">
+        <Link href="/work" className="block">
           <Card className="p-4" data-testid="emp-tasks">{t("myTasks", { overdue: d.my_tasks.overdue, today: d.my_tasks.today, week: d.my_tasks.this_week })}</Card>
         </Link>
         <Card className="p-4" data-testid="emp-goals">{t("myGoals", { kpis: d.my_goals.kpis, krs: d.my_goals.krs })}</Card>

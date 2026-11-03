@@ -42,6 +42,15 @@
     "title": "Sắp có",
     "body": "Màn hình này được xây đầy đủ ở phase {phase}."
   },
+  "businessHub": {
+    "empty": "Bạn chưa được cấp quyền xem màn hình nào trong mục Kinh doanh.",
+    "cards": {
+      "finance": { "title": "Tài chính", "desc": "Ngân sách, dòng tiền, runway và mức sử dụng ngân sách." },
+      "sales": { "title": "Kinh doanh", "desc": "Pipeline theo giai đoạn, giá trị trọng số và tỷ lệ thắng." },
+      "invoices": { "title": "Hóa đơn", "desc": "Danh sách hóa đơn và trạng thái thanh toán." },
+      "employees": { "title": "Nhân sự", "desc": "Danh sách nhân viên theo phòng ban." }
+    }
+  },
   "buttons": {
     "login": "Đăng nhập",
     "logout": "Đăng xuất",
@@ -1374,7 +1383,9 @@
     },
     "channel": {
       "C1": "Nhập tay (C1)",
+      "C2": "Ngôn ngữ tự nhiên (C2)",
       "C3": "Tải file (C3)",
+      "C4": "Ảnh (C4)",
       "C5": "Import bảng (C5)"
     },
     "action": {

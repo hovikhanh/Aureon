@@ -163,6 +163,58 @@ Catalog `platform/services/catalog.py` giữ **34 mã `METRIC-*`** (không đổ
 
 > Chỉ số `p1_frozen` (Risk nghiệp vụ + Product) **không** hiện dashboard v3 và **không** quảng bá cho AI (R-DEC-16); giữ catalog để tái dùng ở phase sau. `METRIC-RSK-*` ở đây là 5 chỉ số rủi ro nghiệp vụ (khác SEI đã chuyển sang nhóm STR).
 
+### 4.2. Danh mục đầy đủ 34 `METRIC-*` (bảng gương của catalog — 2026-11-02)
+
+> §4.1 chỉ ánh xạ **nhóm v3 ↔ catalog** mà không liệt kê mã; doc set v3 vì vậy không truy nguyên được
+> từng chỉ số (ngưỡng, hướng, event recompute) — xem `deliverables/M4-CONFORMANCE-PLAN.md` GAP-05.
+> Bảng dưới là **bảng gương của code**: nguồn là `apps/api/src/app/modules/platform/services/catalog.py`
+> (`CATALOG`), giữ đồng bộ 2 chiều bằng `tests/contract/test_catalog_conformance.py`.
+>
+> **Hướng:** `LOWER_IS_BAD` = thấp hơn ngưỡng là xấu · `HIGHER_IS_BAD` = cao hơn ngưỡng là xấu
+> (vd `METRIC-CUS-02` đo **mức giảm** win rate so kỳ trước → giảm > 10% cảnh báo, > 20% nghiêm trọng,
+> đúng §4 dòng "Win rate … giảm > 20%"). **Ngưỡng là cấu hình** (NFR-19) — bảng ghi giá trị mặc định
+> trong catalog, không phải hằng số nghiệp vụ bất biến. Chỉ số có `event recompute` được tính lại
+> **in-tx** bởi consumer; còn lại do job `recompute_metrics` (beat, 1 instance).
+
+| `METRIC-*` | Tên (VI) | Group | Pillar | Đơn vị | Hướng | Ngưỡng warn/crit | Module nguồn | Event recompute |
+|---|---|---|---|---|---|---|---|---|
+| `METRIC-CUS-01` | Pipeline coverage | CUS | C | RATIO | LOWER_IS_BAD | 2.8/2.5 | `sales` | — (job `recompute_metrics`) |
+| `METRIC-CUS-02` | Win rate | CUS | C | PERCENT | HIGHER_IS_BAD | 10/20 | `sales` | `sales.deal_closed_won`, `sales.deal_closed_lost` |
+| `METRIC-CUS-03` | NRR | CUS | C | PERCENT | LOWER_IS_BAD | 100/90 | `sales` | `finance.invoice_paid` |
+| `METRIC-CUS-04` | Tập trung doanh thu top 5 | CUS | C | PERCENT | HIGHER_IS_BAD | 50/65 | `sales` | — (job `recompute_metrics`) |
+| `METRIC-CUS-05` | NPS | CUS | C | SCORE | LOWER_IS_BAD | 30/0 | `sales` | — (job `recompute_metrics`) |
+| `METRIC-CUS-06` | Chu kỳ bán TB | CUS | C | DAYS | HIGHER_IS_BAD | 20/40 | `sales` | `sales.deal_closed_won` |
+| `METRIC-DQ-01` | Data Quality Score | DQ | None | SCORE | LOWER_IS_BAD | 80/60 | `platform` | `idp.document_committed`, `idp.document_rolled_back` |
+| `METRIC-DQ-02` | Bản ghi mới vào qua tài liệu/NL | DQ | None | PERCENT | LOWER_IS_BAD | 60/40 | `capture` | `idp.document_committed`, `idp.document_rolled_back` |
+| `METRIC-FIN-01` | Doanh thu vs kế hoạch | FIN | F | PERCENT | LOWER_IS_BAD | 90/80 | `finance` | `finance.invoice_paid` |
+| `METRIC-FIN-02` | Biên lợi nhuận gộp | FIN | F | PERCENT | HIGHER_IS_BAD | 3/5 | `finance` | — (job `recompute_metrics`) |
+| `METRIC-FIN-03` | Cash runway | FIN | F | MONTHS | LOWER_IS_BAD | 12/6 | `finance` | — (job `recompute_metrics`) |
+| `METRIC-FIN-04` | DSO | FIN | F | DAYS | HIGHER_IS_BAD | 15/30 | `finance` | `finance.invoice_paid` |
+| `METRIC-FIN-05` | Công nợ quá hạn | FIN | F | PERCENT | HIGHER_IS_BAD | 15/25 | `finance` | — (job `recompute_metrics`) |
+| `METRIC-FIN-06` | Chênh lệch ngân sách | FIN | F | PERCENT | HIGHER_IS_BAD | 0/10 | `finance` | `finance.budget_exceeded` |
+| `METRIC-FIN-07` | Net burn vs dự báo | FIN | F | PERCENT | HIGHER_IS_BAD | 10/25 | `finance` | `finance.burn_over_forecast`, `finance.forecast_updated` |
+| `METRIC-HR-01` | Doanh thu / nhân sự | PPL | O | VND_PER_PERSON | HIGHER_IS_BAD | 15/25 | `hr` | `hr.employee_onboarded` |
+| `METRIC-HR-02` | Turnover năm hóa | PPL | O | PERCENT | HIGHER_IS_BAD | 15/20 | `hr` | `hr.employee_terminated` |
+| `METRIC-HR-03` | Quá tải | OPS | O | PERCENT | HIGHER_IS_BAD | 10/20 | `execution` | — (job `recompute_metrics`) |
+| `METRIC-HR-04` | Kế hoạch tuyển dụng trễ | PPL | O | COUNT | HIGHER_IS_BAD | 1/45 | `hr` | `hr.hiring_plan_delayed` |
+| `METRIC-OPS-01` | Task đúng hạn | OPS | O | PERCENT | LOWER_IS_BAD | 80/65 | `execution` | `execution.task_overdue` |
+| `METRIC-OPS-02` | Dự án trễ | OPS | O | PERCENT | HIGHER_IS_BAD | 20/35 | `execution` | — (job `recompute_metrics`) |
+| `METRIC-OPS-03` | Thực thi quyết định | OPS | O | PERCENT | LOWER_IS_BAD | 70/50 | `execution` | `idp.document_committed` |
+| `METRIC-PRD-01` **(P1-frozen)** | Adoption / MAU | None | U | COUNT | HIGHER_IS_BAD | 10/20 | `product` | — (job `recompute_metrics`) |
+| `METRIC-PRD-02` **(P1-frozen)** | Churn | None | U | PERCENT | HIGHER_IS_BAD | 25/50 | `product` | `product.metric_anomaly` |
+| `METRIC-PRD-03` **(P1-frozen)** | Retention 30 ngày | None | U | PERCENT | LOWER_IS_BAD | 40/25 | `product` | — (job `recompute_metrics`) |
+| `METRIC-PRD-04` **(P1-frozen)** | Roadmap đúng tiến độ | None | U | PERCENT | LOWER_IS_BAD | 70/50 | `product` | — (job `recompute_metrics`) |
+| `METRIC-PRD-05` **(P1-frozen)** | Tính năng release trong kỳ | None | U | PERCENT | LOWER_IS_BAD | 70/40 | `product` | `product.feature_released` |
+| `METRIC-RSK-01` **(P1-frozen)** | Rủi ro high/critical đang mở | None | S | COUNT | HIGHER_IS_BAD | 1/1 | `risk` | `risk.risk_identified`, `risk.risk_level_changed` |
+| `METRIC-RSK-02` **(P1-frozen)** | Rủi ro high chưa có chủ | None | S | COUNT | HIGHER_IS_BAD | 1/1 | `risk` | `risk.risk_identified` |
+| `METRIC-RSK-03` **(P1-frozen)** | Rủi ro high > 30 ngày không có mitigation | None | S | COUNT | HIGHER_IS_BAD | 1/1 | `risk` | — (job `recompute_metrics`) |
+| `METRIC-RSK-04` **(P1-frozen)** | Điểm rủi ro tổng hợp | None | S | SCORE | HIGHER_IS_BAD | 10/15 | `risk` | `risk.risk_level_changed` |
+| `METRIC-RSK-05` **(P1-frozen)** | Biện pháp quá hạn | None | S | COUNT | HIGHER_IS_BAD | 1/5 | `risk` | `risk.risk_mitigated` |
+| `METRIC-STR-01` | KPI/OKR cập nhật đúng kỳ | STR | S | PERCENT | LOWER_IS_BAD | 80/60 | `execution` | `execution.kpi_measured`, `execution.okr_checked_in` |
+| `METRIC-STR-02` | Strategy execution index (SEI) | STR | S | PERCENT | LOWER_IS_BAD | 70/50 | `execution` | `execution.kpi_measured` |
+
+<!-- total 34 metrics, 10 p1_frozen -->
+
 ## 5. Insight & khuyến nghị — cấu trúc 9 phần (BRD §11.8)
 
 Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuyến nghị) theo đúng cấu trúc 9 phần; thiếu phần nào thì nêu rõ thiếu, không bịa:
@@ -225,8 +277,9 @@ Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuy
 
 ## Version
 - **Version:** 1.0.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-02
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — M4 doc↔code conformance, R-DEC-149, 2026-11-02):** §4.2 mới — bảng gương đầy đủ **34 `METRIC-*`** (group, pillar, đơn vị, hướng, ngưỡng warn/crit, module nguồn, event recompute) sinh từ `platform/services/catalog.py`; §4.1 trước đó chỉ ánh xạ nhóm mà không liệt kê mã (GAP-05). Giữ đồng bộ 2 chiều bằng `TC-M4-04b`.
 - **Change 1.1.0 (human duyệt bước S M2.1, 2026-10-31):** §1.1 ghi 4 ô Executive mặc định + cơ chế preference (R-DEC-87); §4 đổi SEI → `METRIC-STR-02` (R-DEC-83) + ghi chú freshness `SLA_FRESHNESS_*` (R-DEC-86); §4.1 mới — bảng ánh xạ nhóm v3 (FIN/CUS/OPS/PPL/STR/DQ) ↔ catalog (R-DEC-82), Risk nghiệp vụ + Product giữ `p1_frozen`.
 - **Change 1.0.1 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §4 thêm dòng `METRIC-STR-01` (G2, R-DEC-54) và `METRIC-DQ-02` (G3, R-DEC-68) + ghi chú mã đã cấp (SEI giữ `METRIC-RSK-06`, DQ theo domain = breakdown `METRIC-DQ-01`).
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).

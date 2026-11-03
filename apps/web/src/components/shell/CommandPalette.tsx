@@ -62,7 +62,7 @@ export function CommandPalette() {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label={t("title")} data-testid="command-palette" onMouseDown={() => setOpen(false)}>
-      <div className="w-full max-w-lg overflow-hidden rounded-xl border bg-popover shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border bg-card shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b px-3">
           <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)}

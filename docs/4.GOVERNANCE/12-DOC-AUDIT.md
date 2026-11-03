@@ -22,18 +22,18 @@ Cột **last_reviewed** = ngày rà soát/mở rộng gần nhất. Cột **Gate
 | 00 | INDEX | 0.2.0 | ✅ current | R0 | 2026-10-22 | ✅ | — |
 | 01 | PROJECT-OVERVIEW | 0.3.0 | ✅ current | R0 | 2026-10-23 | ✅ | §1,§2,§19,§20 |
 | 02 | PERSONAS-PERMISSIONS | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §3,§5.2,§11.6,§17 |
-| 03 | DASHBOARD-SPEC | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §11.8,§12 |
+| 03 | DASHBOARD-SPEC | 0.3.0 | ✅ current | R1 | 2026-11-02 | ✅ | §11.8,§12 |
 | 04 | IDP-FEATURE-SPEC | 0.3.0 | ✅ current | R1 | 2026-10-23 | ✅ | §6 |
-| 05 | DATA-MODEL | 1.2.0 | ✅ current | R2 | 2026-10-23 | ✅ | §13 |
+| 05 | DATA-MODEL | 1.2.0 | ✅ current | R2 | 2026-11-02 | ✅ | §13 |
 | 06 | UI-UX-SPEC | 1.1.0 | ✅ current | R2 | 2026-10-23 | ✅ | UIUX full |
 | 07 | TECH-ARCHITECTURE | 0.3.0 | ✅ current | R2 | 2026-10-23 | ✅ | §11,§16,§17,§18 |
 | 08 | DEMO-DATA-SPEC | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19.1,§20.2 |
-| 09 | BUILD-PLAN-TASKS | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §19 |
-| 10 | API-SPECIFICATION | 1.1.0 | ✅ current | R2 | 2026-10-23 | ✅ | §11.2-4,§6.10 |
+| 09 | BUILD-PLAN-TASKS | 1.1.0 | ✅ current | R3 | 2026-11-02 | ✅ | §19 |
+| 10 | API-SPECIFICATION | 1.1.0 | ✅ current | R2 | 2026-11-02 | ✅ | §11.2-4,§6.10 |
 | 11 | AGENT-WORKFLOW | 0.3.0 | ✅ current | R3 | 2026-10-23 | ✅ | §11 |
 | 12 | DOC-AUDIT (file này) | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | — |
-| 13 | DECISION-LOG | 1.2.0 | ✅ current | R3 | 2026-10-23 | ✅ | §21.1 |
-| 14 | TEST-TRACEABILITY | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | §14,§15 |
+| 13 | DECISION-LOG | 1.2.0 | ✅ current | R3 | 2026-11-02 | ✅ | §21.1 |
+| 14 | TEST-TRACEABILITY | 1.1.0 | ✅ current | R3 | 2026-11-02 | ✅ | §14,§15 |
 
 **Tiến độ:** 00–14 đã có bản AI-EOS (15/15) + 2 file khung. Q1–Q6 **đã chốt** (13 §1, R-DEC-05..10) — không đảo quyết định. Vòng spec-level P0 **mở rộng spec-level** cho các file domain/sản phẩm (01–12, 14): bổ sung chiều SẢN PHẨM (FR/UC/flow/rule/trạng thái/màn hình), giữ nguyên các ghi chú "chi tiết hóa ở đợt code (R-DEC-09)". Toàn bộ đã được human promote **✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC**.
 

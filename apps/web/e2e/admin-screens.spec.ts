@@ -94,7 +94,14 @@ test.describe("M1.2 admin screens (TC-M12-18)", { tag: ["@mock", "@mock-only"] }
     await login(page, "hr@abc.demo");
     await expect(page.getByTestId("nav-admin")).toBeVisible();
     await page.goto("/admin");
-    await expect(page.getByTestId("admin-cards").locator("a")).toHaveCount(2);
+    // DIR khối O sees exactly the cards its permissions open (lib/permissions.ts ADMIN_ROUTES):
+    // org + positions (`hr:admin`, pillar O) and the MVP acceptance gate (`dashboard:read`,
+    // any DIR — EP-RPT-08). Asserting the identities, not a count, so adding a card for another
+    // role cannot silently break this and a wrongly-opened card is named in the failure.
+    await expect(page.getByTestId("admin-card-org")).toBeVisible();
+    await expect(page.getByTestId("admin-card-positions")).toBeVisible();
+    await expect(page.getByTestId("admin-card-acceptance")).toBeVisible();
+    await expect(page.getByTestId("admin-cards").locator("a")).toHaveCount(3);
     await page.goto("/admin/users");
     await expect(page.getByTestId("forbidden")).toBeVisible();
     await page.goto("/admin/org");

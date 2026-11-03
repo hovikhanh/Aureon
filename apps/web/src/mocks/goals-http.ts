@@ -1,6 +1,7 @@
 /** Shared request helpers of the mock goals routes (10 §7.2.3 "Quy ước chung M1.4"). */
 import { MockHttpError } from "./http";
 import type { MockRequest } from "./router";
+import { workToday } from "./work-store";
 
 export const err = (status: number, code: string, message: string, details: Record<string, unknown> = {}) => new MockHttpError(status, code, message, details);
 export const biz = (message: string, details: Record<string, unknown>) => err(422, "BUSINESS_RULE_VIOLATION", message, details);
@@ -49,6 +50,16 @@ export function oneOf<T extends string>(b: Record<string, unknown>, field: strin
   return v as T;
 }
 export const nowIso = () => new Date().toISOString();
+/**
+ * Timestamp of a KPI/OKR check-in or measurement — mirrors the API's `measured_now()` /
+ * `core.clock.business_now()` (08 §1, DD-05): live time-of-day, date moved onto the business day
+ * (`DEMO_REFERENCE_DATE` in demo). With the raw wall clock a check-in made today lands outside
+ * the business week the UI queries (`businessToday()`), so the MGR team feed showed it as empty.
+ */
+export function measuredNowIso(now: Date = new Date(), day: string = workToday()): string {
+  const iso = now.toISOString();
+  return iso.slice(0, 10) === day ? iso : `${day}${iso.slice(10)}`;
+}
 export const strip = <T extends { deleted: boolean }>(r: T): Omit<T, "deleted"> => {
   const { deleted: _d, ...rest } = r;
   void _d;

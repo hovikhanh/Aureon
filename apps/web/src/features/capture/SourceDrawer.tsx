@@ -54,7 +54,14 @@ export function SourceDrawer({ documentId, filename, page: initial = 1, onClose 
               {canFrame && <a href={state.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary" data-testid="source-open"><ExternalLink className="h-4 w-4" aria-hidden />{t("capture.source.open")}</a>}
             </div>
             {state.kind === "frame" && (
-              <iframe src={state.url} title={title} className="h-[70vh] w-full rounded border bg-muted" data-testid="source-frame" sandbox="" onError={() => setFrameFailed(true)} />
+              // No `sandbox` attribute on purpose: Chromium's built-in PDF viewer refuses to render
+              // inside ANY sandboxed <iframe> (verified across every flag combination — images still
+              // render, PDFs stay blank), which forced users to open PDFs in a new tab. Isolation is
+              // instead enforced on the served file itself: files.py returns
+              // `Content-Security-Policy: default-src 'none'; frame-ancestors 'self'` + `nosniff`, so
+              // the framed document cannot run scripts, load sub-resources, or be framed cross-origin
+              // even without an iframe sandbox. A raw PDF/image byte stream has no active content.
+              <iframe src={state.url} title={title} className="h-[70vh] w-full rounded border bg-muted" data-testid="source-frame" onError={() => setFrameFailed(true)} />
             )}
             {state.kind === "text" && (
               <pre className="h-[70vh] overflow-auto whitespace-pre-wrap rounded border bg-muted p-3 text-xs" data-testid="source-text">{state.text}</pre>

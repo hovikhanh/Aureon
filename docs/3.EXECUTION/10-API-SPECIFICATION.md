@@ -125,6 +125,84 @@ BRD §11.2 (24 tool) + §6.10 tool IDP (10): quan hệ 1-1 hoặc 1-n; ID `TOOL-
 
 - Kiểm chéo tự động: test `test_tool_registry_m16.py` đọc `brd_name` của mọi `ToolDef` ⇒ mọi tên BRD P0 có ≥ 1 `TOOL-*` hoặc nằm trong danh sách "không là tool"/"hoãn".
 
+### 2.3. Danh mục đầy đủ 54 `TOOL-*` (R-DEC-149, 2026-11-02)
+
+> **Vì sao có mục này:** §2.2 chỉ ánh xạ **tên BRD ↔ `TOOL-*`**, doc set v3 không có bảng liệt kê
+> từng tool kèm metadata (bảng đầy đủ chỉ còn ở `docs/_archive/v2.1/`), trong khi CLAUDE.md §5.5
+> quy định "chỉ thêm `TOOL-*` đã có trong bảng 10 §7" → quy tắc trỏ vào bảng không tồn tại (GAP-03).
+> Bảng dưới đây là **bảng gương của code**: nguồn là `apps/api/src/app/modules/ai/tools/registry.py`
+> (`TOOLS`, validate 13 metadata lúc import qua `spec.validate_tool`); doc và code được giữ đồng bộ
+> **2 chiều** bằng `tests/contract/test_catalog_conformance.py` — thêm/xóa/đổi tool mà không cập nhật
+> bảng này (hoặc ngược lại) sẽ **fail contract test**.
+>
+> Đọc bảng: **Kind** READ / WRITE / APPROVAL / EXECUTION (§3) · **Permission** = `required_permissions`
+> (tool ghi cần cả `ai:write` **và** `<domain>:write` — CLAUDE §5.5) · **Class.** = `data_classification`
+> (CONF = Confidential → local LLM; INTE = Internal → cloud chain) · **Autonomy** mặc định/tối đa
+> (L4 khóa) · **Approval** theo Approval Matrix 02 §8 · **Revers.** quyết định được phép L3 + cửa sổ
+> undo 24 h · **`ACT-*`** = action Registry tương ứng khi tool ghi (§6/§7.2.4).
+>
+> Tool `không gửi model` (`declare_to_model=false`) = lớp APPROVAL: chạy server-side, **AI không bao
+> giờ tự gọi**. Tool **P1-frozen** (product/risk — R-DEC-16) chạy được nhưng không advertise cho model.
+
+| `TOOL-*` | Kind | Domain | Permission | Risk | Class. | Autonomy (def/max) | Approval | Revers. | Cost | `ACT-*` | Ghi chú |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `TOOL-approve_request` | APPROVAL | platform | `platform:approve` | high | CONF | L0/L0 | always | ✘ | low | — | không gửi model |
+| `TOOL-reject_request` | APPROVAL | platform | `platform:approve` | medium | CONF | L0/L0 | always | ✘ | low | — | không gửi model |
+| `TOOL-send_notification` | EXECUTION | platform | `ai:write` | low | INTE | L3/L3 | never | ✘ | low | `ACT-send_notification` | EP-NTF-01 |
+| `TOOL-get_lineage` | READ | dashboard | `dashboard:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-14 |
+| `TOOL-get_metric` | READ | dashboard | `dashboard:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-12 |
+| `TOOL-list_alerts` | READ | dashboard | `dashboard:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-15 |
+| `TOOL-get_execution_dashboard` | READ | execution | `execution:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-49 |
+| `TOOL-get_kpi_status` | READ | execution | `execution:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-KPI-01 |
+| `TOOL-get_okr_status` | READ | execution | `execution:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-OKR-01/03/06 |
+| `TOOL-get_overdue_tasks` | READ | execution | `execution:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-TASK-01 overdue=true |
+| `TOOL-get_project_status` | READ | execution | `execution:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-TASK-11 |
+| `TOOL-list_objectives` | READ | execution | `execution:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-OKR-01 |
+| `TOOL-list_tasks` | READ | execution | `execution:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-TASK-01 |
+| `TOOL-get_budget_status` | READ | finance | `finance:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-64 |
+| `TOOL-get_cash_flow_forecast` | READ | finance | `finance:read` | medium | INTE | L0/L0 | never | n/a | low | — | EP-128 |
+| `TOOL-get_finance_dashboard` | READ | finance | `finance:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-60 |
+| `TOOL-get_finance_forecast` | READ | finance | `finance:read` | medium | INTE | L0/L0 | never | n/a | low | — | EP-66.L |
+| `TOOL-get_runway_what_if` | READ | finance | `finance:query` | low | INTE | L0/L0 | never | n/a | medium | — | compute |
+| `TOOL-list_expenses` | READ | finance | `finance:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-62.L |
+| `TOOL-list_invoices` | READ | finance | `finance:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-67.L |
+| `TOOL-get_hr_dashboard` | READ | hr | `hr:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-80 |
+| `TOOL-get_org_tree` | READ | hr | `hr:read` | low | INTE | L0/L0 | never | n/a | low | — | EP-ORG-24 |
+| `TOOL-get_workload` | READ | hr | `hr:query` | low | CONF | L0/L0 | never | n/a | medium | — | EP-87 |
+| `TOOL-list_hiring_plans` | READ | hr | `hr:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-84.L |
+| `TOOL-get_source_document` | READ | idp | `idp:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-DC-02 |
+| `TOOL-search_documents` | READ | idp | `idp:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-24 |
+| `TOOL-get_product_dashboard` | READ | product | `product:query` | low | INTE | L0/L0 | never | n/a | low | — | **P1-frozen** |
+| `TOOL-get_product_metrics` | READ | product | `product:query` | low | INTE | L0/L0 | never | n/a | low | — | **P1-frozen** |
+| `TOOL-get_risk_dashboard` | READ | risk | `risk:query` | low | INTE | L0/L0 | never | n/a | low | — | **P1-frozen** |
+| `TOOL-list_risks` | READ | risk | `risk:read` | medium | CONF | L0/L0 | never | n/a | medium | — | **P1-frozen** |
+| `TOOL-run_risk_scenario` | READ | risk | `risk:query` | medium | INTE | L0/L0 | never | n/a | high | — | **P1-frozen**, compute |
+| `TOOL-get_sales_dashboard` | READ | sales | `sales:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-70 |
+| `TOOL-get_sales_pipeline` | READ | sales | `sales:query` | low | INTE | L0/L0 | never | n/a | low | — | EP-75 |
+| `TOOL-list_deals` | READ | sales | `sales:read` | medium | CONF | L0/L0 | never | n/a | medium | — | EP-72.L |
+| `TOOL-generate_report` | WRITE | dashboard | `ai:write` + `dashboard:read` | low | INTE | L2/L2 | never | ✘ | high | `ACT-generate_report` | EP-121 |
+| `TOOL-request_approval` | WRITE | dashboard | `ai:write` + `dashboard:read` | medium | CONF | L2/L2 | never | ✔ | low | `ACT-request_approval` | EP-123.C |
+| `TOOL-assign_task` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L3 | never | ✔ | low | `ACT-assign_task` | EP-TASK-04 |
+| `TOOL-create_meeting` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L3/L3 | never | ✔ | low | `ACT-create_meeting` | EP-42.C |
+| `TOOL-create_task` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L3/L3 | never | ✔ | low | `ACT-create_task` | EP-TASK-02 |
+| `TOOL-execute_recommendation` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L3/L3 | never | ✔ | low | `ACT-execute_recommendation` | EP-TASK-02 |
+| `TOOL-record_decision` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L3/L3 | never | ✔ | low | `ACT-record_decision` | EP-43.C |
+| `TOOL-record_kpi_measurement` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L3 | never | ✔ | low | `ACT-record_kpi_measurement` | EP-KPI-07 |
+| `TOOL-record_kr_checkin` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L3 | never | ✔ | low | `ACT-record_kr_checkin` | EP-PRF-02 |
+| `TOOL-update_task` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L3 | never | ✔ | low | `ACT-update_task` | EP-TASK-04 |
+| `TOOL-upsert_kpi` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L2 | never | ✔ | low | `ACT-upsert_kpi` | EP-KPI-02 |
+| `TOOL-upsert_objective` | WRITE | execution | `ai:write` + `execution:write` | medium | CONF | L2/L2 | never | ✔ | low | `ACT-upsert_objective` | EP-OKR-02 |
+| `TOOL-create_invoice` | WRITE | finance | `ai:write` + `finance:write` | high | CONF | L2/L3 | threshold | ✔ | low | `ACT-create_invoice` | EP-67.C |
+| `TOOL-record_expense` | WRITE | finance | `ai:write` + `finance:write` | high | CONF | L2/L3 | threshold | ✔ | low | `ACT-record_expense` | EP-62.C |
+| `TOOL-create_department` | WRITE | hr | `ai:write` + `hr:admin` | medium | INTE | L2/L2 | never | ✔ | low | `ACT-create_department` | EP-ORG-07 |
+| `TOOL-create_team` | WRITE | hr | `ai:write` + `hr:admin` | medium | INTE | L2/L2 | never | ✔ | low | `ACT-create_team` | EP-ORG-12 |
+| `TOOL-submit_document` | WRITE | idp | `ai:write` + `idp:write` | medium | CONF | L2/L2 | never | ✔ | medium | `ACT-submit_document` | EP-DC-01 |
+| `TOOL-create_mitigation` | WRITE | risk | `ai:write` + `risk:write` | medium | CONF | L2/L2 | never | ✔ | low | `ACT-create_mitigation` | **P1-frozen** |
+| `TOOL-upsert_risk` | WRITE | risk | `ai:write` + `risk:write` | medium | CONF | L2/L2 | never | ✔ | low | `ACT-upsert_risk` | **P1-frozen** |
+| `TOOL-upsert_deal` | WRITE | sales | `ai:write` + `sales:write` | high | CONF | L2/L2 | never | ✔ | low | `ACT-upsert_deal` | EP-72 |
+
+<!-- total 54 tools -->
+
 ## 3. Phân loại tool + quy tắc quyền/approval (BRD §11.3)
 
 Mỗi tool thuộc đúng một trong 4 loại; loại quyết định quy tắc quyền, Autonomy mặc định và approval:
@@ -609,11 +687,13 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 
 **Prefix (R-DEC-84):** nhóm RPT (D28) dùng `/reporting/*` + giữ `/dashboard/*` (EP-11/12/15/16/17 v2.1). `/execution/dashboard` (EP-49) **giữ nguyên** tới khi hợp nhất.
 
+**Permission 3 cấp (R-DEC-147, sửa drift 2026-11-02):** EP-RPT-01 (Executive) = `dashboard:read` (chỉ CEO/DIR giữ quyền này — 02 §5.2); EP-RPT-02 (Department) và EP-RPT-03 (Employee) = **`execution:read`**, vì MGR/EMP **không** có `dashboard:read` → nếu gác bằng `dashboard:read` thì dashboard Department/Employee trả `403 FORBIDDEN_ROLE` cho đúng tập người dùng của nó. Data scope vẫn siết riêng (`department_subtree` cho RPT-02, `employee_id` từ JWT cho RPT-03), nên `execution:read` không mở rộng dữ liệu nhìn thấy. Kiểm bằng máy: `tests/contract/test_catalog_conformance.py`.
+
 | EP | Method | Path | Permission | EP v2.1 | Ghi chú (request → response) |
 |---|---|---|---|---|---|
 | EP-RPT-01 | GET | `/reporting/dashboards/executive` | `dashboard:read` | — | CEO toàn DN / DIR theo khối (`scope_pillars`, R-DEC-85). → `ExecutiveDashboardOut` `{summary_line, tiles: MetricValueOut[] (≤4, theo preference EP-RPT-04 lọc scope), sei: MetricValueOut \| null (METRIC-STR-02), decisions_waiting: {count, items: [{id, title_key, params, kind}]} (Approval + Decision Log ref), open_risks: {count, items: AlertOut[] (severity desc)}, ai_done: {count, items: [{ai_action_id, action_name, created_at, undo_deadline?}]} (L3 feed), generated_at}`. EMP → `403 FORBIDDEN_ROLE`. Cache 60s + Vary |
-| EP-RPT-02 | GET | `/reporting/dashboards/department` | `dashboard:read` | — | DIR/MGR theo phòng + phòng con (`department_subtree`, `core/org_scope.py`). Query `department_id?` (mặc định phòng của người gọi; ngoài subtree → `403 FORBIDDEN_SCOPE`). → `DepartmentDashboardOut` `{department_id, department_name, kpis: MetricValueOut[], okrs: {at_risk_count, items}, workload: {overloaded_count, heatmap_ref: "/work/workload?week="}, late_projects: {count, items}, due_tasks: {overdue, today, this_week}, generated_at}`. EMP → `403`. Cache 60s + Vary |
-| EP-RPT-03 | GET | `/reporting/dashboards/employee` | `dashboard:read` (token) | — | Của chính người gọi (`employee_id` từ JWT). → `EmployeeDashboardOut` `{my_tasks: {overdue, today, this_week, blocked}, my_goals: {kpis, krs}, pending_checkins: [{target_type, target_id, label, period_key}], workload_week: {planned_pct, status}, upcoming: {calendar_hint} (M3.1 mới đầy đủ), generated_at}`. Không hiển thị dữ liệu ngoài scope cá nhân. Cache 60s + Vary |
+| EP-RPT-02 | GET | `/reporting/dashboards/department` | `execution:read` | — | DIR/MGR theo phòng + phòng con (`department_subtree`, `core/org_scope.py`). Query `department_id?` (mặc định phòng của người gọi; ngoài subtree → `403 FORBIDDEN_SCOPE`). → `DepartmentDashboardOut` `{department_id, department_name, kpis: MetricValueOut[], okrs: {at_risk_count, items}, workload: {overloaded_count, heatmap_ref: "/work/workload?week="}, late_projects: {count, items}, due_tasks: {overdue, today, this_week}, generated_at}`. EMP → `403`. Cache 60s + Vary |
+| EP-RPT-03 | GET | `/reporting/dashboards/employee` | `execution:read` (token) | — | Của chính người gọi (`employee_id` từ JWT). → `EmployeeDashboardOut` `{my_tasks: {overdue, today, this_week, blocked}, my_goals: {kpis, krs}, pending_checkins: [{target_type, target_id, label, period_key}], workload_week: {planned_pct, status}, upcoming: {calendar_hint} (M3.1 mới đầy đủ), generated_at}`. Không hiển thị dữ liệu ngoài scope cá nhân. Cache 60s + Vary |
 | EP-RPT-04 | GET | `/reporting/preferences/executive-tiles` | `dashboard:read` | — | → `{tiles: string[] (metric_code), version}`. Chưa lưu → mặc định R-DEC-87 (`METRIC-FIN-01/FIN-03/STR-01/OPS-01`), `version=0`. `no-store` |
 | EP-RPT-05 | PUT | `/reporting/preferences/executive-tiles` | `dashboard:write` | — | `{tiles: string[] (≤4), version}` → `{tiles, version}`. Validate: mỗi code ∈ catalog (khác → `422 VALIDATION_ERROR`), trong scope người lưu (ngoài → `422 BUSINESS_RULE_VIOLATION`, `details.reason=out_of_scope`), `len>4` → `422`. Idempotency-Key. Audit `platform.preference_update` |
 
@@ -635,12 +715,12 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 | EP-FIN-02 | POST/GET/PATCH/DELETE | `/finance/revenues[/{id}]` | `finance:write`/`finance:read` | EP-60 | CRUD Revenue; `amount` BIGINT |
 | EP-FIN-03 | * | `/finance/expenses[/{id}]` | `finance:write`/`finance:read` | EP-61 | CRUD Expense |
 | EP-FIN-04 | * | `/finance/cash-positions[/{id}]` | `finance:write`/`finance:read` | EP-62 | CRUD CashPosition (số dư kỳ) |
-| EP-FIN-05 | * | `/finance/budgets[/{id}]`, `/finance/budgets/status` | `finance:write`/`finance:query` | EP-63 | Ngân sách + variance `BudgetStatusOut` |
+| EP-FIN-05 | * | `/finance/budgets[/{id}]`, `/finance/budgets/status` | `finance:write`/`finance:read`/`finance:query` | EP-63 | Ngân sách + variance `BudgetStatusOut` |
 | EP-FIN-06 | * | `/finance/forecasts[/{id}]` | `finance:write`/`finance:read` | EP-64 | Dự báo |
 | EP-FIN-07 | * | `/finance/invoices[/{id}]`, `/pay` | `finance:write`/`finance:read` | EP-65 | Hóa đơn (nối IDP `ACT-create_invoice`) |
 | EP-FIN-08 | GET | `/finance/dashboard` | `finance:query` | EP-66 | `FinanceDashboardOut`; cache 60s + Vary |
 | EP-FIN-09 | GET | `/finance/what-if/runway` | `finance:query` | EP-67 | Runway what-if |
-| EP-FIN-10 | GET/POST | `/finance/cash-flow-forecast[/recompute]` | `finance:query`/`finance:write` | EP-68 | Dự báo dòng tiền; recompute `202` |
+| EP-FIN-10 | GET/POST | `/finance/cash-flow-forecast[/recompute]` | `finance:read`/`finance:query`/`finance:write` | EP-68 | Dự báo dòng tiền; recompute `202` |
 | EP-SAL-01 | * | `/sales/clients[/{id}]` | `sales:write`/`sales:read` | EP-70 | CRUD Client (= Lead, R-DEC-90) |
 | EP-SAL-02 | * | `/sales/deals[/{id}]` | `sales:write`/`sales:read` | EP-71 | CRUD Deal (= Opportunity) |
 | EP-SAL-03 | POST/GET | `/sales/deals/{id}/stage`, `/stage-history` | `sales:write`/`sales:read` | EP-72 | Đổi stage (→closed_won/lost phát event §9.2); lịch sử |
@@ -739,6 +819,59 @@ Eval **chạy bằng CLI** `python -m app.scripts.run_eval [--suite S] [--prompt
 - **Nguồn G1–G4 (reuse-only, R-DEC-145):** G1 = adoption Briefing (đếm ngày có `opened_at` trong `weeks` tuần qua **BriefingService**, ngưỡng ≥ 4 ngày/tuần × 4 tuần); G2 = `METRIC-STR-01` (giá trị mới nhất qua **MetricQueryService**, ngưỡng ≥ 80%); G3 = `METRIC-DQ-02` (ngưỡng ≥ 60%); G4 = số sự cố ghi sai trường trọng yếu **không bị phát hiện** (`IncidentService.list(undetected_only=True)`, ngưỡng = 0 → `pass` khi count=0, ngược lại `fail`). **Không** ENT/metric/event/tool mới; chỉ một EP đọc hợp nhất. `AcceptanceService` đặt ở module **`ai`** (lớp aggregator trên cùng — đã phụ thuộc dashboard/idp/platform) để tránh chu trình import `dashboard → ai`; EP vẫn mount ở `/reporting/acceptance`.
 - **Instrumentation G1–G4 đã có** (R-DEC-26): EP-AI-26 ghi `opened_at` (G1), consumer recompute `METRIC-STR-01` (G2), `METRIC-DQ-02` (G3), `ENT-CaptureIncident.undetected` (G4). Trang đo chỉ **đọc** — ngưỡng G1–G4 thật xác nhận ở thí điểm (OQ-09-04), ngoài đợt code.
 - **FE M3.5** (R-DEC-145): `/admin/acceptance` bảng 4 cổng (status badge pass/warning/fail/no_data, value + ngưỡng, link nguồn); logic thuần Vitest; i18n vi/en. Phần stack-real (E2E 7 bước, NFR, pilot) hoãn (không có DB trong môi trường code).
+
+### 7.3. EP catalog nền v2.1 — gán ID v3 (R-DEC-148, 2026-11-02)
+
+> **Vì sao có mục này:** §7.2 chỉ gán EP id v3 cho các domain làm theo phase M1–M3 (+ finance/sales ở
+> M2.2). 64 route **đang chạy** kế thừa nền v2.1 (product, risk, execution meeting/decision,
+> hr hiring-plan/salary-history/workload/dashboard, dashboard metric/alert, platform dead-letter)
+> chưa có EP row nào trong doc set v3 → không truy nguyên được và không kiểm được bằng máy (GAP-02).
+> *(Đính chính 2026-11-03: bản đầu ghi 69 route và thêm `EP-GOL-01` cho milestones — sai, 5 route
+> milestones đã có `EP-STR-17..21` ở §7.2.3; cột "EP v2.1" bản đầu điền theo dải số, nay lấy đúng
+> từ chú thích route trong code và được `TC-M4-16` kiểm.)* Mục này **gán ID v3 cho route sẵn có**, giữ **nguyên path, method,
+> permission, hành vi** — **không** thêm/sửa/bỏ endpoint, **không** đổi contract. Permission trong
+> bảng là permission **thật** trong code (`require_permission`), đã xác minh bằng
+> `tests/contract/test_catalog_conformance.py` (3 chiều: EP→route, route→EP, permission).
+>
+> **P1-frozen (R-DEC-16):** `product` (EP-PRD-*) và `risk` (EP-RSK-*) là domain P1 — giữ nguyên để
+> không hồi quy, **không mở rộng** ở P0; tool của 2 domain này mang `p1_frozen` (không advertise cho
+> model). Thêm field/endpoint cho 2 domain này cần DEC riêng.
+>
+> Quy ước chung: envelope/phân trang/mã lỗi §10/§1.4 (**không mã lỗi mới**); `POST` ghi bắt buộc
+> `Idempotency-Key`; `PATCH` nhận `version`/`If-Match` (lệch → `409 CONFLICT_STATE`); mutation ghi
+> `ENT-AuditLog` + outbox §9.2 in-tx; repository lọc `tenant_id`; `DELETE` = soft delete → `204`.
+
+| EP | Method | Path | Permission | EP v2.1 | Ghi chú |
+|---|---|---|---|---|---|
+| EP-PRD-01 | GET | `/product/dashboard` | `product:query` | EP-90 | `ProductDashboardOut`; cache 60s + `Vary: Authorization`. **P1-frozen** |
+| EP-PRD-02 | GET/POST/PATCH/DELETE | `/product/features`, `/product/features/{id}` | `product:read`/`product:write` | EP-92 | CRUD Feature. **P1-frozen** |
+| EP-PRD-03 | GET/POST/PATCH/DELETE | `/product/products`, `/product/products/{id}` | `product:read`/`product:write` | EP-91 | CRUD Product. **P1-frozen** |
+| EP-PRD-04 | GET/POST | `/product/products/{id}/metrics` | `product:query`/`product:write` | EP-95 | Snapshot chỉ số sản phẩm `ENT-ProductMetric` (đọc `product:query`, ghi `product:write`). **P1-frozen** |
+| EP-PRD-05 | GET/POST/PATCH | `/product/releases`, `/product/releases/{id}` | `product:read`/`product:write` | EP-94 | Release (`release_version` — DEC-154, không dùng `version` trần). **P1-frozen** |
+| EP-PRD-06 | GET/POST/PATCH/DELETE | `/product/roadmap-items`, `/product/roadmap-items/{id}` | `product:read`/`product:write` | EP-93 | Roadmap item. **P1-frozen** |
+| EP-RSK-01 | GET | `/risk/dashboard` | `risk:query` | EP-100 | `RiskDashboardOut`; cache 60s + `Vary`. **P1-frozen** |
+| EP-RSK-02 | GET/POST/PATCH | `/risk/mitigations`, `/risk/mitigations/{id}` | `risk:read`/`risk:write` | EP-103 | Biện pháp giảm thiểu. **P1-frozen** |
+| EP-RSK-03 | GET/POST/PATCH | `/risk/risks`, `/risk/risks/{id}` | `risk:read`/`risk:write` | EP-101 | CRUD Risk (`risk_source` — DEC-154). **P1-frozen** |
+| EP-RSK-04 | POST | `/risk/risks/{id}/accept` | `risk:approve` | EP-104 | Chấp nhận rủi ro (cần `risk:approve`). **P1-frozen** |
+| EP-RSK-05 | GET/POST | `/risk/risks/{id}/assessments` | `risk:read`/`risk:write` | EP-102 | Đánh giá rủi ro: `likelihood`, `impact` thang 1–5 (CHECK constraint). **P1-frozen** |
+| EP-RSK-06 | POST | `/risk/risks/{id}/status` | `risk:write` | EP-106 | Đổi trạng thái rủi ro. **P1-frozen** |
+| EP-RSK-07 | POST | `/risk/scenarios` | `risk:query` | EP-105 | What-if kịch bản: **lưu** `ENT-Scenario` + audit `risk.scenario_run`; mỗi domain được gọi có timeout, lỗi → `{status: "unavailable"}`. **P1-frozen** |
+| EP-EXE-01 | GET | `/execution/dashboard` | `execution:query` | EP-49 | `ExecutionDashboardOut`; cache 60s + `Vary`. Giữ tới khi hợp nhất với `/reporting/*` (R-DEC-84) |
+| EP-EXE-02 | GET/POST/PATCH | `/execution/decisions`, `/execution/decisions/{id}` | `execution:read`/`execution:write` | EP-43 | Decision Log (`execution.decisions`); job `decision_reviews` nhắc review theo `review_at` 30/60/90 (R-DEC-135). Khối "Cần quyết" của EP-RPT-01 **không** đọc bảng này mà đọc hàng chờ phê duyệt (`ApprovalService.inbox`) |
+| EP-EXE-03 | GET/POST/PATCH/DELETE | `/execution/meetings`, `/execution/meetings/{id}` | `execution:read`/`execution:write` | EP-42 | Họp (ghi qua `TOOL-create_meeting` → `ACT-create_meeting`); biên bản AI ở `ENT-MeetingSummary` (M2.3) |
+| EP-HR-06 | GET | `/hr/dashboard` | `hr:query` | EP-80 | `HrDashboardOut`; cache 60s + `Vary` |
+| EP-HR-07 | GET/POST | `/hr/employees/{id}/salary-history` | `hr:read`/`hr:write` | EP-83 | **Dữ liệu mức 4** — chỉ ROLE-CEO và ROLE-DIR khối O thấy giá trị (02 §6.2, `core/field_policy.sees_level4`); MGR/EMP bị mask; ROLE-ADM không đọc bản ghi nghiệp vụ HR (scope `s`). Mask cả trong audit/event/prompt |
+| EP-HR-08 | GET/POST/PATCH/DELETE | `/hr/hiring-plans`, `/hr/hiring-plans/{id}` | `hr:read`/`hr:write` | EP-84 | Kế hoạch tuyển dụng (job `detect_late_hiring` đọc) |
+| EP-HR-09 | POST | `/hr/hiring-plans/{id}/approve` | `hr:approve` | EP-86 | Duyệt **hoặc từ chối** kế hoạch (`ApprovalIn`): `submitted → approved | rejected` |
+| EP-HR-10 | POST | `/hr/hiring-plans/{id}/submit` | `hr:write` | EP-85 | Trình duyệt: `draft → submitted` |
+| EP-HR-11 | GET | `/hr/workload` | `hr:query` | EP-87 | Tải việc theo người/phòng (`METRIC-HR-03`); cache 60s + `Vary` |
+| EP-DSH-01 | GET | `/dashboard/alerts` | `dashboard:read` | EP-15 | Danh sách alert (`no-store`); nguồn khối "Rủi ro" EP-RPT-01 |
+| EP-DSH-02 | POST | `/dashboard/alerts/{id}/acknowledge` | `dashboard:write` | EP-16 | Ghi nhận alert; audit `dashboard.alert_acknowledge` |
+| EP-DSH-03 | POST | `/dashboard/alerts/{id}/dismiss` | `dashboard:write` | EP-17 | Bỏ qua alert; audit `dashboard.alert_dismiss` |
+| EP-DSH-04 | GET | `/dashboard/metrics`, `/dashboard/metrics/{code}` | `dashboard:read` | EP-11, EP-12 | Metric Store đọc; `MetricValueOut` + `lineage_url` (P01); cache 60s + **bắt buộc** `Vary: Authorization` (NFR-07) |
+| EP-PLT-01 | GET | `/platform/dead-letters` | `platform:admin` | EP-56 | Danh sách dead letter (DEC-126); `platform:admin` = ROLE-CEO, ROLE-ADM |
+| EP-PLT-02 | POST | `/platform/dead-letters/{id}/replay` | `platform:admin` | EP-56 | Phát lại 1 dead letter cho đúng consumer (attempt 1); phát lại lần 2 sau khi thành công → `404`; bản giao lại bị dedupe bởi `processed_events` |
+
 
 ## 8. Grounding contract — SourceRef (FR-AIQ-01, AI-R09, FR-DATA-04)
 
@@ -841,6 +974,23 @@ Mọi thay đổi nghiệp vụ **phát event** để AI Observe theo thời gia
 - **M1.6:** thêm `ai.policy_changed`, `platform.onboarding_completed` vào `core/events/registry.py` + 00 §4.5/skeleton (giống R-DEC-35). Tool call **không** phát event (khối lượng lớn; `ToolCallLog` là bằng chứng); AIAction executed/undone dùng event domain đích (`execution.task_created`…) do ACT phát.
 - **M2.3 (R-DEC-102):** cấp mã code `execution.meeting_summarized` (cho `meeting.summarized`) + `execution.action_item_created` (`action_item.created`, mới), thêm vào `EXTENSION_EVENT_TYPES` + 00 §4.5/skeleton (giống R-DEC-35). `meeting_summarized` phát khi commit doc type #1 (có `MeetingSummary`); `action_item_created` phát mỗi `ActionItem` ghi qua `ACT-create_action_item`. Payload không PII: `{meeting_id, summary_id, action_item_count}` / `{action_item_id, meeting_id, decision_id?, owner_id?, due_date?, match_status}` — chỉ id/mã, **không** `owner_name_raw`/title. Phát `publish_in_tx` cùng transaction ghi dữ liệu; chưa có consumer bắt buộc ở M2.3 (để mở cho briefing/metric M2.x). `execution.task_created` (ACT-create_task_from_action_item) giữ nguyên như M1.3.
 
+#### 9.2bis. Event có trong `EVENT_TYPES` nhưng chưa nêu ở §9.2 (M4, 2026-11-02)
+
+> Audit M4 đối chiếu `core/events/registry.py` (40 event) với §9.2: **6 event đang được phát trong
+> code** mà doc set v3 không nêu ở bất cứ đâu (GAP-14). CLAUDE §5.4 chỉ cho dùng event có trong
+> registry tài liệu, nên bảng dưới bổ sung đúng các event đó — **không thêm event mới vào code**.
+> `TC-M4-14` giữ 2 chiều: event trong code phải xuất hiện ở §9.2/§9.2bis và ngược lại.
+
+| Event (mã code) | Phát khi | Domain nguồn | Consumer / dùng để |
+|---|---|---|---|
+| `finance.cash_flow_forecast_updated` | `CashFlowService` tính lại dự báo dòng tiền (EP-FIN-10 recompute hoặc job) | D15 Finance | `risk.event_risks` sinh rủi ro dòng tiền; recompute `METRIC-FIN-*` |
+| `hr.salary_updated` | Cập nhật lương (EP-HR-07, dữ liệu **mức 4**) | D16 HR | `finance.consumers` cập nhật chi phí nhân sự; payload **chỉ mã**, không giá trị lương |
+| `idp.review_escalated` | `SlaService` leo thang review quá SLA (04 §8.3, FR-DC-21) | D03 Capture | Notification tới quản lý/trưởng khối; đo SLA review |
+| `platform.alert_raised` | `MetricStore` sinh/nâng mức alert khi metric vượt ngưỡng | D28 Metric Store | Notification theo scope (R-DEC-88); khối "Rủi ro" EP-RPT-01 |
+| `platform.report_generated` | *(đã khai trong registry, **chưa có publisher**)* — dành cho Reporting export | D28 Reporting | — (giữ chỗ; không phát ở P0) |
+| `product.product_launched` | `ReleaseService` phát hành release (EP-PRD-05) | D22 Product (**P1-frozen**) | Recompute `METRIC-PRD-*`; không advertise cho AI |
+| `risk.risk_proposed` | Rủi ro tự sinh từ event nghiệp vụ (`risk/services/common.py`) | D25 Risk (**P1-frozen**) | Hàng chờ xác nhận rủi ro; `METRIC-RSK-*` |
+
 ## 10. Convention (giữ nhất quán nền `main`, không mâu thuẫn BRD)
 
 Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/offset/sort_by/order` (`meta.pagination = {total, limit, offset, has_next}`); `Idempotency-Key` **bắt buộc** cho POST tạo/hành động + mọi endpoint AI ghi; tiền **BIGINT + currency** (mặc định VND); tỷ lệ hậu tố `_pct` thang 0–100; thời gian ISO 8601 UTC có `Z`; mọi response `X-Request-Id` → log/audit/event `correlation_id` (P06). Mã lỗi: bảng **§1.4** (nguồn sự thật = `core/errors.py`, R-DEC-18).
@@ -864,8 +1014,9 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 ## Version
 
 - **Version:** 1.1.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-02
 - **Maintainer:** @CyEyes
+- **Change 1.2.0 (đề xuất — M4 doc↔code conformance, R-DEC-147..149, 2026-11-02):** §2.3 mới — bảng gương đầy đủ **54 `TOOL-*`** với 13 metadata sinh từ `ai/tools/registry.py` (doc set v3 trước đó không có bảng Tool Registry, chỉ nhắc 29 id rải rác — GAP-03). §7.3 mới — gán **EP id v3 cho 64 route nền v2.1** (EP-PRD-01..06, EP-RSK-01..07, EP-EXE-01..03, EP-HR-06..11, EP-DSH-01..04, EP-PLT-01/02), giữ nguyên path/method/permission/hành vi, product/risk đánh dấu P1-frozen. Sửa 5 ô permission lệch code: EP-RPT-02/03 `dashboard:read`→`execution:read` (R-DEC-147 — MGR/EMP không giữ `dashboard:read`), EP-FIN-05/EP-FIN-10 thêm `finance:read` cho nhánh GET. Toàn bộ §7 nay **kiểm được bằng máy** 3 chiều qua `tests/contract/test_catalog_conformance.py` (EP→route 0 lệch · route→EP 328/328 · permission 0 lệch).
 - **Change 1.7.0 (Spec lock M3.1, 2026-11-01 — agent tự chốt, R-DEC-117..125):** §7.1 không đổi (prefix `/integrations/*` INT·platform, `/calendar/*` CAL·execution đã có). §7.2.8 mới — M3.1 D06 Integration Hub · D13 Calendar: **EP-INT-01..04** (`/integrations/providers`, `/integrations/{provider}/connect|callback|disconnect`) + **EP-CAL-01..05** (`/calendar/events[/{id}]` CRUD). Permission `execution:read`/`execution:write` + data-scope `user_id`/`owner_id` = người gọi (R-DEC-119; `integration` **không** thuộc §5.3 → không thêm domain quyền); provider chưa cấu hình → `503 DEPENDENCY_UNAVAILABLE` (reuse §1.4, R-DEC-118); OAuth code+PKCE, token `EncryptedText` không trả response (05 §2.10, R-DEC-117). §9.2 event `calendar.event_changed` (mã `execution.calendar_event_changed`, `EXTENSION_EVENT_TYPES`, R-DEC-120) + consumer `platform.on_calendar_event_changed` (push provider, idempotent `ExternalEventLink`, LWW etag, retry→DLQ, token hết hạn → `send_notification` reconnect, R-DEC-121). Deadline task→CalendarEvent idempotent (R-DEC-122); calendar mức 3 Confidential không gửi LLM (R-DEC-123). **Không thêm mã lỗi/tool/dependency**; test `respx`+provider fake, hoãn live + security-review tới khi có OAuth thật (R-DEC-124); FE `/meetings/calendar` + `/settings/integrations` không thêm dep FE / `NEXT_PUBLIC_*` secret (R-DEC-125).
 - **Change 1.6.0 (Spec lock M2.3, 2026-10-31 — agent tự chốt, R-DEC-96..104):** §7.2.4 thêm **EP-DC-38** `POST /data-capture/natural-language` (C2 text/voice→STT, trả preview chưa commit, `context=meeting`→`422 BUSINESS_RULE_VIOLATION`, R-DEC-96); §7 ACT table thêm **`ACT-create_action_item`** + **`ACT-create_task_from_action_item`** (doc type #1, `execution:write`, task chỉ sau chủ trì duyệt, R-DEC-101); §9.2 cấp mã code `execution.meeting_summarized` + `execution.action_item_created` (đóng thêm OQ-10-04, R-DEC-102); doc type #1 Biên bản họp → Meeting/Decision/ActionItem (R-DEC-99). STT gateway `task=stt` + adapter (R-DEC-97); C4 ảnh suy channel server-side + deskew FR-DC-08 (R-DEC-98); fuzzy tên→Employee (R-DEC-103). **Không thêm mã lỗi mới** (dùng `BUSINESS_RULE_VIOLATION`); không thêm dependency.
 - **Change 1.5.0 (Spec lock M2.2, 2026-10-31 — agent tự chốt, R-DEC-89..95):** §7.2.7 mới — M2.2 Finance/Sales Lite: EP-FIN-01..10 (`/finance/*`) + EP-SAL-01..08 (`/sales/*`) gán ID v3 cho route v2.1 giữ path (cột `EP v2.1` EP-60..77); §7 ACT table thêm `ACT-record_revenue/record_expense/record_cash_balance` (doc type #6, `finance:write`); §9.2 document event `sales.deal_closed_won/lost` (đã có `EVENT_TYPES`) feed METRIC-CUS-02 + bảng ánh xạ. Không thêm mã lỗi/tool/dependency (R-DEC-95); Lead/Opportunity = alias Client/Deal (R-DEC-90).

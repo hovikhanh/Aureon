@@ -176,3 +176,14 @@ describe("OKR + check-in (EP-OKR-*, EP-PRF-01/02/05/06)", () => {
     expect((await call<{ at_risk_kr_count: number }[]>("/objectives?at_risk=true")).json!.data).toHaveLength(1);
   });
 });
+
+describe("measuredNowIso (mirrors API business_now — DD-05)", () => {
+  it("keeps the live time-of-day but moves the date onto the business day", async () => {
+    const { measuredNowIso } = await import("./goals-http");
+    expect(measuredNowIso(new Date("2026-11-03T08:15:30.000Z"), "2026-10-20")).toBe("2026-10-20T08:15:30.000Z");
+  });
+  it("is the plain wall clock when the business day is today", async () => {
+    const { measuredNowIso } = await import("./goals-http");
+    expect(measuredNowIso(new Date("2026-10-20T01:02:03.000Z"), "2026-10-20")).toBe("2026-10-20T01:02:03.000Z");
+  });
+});
