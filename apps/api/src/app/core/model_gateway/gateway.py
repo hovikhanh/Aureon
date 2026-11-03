@@ -172,7 +172,13 @@ class ModelGateway:
     ) -> CallRecord:  # fmt: skip
         u = usage or Usage()
         cost = estimate_cost_micro_usd(
-            self.cfg.model_pricing_json, provider, model, u.tokens_in, u.tokens_out
+            self.cfg.model_pricing_json,
+            provider,
+            model,
+            u.tokens_in,
+            u.tokens_out,
+            cached_in=u.cached_in,
+            cache_write=u.cache_write,
         )
         return CallRecord(
             caller_module=req.caller_module, task_kind=req.task, provider=provider, model=model,

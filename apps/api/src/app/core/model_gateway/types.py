@@ -69,8 +69,12 @@ class ChatRequest:
 
 @dataclass(frozen=True)
 class Usage:
-    tokens_in: int = 0
+    tokens_in: int = 0  # every prompt token, cached ones included
     tokens_out: int = 0
+    # Subsets of `tokens_in` a provider reports separately — priced on their own when
+    # `MODEL_PRICING_JSON` has `cached_in` / `cache_write` (07 §6.3, R-DEC-158).
+    cached_in: int = 0  # read from the provider's prompt cache
+    cache_write: int = 0  # written to the provider's prompt cache
 
 
 @dataclass(frozen=True)

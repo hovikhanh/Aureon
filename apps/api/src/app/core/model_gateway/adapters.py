@@ -25,6 +25,29 @@ from app.core.model_gateway.types import (
 CONNECT_TIMEOUT = 5.0
 
 
+def openai_usage(u: dict[str, Any]) -> Usage:
+    """OpenAI-compatible usage (OmniRoute, OpenRouter, DeepSeek…): `prompt_tokens` already counts
+    cached tokens; the cache split is in `prompt_tokens_details.cached_tokens` (and, when the
+    upstream is Anthropic, `cache_creation_input_tokens` passed through)."""
+    details = u.get("prompt_tokens_details") or {}
+    return Usage(
+        int(u.get("prompt_tokens") or 0), int(u.get("completion_tokens") or 0),
+        cached_in=int(details.get("cached_tokens") or 0),
+        cache_write=int(u.get("cache_creation_input_tokens") or 0),
+    )  # fmt: skip
+
+
+def anthropic_usage(u: dict[str, Any]) -> Usage:
+    """Anthropic Messages usage: `input_tokens` EXCLUDES cache reads/writes — add them back so
+    `tokens_in` means "all prompt tokens" for every provider."""
+    read = int(u.get("cache_read_input_tokens") or 0)
+    write = int(u.get("cache_creation_input_tokens") or 0)
+    return Usage(
+        int(u.get("input_tokens") or 0) + read + write, int(u.get("output_tokens") or 0),
+        cached_in=read, cache_write=write,
+    )  # fmt: skip
+
+
 class Adapter(Protocol):
     name: str
 
@@ -130,7 +153,7 @@ class OpenAICompatAdapter:
             content=msg.get("content") or "",
             provider=self.name,
             model=data.get("model") or model,
-            usage=Usage(int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))),
+            usage=openai_usage(usage),
             tool_calls=calls,
             finish_reason=choice.get("finish_reason") or "stop",
         )
@@ -161,9 +184,7 @@ class OpenAICompatAdapter:
                 event = json.loads(payload)
                 if event.get("usage"):
                     u = event["usage"]
-                    usage = Usage(
-                        int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", 0))
-                    )
+                    usage = openai_usage(u)
                 for ch in event.get("choices") or ():
                     delta = (ch.get("delta") or {}).get("content")
                     if delta:
@@ -231,7 +252,7 @@ class AnthropicAdapter:
             content=text,
             provider=self.name,
             model=data.get("model") or model,
-            usage=Usage(int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))),
+            usage=anthropic_usage(usage),
             tool_calls=calls,
             finish_reason=data.get("stop_reason") or "stop",
         )

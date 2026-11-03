@@ -40,7 +40,11 @@ class Route:
 
 
 def validate_routing_config(cfg: "ConfigService") -> None:
-    """Fail fast at startup (TC-AI-022)."""
+    """Fail fast at startup (TC-AI-022). Includes `MODEL_PRICING_JSON` (R-DEC-158): a typo there
+    used to price every call at $0 silently."""
+    from app.core.model_gateway.cost import validate_pricing
+
+    validate_pricing(cfg.model_pricing_json)
     known = {*CLOUD_PROVIDERS, *LOCAL_PROVIDERS}
     for p in [cfg.model_provider_primary, *_csv(cfg.model_provider_fallbacks)]:
         if ALIASES.get(p, p) not in known:
