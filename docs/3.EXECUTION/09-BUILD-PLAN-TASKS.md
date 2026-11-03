@@ -549,6 +549,16 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1033 | R-DEC-153: giữ `CHAT_TIMEOUT_SECONDS=90` cho `task=chat` (ngoại lệ `07` §145), ghi lý do/ảnh hưởng/theo dõi | 07 §145, R-DEC-153 | — | ☑ |
 | T-1034 | Triển khai M4 lên stack: backup DB + tag `:pre-m4`, build web, recreate api/worker/beat/web sau 02:30, kiểm runtime + E2E real + axe real | `M4-SYNC-AUDIT` §8 | TC-M4-18 | ☑ |
 
+### 6.20. M5 — Lấp 4 khoảng trống phát hiện khi kiểm thử giao diện (nhánh `v3/m5-product-gaps`)
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1101 | AI tạo task: nhánh AI `ACT-create_task` (ngày VN, giải mã `assignee_code`/"me"/`project_code`), mô tả tham số tool, SSE `error` | R-DEC-157 | TC-M5-02..04, 09 | ☑ |
+| T-1102 | KPI/OKR: dialog tạo/sửa/lưu trữ KPI, Objective, Key Result; chọn owner (CEO/ADM) | 10 EP-KPI/EP-OKR | TC-M5-08 | ☑ |
+| T-1103 | AI Admin: log model call lỗi ghi độc lập; `unpriced_calls`; thẻ tổng hợp + lọc provider/model/trạng thái | R-DEC-154/155 | TC-M5-05..07 | ☑ |
+| T-1104 | Trang `/home/metrics/[code]`, route `/knowledge/[tab]`, sửa link thông báo + contract test link | R-DEC-156 | TC-M5-01 | ☑ |
+| T-1105 | Bật lại provider runtime (OmniRoute) hoặc chốt `MODEL_PROVIDER_FALLBACKS`; cấu hình `MODEL_PRICING_JSON`; rebuild image stack compose với code M5 | — (môi trường, chờ human) | — | ☐ |
+
 ## 7. Open questions
 
 - OQ-09-01: Task breakdown `T-*` — **ĐÃ CHỐT** (R-DEC-15/19): sinh ở §6.

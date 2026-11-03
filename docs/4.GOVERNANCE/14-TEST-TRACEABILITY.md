@@ -415,6 +415,24 @@ nên mọi thay đổi EP/tool/metric/action sau này phải cập nhật doc tr
 được từ T-1021 (`pnpm test:coverage`): statements 88,26% · functions 71,29% · branches 88,66% —
 vượt ngưỡng `14` §1.3 (≥ 70%) cho phạm vi module logic; hook TanStack Query phủ bằng Playwright.
 
+### 1.22. M5 — Lấp 4 khoảng trống sản phẩm (`v3/m5-product-gaps`, R-DEC-154..157)
+
+| TC | Nội dung | Loại | Spec | Trạng thái |
+|---|---|---|---|---|
+| TC-M5-01 | **Link thông báo mở được trang thật**: mọi link backend (`link=` / `*_LINK`) sau 308 v2.1 khớp một `page.tsx`; `/home/metrics/<code>` hiện chi tiết chỉ số + nút về; `/dashboard/metrics/<code>` (link cũ) 308 tới đó; mã không tồn tại báo lỗi tại chỗ; `/knowledge/decisions|reports` mở đúng tab, tab lạ → 404 thật | contract + e2e (mock + real) | R-DEC-156, 06 SCR-12/49 | Passed 2026-11-03 |
+| TC-M5-02 | **AI tạo task: ngày `dd/mm/yyyy` + "giao cho tôi"** → task thật (hạn đúng, giao đúng nhân viên của người hỏi, `task_source=ai`, `source_ref=ai_action`), audit `execution.task_create` | integration | R-DEC-157 | Passed 2026-11-03 |
+| TC-M5-03 | **Mã nhân viên / mã dự án của AI được giải mã** thành `assignee_id` / `project_id` | integration | R-DEC-157 | Passed 2026-11-03 |
+| TC-M5-04 | **Giá trị model bịa bị từ chối có tên trường, không tạo task** (`assignee_code=your_code`, `project_code=sales_report`, `due_date=tomorrow`) | integration | R-DEC-157 | Passed 2026-11-03 |
+| TC-M5-05 | **Model call lỗi/timeout còn lại sau khi lượt chat rollback** (`message_id=NULL`, giữ `error_code`, `latency_ms`) | integration | R-DEC-154 | Passed 2026-11-03 |
+| TC-M5-06 | **Model call thành công vẫn trong transaction lượt chat**; ghi log lỗi hỏng không che lỗi provider | integration | R-DEC-154 | Passed 2026-11-03 |
+| TC-M5-07 | **`unpriced_calls`**: chỉ lượt cloud có token mà $0; Ollama và lượt không token không tính; FE thẻ tổng hợp tháng + lọc provider/model/trạng thái ở Model Calls (e2e mock + real) | integration + unit + e2e | R-DEC-155, 10 EP-AI-15/23 | Passed 2026-11-03 |
+| TC-M5-08 | **KPI / OKR tạo · xem · sửa · lưu trữ**: CEO tạo KPI → trang chi tiết; mã KPI khóa khi sửa; trùng mã → lỗi tại chỗ; tạo Objective → thêm / sửa / lưu trữ Key Result → lưu trữ Objective; EMP không thấy nút (API vẫn chặn) | unit (schema) + e2e (mock + real) | 10 EP-KPI-02/04/05, EP-OKR-02/04/05/07/09/10 | Passed 2026-11-03 |
+| TC-M5-09 | **SSE kết thúc bằng `error {code}` khi provider lỗi** (`AI_PROVIDER_ERROR`, `AI_PROVIDER_TIMEOUT`, `AI_QUOTA_EXCEEDED`) — kiểm âm: router cũ fail | integration | 10 §6, R-DEC-157 | Passed 2026-11-03 |
+
+Sửa test tiền tồn lộ ra: helper `outbox_for` (execution/product/sales) thêm `ORDER BY occurred_at` (thứ tự event trước đó không xác định → `test_kpi_measurements_and_event` flaky); `test_record_kr_checkin_confirm_undo` chỉ chọn KR chưa lưu trữ.
+
+Kiểm chứng end-to-end qua giao diện (không đưa vào suite vì phụ thuộc LLM thật): stack cô lập API `:4600` (DB `aureon_m4`, provider Ollama `qwen2.5:7b-instruct`) + web production `:3600` — CEO gõ ở `/ask` "Tạo task: …, giao cho tôi, hạn 30/11/2026" → thẻ "AI đã làm · Tạo việc", task trong DB hạn `2026-11-30`, giao `NV-0001`.
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).

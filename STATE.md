@@ -1,5 +1,24 @@
 # Aureon v3 — AI-EOS · Build State
 
+## M5 — 4 khoảng trống phát hiện khi kiểm thử giao diện (nhánh `v3/m5-product-gaps`, 2026-11-03) — DONE trên nhánh, chưa push/merge/deploy
+
+Báo cáo đầy đủ: `deliverables/M5-PRODUCT-GAPS-REPORT.md`. R-DEC-154..157 (`13`), TC-M5-01..09 (`14` §1.22), T-1101..T-1105 (`09` §6.20).
+
+| Vấn đề | Root cause | Sửa |
+|---|---|---|
+| AI Chat không tạo Task (CEO) | RBAC đúng. Môi trường: **OmniRoute không chạy** → mọi chat live `AI_PROVIDER_ERROR`. Code: `ACT-create_task` từ chối `30/10/2026`; AI `assignee_code` bị **bỏ**; `project_code` bị bỏ qua; SSE không phát `error` → stream đứt | ngày VN, giải mã mã + `"me"`, mã lạ → `NOT_FOUND {field}`; mô tả tham số tool; SSE `error {code}` |
+| Chưa có Tạo KPI / OKR | API đủ; FE chỉ có 2 nút **disable cứng** | dialog tạo/sửa/lưu trữ KPI, Objective, Key Result; owner (CEO/ADM chọn được) |
+| AI Admin thiếu Model Calls/Token/Cost | UI có sẵn; demo replay không gọi model; **log lượt lỗi bị rollback mất**; `MODEL_PRICING_JSON={}` → $0; thiếu lọc | log lỗi commit độc lập; `unpriced_calls` (EP-AI-15); thẻ tổng hợp tháng; lọc provider/model/trạng thái |
+| `home/metrics/*` 404 | link cảnh báo → `/home/metrics/{code}` không có trang; + `/knowledge/decisions`, `/work/tasks/{id}` cũng 404 | trang `/home/metrics/[code]`, route `/knowledge/[tab]`, link `/work?task=`; contract test link ↔ trang |
+
+**Gate:** pytest full **1398 passed / 0 failed**, cov **94%** (DB `aureon_m4` tạo lại sạch) · contract **44** · ruff/format/mypy (387) · lint · typecheck · Vitest **448** · production build xanh · E2E M5 mock 9/9 + **real (stack cô lập API :4600 Ollama + web production :3600) 3×9/9** · UI `/ask` thật: CEO tạo task → DB có task hạn `2026-11-30` giao `NV-0001`.
+
+**Sửa test tiền tồn lộ ra trong đợt:** `outbox_for` (execution/product/sales helpers) thiếu `ORDER BY` → thứ tự event không xác định (`test_kpi_measurements_and_event` flaky) → sắp theo `occurred_at`; `test_record_kr_checkin_confirm_undo` chọn KR bất kỳ kể cả đã lưu trữ → chỉ chọn KR còn sống. E2E: thêm `loginSettled()` (chờ redirect sau đăng nhập xong mới điều hướng — tránh race 2 điều hướng chồng nhau dưới tải).
+
+**Còn ngoài code (chờ human):** bật OmniRoute hoặc chốt `MODEL_PROVIDER_FALLBACKS`; cấu hình `MODEL_PRICING_JSON`; rebuild image + recreate stack compose với code M5; owner picker cho DIR/MGR cần endpoint danh bạ (R-DEC); `/home/alerts` (bookmark v2.1) vẫn 404.
+
+---
+
 ## M4 — Doc ↔ code conformance & hardening (nhánh `v3/m4-doc-code-conformance`, 2026-11-02→03) — DONE + ĐÃ TRIỂN KHAI lên stack (03/11 02:31), chờ human review/merge
 
 **Gate cuối:** pytest full **1383 passed / 0 failed**, cov **94%** (DB cô lập `aureon_m4`) · contract **41** · ruff/format/mypy (387 file) xanh · Vitest **50 file / 437 test** · FE coverage 88,26% / 71,29% / 88,66% · Playwright mock **95/95** · axe-core AA 0 violation · shared-types drift 0 · `scripts/check_env.sh` xanh. 6 commit `7329c4f..590833a`, **chưa push**.
