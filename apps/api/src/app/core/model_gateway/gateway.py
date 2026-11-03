@@ -145,6 +145,16 @@ def build_adapter(cfg: ConfigService, provider: str) -> Adapter:
     return OpenAICompatAdapter(provider, base_url, key, temperature=temp, max_tokens=max_tok)
 
 
+def _unfence(text: str) -> str:
+    """Body of a ```json … ``` fence — some routes ignore `response_format` and wrap the JSON (seen
+    live on OmniRoute `cc/`, M6). Anything else is returned unchanged for `json.loads`."""
+    t = text.strip()
+    if t.startswith("```") and t.endswith("```") and len(t) > 6:
+        t = t[3:-3].strip()
+        return t[4:].lstrip() if t[:4].lower() == "json" else t
+    return t
+
+
 class ModelGateway:
     def __init__(
         self,
@@ -235,9 +245,13 @@ class ModelGateway:
         if resp.data is not None:
             return resp
         try:
-            return replace(resp, data=json.loads(resp.content))
+            return replace(resp, data=json.loads(_unfence(resp.content)))
         except json.JSONDecodeError as exc:
-            raise ai_error("AI_FUNCTION_CALL_FAILED", "model output is not valid JSON") from exc
+            # `length` = the answer hit the output cap (≤ 2048, CLAUDE.md §5.5) and was cut off
+            cut = resp.finish_reason in ("length", "max_tokens")
+            reason = "truncated" if cut else "invalid_json"
+            raise ai_error("AI_FUNCTION_CALL_FAILED", "model output is not valid JSON",
+                           reason=reason, finish_reason=resp.finish_reason) from exc  # fmt: skip
 
     async def transcribe(
         self, *, audio_ref: str, caller_module: str, user_id: object = None

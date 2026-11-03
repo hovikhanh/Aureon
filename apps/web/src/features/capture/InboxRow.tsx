@@ -26,7 +26,15 @@ export function InboxRow({ item, canReview, canReport, onAction }: { item: Inbox
       <td className="pr-3">{type}</td>
       <td className="pr-3 whitespace-nowrap">{t(`capture.channel.${item.channel}` as "capture.channel.C1")}</td>
       <td className="pr-3">{item.submitted_by_name ?? "—"}</td>
-      <td className="pr-3"><Badge variant={TONE[d.status] ?? "default"} data-testid="inbox-status">{t.has(`capture.status.${d.status}`) ? t(`capture.status.${d.status}`) : d.status}</Badge></td>
+      <td className="pr-3">
+        <Badge variant={TONE[d.status] ?? "default"} data-testid="inbox-status">{t.has(`capture.status.${d.status}`) ? t(`capture.status.${d.status}`) : d.status}</Badge>
+        {/* why it failed (04 §4: FAILED is final — re-upload), e.g. EXTRACTION_FAILED / MALWARE */}
+        {d.status === "FAILED" && d.status_reason && (
+          <span className="mt-1 block text-xs text-danger" data-testid="inbox-fail-reason">
+            {t.has(`capture.failReason.${d.status_reason}`) ? t(`capture.failReason.${d.status_reason}`) : d.status_reason}
+          </span>
+        )}
+      </td>
       <td className="pr-3 text-right tabular-nums">{item.record_count ?? "—"}</td>
       <td className="pr-3 whitespace-nowrap tabular-nums">{formatDateTime(d.submitted_at, locale)}</td>
       <td className="whitespace-nowrap text-right">

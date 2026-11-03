@@ -1,7 +1,7 @@
-"""Read side of `idp` — document detail (EP-25) and extraction result (EP-26). Scope: a
-reader sees documents they submitted or within their department; CEO/ADMIN-style `idp:read`
-with no department sees all (10 §2, 02 §6). Field values at sensitivity ≥ 4 are masked for
-roles without level-4 access (handled at the field layer in review, S4b)."""
+"""Read side of `idp` — document detail (EP-25) and extraction result (EP-26). Scope: the same
+reach as review (`review_visible`: own / department, or the 10 §7.2.4 capture scope — a DIR's
+khối); CEO/ADMIN-style `idp:read` with no department sees all (10 §2, 02 §6). Field values at
+sensitivity ≥ 4 are masked for roles without level-4 access (field layer in review, S4b)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from app.core.deps import Principal
 from app.modules.idp.models import ExtractionJob, SourceDocument
 from app.modules.idp.repositories import ExtractedFieldRepository, SourceDocumentRepository
 from app.modules.idp.schemas import ExtractionResultOut, FieldResultOut
-from app.modules.idp.services.scope import document_visible, type_in_scope
+from app.modules.idp.services.scope import review_visible, type_in_scope
 
 
 class IdpQueryService:
@@ -23,7 +23,7 @@ class IdpQueryService:
 
     async def get_document(self, user: Principal, document_id: uuid.UUID) -> SourceDocument | None:
         doc = await SourceDocumentRepository(self.db).by_id(document_id)
-        if doc is None or not self._visible(user, doc):
+        if doc is None or not await review_visible(self.db, user, doc):
             return None
         return doc if await type_in_scope(self.db, user, doc) else None
 
@@ -58,7 +58,3 @@ class IdpQueryService:
             fields=[FieldResultOut.model_validate(f) for f in fields],
             validation_errors=list(xd.get("validation_errors", [])),
         )
-
-    @staticmethod
-    def _visible(user: Principal, doc: SourceDocument) -> bool:
-        return document_visible(user, doc)

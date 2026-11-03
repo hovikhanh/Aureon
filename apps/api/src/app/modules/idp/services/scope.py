@@ -123,9 +123,13 @@ async def in_review_session(db: AsyncSession, user: Principal, doc: SourceDocume
 
 
 async def review_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:
-    """Review/approve side (EP-DC-05..10, 08): own department/submissions, or an assigned
-    review session (REV role pool)."""
-    return document_visible(user, doc) or await in_review_session(db, user, doc)
+    """Review/approve side (EP-DC-05..10, 08) and document detail (EP-25/26): own department /
+    submissions (v2.1 `document_visible`) **or** the capture scope of 10 §7.2.4 — for a DIR that
+    is the khối (`scope_pillars` ∩ document `pillars`), for a REV an assigned review session.
+
+    Before M6 only the department rule applied, so a DIR saw a khối document in the inbox
+    (EP-DC-13) and got `404` on its review (CFO: F invoices filed by other departments)."""
+    return document_visible(user, doc) or await capture_visible(db, user, doc)
 
 
 async def capture_visible(db: AsyncSession, user: Principal, doc: SourceDocument) -> bool:

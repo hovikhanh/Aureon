@@ -136,3 +136,18 @@ async def test_pipeline_unclear_text_goes_to_review_as_other(db_session, idp_sto
     out = await Pipeline(db_session, _Gw({})).run(up.document_ids[0])
     assert out.status == "NEEDS_REVIEW"
     assert "LOW_CLASSIFICATION_CONFIDENCE" in out.routing_reasons
+
+
+async def test_live_gateway_answer_in_content_is_used(db_session) -> None:
+    """TC-M6-02 — a live provider returns the JSON answer in `content` (`data=None`); only
+    `ModelGateway.extract()` parses it. The classifier called `chat()`, so a correct answer was
+    dropped and every upload without keywords became OTHER (M6, Sales `DOC-03` → no fields)."""
+    from app.core.model_gateway import ModelGateway
+
+    class _Live(ModelGateway):
+        async def chat(self, req: ChatRequest) -> ChatResponse:
+            return ChatResponse(content='{"code": "HR_ROSTER", "confidence": 0.75}',
+                                provider="omniroute", model="claude-sonnet-5")  # fmt: skip
+
+    out = await Classifier(db_session, _Live()).classify("Bảng tổng hợp nội bộ không từ khoá")
+    assert (out.code, out.confidence, out.tier) == ("HR_ROSTER", 0.75, "llm")

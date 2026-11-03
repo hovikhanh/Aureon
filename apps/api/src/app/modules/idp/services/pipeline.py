@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
-from app.core.errors import NotFoundError
+from app.core.errors import AIError, NotFoundError
 from app.core.tenant import require_tenant
 from app.modules.idp.models import (
     DocumentPage,
@@ -147,12 +147,19 @@ class Pipeline:
         await self.db.flush()
         schema = await self._schema(job.extraction_schema_id)
         fields_spec: list[dict[str, Any]] = list(schema.fields)
-        extraction = await Extractor(self.gateway).extract(
-            schema_fields=fields_spec,
-            page_text=pre.full_text,
-            sensitivity_level=doc.sensitivity_level,
-            document_id=doc.id,
-        )
+        try:
+            extraction = await Extractor(self.gateway).extract(
+                schema_fields=fields_spec,
+                page_text=pre.full_text,
+                sensitivity_level=doc.sensitivity_level,
+                document_id=doc.id,
+            )
+        except AIError as exc:
+            # 04 §4: extraction failed → FAILED ("có thể tải lại"), visible in the inbox. Before M6
+            # the error escaped the Celery task, rolled everything back and left the file at
+            # UPLOADED with no reason (the model-call log row is written in this transaction).
+            reason = str(exc.details.get("reason") or exc.code)
+            return await self._fail(doc, job, "EXTRACTION_FAILED", f"{exc.code}:{reason}")
         job.model_provider = extraction.provider
         job.model_name = extraction.model
         job.document_confidence = extraction.document_confidence

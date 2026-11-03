@@ -201,3 +201,24 @@ async def test_pipeline_rejects_invalid_invoice(db_session, idp_store) -> None:
     codes = {e["rule"] for e in outcome.validation_errors}
     assert {"VR-INV-02", "VR-INV-SUB"} <= codes
     assert "VALIDATION_FAILED" in outcome.routing_reasons
+
+
+async def test_pipeline_extraction_failure_ends_failed_not_stuck(db_session, idp_store) -> None:
+    """TC-M6-02 — a model answer that is not usable JSON (live: cut off at the 2048-token cap)
+    ends the document FAILED / EXTRACTION_FAILED (04 §4) instead of escaping the task and leaving
+    it UPLOADED with no reason (M6, Sales DOC-03)."""
+    from app.core.errors import ai_error
+
+    class _TruncatingGateway:
+        async def chat(self, req):
+            if req.task == "extract":
+                raise ai_error("AI_FUNCTION_CALL_FAILED", "cut", reason="truncated")
+            return ChatResponse(content="", provider="fake", model="m", data=None)
+
+    r = await UploadService(db_session).upload(
+        _principal(), [_file("bao-cao.pdf", "application/pdf", s.invoice_pdf())]
+    )
+    outcome = await Pipeline(db_session, _TruncatingGateway()).run(r.document_ids[0])
+    assert outcome.status == "FAILED"
+    doc = await db_session.get(SourceDocument, r.document_ids[0])
+    assert (doc.status, doc.status_reason) == ("FAILED", "EXTRACTION_FAILED")

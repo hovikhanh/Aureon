@@ -143,8 +143,14 @@ class Classifier:
                 "code": {"type": "string", "enum": codes},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1}}},
         )  # fmt: skip
+        # Structured output goes through `extract()` (parses `content` for a live provider), like
+        # the Extractor. `chat()` left `data=None` live, so a correct `{"code": "PERIOD_REPORT"}`
+        # was dropped and every unkeyworded upload fell to OTHER (M6, Sales DOC-03); fixture
+        # responses already carry `data`, which is why CI never saw it. A fake gateway that only
+        # implements `chat` (tests) keeps working.
+        extract = getattr(self.gateway, "extract", None)
         try:
-            resp = await self.gateway.chat(req)  # type: ignore[union-attr]
+            resp = await (extract(req) if callable(extract) else self.gateway.chat(req))  # type: ignore[union-attr]
         except (FixtureMissingError, TemplateRequired, AppError) as exc:  # degrade to tiers 2–3
             log.warning("idp classify: LLM tier unavailable (%s)", type(exc).__name__)
             return None
