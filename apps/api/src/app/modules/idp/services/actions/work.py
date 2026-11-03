@@ -16,15 +16,17 @@ import uuid
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
 from app.core.errors import NotFoundError
 from app.modules.execution.schemas.tasks import TaskCreate, TaskUpdate
 from app.modules.execution.services.kpi_service import KpiService
+from app.modules.execution.services.meeting_service import ProjectService
 from app.modules.execution.services.task_service import TaskService
 from app.modules.hr.services.hr_service import HrService
+from app.modules.idp.services.actions.finance import as_date
 from app.modules.idp.services.actions.registry import (
     ActionContext,
     ActionDef,
@@ -33,6 +35,10 @@ from app.modules.idp.services.actions.registry import (
     ref,
     register,
 )
+
+# `TOOL-create_task` lets the user say "giao cho tôi": the model passes one of these instead of a
+# code it cannot know, and the ACT resolves it to the asker's own employee (R-DEC-41).
+SELF_ASSIGNEE = frozenset({"me", "self", "tôi", "toi"})
 
 
 class TaskParams(BaseModel):
@@ -45,6 +51,16 @@ class TaskParams(BaseModel):
     due_date: date | None = None
     kr_ref: uuid.UUID | None = None
     kpi_code: str | None = Field(default=None, max_length=50)
+    project_code: str | None = Field(default=None, max_length=50)
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def _vn_date(cls, value: Any) -> Any:
+        """ISO `2026-10-30` or the P04 display form `30/10/2026` (what a Vietnamese user types,
+        and what the model then copies) — anything else is left for pydantic to reject."""
+        if isinstance(value, str) and value.strip():
+            return as_date(value) or value
+        return value
 
 
 async def _validate(
@@ -86,11 +102,39 @@ async def _document_body(db: AsyncSession, p: Any, ctx: ActionContext) -> TaskCr
     })  # fmt: skip
 
 
+async def _ai_refs(db: AsyncSession, user: Principal, p: Any) -> dict[str, Any]:
+    """Resolve the codes an AI action names to ids — never silently drop them (a dropped
+    `assignee_code` used to create an unassigned task while the answer said "đã giao")."""
+    out: dict[str, Any] = {}
+    if p.assignee_code:
+        code = p.assignee_code.strip()
+        if code.lower() in SELF_ASSIGNEE:
+            if user.employee_id is None:
+                raise NotFoundError(
+                    "the asker has no employee record to assign to",
+                    details={"field": "assignee_code", "reason": "no_employee_for_user"},
+                )
+            out["assignee_id"] = user.employee_id
+        else:
+            emp = await HrService(db).employee_id_by_code(code)
+            if emp is None:
+                raise NotFoundError("assignee not found", details={"field": "assignee_code"})
+            out["assignee_id"] = emp
+    if p.project_code:
+        project = await ProjectService(db).project_id_by_code(user, p.project_code.strip())
+        if project is None:
+            raise NotFoundError("project not found", details={"field": "project_code"})
+        out["project_id"] = project
+    return out
+
+
 async def _run(db: AsyncSession, user: Principal, p: Any, ctx: ActionContext) -> ActionOutcome:
     if ctx.ai_action_id is not None:
-        raw = p.model_dump(exclude_none=True, exclude={"assignee_code", "kr_ref", "kpi_code"})
+        raw = p.model_dump(
+            exclude_none=True, exclude={"assignee_code", "kr_ref", "kpi_code", "project_code"}
+        )
         body = TaskCreate.model_validate({
-            **raw, "task_source": "ai",
+            **raw, **await _ai_refs(db, user, p), "task_source": "ai",
             "source_ref": {"kind": "ai_action", "id": str(ctx.ai_action_id)},
         })  # fmt: skip
     else:

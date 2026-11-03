@@ -405,8 +405,18 @@ _READ_TOOLS: tuple[ToolDef, ...] = (
 )
 
 # ---------------------------------------------------------------- WRITE / EXECUTION / APPROVAL
-_TASK_ARGS = obj(("title",), title=S, assignee_code=S, due_date=DATE, project_code=S,
-                 priority=enum("low", "medium", "high", "urgent"), description=S)  # fmt: skip
+# Argument descriptions tell the model what the ACT accepts (ACT-create_task resolves the codes;
+# an unknown code is an error, never silently dropped) — a code the model cannot know must not be
+# invented ("your_code" used to reach the DB as an unassigned task).
+_TASK_ARGS = obj(
+    ("title",), title=S,
+    assignee_code={"type": "string", "description": "Employee code (e.g. EMP-0012) from a tool "
+                   "result, or \"me\" for the person asking. Omit if no assignee was named."},
+    due_date={**DATE, "description": "YYYY-MM-DD (dd/mm/yyyy is also accepted)."},
+    project_code={"type": "string", "description": "Existing project code from a tool result. "
+                  "Omit unless the user named a project."},
+    priority=enum("low", "medium", "high", "urgent"), description=S,
+)  # fmt: skip
 _WRITE_TOOLS: tuple[ToolDef, ...] = (
     _write(
         "TOOL-create_task",
@@ -414,7 +424,8 @@ _WRITE_TOOLS: tuple[ToolDef, ...] = (
         "execution",
         "execution:write",
         "execution:record",
-        "Create an execution task.",
+        "Create an execution task (title required). Use only codes returned by a tool or "
+        '"me" for the asker; never invent a code.',
         brd="create_task",
         args=_TASK_ARGS,
         default="L3",

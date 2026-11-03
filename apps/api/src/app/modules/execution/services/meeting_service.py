@@ -572,6 +572,14 @@ class ProjectService(ExecBase):
         items, total = await self.projects.list_page(**_page(page), filters=flt, where=where)
         return await self.outs(items), total
 
+    async def project_id_by_code(self, user: Principal, code: str) -> uuid.UUID | None:
+        """A project the caller may read, looked up by its `code` (AI `TOOL-create_task`). Out of
+        scope reads as missing — the same rule as EP-TASK-10 (no existence oracle)."""
+        pred = self._pred(user)
+        where = [Project.code == code, *([pred] if pred is not None else [])]
+        rows = await self.projects.where(*where)
+        return rows[0].id if rows else None
+
     async def get_project(self, user: Principal, id_: uuid.UUID, action: str = "read") -> Project:
         """Read outside scope → 404; write outside scope → 403 (10 §7.2.2)."""
         p = await self.projects.get(id_)

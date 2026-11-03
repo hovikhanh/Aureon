@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 
 from app.core.config import get_config
 from app.core.deps import DbSession, Principal, require_permission
-from app.core.errors import ai_error
+from app.core.errors import AppError, ai_error
 from app.core.idempotency import Idem
 from app.core.model_gateway.errors import SecretDataBlockedError
 from app.core.pagination import PageParams, page_params
@@ -129,6 +129,15 @@ async def chat_stream(
                 "code": "AI_DISABLED",
                 "message": "Yêu cầu chứa dữ liệu nhạy cảm (lương) — không xử lý.",
             })  # fmt: skip
+            return
+        except AppError as exc:
+            # The 200 + headers are already on the wire, so an error raised by the turn (provider
+            # chain down → AI_PROVIDER_ERROR, quota, timeout…) must end the stream as the `error`
+            # event of 10 §6 — re-raising here cut the stream mid-flight ("response already
+            # started") and the client saw a dropped connection instead of the reason.
+            await db.rollback()
+            yield ev("start", {"conversation_id": None, "message_id": None})
+            yield ev("error", {"code": exc.code, "message": str(exc)})
             return
         await db.commit()
         yield ev("start", {
