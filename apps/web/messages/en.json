@@ -1418,7 +1418,10 @@
       "okrTypes": {
         "committed": "Committed",
         "aspirational": "Aspirational"
-      }
+      },
+      "department": "Department",
+      "departmentCompany": "Company-wide (no department)",
+      "departmentOwn": "My department"
     }
   },
   "capture": {

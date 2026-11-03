@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { loginSettled } from "./helpers";
 
@@ -18,6 +18,14 @@ async function openGoals(page: Page, email: string): Promise<void> {
   await expect(page.getByTestId("goals-tree")).toBeVisible();
 }
 
+/** Select the first non-default option (needs ≥ 2 options: the default plus a loaded one) → its value. */
+async function pickSecond(select: Locator): Promise<string> {
+  await expect(select.locator("option")).not.toHaveCount(1);
+  const value = await select.locator("option").nth(1).getAttribute("value");
+  await select.selectOption(value!);
+  return value!;
+}
+
 const uniq = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`.toUpperCase();
 
 test.describe("M5 · goals editors", { tag: "@mock" }, () => {
@@ -32,15 +40,25 @@ test.describe("M5 · goals editors", { tag: "@mock" }, () => {
     await dlg.getByTestId("ke-target").fill("95,5");
     await dlg.getByTestId("ke-period-type").selectOption("MONTH");
     await dlg.getByTestId("ke-value-type").selectOption("percentage");
+    // CEO picks the department from `/hr/departments` (existing API) and another owner (`/platform/users`)
+    const dept = await pickSecond(dlg.getByTestId("ke-department"));
+    const owner = await pickSecond(dlg.getByTestId("ke-owner"));
+    const created = page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/backend\/kpis$/.test(r.url()));
     await dlg.getByTestId("kpi-editor-submit").click();
+    const kpi = (await (await created).json()).data;
+    expect([kpi.department_id, kpi.owner_id]).toEqual([dept, owner]);
 
     await expect(page).toHaveURL(/\/goals\/kpis\/[0-9a-f-]+$/);
     await expect(page.getByTestId("kpi-detail")).toContainText(code);
 
     await page.getByTestId("kpi-edit").click();
     await expect(page.getByTestId("ke-code")).toBeDisabled(); // the code is the KPI's stable key
+    await expect(page.getByTestId("ke-department")).toHaveValue(dept);
     await page.getByTestId("ke-name").fill("Tỷ lệ giao hàng đúng hẹn (sửa)");
+    await page.getByTestId("ke-department").selectOption(""); // → company level
+    const patched = page.waitForResponse((r) => r.request().method() === "PATCH" && /\/api\/backend\/kpis\//.test(r.url()));
     await page.getByTestId("kpi-editor-submit").click();
+    expect((await (await patched).json()).data.department_id).toBeNull();
     await expect(page.getByTestId("kpi-editor")).toHaveCount(0);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("(sửa)");
 
@@ -74,7 +92,11 @@ test.describe("M5 · goals editors", { tag: "@mock" }, () => {
     const dlg = page.getByTestId("objective-editor");
     await dlg.getByTestId("oe-title").fill(title);
     await expect(dlg.getByTestId("oe-period")).not.toHaveValue("");
+    await dlg.getByTestId("oe-level").selectOption("department");
+    const dept = await pickSecond(dlg.getByTestId("oe-department"));
+    const created = page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/backend\/objectives$/.test(r.url()));
     await dlg.getByTestId("objective-editor-submit").click();
+    expect((await (await created).json()).data.department_id).toBe(dept);
 
     await expect(page).toHaveURL(/\/goals\/objectives\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);

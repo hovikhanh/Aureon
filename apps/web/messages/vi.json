@@ -1418,7 +1418,10 @@
       "okrTypes": {
         "committed": "Cam kết",
         "aspirational": "Kỳ vọng"
-      }
+      },
+      "department": "Phòng ban",
+      "departmentCompany": "Toàn công ty (không gắn phòng ban)",
+      "departmentOwn": "Phòng ban của tôi"
     }
   },
   "capture": {

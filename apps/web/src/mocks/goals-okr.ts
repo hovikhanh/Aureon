@@ -93,6 +93,7 @@ function patchObj(req: MockRequest) {
     if (st === "active" && (n < MIN_KR || n > MAX_KR)) throw biz("an objective needs 2..5 key results to be active", { reason: "kr_count", min: MIN_KR, max: MAX_KR, count: n });
     o.status = st;
   }
+  if ("department_id" in b) o.department_id = pinDepartment(req.claims, str(b, "department_id", false), o.pillar); // as okr_service.update_objective
   Object.assign(o, { version: o.version + 1, updated_at: nowIso() });
   recordAudit(req.claims, "execution.objective_update", "objectives", o.id);
   return ok(objOut(o));

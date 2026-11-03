@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/features/admin/common";
+import { useDepartments } from "@/features/admin/org/use-org";
 import { apiRequest } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import type { GoalCaps } from "./GoalsShell";
@@ -47,6 +48,25 @@ function useOwners(caps: GoalCaps, current?: string | null) {
     staleTime: 300_000,
   });
   return ownerOptions({ id: caps.userId, label: t("ownerSelf") }, users.data, caps.canPickOwner, current);
+}
+
+/**
+ * Department select (CEO/DIR, `hr:read`): options from the existing `/hr/departments` (no new directory
+ * endpoint). Empty = company level for the CEO, own department for a DIR; the API rejects a department
+ * outside the caller's scope (`403 FORBIDDEN_SCOPE`, shown in place). Hidden for other roles.
+ */
+function DepartmentSelect<F extends FieldValues>({ form, id, caps }: { form: UseFormReturn<F>; id: string; caps: GoalCaps }) {
+  const t = useTranslations("goals.editor");
+  const depts = useDepartments();
+  if (!caps.canFilterDepartment) return null;
+  return (
+    <Field id={id} label={t("department")}>
+      <NativeSelect id={id} {...form.register("department_id" as Path<F>)} data-testid={id}>
+        <option value="">{t(caps.companyWide ? "departmentCompany" : "departmentOwn")}</option>
+        {(depts.data?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+      </NativeSelect>
+    </Field>
+  );
 }
 
 function Select<F extends FieldValues>({ form, name, id, label, values, tKey }: { form: UseFormReturn<F>; name: Path<F>; id: string; label: string; values: readonly string[]; tKey: string }) {
@@ -92,13 +112,13 @@ export function KpiEditorDialog({ open, onOpenChange, caps, kpi }: Open & { caps
   const creating = !kpi;
   const blank = React.useMemo<KpiValues>(() => kpi
     ? { code: kpi.code, name: kpi.name, unit: kpi.unit, target: String(kpi.target), period_type: kpi.period_type as KpiValues["period_type"],
-        direction: kpi.direction as KpiValues["direction"], value_type: kpi.value_type as KpiValues["value_type"], status: kpi.status as KpiValues["status"], owner_id: kpi.owner_id }
-    : { code: "", name: "", unit: "", target: "", period_type: "MONTH", direction: "HIGHER_IS_BETTER", value_type: "numeric", status: "active", owner_id: caps.userId }, [kpi, caps.userId]);
+        direction: kpi.direction as KpiValues["direction"], value_type: kpi.value_type as KpiValues["value_type"], status: kpi.status as KpiValues["status"], owner_id: kpi.owner_id, department_id: kpi.department_id ?? "" }
+    : { code: "", name: "", unit: "", target: "", period_type: "MONTH", direction: "HIGHER_IS_BETTER", value_type: "numeric", status: "active", owner_id: caps.userId, department_id: "" }, [kpi, caps.userId]);
   const form = useForm<KpiValues>({ resolver: zodResolver(kpiSchema(msgs, { creating })), defaultValues: blank });
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => { if (open) { form.reset(blank); setError(null); } }, [open, form, blank]);
   const owners = useOwners(caps, kpi?.owner_id);
-  const m = useGoalMutation((v: KpiValues) => (kpi ? updateKpi(kpi.id, toKpiUpdate(v, kpi.version)) : createKpi(toKpiCreate(v))));
+  const m = useGoalMutation((v: KpiValues) => (kpi ? updateKpi(kpi.id, toKpiUpdate(v, kpi.version, kpi.department_id)) : createKpi(toKpiCreate(v))));
   const e = form.formState.errors;
   const submit = form.handleSubmit(async (v) => {
     setError(null);
@@ -132,6 +152,7 @@ export function KpiEditorDialog({ open, onOpenChange, caps, kpi }: Open & { caps
           <NativeSelect id="ke-owner" {...form.register("owner_id")} data-testid="ke-owner">{owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</NativeSelect>
         </Field>
       </div>
+      <DepartmentSelect form={form} id="ke-department" caps={caps} />
     </Shell>
   );
 }
@@ -146,13 +167,13 @@ export function ObjectiveEditorDialog({ open, onOpenChange, caps, objective, def
   const creating = !objective;
   const blank = React.useMemo<ObjectiveValues>(() => objective
     ? { title: objective.title, period_key: objective.period_key, level: objective.level as ObjectiveValues["level"], okr_type: objective.okr_type as ObjectiveValues["okr_type"],
-        status: objective.status as ObjectiveValues["status"], owner_id: objective.owner_id }
-    : { title: "", period_key: defaultPeriod, level: "company", okr_type: "committed", status: "draft", owner_id: caps.userId }, [objective, caps.userId, defaultPeriod]);
+        status: objective.status as ObjectiveValues["status"], owner_id: objective.owner_id, department_id: objective.department_id ?? "" }
+    : { title: "", period_key: defaultPeriod, level: "company", okr_type: "committed", status: "draft", owner_id: caps.userId, department_id: "" }, [objective, caps.userId, defaultPeriod]);
   const form = useForm<ObjectiveValues>({ resolver: zodResolver(objectiveSchema(msgs)), defaultValues: blank });
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => { if (open) { form.reset(blank); setError(null); } }, [open, form, blank]);
   const owners = useOwners(caps, objective?.owner_id);
-  const m = useGoalMutation((v: ObjectiveValues) => (objective ? updateObjective(objective.id, toObjectiveUpdate(v, objective.version)) : createObjective(toObjectiveCreate(v))));
+  const m = useGoalMutation((v: ObjectiveValues) => (objective ? updateObjective(objective.id, toObjectiveUpdate(v, objective.version, objective.department_id)) : createObjective(toObjectiveCreate(v))));
   const e = form.formState.errors;
   const submit = form.handleSubmit(async (v) => {
     setError(null);
@@ -177,6 +198,7 @@ export function ObjectiveEditorDialog({ open, onOpenChange, caps, objective, def
       <Field id="oe-owner" label={t("owner")} error={e.owner_id?.message}>
         <NativeSelect id="oe-owner" {...form.register("owner_id")} data-testid="oe-owner">{owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</NativeSelect>
       </Field>
+      <DepartmentSelect form={form} id="oe-department" caps={caps} />
       {creating && <p className="text-xs text-muted-foreground">{t("activateHint")}</p>}
     </Shell>
   );

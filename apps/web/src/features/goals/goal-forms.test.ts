@@ -7,14 +7,16 @@ import {
 /** TC-M5-08 — KPI / OKR editor schemas + body mappers (EP-KPI-02/04, EP-OKR-02/04/07). */
 const M = { required: "req", number: "num", tooLong: "long", periodInvalid: "period", codeInvalid: "code" };
 const OWNER = "11111111-1111-1111-1111-111111111111";
+const DEPT = "22222222-2222-2222-2222-222222222222";
 
 describe("kpiSchema", () => {
-  const kpi = { code: "KPI-SAL-09", name: "Doanh số mới", unit: "VND", target: "1.250,5".replace(".", ""), period_type: "MONTH",
+  const kpiBody = { code: "KPI-SAL-09", name: "Doanh số mới", unit: "VND", target: "1.250,5".replace(".", ""), period_type: "MONTH",
     direction: "HIGHER_IS_BETTER", value_type: "currency", status: "active", owner_id: OWNER } as const;
+  const kpi = { ...kpiBody, department_id: "" };
 
   it("accepts a valid KPI and maps it to KpiCreate (comma decimal → number)", () => {
     const v = kpiSchema(M, { creating: true }).parse(kpi);
-    expect(toKpiCreate(v)).toEqual({ ...kpi, target: 1250.5 });
+    expect(toKpiCreate(v)).toEqual({ ...kpiBody, target: 1250.5 });
   });
 
   it("rejects empty fields, a bad code and a non-numeric target", () => {
@@ -31,16 +33,30 @@ describe("kpiSchema", () => {
     expect(body).not.toHaveProperty("code");
     expect(body).not.toHaveProperty("period_type"); // KpiUpdate has no period_type (extra="forbid")
   });
+
+  it("department: an empty pick is left to the API on create; on update it is sent only when changed", () => {
+    const parse = (department_id: string) => kpiSchema(M, { creating: true }).parse({ ...kpi, department_id });
+    expect(toKpiCreate(parse(""))).not.toHaveProperty("department_id"); // CEO → company level, DIR/MGR → own dept
+    expect(toKpiCreate(parse(DEPT))).toMatchObject({ department_id: DEPT });
+    expect(toKpiUpdate(parse(DEPT), 2, DEPT)).not.toHaveProperty("department_id"); // unchanged → not re-pinned
+    expect(toKpiUpdate(parse(""), 2, null)).not.toHaveProperty("department_id");
+    expect(toKpiUpdate(parse(""), 2, DEPT)).toMatchObject({ department_id: null }); // CEO moves it to company level
+    expect(toKpiUpdate(parse(DEPT), 2, null)).toMatchObject({ department_id: DEPT });
+  });
 });
 
 describe("objectiveSchema / keyResultSchema", () => {
   it("objective: period must be YYYY, YYYY-MM or YYYY-Qn", () => {
-    const base = { title: "Tăng trưởng Q4", level: "company", okr_type: "committed", status: "draft", owner_id: OWNER } as const;
+    const body = { title: "Tăng trưởng Q4", level: "company", okr_type: "committed", status: "draft", owner_id: OWNER } as const;
+    const base = { ...body, department_id: "" };
     for (const p of ["2026-Q4", "2026-10", "2026"]) expect(objectiveSchema(M).safeParse({ ...base, period_key: p }).success, p).toBe(true);
     for (const p of ["2026-Q5", "Q4-2026", "2026-13", ""]) expect(objectiveSchema(M).safeParse({ ...base, period_key: p }).success, p).toBe(false);
     const v = objectiveSchema(M).parse({ ...base, period_key: " 2026-Q4 " });
-    expect(toObjectiveCreate(v)).toEqual({ ...base, period_key: "2026-Q4" });
+    expect(toObjectiveCreate(v)).toEqual({ ...body, period_key: "2026-Q4" });
     expect(toObjectiveUpdate(v, 3)).toMatchObject({ version: 3, title: "Tăng trưởng Q4" });
+    const inDept = objectiveSchema(M).parse({ ...base, period_key: "2026-Q4", department_id: DEPT });
+    expect(toObjectiveCreate(inDept)).toMatchObject({ department_id: DEPT });
+    expect(toObjectiveUpdate(inDept, 3, DEPT)).not.toHaveProperty("department_id");
   });
 
   it("key result: baseline/target numeric, never sends current_value", () => {

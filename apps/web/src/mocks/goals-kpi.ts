@@ -70,6 +70,7 @@ function patchKpi(req: MockRequest) {
   if ("target" in b) k.target = num(b, "target", true)!;
   if ("direction" in b) k.direction = oneOf(b, "direction", DIRECTIONS)!;
   if ("status" in b) k.status = oneOf(b, "status", ["draft", "active", "closed"] as const)!;
+  if ("department_id" in b) k.department_id = pinDepartment(req.claims, str(b, "department_id", false), k.pillar); // as kpi_service.update_kpi
   Object.assign(k, { version: k.version + 1, updated_at: nowIso() });
   recordAudit(req.claims, "execution.kpi_update", "kpis", k.id);
   return ok(kpiOut(k));
