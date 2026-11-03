@@ -1,9 +1,6 @@
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect, test, type Browser, type Locator, type Page } from "./fixtures";
 import { login } from "./helpers";
-import { rootEnv } from "./support/seed";
+import { runSupport } from "./support/seed";
 
 /**
  * T-625F / TC-M13-12 — M1.3 work screens on the mock BFF (API_MODE=mock): tabs per role,
@@ -197,13 +194,10 @@ test.describe("M1.3 work screens (TC-M13-12)", { tag: ["@mock", "@mock-only"] },
  * workload / approvals; the heatmap shows 3 overloaded people (seed, METRIC-HR-03 — company-wide,
  * so read as CEO: MGR SVC has none). `@real-only`: writes to the dev DB — `support/work_e2e.py`.
  */
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const MAILPIT = process.env.E2E_MAILPIT_URL ?? "http://localhost:8025";
 
 function workCleanup(): void {
-  execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/work_e2e.py"), "--cleanup"], {
-    cwd: ROOT, env: { ...process.env, ...rootEnv(), PYTHONPATH: "apps/api/src:apps/api" }, encoding: "utf8", timeout: 60_000,
-  });
+  runSupport("work_e2e.py", ["--cleanup"], { timeout: 60_000 });
 }
 
 async function session(browser: Browser, email: string): Promise<Page> {

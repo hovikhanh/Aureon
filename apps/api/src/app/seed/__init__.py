@@ -104,6 +104,9 @@ async def run() -> SeedReport:
 
 
 def main() -> None:
+    from app.core import log_redaction
+
+    log_redaction.install()  # R-DEC-167
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     with tenant_scope(DEFAULT_TENANT_ID):  # R-DEC-21: seed writes as the MVP system tenant
         report = asyncio.run(run())

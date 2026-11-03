@@ -1,11 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "./fixtures";
 import { login, loginWithPassword } from "./helpers";
-import { rootEnv } from "./support/seed";
+import { rootEnv, runSupport } from "./support/seed";
 
 /**
  * T-650 / TC-M16-23 — UC-07 onboarding on the real stack (API + web + Celery, fixture model gateway):
@@ -26,7 +25,7 @@ const ENV = { ...rootEnv(), ...process.env, PYTHONPATH: "apps/api/src:apps/api" 
 interface Expect { file: string; rows_total: number; rows_valid: number; rows_invalid: number; departments: number; employees: number; departments_list: { code: string; headcount: number }[] }
 
 function support(...args: string[]): string {
-  return execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/onboarding_e2e.py"), ...args], { cwd: ROOT, env: ENV, encoding: "utf8", timeout: 180_000 });
+  return runSupport("onboarding_e2e.py", args, { timeout: 180_000, env: ENV });
 }
 const lastJson = <T,>(out: string): T => JSON.parse(out.trim().split("\n").pop() ?? "{}") as T;
 const logout = (page: Page) => page.context().clearCookies();

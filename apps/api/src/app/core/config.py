@@ -22,6 +22,9 @@ class ConfigService(BaseSettings):
         env_file=REPO_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # R-DEC-167: a ValidationError must never echo the settings input (it holds DB URLs,
+        # API keys and demo passwords) — the field name and the reason are enough to fix it.
+        hide_input_in_errors=True,
     )
 
     # --- General ---

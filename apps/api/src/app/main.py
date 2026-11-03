@@ -3,6 +3,7 @@
 from fastapi import APIRouter, FastAPI
 
 from app import __version__
+from app.core import log_redaction
 from app.core.handlers import install_error_handlers
 from app.core.ops_routes import install_ops_routes
 from app.core.request_context import RequestIdMiddleware
@@ -38,6 +39,7 @@ MODULE_ROUTERS: tuple[APIRouter, ...] = (
 
 
 def create_app() -> FastAPI:
+    log_redaction.install()  # mask secrets in every log line / traceback (R-DEC-167)
     application = FastAPI(title="Aureon API", version=__version__)
     install_error_handlers(application)
     install_ops_routes(application)  # /health, /health/ready, /health/live, /metrics (T-515)

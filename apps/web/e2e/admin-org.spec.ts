@@ -1,10 +1,7 @@
 import { expect, request, test, type Page } from "./fixtures";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { devPassword, login } from "./helpers";
-import { cleanupReviewDocs, rootEnv, seedReviewDoc } from "./support/seed";
+import { cleanupReviewDocs, runSupport, seedReviewDoc } from "./support/seed";
 import { expireAccessToken } from "./support/session";
 
 /**
@@ -14,15 +11,12 @@ import { expireAccessToken } from "./support/session";
  * next refresh; EMP gets `/403` (page) and `403` (API); a notification e-mail reaches Mailpit.
  * `@real-only`: writes to the dev DB — `support/org_e2e.py --cleanup` restores it.
  */
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const MAILPIT = process.env.E2E_MAILPIT_URL ?? "http://localhost:8025";
 const CODE = `E2E-${Date.now().toString(36).toUpperCase()}`;
 const EMP_CODE = "NV-0153"; // ADM dept, manages nobody — safe to move for the test
 
 function orgCleanup(): void {
-  execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/org_e2e.py"), "--cleanup"], {
-    cwd: ROOT, env: { ...process.env, ...rootEnv(), PYTHONPATH: "apps/api/src:apps/api" }, encoding: "utf8", timeout: 60_000,
-  });
+  runSupport("org_e2e.py", ["--cleanup"], { timeout: 60_000 });
 }
 
 async function logout(page: Page): Promise<void> {

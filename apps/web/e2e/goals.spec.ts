@@ -1,10 +1,7 @@
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { login } from "./helpers";
-import { rootEnv } from "./support/seed";
+import { runSupport } from "./support/seed";
 
 /**
  * T-626F..T-628F — M1.4 goals screens on the mock BFF (API_MODE=mock): SCR-41 tree per role
@@ -138,12 +135,9 @@ test.describe("M1.4 goals screens", { tag: ["@mock", "@mock-only"] }, () => {
  * lower + LOW on OKR-SAL #0 → KR at risk → `execution.okr_at_risk` → consumer → `alert` in the
  * bell (link SCR-59). `@real-only`: writes to the dev DB — `support/goals_e2e.py` undoes them.
  */
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 function goalsCleanup(): void {
-  execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/goals_e2e.py"), "--cleanup"], {
-    cwd: ROOT, env: { ...process.env, ...rootEnv(), PYTHONPATH: "apps/api/src:apps/api" }, encoding: "utf8", timeout: 120_000,
-  });
+  runSupport("goals_e2e.py", ["--cleanup"], { timeout: 120_000 });
 }
 
 async function session(browser: Browser, email: string): Promise<Page> {

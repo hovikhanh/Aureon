@@ -1,10 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "./fixtures";
 import { login } from "./helpers";
-import { rootEnv } from "./support/seed";
+import { runSupport } from "./support/seed";
 
 /**
  * T-634F..T-638F / T-643 (mock) — M1.5 Data Capture screens on the mock BFF (API_MODE=mock):
@@ -242,9 +241,7 @@ test.describe("M1.5 data capture", { tag: ["@mock", "@mock-only"] }, () => {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 function captureCleanup(): void {
-  execFileSync(path.join(ROOT, ".venv/bin/python"), [path.join(ROOT, "apps/web/e2e/support/capture_e2e.py"), "--cleanup"], {
-    cwd: ROOT, env: { ...process.env, ...rootEnv(), PYTHONPATH: "apps/api/src:apps/api" }, encoding: "utf8", timeout: 180_000,
-  });
+  runSupport("capture_e2e.py", ["--cleanup"], { timeout: 180_000 });
 }
 
 test.describe("M1.5 data capture on the real stack (TC-M15-17)", { tag: "@real-only" }, () => {

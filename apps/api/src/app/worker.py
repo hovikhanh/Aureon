@@ -3,6 +3,7 @@
 from celery import Celery
 from celery.schedules import crontab
 
+from app.core import log_redaction
 from app.core.config import get_config
 
 _cfg = get_config()
@@ -19,6 +20,7 @@ def _hhmm(value: str, *, default: tuple[int, int]) -> tuple[int, int]:
 
 _BRIEF_H, _BRIEF_M = _hhmm(_cfg.briefing_time, default=(6, 0))
 
+log_redaction.install()  # worker + beat: mask secrets in logs / task tracebacks (R-DEC-167)
 celery_app = Celery(
     "aureon",
     broker=_cfg.celery_broker_url.get_secret_value(),
