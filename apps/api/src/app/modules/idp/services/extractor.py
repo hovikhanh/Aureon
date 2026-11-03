@@ -124,11 +124,16 @@ class Extractor:
                 "rows": {"type": "array", "items": {"type": "object", "properties": field_props}},
             },
         }
+        # Output is bounded (≤ 2048 tokens, CLAUDE.md §5.5) — ask for the compact form: minified
+        # JSON, no fence, rows only when there are several records, short raw_text (R-DEC-164).
+        # A field left out parses as value=null, confidence=0 (`_field`), so nulls are not written.
         system = (
             "Bạn trích xuất dữ liệu có cấu trúc từ tài liệu. Chỉ trả về các trường yêu cầu; "
-            "trường không tìm thấy để value=null và confidence=0. Không bịa số (P05). Nếu tài "
-            "liệu có nhiều bản ghi cùng loại (vd nhiều việc cần làm), trả mảng `rows`, mỗi phần "
-            "tử là một bản ghi."
+            "trường không tìm thấy thì bỏ hẳn, không ghi null. Không bịa số (P05). Nếu tài liệu "
+            "có nhiều bản ghi cùng loại (vd nhiều việc cần làm), chỉ trả mảng `rows`, mỗi phần "
+            "tử là một bản ghi, không lặp lại các trường ở cấp ngoài. Trả JSON thu gọn trên một "
+            "dòng, không markdown, không khối ```; chỉ ghi `raw_text` khi khác `value` (tối đa "
+            "40 ký tự)."
         )
         # Document content is wrapped as DATA, not instructions (04 §2.3, no tool calling).
         user = f"Các trường cần trích: {', '.join(names)}\n<<<DATA\n{page_text}\nDATA>>>"
