@@ -557,7 +557,7 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1102 | KPI/OKR: dialog tạo/sửa/lưu trữ KPI, Objective, Key Result; chọn owner (CEO/ADM) | 10 EP-KPI/EP-OKR | TC-M5-08 | ☑ |
 | T-1103 | AI Admin: log model call lỗi ghi độc lập; `unpriced_calls`; thẻ tổng hợp + lọc provider/model/trạng thái | R-DEC-154/155 | TC-M5-05..07 | ☑ |
 | T-1104 | Trang `/home/metrics/[code]`, route `/knowledge/[tab]`, sửa link thông báo + contract test link | R-DEC-156 | TC-M5-01 | ☑ |
-| T-1105 | Bật lại provider runtime (OmniRoute) hoặc chốt `MODEL_PROVIDER_FALLBACKS`; cấu hình `MODEL_PRICING_JSON`; rebuild image stack compose với code M5 | — (môi trường, chờ human) | — | ☐ |
+| T-1105 | Bật lại provider runtime (OmniRoute — human bật lại 2026-11-03); cấu hình `MODEL_PRICING_JSON` (R-DEC-158); rebuild image + recreate api/worker/beat/web stack compose với code M5 | R-DEC-158 | TC-M5-10, E2E real | ☑ |
 | T-1106 | `MODEL_PRICING_JSON`: schema `cached_in`/`cache_write`/`unpriced`/`_meta`, fail fast, adapter đọc token cache; tra giá chính thức + cấu hình `.env` | R-DEC-158 | TC-M5-10 | ☑ |
 | T-1107 | Editor KPI/Objective: chọn phòng ban (`/hr/departments`, CEO/DIR), chỉ gửi khi đổi; test ma trận role | R-DEC-159 | TC-M5-11 | ☑ |
 

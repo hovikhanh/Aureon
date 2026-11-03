@@ -1,5 +1,17 @@
 # Aureon v3 — AI-EOS · Build State
 
+## M5 follow-up — OmniRoute, giá model, KPI/OKR theo phòng ban, deploy stack compose (2026-11-03) — DONE, chưa push/merge
+
+R-DEC-158/159 (`13`), TC-M5-10/11 (`14` §1.22), T-1105..T-1107 (`09` §6.20). Commit `75783cf`, `1dfade3`, `3b29239`, `722be95`.
+
+- **OmniRoute** chạy: từ container api `/models` 200 (7186 model, có `cc/claude-sonnet-5` + `cl/deepseek/deepseek-v4.1-flash`). Chat thật trên **stack chính** (EP-AI-01, CEO): `TOOL-create_task` L3 executed, task hạn `2026-11-30` giao cho chính CEO, undo 24h, audit `ai.action_proposed → execution.task_create → ai.action_executed`; `model_call_logs` có token + chi phí.
+- **Giá** (`.env`, tra 2026-11-03, USD/1M): Claude Sonnet 5 in 2 · out 10 · cache đọc 0,20 · ghi 2,50; DeepSeek V4.1-Flash (giá cao điểm) in 0,30 · out 1,20 · cache đọc 0,006. Schema `cached_in`/`cache_write`/`unpriced`/`_meta`, fail fast. Sửa parser: route `cc/` báo ghi cache **ngoài** `prompt_tokens` → trước đây mất token/chi phí.
+- **KPI/Objective**: chọn phòng ban (`/hr/departments`), RBAC giữ nguyên; OQ-13-M5-01 (MGR: RACI "C" ↔ API cho tạo) chờ human.
+- **Deploy**: backup `var/backup/aureon_prem5_20261103_145614.dump`; tag `aureon-{api,web}:pre-m5`; image `aureon-api:local` `a5eda3033462`, `aureon-web:local` `145e34b78fe0`; recreate api/worker/beat/web (`--no-deps`, không migration); 10/10 healthy; mã trong container = HEAD (api/worker/beat 389/389, web 346/346 + messages); beat 16 entry; log 0 lỗi.
+- **Gate:** pytest full **1420 passed** (trước fix parser) + unit **476 passed** sau fix · contract 44 · ruff/mypy · lint · typecheck · Vitest **449** · E2E mock goals 4/4 · **E2E real trên stack chính 26/26**.
+
+---
+
 ## M5 — 4 khoảng trống phát hiện khi kiểm thử giao diện (nhánh `v3/m5-product-gaps`, 2026-11-03) — DONE trên nhánh, chưa push/merge/deploy
 
 Báo cáo đầy đủ: `deliverables/M5-PRODUCT-GAPS-REPORT.md`. R-DEC-154..157 (`13`), TC-M5-01..09 (`14` §1.22), T-1101..T-1105 (`09` §6.20).
