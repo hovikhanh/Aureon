@@ -561,6 +561,18 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1106 | `MODEL_PRICING_JSON`: schema `cached_in`/`cache_write`/`unpriced`/`_meta`, fail fast, adapter đọc token cache; tra giá chính thức + cấu hình `.env` | R-DEC-158 | TC-M5-10 | ☑ |
 | T-1107 | Editor KPI/Objective: chọn phòng ban (`/hr/departments`, CEO/DIR), chỉ gửi khi đổi; test ma trận role | R-DEC-159 | TC-M5-11 | ☑ |
 
+### 6.21. M6 — QA theo 5 role (nhánh `v3/m6-role-qa`)
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1201 | IDP: phạm vi review/chi tiết tài liệu DIR theo khối | R-DEC-160 | TC-M6-01 | ☑ |
+| T-1202 | FE khối-aware: route `/business/hr`, invoices; picker org/phòng ban; thẻ hub | R-DEC-161 | TC-M6-03/04 | ☑ |
+| T-1203 | Ngữ nghĩa lỗi 403/404/hệ thống + tab Tri thức theo quyền | R-DEC-162 | TC-M6-03/04 | ☑ |
+| T-1204 | IDP: classifier structured output, fence JSON, lỗi trích xuất → FAILED + lý do trong hộp thư | R-DEC-163 | TC-M6-02 | ☑ |
+| T-1205 | Trang chủ CEO (SEI, `/home/alerts`, dự án trễ), Họp & lịch (tab, danh sách, lịch date, #418, thông báo STT) | R-DEC-165 | TC-M6-03/04 | ☑ |
+| T-1206 | Chốt ngân sách output trích xuất trên `cc/` (model/route, trần, prompt gọn) | R-DEC-164 | — | ☐ chờ human |
+| T-1207 | Ghi chú giọng nói C2 thật (tải audio + STT live) | R-DEC-166 | — | ☐ chờ human |
+
 ## 7. Open questions
 
 - OQ-09-01: Task breakdown `T-*` — **ĐÃ CHỐT** (R-DEC-15/19): sinh ở §6.
