@@ -93,6 +93,7 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 | SCR-47 | `/business/finance/invoices` | Kinh doanh — hóa đơn | quyền `finance:read` | có sẵn (lite) | `/finance/invoices` |
 | SCR-48 | `/business/hr/employees` | Kinh doanh — nhân sự | quyền `hr:read` | có sẵn (lite) | `/hr/employees` |
 | SCR-49 | `/knowledge` | Tri thức / báo cáo | mọi role (Admin: audit) | M3.3 / M3.4 | — |
+| SCR-12 (trang) | `/home/metrics/[code]` | Chi tiết chỉ số (bản toàn trang của Panel P01) — đích của thông báo cảnh báo metric (R-DEC-88/156); link v2.1 `/dashboard/metrics/<code>` 308 tới đây | `dashboard:read` (API kiểm phạm vi khối) | M5 | — |
 | SCR-50 | `/admin` | Quản trị — tổng quan | ADM (CEO xem) | M1.2 | — |
 | SCR-14 | `/admin/audit` | Quản trị — audit log (M1.2: thêm lọc `from`/`to`/`actor_type`, EP-ADM-12) | ADM | có sẵn (lite) → M1.2 | (giữ) |
 | SCR-51 | `/admin/org` | Quản trị — cơ cấu tổ chức (cây + panel + mốc `as_of`) | ADM, CEO, DIR khối O (sửa); MGR không thấy mục | M1.2 | — |

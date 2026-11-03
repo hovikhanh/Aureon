@@ -114,7 +114,7 @@ async def _run(db: AsyncSession, user: Principal, p: Any, ctx: ActionContext) ->
         kind="system",
         title=p.title,
         body="AI đã tạo việc và đặt lịch theo khuyến nghị.",
-        link=f"/work/tasks/{task.id}",
+        link=f"/work?task={task.id}",
         ref_schema="execution",
         ref_table="tasks",
         ref_id=task.id,

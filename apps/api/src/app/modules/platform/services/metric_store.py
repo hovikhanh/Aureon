@@ -245,7 +245,8 @@ async def notify_alert(db: AsyncSession, m: Metric, a: Alert) -> None:
 
     ns = NotificationService(db)
     since = _iso_week_start(datetime.now(UTC))
-    link = f"/dashboard/metrics/{m.code}"
+    # v3 page (`/home/metrics/[code]`); old `/dashboard/metrics/...` rows still 308 there.
+    link = f"/home/metrics/{m.code}"
     for uid in dict.fromkeys(await _alert_recipients(db, m.pillar)):
         if await ns.already_sent(uid, kind="alert", since=since, ref_table="alerts", ref_id=a.id):
             continue

@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { DecisionsPanel } from "./DecisionsPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { ReportsPanel } from "./ReportsPanel";
+import { KNOWLEDGE_TABS, type KnowledgeTab } from "./tabs";
 
-type Tab = "decisions" | "documents" | "reports";
-const TABS: Tab[] = ["decisions", "documents", "reports"];
+type Tab = KnowledgeTab;
+const TABS = KNOWLEDGE_TABS;
 
-export function KnowledgeView() {
+/** `initialTab` comes from the sub-route (`/knowledge/decisions|documents|reports`, R-DEC-137). */
+export function KnowledgeView({ initialTab = "decisions" }: { initialTab?: Tab }) {
   const t = useTranslations("knowledge");
-  const [tab, setTab] = useState<Tab>("decisions");
+  const [tab, setTab] = useState<Tab>(initialTab);
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-6" data-testid="knowledge-view">
       <div className="flex flex-wrap items-center justify-between gap-3">

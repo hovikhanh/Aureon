@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import type { MetricDetail } from "./types";
 
@@ -21,6 +21,8 @@ export function useMetricDetail(code: string | null) {
     detail: q.data ?? null,
     loading: q.isLoading,
     error: q.isError,
+    /** `FORBIDDEN_*` / `NOT_FOUND` let the page say *why* instead of a generic retry. */
+    errorCode: q.error instanceof ApiError ? q.error.code : q.isError ? "NETWORK_ERROR" : null,
     refetch: () => void q.refetch(),
   };
 }
