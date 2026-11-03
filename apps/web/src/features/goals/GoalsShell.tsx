@@ -19,6 +19,8 @@ export const goalCaps = (u: GoalsUser) => ({
   isEmployee: u.role === "EMP",
   canManage: u.role !== "EMP" && u.permissions.includes("execution:write"),
   canFilterDepartment: (u.role === "CEO" || u.role === "DIR") && u.permissions.includes("hr:read"),
+  /** KPI/OKR owner picker reads `/platform/users` (EP-ADM, `platform:read`: CEO/ADM); others own what they create. */
+  canPickOwner: u.permissions.includes("platform:read"),
 });
 export type GoalCaps = ReturnType<typeof goalCaps>;
 

@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDepartments } from "@/features/admin/org/use-org";
 import { formatPct, formatPeriod, type AppLocale } from "@/lib/format";
 import { businessToday } from "@/lib/work-dates";
 import { LoadError, Progress } from "./common";
+import { KpiEditorDialog, ObjectiveEditorDialog } from "./GoalEditors";
 import { filterKpis, filterObjs, periodKeyOf, soVisible, type SONode } from "./logic";
 import { IniRow, KpiRow, ObjRow, Toggle, ToggleContent } from "./TreeNodes";
 import { useGoalTree, useStrategies } from "./use-goals";
@@ -54,22 +54,23 @@ export function GoalTreeView({ caps }: { caps: GoalCaps }) {
   const strategies = useStrategies();
   const departments = useDepartments();
   const showDept = caps.canFilterDepartment;
+  const [editor, setEditor] = React.useState<"kpi" | "objective" | null>(null);
 
   return (
     <section className="flex flex-col gap-4" data-testid="goals-tree" data-scr="SCR-41">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-xl font-semibold">{caps.isEmployee ? t("tree.empSelf") : t("tree.title")}</h1>
         {caps.canManage && (
-          <TooltipProvider>
-            <div className="flex gap-2">
-              {(["createKpi", "createObjective"] as const).map((k) => (
-                <Tooltip key={k}>
-                  <TooltipTrigger asChild><span><Button size="sm" variant="outline" disabled data-testid={`goals-${k}`}>{t(`tree.${k}`)}</Button></span></TooltipTrigger>
-                  <TooltipContent>{t("tree.createSoon")}</TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          </TooltipProvider>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditor("kpi")} data-testid="goals-createKpi">{t("tree.createKpi")}</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditor("objective")} data-testid="goals-createObjective">{t("tree.createObjective")}</Button>
+          </div>
+        )}
+        {caps.canManage && (
+          <>
+            <KpiEditorDialog open={editor === "kpi"} onOpenChange={(o) => setEditor(o ? "kpi" : null)} caps={caps} />
+            <ObjectiveEditorDialog open={editor === "objective"} onOpenChange={(o) => setEditor(o ? "objective" : null)} caps={caps} defaultPeriod={period} />
+          </>
         )}
       </div>
       <div className="flex flex-wrap items-end gap-3" data-testid="goals-filters">

@@ -73,3 +73,14 @@ export async function login(page: Page, email: string, password?: string): Promi
   if (password === undefined && inDropdown) return loginAs(page, email);
   return loginWithPassword(page, email, password ?? devPassword(email));
 }
+
+/**
+ * `login()` + wait until the post-login redirect (`/` → the role's landing: `/home`, `/admin`…)
+ * has finished. A `page.goto()` fired while that client redirect is still in flight overlaps two
+ * navigations; under parallel load it briefly left a stale copy of the target tree in the DOM.
+ */
+export async function loginSettled(page: Page, email: string, password?: string): Promise<void> {
+  await login(page, email, password);
+  await page.waitForURL((u) => u.pathname !== "/" && !u.pathname.startsWith("/login"));
+  await waitForHydration(page);
+}

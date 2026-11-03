@@ -51,3 +51,20 @@ export const postCheckIn = (targetType: "key_result" | "kpi", id: string, body: 
   post<CheckInOut>(targetType === "kpi" ? `/kpis/${id}/check-ins` : `/key-results/${id}/check-ins`, body);
 export const postMeasurement = (kpiId: string, body: Api.MeasurementCreate) => post<MeasurementOut>(`/kpis/${kpiId}/measurements`, body);
 export const postTarget = (kpiId: string, body: Api.KpiTargetCreate) => post<KpiTargetOut>(`/kpis/${kpiId}/targets`, body);
+
+// ---- KPI / OKR editors (EP-KPI-02/04/05, EP-OKR-02/04/05/07/09/10) -------------------------
+const patch = <T,>(path: string, body: unknown) => apiRequest<T>(path, { method: "PATCH", body }).then((r) => r.data);
+const del = (path: string) => apiRequest<void>(path, { method: "DELETE" }).then(() => undefined);
+
+export const createKpi = (body: Api.KpiCreate) => post<KpiOut>("/kpis", body);
+export const updateKpi = (id: string, body: Api.KpiUpdate) => patch<KpiOut>(`/kpis/${id}`, body);
+/** Archive = soft delete (`deleted_at`); a KPI with child KPIs / tasks → `409 CONFLICT_STATE`. */
+export const archiveKpi = (id: string) => del(`/kpis/${id}`);
+
+export const createObjective = (body: Api.ObjectiveCreate) => post<ObjectiveOut>("/objectives", body);
+export const updateObjective = (id: string, body: Api.ObjectiveUpdate) => patch<ObjectiveOut>(`/objectives/${id}`, body);
+export const archiveObjective = (id: string) => del(`/objectives/${id}`);
+
+export const createKeyResult = (objectiveId: string, body: Api.KeyResultCreate) => post<KeyResultOut>(`/objectives/${objectiveId}/key-results`, body);
+export const updateKeyResult = (id: string, body: Api.KeyResultUpdate) => patch<KeyResultOut>(`/key-results/${id}`, body);
+export const archiveKeyResult = (id: string) => del(`/key-results/${id}`);

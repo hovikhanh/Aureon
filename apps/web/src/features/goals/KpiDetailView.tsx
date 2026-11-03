@@ -15,6 +15,7 @@ import { formatDate, formatPct, formatPeriod, type AppLocale } from "@/lib/forma
 import { businessToday } from "@/lib/work-dates";
 import { BandChip, LoadError, useGoalError } from "./common";
 import { KpiChart } from "./KpiChart";
+import { ArchiveDialog, KpiEditorDialog } from "./GoalEditors";
 import { MeasureDialog, TargetDialog } from "./KpiDialogs";
 import { KpiHistory, KpiLinks } from "./KpiTabs";
 import { formatValue, periodKeyOf } from "./logic";
@@ -64,7 +65,7 @@ function Header({ k, caps }: { k: KpiOut; caps: GoalCaps }) {
   const targets = useKpiTargets(k.id);
   const period = periodKeyOf(k.period_type, businessToday());
   const locked = (targets.data ?? []).some((x) => x.period_key === period && x.valid_to === null && x.locked_at !== null);
-  const [open, setOpen] = React.useState<"measure" | "target" | null>(null);
+  const [open, setOpen] = React.useState<"measure" | "target" | "edit" | "archive" | null>(null);
   const canMeasure = caps.canManage || k.owner_id === caps.userId;
   const action = (key: "measure" | "setTarget", dlg: "measure" | "target") => (
     <Tooltip>
@@ -84,10 +85,14 @@ function Header({ k, caps }: { k: KpiOut; caps: GoalCaps }) {
         <div className="flex gap-2">
           {canMeasure && action("measure", "measure")}
           {caps.canManage && action("setTarget", "target")}
+          {caps.canManage && <Button size="sm" variant="outline" onClick={() => setOpen("edit")} data-testid="kpi-edit">{t("editor.edit")}</Button>}
+          {caps.canManage && <Button size="sm" variant="ghost" className="text-danger" onClick={() => setOpen("archive")} data-testid="kpi-archive">{t("editor.archiveAction")}</Button>}
         </div>
       </TooltipProvider>
       <MeasureDialog open={open === "measure"} onOpenChange={(o) => setOpen(o ? "measure" : null)} kpiId={k.id} period={period} />
       <TargetDialog open={open === "target"} onOpenChange={(o) => setOpen(o ? "target" : null)} kpiId={k.id} period={period} />
+      {caps.canManage && <KpiEditorDialog open={open === "edit"} onOpenChange={(o) => setOpen(o ? "edit" : null)} caps={caps} kpi={k} />}
+      {caps.canManage && <ArchiveDialog open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} kind="kpi" id={k.id} name={`${k.code} · ${k.name}`} after="/goals" />}
     </div>
   );
 }
