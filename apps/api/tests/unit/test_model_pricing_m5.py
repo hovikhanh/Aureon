@@ -90,6 +90,28 @@ def test_openai_compatible_usage_keeps_cached_tokens_inside_the_prompt() -> None
     assert openai_usage({"prompt_tokens": 48, "completion_tokens": 5}).cached_in == 0
 
 
+def test_omniroute_claude_cache_write_outside_the_prompt_is_added_back() -> None:
+    """Live OmniRoute `cc/claude-sonnet-5` responses 2026-11-03 (same 10 794-token prompt twice)."""
+    write = openai_usage({
+        "prompt_tokens": 7, "completion_tokens": 20,
+        "prompt_tokens_details": {
+            "cache_creation_tokens": 10_787, "cache_creation_in_prompt": False,
+        },
+    })  # fmt: skip
+    assert (write.tokens_in, write.cached_in, write.cache_write) == (10_794, 0, 10_787)
+    read = openai_usage({
+        "prompt_tokens": 10_794, "completion_tokens": 20,
+        "prompt_tokens_details": {"cached_tokens": 10_787},
+    })  # fmt: skip
+    assert (read.tokens_in, read.cached_in, read.cache_write) == (10_794, 10_787, 0)
+    # 7 fresh × $2 + 10 787 written × $2.5 + 20 out × $10 per 1M → 27 181.5 → 27 182 µUSD
+    cost = estimate_cost_micro_usd(
+        TABLE, "omniroute", "claude-sonnet-5",
+        write.tokens_in, write.tokens_out, write.cached_in, write.cache_write,
+    )  # fmt: skip
+    assert cost == 27_182
+
+
 def test_anthropic_usage_adds_cache_tokens_back_to_the_prompt() -> None:
     u = anthropic_usage({
         "input_tokens": 100, "output_tokens": 7,

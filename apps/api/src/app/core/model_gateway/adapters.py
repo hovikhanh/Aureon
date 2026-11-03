@@ -28,12 +28,20 @@ CONNECT_TIMEOUT = 5.0
 def openai_usage(u: dict[str, Any]) -> Usage:
     """OpenAI-compatible usage (OmniRoute, OpenRouter, DeepSeek…): `prompt_tokens` already counts
     cached tokens; the cache split is in `prompt_tokens_details.cached_tokens` (and, when the
-    upstream is Anthropic, `cache_creation_input_tokens` passed through)."""
+    upstream is Anthropic, `cache_creation_input_tokens` passed through).
+
+    OmniRoute's `cc/` (Claude) route instead reports a cache write as
+    `prompt_tokens_details.cache_creation_tokens` with `cache_creation_in_prompt: false` — those
+    tokens are NOT in `prompt_tokens` (live 2026-11-03: 7 prompt + 10 787 written), so they are
+    added back; otherwise the write would vanish from `tokens_in` and the cost."""
     details = u.get("prompt_tokens_details") or {}
+    tin = int(u.get("prompt_tokens") or 0)
+    write = int(details.get("cache_creation_tokens") or u.get("cache_creation_input_tokens") or 0)
+    if details.get("cache_creation_in_prompt") is False:
+        tin += write
     return Usage(
-        int(u.get("prompt_tokens") or 0), int(u.get("completion_tokens") or 0),
-        cached_in=int(details.get("cached_tokens") or 0),
-        cache_write=int(u.get("cache_creation_input_tokens") or 0),
+        tin, int(u.get("completion_tokens") or 0),
+        cached_in=int(details.get("cached_tokens") or 0), cache_write=write,
     )  # fmt: skip
 
 
