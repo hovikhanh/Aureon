@@ -292,7 +292,8 @@ async def test_upsert_kpi_and_objective_confirm_undo(db_session) -> None:
 async def test_record_kr_checkin_confirm_undo(db_session) -> None:
     from app.modules.execution.models import KeyResult
 
-    kr = (await db_session.execute(select(KeyResult.id).limit(1))).scalar_one()
+    live = select(KeyResult.id).where(KeyResult.deleted_at.is_(None)).limit(1)  # not archived
+    kr = (await db_session.execute(live)).scalar_one()
     ceo = who("CEO")
     card = await _propose(
         db_session,

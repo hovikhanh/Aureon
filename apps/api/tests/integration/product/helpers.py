@@ -37,8 +37,10 @@ async def audit_actions(db: AsyncSession, target_id: str) -> list[str]:
 
 async def outbox_for(db: AsyncSession, aggregate_id: str) -> list[tuple[str, dict[str, Any]]]:
     rows = await db.execute(
-        select(OUTBOX.c.event_type, OUTBOX.c.payload).where(
-            OUTBOX.c.aggregate_id == uuid.UUID(aggregate_id)
-        )
+        select(OUTBOX.c.event_type, OUTBOX.c.payload)
+        .where(OUTBOX.c.aggregate_id == uuid.UUID(aggregate_id))
+        # publish order: `occurred_at` is stamped per event (Python clock); without ORDER BY the
+        # heap order is unspecified and tests that read events[0]/events[1] flaked.
+        .order_by(OUTBOX.c.occurred_at)
     )
     return [(r[0], r[1]) for r in rows]
