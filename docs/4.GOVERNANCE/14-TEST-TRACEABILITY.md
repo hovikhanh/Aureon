@@ -415,7 +415,7 @@ nên mọi thay đổi EP/tool/metric/action sau này phải cập nhật doc tr
 được từ T-1021 (`pnpm test:coverage`): statements 88,26% · functions 71,29% · branches 88,66% —
 vượt ngưỡng `14` §1.3 (≥ 70%) cho phạm vi module logic; hook TanStack Query phủ bằng Playwright.
 
-### 1.22. M5 — Lấp 4 khoảng trống sản phẩm (`v3/m5-product-gaps`, R-DEC-154..157)
+### 1.22. M5 — Lấp 4 khoảng trống sản phẩm (`v3/m5-product-gaps`, R-DEC-154..159)
 
 | TC | Nội dung | Loại | Spec | Trạng thái |
 |---|---|---|---|---|
@@ -428,6 +428,8 @@ vượt ngưỡng `14` §1.3 (≥ 70%) cho phạm vi module logic; hook TanStack
 | TC-M5-07 | **`unpriced_calls`**: chỉ lượt cloud có token mà $0; Ollama và lượt không token không tính; FE thẻ tổng hợp tháng + lọc provider/model/trạng thái ở Model Calls (e2e mock + real) | integration + unit + e2e | R-DEC-155, 10 EP-AI-15/23 | Passed 2026-11-03 |
 | TC-M5-08 | **KPI / OKR tạo · xem · sửa · lưu trữ**: CEO tạo KPI → trang chi tiết; mã KPI khóa khi sửa; trùng mã → lỗi tại chỗ; tạo Objective → thêm / sửa / lưu trữ Key Result → lưu trữ Objective; EMP không thấy nút (API vẫn chặn) | unit (schema) + e2e (mock + real) | 10 EP-KPI-02/04/05, EP-OKR-02/04/05/07/09/10 | Passed 2026-11-03 |
 | TC-M5-09 | **SSE kết thúc bằng `error {code}` khi provider lỗi** (`AI_PROVIDER_ERROR`, `AI_PROVIDER_TIMEOUT`, `AI_QUOTA_EXCEEDED`) — kiểm âm: router cũ fail | integration | 10 §6, R-DEC-157 | Passed 2026-11-03 |
+| TC-M5-10 | **Bảng giá model**: entry cũ `{in,out}` tính như trước; lượt DeepSeek thật 44/20 token → 37 µUSD (khớp `cost` provider báo); token cache đọc/ghi tính theo `cached_in`/`cache_write` (thiếu → giá `in`); số cache vượt prompt bị chặn; `unpriced`/model lạ → $0, `_meta` bỏ qua; bảng sai → fail fast; adapter OpenAI-compatible/Anthropic đọc token cache | unit | R-DEC-158, 07 §7 | Passed 2026-11-03 |
+| TC-M5-11 | **Editor KPI/Objective theo role**: CEO chọn owner + phòng ban, đổi về toàn công ty (`department_id: null`), để trống = toàn công ty; DIR để trống → ghim phòng ban của mình, phòng ban ngoài phạm vi → `FORBIDDEN_SCOPE`; REV/ADM/EMP tạo → `403 FORBIDDEN_ROLE`; FE: mapper chỉ gửi `department_id` khi chọn/đổi; e2e CEO chọn phòng ban + owner (response khớp), sửa về toàn công ty | integration + unit + e2e | R-DEC-159, 02 RACI, 10 EP-KPI-02/04, EP-OKR-02/04 | Passed 2026-11-03 |
 
 Sửa test tiền tồn lộ ra: helper `outbox_for` (execution/product/sales) thêm `ORDER BY occurred_at` (thứ tự event trước đó không xác định → `test_kpi_measurements_and_event` flaky); `test_record_kr_checkin_confirm_undo` chỉ chọn KR chưa lưu trữ.
 
