@@ -1,5 +1,16 @@
 # Aureon v3 — AI-EOS · Build State
 
+## M6 — QA theo 5 role + R-DEC-167 bảo mật (nhánh `v3/m6-role-qa`, 2026-11-03) — DONE trên nhánh, chưa push/merge/deploy
+
+R-DEC-160..169 (`13`), TC-M6-01..05 (`14` §1.23), T-1201..1210 (`09` §6.21).
+
+- Sửa: phạm vi review DIR theo khối; FE theo cô lập khối (`/org/tree`, `/hr/*`); ngữ nghĩa lỗi 403/404; tab Tri thức theo quyền; Trang chủ CEO (SEI, `/home/alerts`, dự án trễ); Họp & lịch (danh sách, tab lịch, ngày EP-CAL-01, #418, ghi âm "chưa hỗ trợ"); IDP classifier dùng structured output, lỗi trích xuất → FAILED.
+- Bảo mật: `DEMO_ADMIN_PASSWORD` đã rotate (human); `hide_input_in_errors`; log redaction; E2E support không lộ secret. **Mở:** R-DEC-168 xoay khóa JWT RS256.
+- R-DEC-164: `MODEL_EXTRACT=cc/claude-sonnet-4-6` + prompt gọn — DOC-09 trích + lưu 8/8; **DOC-03 vẫn FAILED (vượt 2048 token)** → chờ chọn phương án.
+- Gate: pytest **1443** · contract 44 · ruff/mypy · lint · typecheck · Vitest **466** · build · gitleaks nhánh 18 commit: 0 · E2E real cô lập **61/61** · mock **108/109** (1 flake có từ trước). Stack chính không bị đổi (image/container giữ nguyên, DB không đổi trong lượt cuối).
+
+---
+
 ## M5 follow-up — OmniRoute, giá model, KPI/OKR theo phòng ban, deploy stack compose (2026-11-03) — DONE, chưa push/merge
 
 R-DEC-158/159 (`13`), TC-M5-10/11 (`14` §1.22), T-1105..T-1107 (`09` §6.20). Commit `75783cf`, `1dfade3`, `3b29239`, `722be95`.

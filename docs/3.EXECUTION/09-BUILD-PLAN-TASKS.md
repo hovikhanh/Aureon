@@ -570,8 +570,11 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1203 | Ngữ nghĩa lỗi 403/404/hệ thống + tab Tri thức theo quyền | R-DEC-162 | TC-M6-03/04 | ☑ |
 | T-1204 | IDP: classifier structured output, fence JSON, lỗi trích xuất → FAILED + lý do trong hộp thư | R-DEC-163 | TC-M6-02 | ☑ |
 | T-1205 | Trang chủ CEO (SEI, `/home/alerts`, dự án trễ), Họp & lịch (tab, danh sách, lịch date, #418, thông báo STT) | R-DEC-165 | TC-M6-03/04 | ☑ |
-| T-1206 | Chốt ngân sách output trích xuất trên `cc/` (model/route, trần, prompt gọn) | R-DEC-164 | — | ☐ chờ human |
-| T-1207 | Ghi chú giọng nói C2 thật (tải audio + STT live) | R-DEC-166 | — | ☐ chờ human |
+| T-1206 | Ngân sách output trích xuất: `MODEL_EXTRACT` route không suy luận + prompt gọn (đã làm); DOC-03 vẫn vượt 2048 → chờ chọn phương án | R-DEC-164 | TC-M6-02 | ◐ một phần |
+| T-1207 | Ghi chú giọng nói C2: hoãn STT thật, UI báo "chưa hỗ trợ" (đã làm); STT thật = backlog | R-DEC-166 | TC-M6-04 | ☑ (hoãn) |
+| T-1208 | Bảo mật R-DEC-167: `hide_input_in_errors`, log redaction, E2E support runner che secret + đọc env đúng | R-DEC-167 | TC-M6-05 | ☑ |
+| T-1209 | Xoay khóa JWT RS256 | R-DEC-168 | — | ☐ chờ human |
+| T-1210 | Backlog: EMP chọn người nhận khi đề nghị chuyển giao (không gọi `/org/tree`) | R-DEC-169 | — | ☐ backlog |
 
 ## 7. Open questions
 
