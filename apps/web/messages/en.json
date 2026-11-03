@@ -2323,7 +2323,8 @@
         "unknown": "Recording failed. Please try again.",
         "meetingBlocked": "Meeting audio cannot be captured via this channel (R-DEC-22).",
         "sttUnavailable": "Speech-to-text is not enabled on the server. Please paste or type the text above."
-      }
+      },
+      "notAvailable": "Voice recording is not supported yet — speech-to-text is not enabled. Please paste or type the text above."
     },
     "preview": {
       "docType": "Document type",

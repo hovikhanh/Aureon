@@ -1,6 +1,7 @@
 import type { Page, Response } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { loginSettled } from "./helpers";
+import { cleanupReviewDocs, seedReviewDoc } from "./support/seed";
 
 /**
  * TC-M6-04 (e2e) — the five roles of the M6 role QA (CEO, CFO, Kinh doanh, Sales, Reviewer).
@@ -61,6 +62,8 @@ test.describe("M6 · CEO", () => {
       await page.goto("/meetings");
       await expect(page.getByTestId("meeting-list")).toBeVisible();
       await expect(page.getByTestId("meeting-row").first()).toBeVisible();
+      await expect(page.getByTestId("voice-not-available")).toBeVisible(); // R-DEC-166: recording shown as not supported
+      await expect(page.getByTestId("voice-start")).toHaveCount(0);
       await page.getByTestId("meetings-tab-calendar").click();
       await expect(page).toHaveURL(/\/meetings\/calendar$/);
       await expect(page.getByTestId("calendar-view")).toBeVisible();
@@ -83,18 +86,24 @@ test.describe("M6 · CFO (DIR khối F)", () => {
     expect(errs).toEqual([]);
   });
 
-  test("a reviewable khối-F document in the inbox opens its review (no 404)", async ({ page }) => {
-    await loginSettled(page, "cfo@abc.demo");
-    await page.goto("/data");
-    const review = page.getByTestId("inbox-review").first();
-    test.skip(!(await review.count()), "no reviewable F document in this dataset");
-    const errs = await backendErrors(page, async () => {
-      await review.click();
-      await expect(page).toHaveURL(/\/data\/review\//);
-      await expect(page.getByTestId("review-load-error")).toHaveCount(0);
-      await page.waitForLoadState("networkidle");
-    });
-    expect(errs.filter((e) => e.includes("/review"))).toEqual([]);
+  test("a khối-F invoice filed by another department opens its review (was 404)", async ({ page }) => {
+    // seeded as the reviewer (Hành chính — Trợ lý) → INVOICE, pillar F: listed in the CFO inbox (khối)
+    const { document_id } = seedReviewDoc();
+    try {
+      await loginSettled(page, "cfo@abc.demo");
+      await page.goto("/data");
+      const row = page.locator(`[data-testid="inbox-row"][data-doc="${document_id}"]`);
+      await expect(row).toBeVisible();
+      const errs = await backendErrors(page, async () => {
+        await row.getByTestId("inbox-review").click();
+        await expect(page).toHaveURL(new RegExp(`/data/review/${document_id}$`));
+        await expect(page.getByTestId("review-load-error")).toHaveCount(0);
+        await page.waitForLoadState("networkidle");
+      });
+      expect(errs.filter((e) => e.includes("/review") || e.includes("/idp/documents"))).toEqual([]);
+    } finally {
+      cleanupReviewDocs();
+    }
   });
 });
 

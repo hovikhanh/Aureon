@@ -2323,7 +2323,8 @@
         "unknown": "Không ghi âm được. Anh/chị thử lại.",
         "meetingBlocked": "Không ghi âm cuộc họp qua kênh này (R-DEC-22).",
         "sttUnavailable": "Máy chủ chưa bật chuyển giọng nói thành văn bản (STT). Anh/chị dán hoặc gõ nội dung vào ô bên trên."
-      }
+      },
+      "notAvailable": "Ghi âm chưa được hỗ trợ — hệ thống chưa bật chuyển giọng nói thành văn bản. Anh/chị dán hoặc gõ nội dung vào ô bên trên."
     },
     "preview": {
       "docType": "Loại tài liệu",

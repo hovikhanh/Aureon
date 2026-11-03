@@ -19,7 +19,14 @@ import {
  * only — never persisted to localStorage, never uploaded as a stored asset here. This is NOT
  * meeting recording (R-DEC-22): meeting audio is blocked upstream.
  */
-export function VoiceCapture({ onTranscribe, disabled }: { onTranscribe: (audioRef: string) => void; disabled?: boolean }) {
+/**
+ * R-DEC-166: live STT is deferred (the gateway has only the `fixture/stt` path and the audio is not
+ * uploaded yet), so recording is shown as not supported instead of letting the user speak and then
+ * failing. Flip only together with an upload endpoint + live STT adapter (DEC).
+ */
+export const LIVE_STT_AVAILABLE = false;
+
+export function VoiceCapture({ onTranscribe, disabled, sttAvailable = LIVE_STT_AVAILABLE }: { onTranscribe: (audioRef: string) => void; disabled?: boolean; sttAvailable?: boolean }) {
   const t = useTranslations("meetings.voice");
   const [state, setState] = React.useState<VoiceState>("idle");
   const [error, setError] = React.useState<VoiceErrorKind | null>(null);
@@ -61,6 +68,17 @@ export function VoiceCapture({ onTranscribe, disabled }: { onTranscribe: (audioR
     onTranscribe(`voice-note/${Date.now()}.webm`);
   };
 
+  if (!sttAvailable) {
+    return (
+      <span className="inline-flex items-center gap-2" data-testid="voice-not-available">
+        <Button type="button" variant="outline" size="sm" disabled aria-describedby="voice-not-available-note">
+          <Mic className="h-4 w-4" aria-hidden />
+          {t("start")}
+        </Button>
+        <span id="voice-not-available-note" className="text-xs text-muted-foreground">{t("notAvailable")}</span>
+      </span>
+    );
+  }
   if (supported === null) return null; // same (empty) markup on the server and the first client render
   if (!supported) {
     return (

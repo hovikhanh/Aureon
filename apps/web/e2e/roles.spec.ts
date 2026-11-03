@@ -91,7 +91,8 @@ test("HR: dashboard shows O (+ public F headline), employees list", async ({ pag
   // enforced at the pillar-detail/metric level, not a /home pillar grid.
   await expect(page.getByTestId("exec-view")).toBeVisible();
   await page.getByTestId("nav-business").click();
-  await page.getByTestId("sublink-employees").click();
+  // /business is the hub (no ComingSoon sublinks); DIR khối O is allowed the HR roster (R-DEC-161)
+  await page.getByTestId("hub-card-employees").click();
   await expect(page).toHaveURL(/\/business\/hr\/employees$/);
   await expect(page.getByTestId("employee-row").first()).toBeVisible();
   await expect(page.getByTestId("employee-total")).toContainText(/\d+/);
