@@ -69,6 +69,14 @@ def now_utc() -> datetime:
     return datetime.now(UTC)
 
 
+async def client_ref_by_tax_code(db: AsyncSession, tax_code: str) -> tuple[uuid.UUID, str] | None:
+    """Public lookup for other modules (R-DEC-172): the live client holding this tax code
+    (unique, `_check_client_unique`) → `(id, name)` only, never the client record. Finance
+    links an OUT invoice from the customer's MST without reading the sales client list."""
+    c = await ClientRepository(db).by_tax_code(tax_code.strip())
+    return (c.id, c.name) if c is not None else None
+
+
 def client_out(c: Client, similar: list[SimilarClient] | None = None) -> ClientOut:
     has_contact = c.contact_person or c.contact_email or c.contact_phone
     contacts = (

@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
+from app.core.client_directory import client_by_tax_code
 from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import (
@@ -158,10 +159,18 @@ class InvoiceService:
             raise BusinessRuleError(
                 "due_date must be after issued_on", details={"field": "due_date"}
             )
-        if body.direction == "OUT" and body.client_id is None:
-            raise BusinessRuleError(
-                "client_id is required for OUT invoices", details={"field": "client_id"}
-            )
+        client_id, client_name = body.client_id, body.client_name
+        if body.direction == "OUT" and client_id is None:
+            # R-DEC-172: without client_id the customer's MST identifies the client (tax codes are
+            # unique in sales) — the CFO issues OUT invoices without reading the client list
+            tax = (body.counterparty_tax_code or "").strip()
+            ref = await client_by_tax_code(self.db, tax) if tax else None
+            if ref is None:
+                raise BusinessRuleError(
+                    "OUT invoices need client_id or the tax code of an existing client",
+                    details={"field": "counterparty_tax_code" if tax else "client_id"},
+                )
+            client_id, client_name = ref[0], client_name or ref[1]
         if await self.repo.number_taken(
             body.direction, body.counterparty_tax_code, body.series, body.number
         ):
@@ -171,8 +180,8 @@ class InvoiceService:
         amounts, subtotal, vat, vat_amount = price_lines(body.lines)
         inv = Invoice(
             direction=body.direction, series=body.series, number=body.number,
-            issue_date=body.issued_on, due_date=body.due_date, client_id=body.client_id,
-            client_name_snapshot=body.client_name, counterparty_name=body.counterparty_name,
+            issue_date=body.issued_on, due_date=body.due_date, client_id=client_id,
+            client_name_snapshot=client_name, counterparty_name=body.counterparty_name,
             counterparty_tax_code=body.counterparty_tax_code, subtotal=subtotal,
             vat_rate_pct=vat, vat_amount=vat_amount, total_amount=subtotal + vat_amount,
             paid_amount=0, currency=body.currency, status=body.status, notes=body.notes,
