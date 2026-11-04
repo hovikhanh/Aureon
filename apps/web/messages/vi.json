@@ -811,7 +811,7 @@
     "notGranted": "Không có quyền",
     "legendTitle": "Ký hiệu phạm vi",
     "otherMarks": "Các ký hiệu khác (k, l, t, u) là phạm vi đặc thù theo ma trận quyền 02 §5.3.",
-    "readOnly": "Chỉ đọc ở P0 — vai trò tùy biến thuộc backlog.",
+    "readOnly": "Chỉ đọc — ma trận quyền là cấu hình hệ thống (R-DEC-174); thay đổi quyền cần quyết định riêng (Admin + chủ domain, 02 §7).",
     "scope": {
       "d": "phòng ban của mình (+ phòng con)",
       "o": "của chính mình",
@@ -819,7 +819,28 @@
       "r": "tài liệu được phân review",
       "s": "chỉ cơ cấu tổ chức",
       "agg": "chỉ số tổng hợp"
-    }
+    },
+    "domain": {
+      "finance": "Tài chính",
+      "sales": "Kinh doanh",
+      "hr": "Nhân sự",
+      "product": "Sản phẩm",
+      "risk": "Rủi ro",
+      "execution": "Mục tiêu & công việc",
+      "idp": "Dữ liệu & tài liệu",
+      "ai": "Trợ lý AI",
+      "dashboard": "Trang chủ & báo cáo",
+      "platform": "Nền tảng"
+    },
+    "action": {
+      "read": "Xem bản ghi",
+      "write": "Tạo / sửa / lưu trữ",
+      "query": "Xem chỉ số tổng hợp",
+      "approve": "Phê duyệt",
+      "admin": "Quản trị / cấu hình"
+    },
+    "khoiNote": "Giám đốc khối (DIR) chỉ thao tác bản ghi tài chính / kinh doanh / nhân sự / sản phẩm / rủi ro trong khối mình phụ trách; ngoài khối chỉ xem chỉ số tổng hợp.",
+    "assignLink": "Gán vai trò cho người dùng → Quản trị · Người dùng"
   },
   "notifications": {
     "title": "Thông báo",
@@ -1101,7 +1122,8 @@
         "requested": "Gửi yêu cầu",
         "approve": "Duyệt",
         "reject": "Từ chối"
-      }
+      },
+      "openPlan": "Mở kế hoạch tuyển dụng"
     },
     "approvalStatus": {
       "PENDING": "Chờ duyệt",
@@ -1112,11 +1134,13 @@
     },
     "approvalKind": {
       "ai_action": "Hành động AI",
-      "task_reassign": "Chuyển task"
+      "task_reassign": "Chuyển task",
+      "hiring_plan": "Tuyển dụng"
     },
     "approvalTitle": {
       "task_reassign": "Chuyển việc từ {from} sang {to}",
-      "ai_action": "Hành động AI cần duyệt"
+      "ai_action": "Hành động AI cần duyệt",
+      "hiring_plan": "Kế hoạch tuyển dụng: {position} ({headcount} người)"
     },
     "errors": {
       "dependencyOpen": "Còn task phụ thuộc chưa xong.",
@@ -2550,7 +2574,7 @@
       "issued_on": "Ngày lập",
       "due_date": "Hạn thanh toán",
       "counterparty_name": "Đối tác",
-      "counterparty_tax_code": "MST đối tác",
+      "counterparty_tax_code": "MST đối tác (hóa đơn bán ra: MST khách hàng để liên kết)",
       "status": "Trạng thái",
       "lines": "Dòng hàng",
       "notes": "Ghi chú",
@@ -2771,5 +2795,62 @@
     "page": "{from}–{to} / {total}",
     "prev": "Trước",
     "next": "Sau"
+  },
+  "crm": {
+    "pipelineTitle": "Pipeline cơ hội",
+    "manageDeals": "Quản lý dữ liệu cơ hội",
+    "first100": "Hiển thị 100 cơ hội gần hạn nhất.",
+    "moveTo": "Chuyển sang…",
+    "moved": "Đã chuyển sang {stage}.",
+    "weighted": "Có trọng số",
+    "closeDate": "Dự kiến chốt",
+    "owner": "Phụ trách",
+    "me": "Tôi",
+    "risk": {
+      "overdue": "Quá hạn chốt",
+      "dueSoon": "Sắp đến hạn"
+    },
+    "lostTitle": "Đánh dấu thua",
+    "lostHint": "Cần lý do thua để chốt cơ hội (bắt buộc).",
+    "lostReason": "Lý do thua",
+    "markLost": "Đánh dấu thua",
+    "cancel": "Hủy",
+    "value": "Giá trị",
+    "probability": "Xác suất",
+    "client": "Khách hàng",
+    "progress": "Tiến trình giai đoạn",
+    "history": "Lịch sử giai đoạn",
+    "noHistory": "Chưa có lịch sử chuyển giai đoạn.",
+    "daysInStage": "{days} ngày ở giai đoạn này",
+    "clients": "Khách hàng",
+    "openDeals": "Cơ hội đang mở",
+    "openPipeline": "Pipeline đang mở",
+    "wonValue": "Giá trị thắng",
+    "contracts": "Hợp đồng",
+    "overview": "Tổng quan",
+    "contactPerson": "Người liên hệ",
+    "opportunities": "Cơ hội",
+    "noDeals": "Chưa có cơ hội.",
+    "noContracts": "Chưa có hợp đồng.",
+    "funnelTitle": "Phễu bán hàng (theo giai đoạn)",
+    "stage": "Giai đoạn",
+    "count": "Số cơ hội",
+    "conversion": "Chuyển đổi",
+    "dropOff": "Rơi rụng",
+    "funnelNote": "Phương pháp số lượng hiện tại (BRD §2.8 A): chuyển đổi = số ở giai đoạn ÷ số ở giai đoạn trước. Thua: {lost} cơ hội.",
+    "forecastTitle": "Dự báo doanh số theo quý",
+    "period": "Kỳ",
+    "forecast": {
+      "pipeline": "Pipeline mở",
+      "weightedPipeline": "Pipeline có trọng số",
+      "closedWon": "Đã thắng trong kỳ",
+      "expected": "Dự báo (trọng số + đã thắng)"
+    },
+    "forecastNote": "WP = Σ(giá trị × xác suất) các cơ hội mở dự kiến chốt trong kỳ; không tính cơ hội thua.",
+    "rankingTitle": "Xếp hạng theo người phụ trách — {period}",
+    "noRanking": "Chưa có dữ liệu trong kỳ.",
+    "quota": "Chỉ tiêu",
+    "attainment": "Đạt",
+    "winRate": "Tỷ lệ thắng"
   }
 }

@@ -1,0 +1,16 @@
+/** Server-side display capabilities of the CRM views (the API enforces scope — R-DEC-175). */
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canDomain } from "@/lib/permissions";
+
+export async function crmCaps() {
+  const u = (await getServerSession(authOptions))?.user;
+  const perms = u?.permissions ?? [];
+  const pillars = u?.scopePillars ?? [];
+  const role = u?.role ?? "";
+  // deal records: sales:read in khối C (REV's sales:read is review-scoped `r`, EMP has none)
+  const canSeeDeals = canDomain(perms, pillars, "sales") && role !== "REV" && role !== "EMP";
+  // stage moves: sales:write in khối C — the CEO's sales:write is targets-only (scope `t`)
+  const canMove = canSeeDeals && canDomain(perms, pillars, "sales", "write") && role !== "CEO";
+  return { userId: u?.id ?? "", canSeeDeals, canMove };
+}

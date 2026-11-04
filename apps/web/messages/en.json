@@ -811,7 +811,7 @@
     "notGranted": "Not granted",
     "legendTitle": "Scope marks",
     "otherMarks": "Other marks (k, l, t, u) are specific scopes from the permission matrix 02 §5.3.",
-    "readOnly": "Read only at P0 — custom roles are on the backlog.",
+    "readOnly": "Read only — the permission matrix is system configuration (R-DEC-174); changing it needs a separate decision (Admin + domain owner, 02 §7).",
     "scope": {
       "d": "own department (+ sub-departments)",
       "o": "own records only",
@@ -819,7 +819,28 @@
       "r": "assigned review items",
       "s": "org structure only",
       "agg": "aggregates only"
-    }
+    },
+    "domain": {
+      "finance": "Finance",
+      "sales": "Sales",
+      "hr": "HR",
+      "product": "Product",
+      "risk": "Risk",
+      "execution": "Goals & work",
+      "idp": "Data & documents",
+      "ai": "AI assistant",
+      "dashboard": "Home & reports",
+      "platform": "Platform"
+    },
+    "action": {
+      "read": "View records",
+      "write": "Create / edit / archive",
+      "query": "View aggregate metrics",
+      "approve": "Approve",
+      "admin": "Administer / configure"
+    },
+    "khoiNote": "A pillar director (DIR) works on finance / sales / HR / product / risk records only inside their own pillar; outside it they see aggregate metrics only.",
+    "assignLink": "Assign roles to users → Admin · Users"
   },
   "notifications": {
     "title": "Notifications",
@@ -1101,7 +1122,8 @@
         "requested": "Requested",
         "approve": "Approved",
         "reject": "Rejected"
-      }
+      },
+      "openPlan": "Open hiring plan"
     },
     "approvalStatus": {
       "PENDING": "Pending",
@@ -1112,11 +1134,13 @@
     },
     "approvalKind": {
       "ai_action": "AI action",
-      "task_reassign": "Task reassignment"
+      "task_reassign": "Task reassignment",
+      "hiring_plan": "Hiring"
     },
     "approvalTitle": {
       "task_reassign": "Reassign a task from {from} to {to}",
-      "ai_action": "AI action awaiting approval"
+      "ai_action": "AI action awaiting approval",
+      "hiring_plan": "Hiring plan: {position} ({headcount} people)"
     },
     "errors": {
       "dependencyOpen": "Some dependencies are not done yet.",
@@ -2550,7 +2574,7 @@
       "issued_on": "Issued on",
       "due_date": "Due date",
       "counterparty_name": "Counterparty",
-      "counterparty_tax_code": "Counterparty tax code",
+      "counterparty_tax_code": "Counterparty tax code (outgoing invoice: the client's tax code links it)",
       "status": "Status",
       "lines": "Lines",
       "notes": "Notes",
@@ -2771,5 +2795,62 @@
     "page": "{from}–{to} of {total}",
     "prev": "Previous",
     "next": "Next"
+  },
+  "crm": {
+    "pipelineTitle": "Opportunity pipeline",
+    "manageDeals": "Manage opportunity records",
+    "first100": "Showing the 100 opportunities closing soonest.",
+    "moveTo": "Move to…",
+    "moved": "Moved to {stage}.",
+    "weighted": "Weighted",
+    "closeDate": "Expected close",
+    "owner": "Owner",
+    "me": "Me",
+    "risk": {
+      "overdue": "Past close date",
+      "dueSoon": "Closing soon"
+    },
+    "lostTitle": "Mark as lost",
+    "lostHint": "A loss reason is required to close the opportunity.",
+    "lostReason": "Loss reason",
+    "markLost": "Mark as lost",
+    "cancel": "Cancel",
+    "value": "Value",
+    "probability": "Probability",
+    "client": "Client",
+    "progress": "Stage progress",
+    "history": "Stage history",
+    "noHistory": "No stage changes yet.",
+    "daysInStage": "{days} days in this stage",
+    "clients": "Clients",
+    "openDeals": "Open opportunities",
+    "openPipeline": "Open pipeline",
+    "wonValue": "Won value",
+    "contracts": "Contracts",
+    "overview": "Overview",
+    "contactPerson": "Contact person",
+    "opportunities": "Opportunities",
+    "noDeals": "No opportunities yet.",
+    "noContracts": "No contracts yet.",
+    "funnelTitle": "Sales funnel (by stage)",
+    "stage": "Stage",
+    "count": "Opportunities",
+    "conversion": "Conversion",
+    "dropOff": "Drop-off",
+    "funnelNote": "Current-count method (BRD §2.8 A): conversion = count at a stage ÷ count at the previous stage. Lost: {lost} opportunities.",
+    "forecastTitle": "Quarterly sales forecast",
+    "period": "Period",
+    "forecast": {
+      "pipeline": "Open pipeline",
+      "weightedPipeline": "Weighted pipeline",
+      "closedWon": "Won in period",
+      "expected": "Forecast (weighted + won)"
+    },
+    "forecastNote": "WP = Σ(value × probability) of open opportunities expected to close in the period; lost ones excluded.",
+    "rankingTitle": "Ranking by owner — {period}",
+    "noRanking": "No data in this period.",
+    "quota": "Quota",
+    "attainment": "Attainment",
+    "winRate": "Win rate"
   }
 }

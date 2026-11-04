@@ -9,6 +9,7 @@ import * as React from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -275,7 +276,13 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
             <tbody className="divide-y">
               {rows.map((row) => (
                 <tr key={row.id} data-testid="record-row" data-id={row.id}>
-                  {spec.columns.map((c) => <td key={c.name} className="px-3 py-2"><Cell col={c} row={row} refs={refs} /></td>)}
+                  {spec.columns.map((c, i) => (
+                    <td key={c.name} className="px-3 py-2">
+                      {i === 0 && spec.detailHref
+                        ? <Link href={spec.detailHref(row)} className="font-medium text-primary hover:underline" data-testid="record-open"><Cell col={c} row={row} refs={refs} /></Link>
+                        : <Cell col={c} row={row} refs={refs} />}
+                    </td>
+                  ))}
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     {(spec.actions ?? []).filter((a) => allowed(a) && a.visible(row)).map((a) => (
                       <Button key={a.key} size="sm" variant="outline" className="mr-1" onClick={() => setActing({ action: a, row })} data-testid={`record-action-${a.key}`}>{t(`action.${spec.key}.${a.key}` as "me")}</Button>
