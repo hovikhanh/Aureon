@@ -102,7 +102,7 @@ test.describe("M7 · records CRUD", () => {
     await expect(page.getByTestId("forbidden")).toBeVisible();
   });
 
-  test("HR DIR: employee create → edit; hiring plan create → submit (approval reserved to the CFO)", async ({ page }) => {
+  test("HR DIR: employee create → edit; hiring plan create → submit (approve offered to HR-DIR, R-DEC-173)", async ({ page }) => {
     const tag = uniq();
     await loginSettled(page, "hr@abc.demo");
     await openTab(page, "hr", "employees");
@@ -137,8 +137,9 @@ test.describe("M7 · records CRUD", () => {
     await hr.getByTestId("record-action-submit").click();
     await page.getByTestId("records-hiringPlans-action-submit").click();
     await expect(hr).toContainText("Chờ duyệt");
-    // budget gate (hiring_service.decide): only the Finance DIR decides — HR-DIR gets no button
-    await expect(hr.getByTestId("record-action-approve")).toHaveCount(0);
+    // R-DEC-173: HR-DIR (khối O) or the CEO decides — the button is offered; the decision itself
+    // (by another HR director or the CEO in /work/approvals) is covered by m8-crm.spec
+    await expect(hr.getByTestId("record-action-approve")).toHaveCount(1);
   });
 
   test("CEO: finance + HR read only (no write permission), sales writable", async ({ page }) => {
