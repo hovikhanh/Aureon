@@ -71,34 +71,106 @@ Nguyên tắc: migration **chỉ thêm** (không xóa/đổi cột cũ), giữ `
 | `forecast_snapshots` | kỳ, owner/team, pipeline/weighted/commit/best_case, locked_at | Không ghi đè khi đã khóa |
 | `sales_targets` (+cột) | target_type (Revenue/Deals/Activities), status (Draft/Approved/Active/Closed) | Duyệt chỉ tiêu qua engine phê duyệt |
 
-**Điểm BRD phải chốt trước khi làm:** danh sách giai đoạn chuẩn (BRD có 3 phiên bản khác nhau); công thức Win Rate (theo số
-hay giá trị), Forecast Accuracy, Slippage, Average Deal Size, Sales Cycle; 1 hay nhiều sản phẩm / cơ hội; trùng Lead/Contact
-**chặn** hay **cảnh báo**; vai trò Sales Executive / Presales / Marketing ánh xạ vào 7 role Aureon (02) — không thêm role
-nếu chưa có DEC; mã tự sinh (định dạng); tỷ giá đa tiền tệ.
+### 5.1. Nguyên tắc nghiệp vụ đã thống nhất (human 2026-11-04 — R-DEC-176 vẫn OPEN)
 
-## 6. Kiểm thử M8
+| Chỉ số / quy tắc | Định nghĩa thống nhất | Ánh xạ dữ liệu (đề xuất) | Khác hiện trạng |
+|---|---|---|---|
+| Win Rate | Số cơ hội **thắng** ÷ tổng cơ hội **đã đóng** (thắng + thua) × 100 | `count(closed_won) / count(closed_won ∪ closed_lost)` trong kỳ theo `closed_at` | **Đã khớp** `calculations.win_rate_pct` (theo số) — giữ |
+| Forecast Accuracy | So **forecast đã khóa** của kỳ với **doanh thu thực tế** của kỳ | `forecast_snapshots.locked_at` (bất biến sau khóa) ↔ doanh thu thực tế (xem 5.2-a) | Mới (cần snapshot) |
+| Slippage | **Số ngày** ngày chốt dự kiến bị lùi | mỗi lần `expected_close_date` tăng: `new − old` (ngày) → `deal_close_date_changes` (cũ, mới, người, lúc, lý do) | Mới (hiện chỉ có audit) |
+| Average Deal Size | Giá trị trung bình các cơ hội **thắng** | `avg(deal_value) where closed_won` | **Đã khớp** `analytics.avg_deal_value` (chỉ cơ hội thắng) — giữ |
+| Sales Cycle | Thời gian từ **tạo** đến **thắng** | `closed_at − created_at` (ngày) của cơ hội thắng | **Đã khớp** `analytics.avg_sales_cycle_days` — giữ |
+| Nhiều sản phẩm | Một cơ hội có nhiều sản phẩm | bảng `deal_products` (deal_id, product_id, số lượng, đơn giá, tiền tệ, thành tiền); `deals.deal_value` = tổng dòng | Thay `deals.product_id` đơn (giữ cột cũ, ngừng ghi) |
+| Trùng Lead / Contact | **Cảnh báo**, người có quyền **xác nhận** để lưu tiếp | API trả danh sách nghi trùng (như `similar_clients`); lưu khi có cờ xác nhận + audit `*.duplicate_confirmed` | Hiện Client: trùng tên/MST **chặn** — giữ cho Client |
+| Mã định danh | Tự sinh, duy nhất | sequence theo loại + unique index (`lead_code`, `contact_code`, `deal_code`, `activity_code`) | Mới |
+| Tiền tệ | Lưu **mã tiền tệ + giá trị gốc** | cột `currency` + số tiền nguyên (đơn vị nhỏ nhất) đã có trên deals/contracts; giữ cho bảng mới | Không cộng khác tiền tệ khi chưa quy đổi (BRD L602) |
+
+### 5.2. Cần xác nhận trước migration
+
+| # | Câu hỏi | Vì sao chặn | Đề xuất mặc định |
+|---|---|---|---|
+| a | "Doanh thu thực tế" cho Forecast Accuracy là **giá trị cơ hội thắng** (bookings) hay **doanh thu ghi nhận** ở Tài chính (`finance.revenues`)? Công thức: `1 − |thực tế − forecast| ÷ thực tế`? Kỳ khóa (tháng/quý), ai khóa? | Quyết định nguồn + bảng snapshot | Bookings của kỳ; công thức trên; khóa theo quý bởi DIR khối C / CEO |
+| b | Slippage: tổng số ngày lùi / cơ hội hay trung bình mỗi lần lùi; ngưỡng cảnh báo? | Định nghĩa chỉ số + alert | Tổng ngày lùi / cơ hội; cảnh báo khi lùi sang kỳ sau (BR-017) |
+| c | Danh sách giai đoạn chuẩn (BRD có 3 phiên bản) và ánh xạ enum hiện có `lead/qualified/proposal/negotiation/closed_won/closed_lost` | Đổi enum/cấu hình pipeline ảnh hưởng dữ liệu cũ | Giữ 6 giai đoạn hiện có làm pipeline "New Business" mặc định; pipeline khác cấu hình thêm |
+| d | Tiêu chí nghi trùng (email / điện thoại / MST / tên gần giống) và **ai** được xác nhận | Quyền xác nhận = RBAC | Email hoặc điện thoại trùng chính xác + tên ≥ 0,8; người có `sales:write` trong phạm vi |
+| e | Định dạng mã (vd `LD-000001`, `OPP-000001`) | Unique index + hiển thị | `LD-`, `CT-`, `OPP-`, `ACT-` (tránh trùng tiền tố `ACT-*` Action Registry → dùng `SA-` cho Sales Activity) |
+| f | Quy đổi tiền tệ: nguồn tỷ giá, tiền tệ báo cáo, thời điểm quy đổi | Tổng hợp dashboard | VND là tiền báo cáo; bảng tỷ giá do Tài chính nhập; quy đổi theo ngày chốt |
+| g | Lead tách khỏi Client: client `prospect` hiện có chuyển thành Lead hay giữ? Liên hệ phẳng của client chuyển sang `contacts`? | Di trú dữ liệu cũ (chỉ thêm, không xóa) | Giữ client `prospect`; sao 1 contact từ cột phẳng (cột cũ giữ nguyên) |
+| h | Vai trò Sales Executive / Presales / Marketing ánh xạ vào 7 role Aureon; nhân viên kinh doanh (EMP) hiện **không** có quyền sales | Thay đổi RBAC → DEC riêng | Chưa đổi; chỉ DIR khối C / MGR / CEO như hiện tại |
+| i | Hoạt động bán hàng tái dùng Task/Lịch (execution) hay bảng `activities` riêng | Tránh trùng nghiệp vụ | Bảng riêng + tạo Task/Lịch khi có "next action" |
+| j | Duyệt chỉ tiêu (Draft→Approved): người duyệt | Engine phê duyệt + RBAC | `RULE-sales_target`: CEO |
+
+Nguyên tắc chung giữ nguyên: migration **chỉ thêm**, cập nhật 05/10/02 trước khi code, không đổi permission matrix nếu chưa có DEC.
+
+## 6. Báo cáo kiểm chứng M8 Phase 1 (2026-11-04, stack cô lập: API :4600 + worker + beat + web production :3600, DB `aureon_m4`, SMTP → Mailpit)
+
+| Hạng mục | Bằng chứng | Kết quả |
+|---|---|---|
+| CFO tạo hóa đơn OUT theo MST | E2E: CFO nhập MST của khách hàng do DIR KD tạo → hóa đơn hiện trong danh sách; DB: 1 hóa đơn OUT có `client_id`, MST hóa đơn = MST khách hàng; API: MST lạ → 422 trường MST; CFO GET `/sales/clients` → 403 | PASS |
+| Duyệt / từ chối kế hoạch tuyển dụng qua engine | E2E: HR-DIR trình → CEO duyệt ở `/work/approvals` → "Đã duyệt"; integration: từ chối ở hộp phê duyệt → `rejected` + lý do; CFO → 403 SCOPE; CEO/MGR ở EP-86 → 403 ROLE; người duyệt ≠ người tạo; **kế hoạch trình trước M8 (chưa có yêu cầu) vẫn duyệt được** (test mới); DB: trạng thái yêu cầu khớp trạng thái kế hoạch (APPROVED↔approved, PENDING↔submitted) | PASS |
+| Ma trận vai trò / quyền | E2E: nhãn "Tài chính · Tạo / sửa / lưu trữ", "Nhân sự · Phê duyệt", ghi chú khối, liên kết `/admin/users`; permission matrix không đổi | PASS |
+| CRM Pipeline / Opportunity / Account 360 | E2E: Kanban chuyển `lead → qualified`, chi tiết có 2 bước lịch sử, thua bắt buộc lý do, Account 360 liệt kê cơ hội; DB: 3 dòng lịch sử giai đoạn | PASS |
+| Funnel / Forecast / Performance | E2E: 5 bước phễu, dự báo có giá trị, bảng xếp hạng hiện cho DIR KD, ẩn với CFO; unit: công thức phễu / WP / rủi ro | PASS |
+| RBAC | CFO: Kanban = trang 403, không xếp hạng; REV/EMP không có route CRM; CEO không chuyển giai đoạn (scope `t`) | PASS |
+| Audit | DB (30 phút chạy): `finance.invoice_create`, `sales.client_create`, `sales.deal_create`, `sales.deal_stage_change`, `hr.hiring_plan_submit/approve`, `platform.approval_requested/decided` | PASS |
+
+## 7. Báo cáo regression
 
 | Gate | Kết quả |
 |---|---|
-| Backend pytest đầy đủ (DB thử `aureon_m4`, không tiến trình nào khác dùng chung) | **1450 passed, 0 failed** · contract **44** |
-| Unit FE (Vitest) | **55 file / 487 test** (gồm +12 CRM, +1 hộp phê duyệt, i18n) |
-| E2E thật — M8 (stack cô lập API :4600 + web production :3600) | **4/4** |
-| E2E thật — hồi quy (M5/M6/M7, CEO 7 bước, NFR, responsive, UC-03, roles, navigation, login, work) | **88/91**; 2 lỗi đã xử lý (test M7 cập nhật theo R-DEC-173 → pass; `work.spec` dừng ở bước e-mail vì stack cô lập không có SMTP — `EmailNotConfiguredErr`, môi trường, phần duyệt chuyển giao đã có test backend + mock) |
-| E2E mock (work, m6-roles) | **11/11** |
+| Backend pytest đầy đủ (không tiến trình nào khác dùng DB thử) | **1450 passed, 0 failed**; + test kế hoạch trước M8 → `test_hiring_plans.py` 9/9 |
+| Contract | **44 passed** |
+| Vitest | **55 file / 487 test** |
+| E2E thật — M8 + toàn bộ hồi quy (14 spec) | **91/91 passed** (không skip, không nới assertion) |
 | lint / typecheck / ruff / format / mypy / production build | xanh |
-| gitleaks (6 commit M8) | không phát hiện |
+| gitleaks (commit M8) | không phát hiện |
 
-Ghi chú: lượt chạy backend đầu có 1 lỗi khác nhau mỗi lần (onboarding / ai_e2e) do API + worker cô lập còn chạy
-trên cùng DB thử; dừng chúng → 1450/1450.
+**3 E2E trước đó chưa PASS — nguyên nhân và xử lý:**
 
-## 7. Kế hoạch triển khai & rollback (chỉ chạy khi được đồng ý)
+| Test | Nguyên nhân | Xử lý | Kết quả |
+|---|---|---|---|
+| `m7-records` HR DIR | Assertion cũ "HR-DIR không có nút duyệt" (luật CFO v2.1) mâu thuẫn R-DEC-173 đã duyệt | Cập nhật kỳ vọng: HR-DIR **có** nút duyệt (không nới, đổi theo quyết định) | PASS |
+| `work.spec` assign → e-mail → reassign | Stack cô lập thiếu SMTP: compose cấp `SMTP_HOST=mailpit` cho worker, `.env` để trống → `EmailNotConfiguredErr` | Env stack cô lập `SMTP_HOST=localhost SMTP_PORT=1025` (Mailpit publish 1025) + chạy beat cô lập (sweep e-mail) | PASS (e-mail tới Mailpit) |
+| `work.spec` test kế tiếp ("did not run") | Nhóm `serial` dừng khi test trước lỗi | Theo test trên | PASS |
 
-1. Backup: `pg_dump -Fc` DB chính → `var/backup/aureon_prem8_<ts>.dump`; tag image `aureon-{api,web}:pre-m8`.
-2. Migration: **không có** (rule phê duyệt tạo lười; không đổi schema). Kiểm `alembic current` = head.
-3. Build `api` + `web`; recreate `api celery-worker celery-beat web` (`--no-deps`), tránh phút `:15` (job beat).
-4. Kiểm: 10/10 healthy, `/app/keys` có 2 file ở api/worker/beat, mã trong container = HEAD, beat 16 lịch, log không lỗi,
-   đăng nhập 10 tài khoản = 200, quét trang chỉ đọc theo role.
-5. Rollback: `docker tag aureon-api:pre-m8 aureon-api:local` (+ web) → recreate 4 container. Dữ liệu: các yêu cầu
-   `hiring_plan` tạo trong thời gian chạy M8 vẫn đọc được với code cũ, nhưng code cũ **không có hook** nên quyết định trên
-   chúng không chuyển trạng thái kế hoạch — sau rollback, kế hoạch đang `submitted` duyệt lại bằng EP-86 (luật cũ: CFO).
-   Khôi phục DB toàn phần (chỉ khi cần): `pg_restore` bản backup bước 1.
+## 8. Checklist triển khai (CHỜ PHÊ DUYỆT — chưa chạy)
+
+| # | Bước | Lệnh / kiểm tra | Kỳ vọng |
+|---|---|---|---|
+| 0 | Nhánh / working tree | `git branch --show-current` · `git status --short` | `v3/m8-crm`; chỉ còn thay đổi của người dùng (`docs/_archive/v2.1` xóa, `docs/BRD_Newfeature.md`, `.prompt/`, `deliverables/GITLEAKS-AUDIT.md`) — **không đụng** |
+| 1 | Migration | DB chính `alembic current` = `0027_external_event_link_c19 (head)`; repo `alembic heads` = cùng; `git diff --name-only 44f522b HEAD -- apps/api/alembic` = rỗng | Không migration |
+| 2 | Giờ chạy | tránh phút `:15` (job beat) và 01:00–02:30 | |
+| 3 | Backup DB | `docker compose -f docker-compose.full.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > var/backup/aureon_prem8_$(date +%Y%m%d_%H%M%S).dump` rồi `pg_restore -l` đếm `TABLE DATA` | file > 0, ~115 bảng |
+| 4 | Tag image hiện tại | `docker tag aureon-api:local aureon-api:pre-m8` · `docker tag aureon-web:local aureon-web:pre-m8` | pre-m8 = `7d1495617631` / `a54b7ba12206` |
+| 5 | Build | `DOCKER_BUILDKIT=1 docker compose -f docker-compose.full.yml build api web` | exit 0, OCR model baked |
+| 6 | Recreate | `docker compose -f docker-compose.full.yml up -d --no-deps --force-recreate api celery-worker celery-beat web` | postgres/redis/minio không bị đụng |
+| 7 | Healthcheck | `docker compose ... ps` | 10/10 healthy |
+| 8 | Khóa JWT | `docker exec aureon-api-1 sh -c 'ls /app/keys \| wc -l'` (cả worker, beat) | 2 |
+| 9 | Mã = HEAD | `var/m4/img_diff.sh aureon-api-1 /app apps/api/src`, `... aureon-web-1 /repo apps/web/src` | diff=0 missing=0 |
+| 10 | Beat / log | beat 16 lịch; `docker logs` api/worker/beat/web: không `Traceback` / `Logging error` | |
+| 11 | Đăng nhập | 10 tài khoản demo → 200 (chỉ in mã trạng thái) | 10/10 |
+| 12 | Quét chỉ đọc | CFO/KD/HR/CEO mở `/business/sales`, `/business/sales/pipeline` (KD), `/work/approvals` (CEO), `/admin/roles` — không lỗi trang / 4xx ngoài dự kiến; **không tạo dữ liệu** | |
+| 13 | Kế hoạch tuyển dụng đang `submitted` từ trước (DB chính: **1**) | Không có yêu cầu duyệt → **không hiện** trong `/work/approvals`; HR-DIR quyết định ở trang Nhân sự (EP-86 tự mở yêu cầu — đã test) | Ghi chú vận hành, không sửa dữ liệu |
+
+## 9. Checklist rollback (chỉ khi có sự cố + quyết định)
+
+| # | Bước | Ghi chú |
+|---|---|---|
+| 1 | `docker tag aureon-api:pre-m8 aureon-api:local` · `docker tag aureon-web:pre-m8 aureon-web:local` | |
+| 2 | `docker compose -f docker-compose.full.yml up -d --no-deps --force-recreate api celery-worker celery-beat web` | tránh phút `:15` |
+| 3 | Kiểm 10/10 healthy, khóa JWT, đăng nhập 10/10 | |
+| 4 | **Rủi ro yêu cầu duyệt tuyển dụng** | Yêu cầu `hiring_plan` tạo trong thời gian chạy M8: code M7 không có hook → quyết định ở `/work/approvals` **không** chuyển trạng thái kế hoạch, FE M7 hiển thị như "AI action"; EP-86 (M7) chỉ cho CFO và **không** đóng yêu cầu → yêu cầu treo PENDING. Đếm trước khi rollback: `select status, count(*) from platform.approval_requests where target_kind='hiring_plan' group by 1`. Xử lý (cần quyết định riêng, ghi DB): hủy các yêu cầu PENDING đó + quyết định kế hoạch theo luật M7 |
+| 5 | Hóa đơn OUT tạo bằng MST | Đã có `client_id` thật → vẫn hợp lệ với M7, không cần xử lý |
+| 6 | DB | **Không** khôi phục DB trừ khi có sự cố dữ liệu thực sự + quyết định; bản backup bước 3 dùng cho `pg_restore` |
+
+## 10. Blocker / tồn đọng
+
+| # | Hạng mục | Loại |
+|---|---|---|
+| 1 | **Phê duyệt deploy M8** (§8) | Chờ human |
+| 2 | **R-DEC-176** — 10 điểm §5.2 cần xác nhận trước migration | Chờ human |
+| 3 | R-DEC-168 — xoay khóa JWT RS256 (lộ một phần trong output phiên trước) | Chờ human, blocking bảo mật |
+| 4 | Tên người phụ trách trên Kanban / xếp hạng hiện "Tôi" hoặc mã rút gọn (KD không đọc danh bạ) | Backlog (R-DEC-169 danh bạ) |
+| 5 | Xuất Excel/PDF dashboard KD (DASH-010) | Backlog |
+| 6 | Ngân sách: CFO chỉ chọn phòng ban của mình (R-DEC-171 mục 4) | Backlog |
+| 7 | EMP gọi `/org/tree` trong hộp đề nghị chuyển giao (R-DEC-169) | Backlog |

@@ -336,3 +336,30 @@ async def test_rejection_in_the_inbox_moves_the_plan_to_rejected(api: ApiClient)
     assert r.status_code == 200 and r.json()["data"]["status"] == "REJECTED", r.text
     plan = (await api.call("GET", f"/hr/hiring-plans/{p['id']}", "CEO")).json()["data"]
     assert (plan["status"], plan["reject_reason"]) == ("rejected", "Chưa có ngân sách")
+
+
+async def test_plan_submitted_before_the_engine_is_still_decidable(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    """TC-M8-02 (deploy) — a plan already `submitted` before R-DEC-173 has no approval request;
+    EP-86 opens one on the fly and decides it, so legacy plans are never stuck (main DB had 1)."""
+    from app.modules.platform.models import ApprovalRequest
+
+    dept = (await make_department(api))["id"]
+    p = await make_plan(api, dept)
+    # simulate the pre-M8 state: status moved to submitted without any approval request
+    await db_session.execute(
+        update(HiringPlan).where(HiringPlan.id == uuid.UUID(p["id"])).values(status="submitted")
+    )
+    await db_session.commit()
+    pending = await db_session.execute(
+        select(ApprovalRequest).where(ApprovalRequest.target_id == uuid.UUID(p["id"]))
+    )
+    assert pending.first() is None
+    r = await api.call("POST", f"/hr/hiring-plans/{p['id']}/approve", "HR_MANAGER",
+                       json={"decision": "approve", "reason": "Kế hoạch trước M8"})  # fmt: skip
+    assert r.status_code == 200 and r.json()["data"]["status"] == "approved", r.text
+    req = (await db_session.execute(
+        select(ApprovalRequest.status).where(ApprovalRequest.target_id == uuid.UUID(p["id"]))
+    )).scalar_one()  # fmt: skip
+    assert req == "APPROVED"  # the decision is on record in the engine too
