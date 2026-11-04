@@ -2,6 +2,7 @@
 /** SCR-54 `/admin/roles` (T-617F): EP-ADM-11 matrix 7 roles × `<domain>:<action>` (✓/—) + scope notes; read only at P0. */
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type { Api } from "@aureon/shared-types";
 import { apiRequest } from "@/lib/api-client";
@@ -27,6 +28,12 @@ export function RolesView() {
   const res = useQuery({ queryKey: qk.roles(), queryFn: ({ signal }) => apiRequest<Api.RoleOut[]>("/platform/roles", { signal }) });
   const roles = [...(res.data?.data ?? [])].sort((a, b) => ROLE_ORDER.indexOf(a.code) - ROLE_ORDER.indexOf(b.code));
   const rows = permissionRows(roles);
+  const permLabel = (p: string) => {
+    const [domain = "", action = ""] = p.split(":");
+    const d = t.has(`rolesAdmin.domain.${domain}`) ? t(`rolesAdmin.domain.${domain}` as "rolesAdmin.title") : domain;
+    const a = t.has(`rolesAdmin.action.${action}`) ? t(`rolesAdmin.action.${action}` as "rolesAdmin.title") : action;
+    return `${d} · ${a}`;
+  };
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-4" data-testid="roles-admin">
       <AdminHeader title={t("rolesAdmin.title")} hint={t("rolesAdmin.hint")} />
@@ -49,7 +56,11 @@ export function RolesView() {
             <tbody className="divide-y">
               {rows.map((p) => (
                 <tr key={p} data-testid="perm-row" data-perm={p}>
-                  <th scope="row" className="px-3 py-1.5 text-left font-mono text-xs font-normal">{p}</th>
+                  <th scope="row" className="px-3 py-1.5 text-left font-normal">
+                    {/* R-DEC-174: plain language — `write` = create / edit / archive, `approve` = approvals */}
+                    <span className="block text-sm" data-testid="perm-label">{permLabel(p)}</span>
+                    <span className="block font-mono text-[11px] text-muted-foreground">{p}</span>
+                  </th>
                   {roles.map((r) => {
                     const has = r.permissions.includes(p);
                     const scope = (r.scope_rules as Record<string, string>)[p];
@@ -71,7 +82,9 @@ export function RolesView() {
           {(["d", "o", "p", "r", "s", "agg"] as const).map((k) => <li key={k}><span className="font-mono">{k}</span> — {t(`rolesAdmin.scope.${k}`)}</li>)}
         </ul>
         <p className="mt-2 text-muted-foreground">{t("rolesAdmin.otherMarks")}</p>
+        <p className="mt-2 text-muted-foreground" data-testid="roles-khoi-note">{t("rolesAdmin.khoiNote")}</p>
         <p className="mt-3 text-muted-foreground">{t("rolesAdmin.readOnly")}</p>
+        <Link href="/admin/users" className="mt-2 inline-block text-primary hover:underline" data-testid="roles-assign-link">{t("rolesAdmin.assignLink")}</Link>
       </Card>
     </div>
   );
