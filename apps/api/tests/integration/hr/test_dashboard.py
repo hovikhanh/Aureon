@@ -53,7 +53,7 @@ async def seed(api: ApiClient) -> str:
         "target_date": "2026-02-01"})  # fmt: skip
     pid = late.json()["data"]["id"]
     await api.call("POST", f"/hr/hiring-plans/{pid}/submit", "HR_MANAGER")
-    ok = await api.call("POST", f"/hr/hiring-plans/{pid}/approve", "CFO",
+    ok = await api.call("POST", f"/hr/hiring-plans/{pid}/approve", "HR_MANAGER",
                         json={"decision": "approve", "reason": "ok"})  # fmt: skip
     assert ok.status_code == 200
     return str(dept)

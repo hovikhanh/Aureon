@@ -21,7 +21,7 @@ import { approvalParams, approvalTitle } from "./logic";
 import { useApprovals, useMembers, type ApprovalRequestOut } from "./use-work";
 
 export const APPROVAL_STATUSES = ["PENDING", "APPROVED", "REJECTED", "EXPIRED", "CANCELLED"] as const;
-export const APPROVAL_KINDS = ["task_reassign", "ai_action"] as const;
+export const APPROVAL_KINDS = ["task_reassign", "ai_action", "hiring_plan"] as const;
 
 /** employee id → "Name" from `members[]` (cached query; disabled → undefined → short id). */
 export function useMemberName(canReadOrg: boolean) {
@@ -86,7 +86,7 @@ export function ApprovalsView({ canReadOrg }: { canReadOrg: boolean }) {
                 <button type="button" onClick={() => set("id", a.id)} aria-current={selected === a.id ? "true" : undefined} data-testid={`approval-${a.id}`} data-kind={a.target_kind}
                   className={cn("flex w-full flex-col gap-1 rounded-lg border bg-card p-3 text-left text-sm hover:bg-muted", selected === a.id && "border-primary")}>
                   <span className="flex flex-wrap items-center gap-2">
-                    <Badge variant="primary">{t(`approvalKind.${a.target_kind === "task_reassign" ? "task_reassign" : "ai_action"}`)}</Badge>
+                    <Badge variant="primary">{t(`approvalKind.${(APPROVAL_KINDS as readonly string[]).includes(a.target_kind) ? (a.target_kind as (typeof APPROVAL_KINDS)[number]) : "ai_action"}`)}</Badge>
                     <span className="font-medium">{title(a)}</span>
                   </span>
                   <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">

@@ -36,6 +36,8 @@ export interface ResourceSpec {
   archivable: boolean;
   /** Free-text `q` filter supported by the list endpoint. */
   searchable?: boolean;
+  /** Detail page of a row (first column becomes a link) — M8 CRM views. */
+  detailHref?: (row: Record<string, unknown>) => string;
   actions?: readonly ActionSpec[];
 }
 
@@ -77,8 +79,8 @@ export const RESOURCES: readonly ResourceSpec[] = [
     columns: [{ name: "number", type: "text" }, { name: "direction", type: "enum" }, { name: "counterparty_name", type: "text" }, { name: "issued_on", type: "date" },
       { name: "due_date", type: "date" }, { name: "total_amount", type: "money" }, { name: "amount_due", type: "money" }, { name: "status", type: "enum" }],
     fields: [
-      // OUT (sales) invoices need a client (`client_id is required for OUT invoices`); roles that
-      // cannot read sales clients (khối C) issue IN invoices with a counterparty — R-DEC-171
+      // OUT (sales) invoices need their client: picked here when the role reads sales clients,
+      // else resolved by the backend from the customer's MST (`counterparty_tax_code`) — R-DEC-172
       { name: "direction", type: "select", required: true, options: ["IN", "OUT"], createOnly: true },
       { name: "client_id", type: "ref", ref: "client", createOnly: true },
       { name: "number", type: "text", required: true, createOnly: true, max: 50 },
@@ -125,6 +127,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   // ------------------------------------------------------------------ sales (EP-SAL-01..04)
   {
     key: "clients", domain: "sales", path: "/sales/clients", sortBy: "name", order: "asc", archivable: true,
+    detailHref: (r) => `/business/sales/clients/${String(r.id)}`,
     columns: [{ name: "name", type: "text" }, { name: "tax_code", type: "text" }, { name: "industry", type: "text" }, { name: "size", type: "enum" }, { name: "status", type: "enum" }],
     fields: [
       { name: "name", type: "text", required: true },
@@ -140,6 +143,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "deals", domain: "sales", path: "/sales/deals", sortBy: "expected_close_date", archivable: true,
+    detailHref: (r) => `/business/sales/deals/${String(r.id)}`,
     columns: [{ name: "name", type: "text" }, { name: "client_id", type: "ref", ref: "client" }, { name: "stage", type: "enum" }, { name: "deal_value", type: "money" },
       { name: "probability_pct", type: "pct" }, { name: "expected_close_date", type: "date" }],
     fields: [
@@ -221,11 +225,10 @@ export const RESOURCES: readonly ResourceSpec[] = [
     actions: [
       { key: "submit", suffix: "submit", fields: [], visible: (r) => r.status === "draft" },
       {
-        // hiring_service.decide: budget gate — only the Finance DIR (khối F) or a DIR without khối
-        // decides; HR-DIR holds hr:approve via the DIR union but is refused (R-DEC-12a). The CFO
-        // cannot open this khối-O page (list = khối O) → see R-DEC-171.
+        // R-DEC-173 (02 §7): HR-DIR (khối O) or the CEO decides — through the approval engine
+        // (EP-86 for HR-DIR here; the CEO, without hr:approve, decides in /work/approvals)
         key: "approve", suffix: "approve", permission: "hr:approve", visible: (r) => r.status === "submitted",
-        allowed: ({ role, scopePillars }) => role !== "DIR" || scopePillars.length === 0 || scopePillars.includes("F"),
+        allowed: ({ role, scopePillars }) => role !== "DIR" || scopePillars.length === 0 || scopePillars.includes("O"),
         fields: [{ name: "decision", type: "select", required: true, options: ["approve", "reject"] }, { name: "reason", type: "text", required: true }],
       },
     ],

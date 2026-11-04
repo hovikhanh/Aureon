@@ -43,6 +43,7 @@ DEFAULT_SLA_HOURS = 8
 RULE_SINGLE = "RULE-ai_action_single"
 RULE_TWO_SIDED = "RULE-ai_action_two_sided"
 RULE_TASK_REASSIGN = "RULE-task_reassign"
+RULE_HIRING_PLAN = "RULE-hiring_plan"
 # Lazily created rules (05 §2.5): code → (target_kind, condition, step-1 roles, step-2 roles,
 # escalate role). The AI-action values reproduce v2.1 SINGLE_STEP_ROLES / FINANCE_STEP_ROLES.
 _FINANCE_COND = {"field": "amount", "op": ">=", "value": 0, "currency": "VND"}
@@ -50,14 +51,17 @@ RULE_DEFAULTS: dict[str, tuple[str, dict[str, Any], list[str], list[str] | None,
     RULE_SINGLE: ("ai_action", _FINANCE_COND, ["CEO", "DIR"], None, None),
     RULE_TWO_SIDED: ("ai_action", _FINANCE_COND, ["CEO"], ["DIR"], None),
     RULE_TASK_REASSIGN: ("task_reassign", {}, ["MGR"], None, "DIR"),
+    # R-DEC-173 (02 §7 "Tuyển dụng → HR / CEO"): HR-DIR (khối O via RULE_PILLAR) or the CEO
+    RULE_HIRING_PLAN: ("hiring_plan", {}, ["DIR", "CEO"], None, None),
 }
 _DEPT_SCOPED = frozenset({"MGR"})  # `platform:approve` = `d` (02 §5.6, R-DEC-45 §3)
 
 # Pillar of a rule's target (DIR `platform:approve` = `p`, R-DEC-45 §3): the AI-action rules are
 # the finance (VND amount) gate → F; `task_reassign` is a people move → O (02 §7).
-RULE_PILLAR: dict[str, str] = {"ai_action": "F", "task_reassign": "O"}
+RULE_PILLAR: dict[str, str] = {"ai_action": "F", "task_reassign": "O", "hiring_plan": "O"}
 
 OnApproved = Callable[[ApprovalRequest], Awaitable[None]]
+OnRejected = Callable[[ApprovalRequest], Awaitable[None]]
 Verdict = Literal["ok", "role", "scope"]
 
 
@@ -201,6 +205,27 @@ class ApprovalService:
             source="MANUAL", metadata={"task_id": str(task_id)}, emit=emit,
         )  # fmt: skip
         return (await self.outs([req]))[0]
+
+    async def create_for_record(
+        self, rule_code: str, *, target_schema: str, target_table: str, target_id: uuid.UUID,
+        department_id: uuid.UUID | None, requested_by: uuid.UUID, payload: dict[str, Any],
+    ) -> ApprovalRequest:  # fmt: skip
+        """One PENDING request per record of a rule (else 409) — e.g. a submitted hiring plan
+        (R-DEC-173). The decision reaches the record through its approval / rejection hooks."""
+        rule = await self.rule(rule_code)
+        if await self.repo.pending_for(rule.target_kind, target_id) is not None:
+            raise ApprovalConflictError(
+                "an approval request is already pending for this record",
+                details={"reason": "pending_request_exists"},
+            )
+        return await self._open(
+            rule, requested_by=requested_by, payload=payload, target_schema=target_schema,
+            target_table=target_table, target_id=target_id, department_id=department_id,
+            source="MANUAL", metadata={"target_id": str(target_id)},
+        )  # fmt: skip
+
+    async def pending_for(self, target_kind: str, target_id: uuid.UUID) -> ApprovalRequest | None:
+        return await self.repo.pending_for(target_kind, target_id)
 
     async def _open(
         self, rule: ApprovalRule, *, requested_by: uuid.UUID, payload: dict[str, Any],
@@ -350,6 +375,7 @@ class ApprovalService:
     async def decide(
         self, approver: Principal, request_id: uuid.UUID, *, decision: str,
         reason: str | None, on_approved: OnApproved | None = None,
+        on_rejected: OnRejected | None = None,
     ) -> ApprovalRequestOut:  # fmt: skip
         if not approver.has("platform:approve"):
             raise PermissionDeniedError("approver lacks platform:approve")
@@ -367,6 +393,8 @@ class ApprovalService:
         async with self.db.begin_nested():
             if decision == "reject":
                 await self._reject(req, approver, reason)
+                if on_rejected is not None:
+                    await on_rejected(req)  # target follows the rejection, same transaction
             else:
                 await self._approve(req, approver, rule, on_approved)
         await self._publish("platform.approval_decided", req, rule,
@@ -489,6 +517,9 @@ def _params(req: ApprovalRequest) -> dict[str, object]:
     if req.target_kind == "task_reassign":
         p = req.payload or {}
         return {k: p.get(k) for k in ("task_id", "from_assignee_id", "to_assignee_id")}
+    if req.target_kind == "hiring_plan":  # R-DEC-173 — plan facts, no personal data
+        p = req.payload or {}
+        return {k: p.get(k) for k in ("position", "headcount", "department_id")}
     return {"amount": req.amount, "currency": req.currency} if req.amount is not None else {}
 
 

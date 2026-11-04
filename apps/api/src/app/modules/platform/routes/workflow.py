@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Query
 
-from app.core.approval_hooks import get_approval_hook
+from app.core.approval_hooks import get_approval_hook, get_rejection_hook
 from app.core.deps import DbSession, Principal, require_permission
 from app.core.envelope import Page
 from app.core.idempotency import Idem
@@ -77,8 +77,18 @@ async def decide_approval(
         if hook is not None and target is not None:
             await hook(db, approver, target, dict(req.payload or {}))
 
+    async def _on_rejected(req: ApprovalRequest) -> None:
+        hook = get_rejection_hook(req.target_kind)  # R-DEC-173: e.g. hiring plan → rejected
+        if hook is not None and req.target_id is not None:
+            await hook(db, approver, req.target_id, req.decision_reason or "")
+
     out = await ApprovalService(db).decide(
-        approver, id, decision=body.decision, reason=body.reason, on_approved=_on_approved
+        approver,
+        id,
+        decision=body.decision,
+        reason=body.reason,
+        on_approved=_on_approved,
+        on_rejected=_on_rejected,
     )
     await db.commit()
     await idem.remember(out)

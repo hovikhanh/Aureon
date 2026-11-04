@@ -23,13 +23,13 @@ from typing import Any, cast
 from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.approval_hooks import register_approval_hook, register_rejection_hook
 from app.core.audit import Actor, record_audit
 from app.core.deps import Principal
 from app.core.errors import (
     BusinessRuleError,
     ConflictStateError,
     NotFoundError,
-    PermissionDeniedError,
 )
 from app.core.events.outbox import publish_in_tx
 from app.core.pagination import PageParams
@@ -48,6 +48,7 @@ from app.modules.hr.schemas import (
     HiringStatus,
 )
 from app.modules.hr.services.scope import SELF_ROLES, check_department, deny, department_scope
+from app.modules.platform.services.approval_service import RULE_HIRING_PLAN, ApprovalService
 
 DELAY_THRESHOLD_DAYS = 30  # FR-HR-04 / 02 §8 (event); alert bands are METRIC-HR-04 config
 EDITABLE_STATES = frozenset({"draft", "rejected"})
@@ -245,16 +246,23 @@ class HiringPlanService:
         await self.db.refresh(obj)
         out = plan_out(obj)
         await self._audit("hr.hiring_plan_submit", obj, before, out)
+        # R-DEC-173: the decision goes through the approval engine (/work/approvals — history,
+        # SLA, audit); approvers = HR-DIR (khối O) or CEO, never the requester
+        await ApprovalService(self.db).create_for_record(
+            RULE_HIRING_PLAN, target_schema="hr", target_table="hiring_plans", target_id=obj.id,
+            department_id=obj.department_id, requested_by=user.user_id,
+            payload={"position": obj.position, "headcount": obj.headcount,
+                     "department_id": str(obj.department_id),
+                     "target_date": str(obj.target_fill_date)},
+        )  # fmt: skip
         return out
 
     # ---------- EP-86 ----------
     async def decide(self, user: Principal, id_: uuid.UUID, body: ApprovalIn) -> HiringPlanOut:
-        """CFO approve / reject (FR-HR-07). Forecast cost is finance's job via
-        `EVT-finance.forecast_updated` (10 §4.8) — hr publishes nothing here."""
-        # Cổng ngân sách: chỉ Finance-DIR (khối F) duyệt kế hoạch tuyển dụng (nền v2.1 chỉ CFO
-        # có hr:approve). DIR khối khác (VD HR-DIR) tuy có hr:approve union vẫn bị chặn (R-DEC-12a).
-        if user.role == "DIR" and user.scope_pillars and "F" not in user.scope_pillars:
-            raise PermissionDeniedError("hiring approval is reserved for the finance director")
+        """Approve / reject (FR-HR-07) = decide the plan's pending approval request (R-DEC-173):
+        the engine checks the approver (HR-DIR khối O or CEO, `platform:approve`, ≠ requester)
+        and records history; the plan follows through `apply_decision`. The v2.1 CFO-only budget
+        gate is gone (02 §7). Forecast cost stays finance's job (10 §4.8)."""
         obj = await self.plans.get(id_)
         if obj is None:
             raise NotFoundError("hiring plan not found")
@@ -266,19 +274,50 @@ class HiringPlanService:
         reason = body.reason.strip()
         if not reason:
             raise BusinessRuleError("reason is required", details={"field": "reason"})
-        if obj.created_by == user.user_id:
+        engine = ApprovalService(self.db)
+        req = await engine.pending_for("hiring_plan", obj.id)
+        if req is None:  # submitted before R-DEC-173: no request yet → open it, then decide
+            req = await engine.create_for_record(
+                RULE_HIRING_PLAN, target_schema="hr", target_table="hiring_plans",
+                target_id=obj.id, department_id=obj.department_id,
+                requested_by=obj.updated_by or obj.created_by or user.user_id,
+                payload={"position": obj.position, "headcount": obj.headcount},
+            )  # fmt: skip
+
+        async def _approved(_: Any) -> None:
+            await self.apply_decision(user, obj.id, "approve", reason)
+
+        async def _rejected(_: Any) -> None:
+            await self.apply_decision(user, obj.id, "reject", reason)
+
+        await engine.decide(user, req.id, decision=body.decision, reason=reason,
+                            on_approved=_approved, on_rejected=_rejected)  # fmt: skip
+        await self.db.refresh(obj)
+        return plan_out(obj)
+
+    async def apply_decision(
+        self, approver: Principal, id_: uuid.UUID, decision: str, reason: str | None
+    ) -> None:
+        """The plan follows its approval request (hook of the engine, same transaction)."""
+        obj = await self.plans.get(id_)
+        if obj is None:
+            raise NotFoundError("hiring plan not found")
+        target = "approved" if decision == "approve" else "rejected"
+        if obj.status != "submitted":
+            raise ConflictStateError(
+                "only submitted plans can be decided", details={"from": obj.status, "to": target}
+            )
+        if obj.created_by == approver.user_id:
             raise BusinessRuleError(
                 "approver must differ from the plan creator", details={"rule": "02 §8"}
             )
         before = plan_out(obj)
         await self.plans.update(
-            obj, status=target, approved_by=user.user_id, approved_at=datetime.now(UTC),
-            reject_reason=reason if target == "rejected" else None, updated_by=user.user_id,
+            obj, status=target, approved_by=approver.user_id, approved_at=datetime.now(UTC),
+            reject_reason=reason if target == "rejected" else None, updated_by=approver.user_id,
         )  # fmt: skip
         await self.db.refresh(obj)
-        out = plan_out(obj)
-        await self._audit(f"hr.hiring_plan_{body.decision}", obj, before, out, why=reason)
-        return out
+        await self._audit(f"hr.hiring_plan_{decision}", obj, before, plan_out(obj), why=reason)
 
     # ---------- FR-HR-04 job ----------
     async def detect_delayed(self, as_of: date) -> list[DelayedPlan]:
@@ -312,3 +351,18 @@ class HiringPlanService:
 async def detect_delayed_hiring_plans(db: AsyncSession, as_of: date) -> list[DelayedPlan]:
     """Public job entry (FR-HR-04, BR-HR-01 §8): caller commits. Safe to rerun the same day."""
     return await HiringPlanService(db).detect_delayed(as_of)
+
+
+# R-DEC-173: the approval engine (`/work/approvals`) drives the plan through these hooks.
+async def _hook_approved(
+    db: Any, approver: Any, target_id: uuid.UUID, payload: dict[str, Any]
+) -> None:
+    await HiringPlanService(db).apply_decision(approver, target_id, "approve", None)
+
+
+async def _hook_rejected(db: Any, approver: Any, target_id: uuid.UUID, reason: str) -> None:
+    await HiringPlanService(db).apply_decision(approver, target_id, "reject", reason)
+
+
+register_approval_hook("hiring_plan", _hook_approved)
+register_rejection_hook("hiring_plan", _hook_rejected)

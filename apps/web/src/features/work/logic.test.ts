@@ -97,9 +97,14 @@ describe("approvals + misc", () => {
   });
   it("params: names from members, else short id; bad shape → —", () => {
     const names = new Map([["0123456789abcdef", "Ngô Thị Lan"]]);
-    expect(approvalParams({ from_assignee_id: "0123456789abcdef", to_assignee_id: "fedcba9876543210" }, (id) => names.get(id))).toEqual({ from: "Ngô Thị Lan", to: "fedcba98" });
-    expect(approvalParams({ from_assignee_id: 3, to_assignee_id: { x: 1 } })).toEqual({ from: "—", to: "—" });
-    expect(approvalParams(undefined)).toEqual({ from: "—", to: "—" });
+    expect(approvalParams({ from_assignee_id: "0123456789abcdef", to_assignee_id: "fedcba9876543210" }, (id) => names.get(id))).toMatchObject({ from: "Ngô Thị Lan", to: "fedcba98" });
+    expect(approvalParams({ from_assignee_id: 3, to_assignee_id: { x: 1 } })).toMatchObject({ from: "—", to: "—" });
+    expect(approvalParams(undefined)).toMatchObject({ from: "—", to: "—", position: "—", headcount: "—" });
+  });
+  it("hiring_plan requests (R-DEC-173): own title + plan facts", () => {
+    expect(approvalTitle("approval.hiring_plan.title", "hiring_plan")).toBe("hiring_plan");
+    expect(approvalTitle(null, "hiring_plan")).toBe("hiring_plan");
+    expect(approvalParams({ position: "Kế toán", headcount: 2 })).toMatchObject({ position: "Kế toán", headcount: "2" });
   });
   it("shortId", () => expect(shortId("0123456789abcdef")).toBe("01234567"));
 });

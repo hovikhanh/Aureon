@@ -1,4 +1,10 @@
-"""T-122 — EP-84 hiring plans, EP-85 submit, EP-86 approve + delay job (TC-HR-002, TC-HR-003)."""
+"""T-122 — EP-84 hiring plans, EP-85 submit, EP-86 approve + delay job (TC-HR-002, TC-HR-003).
+
+R-DEC-173 (TC-M8-02): the decision goes through the approval engine — approvers are HR-DIR
+(khối O) or the CEO (02 §7), never the requester / creator; the v2.1 CFO-only gate is gone.
+`api.call` signs each call with a fresh user id, so "HR_MANAGER creates" and "HR_MANAGER
+approves" are two different HR directors.
+"""
 
 import uuid
 from datetime import date, timedelta
@@ -33,7 +39,7 @@ async def make_plan(api: ApiClient, dept: str, **kw: Any) -> dict[str, Any]:
 async def approved_plan(api: ApiClient, dept: str, **kw: Any) -> dict[str, Any]:
     p = await make_plan(api, dept, **kw)
     assert (await api.call("POST", f"/hr/hiring-plans/{p['id']}/submit", "HR_MANAGER")).is_success
-    r = await api.call("POST", f"/hr/hiring-plans/{p['id']}/approve", "CFO",
+    r = await api.call("POST", f"/hr/hiring-plans/{p['id']}/approve", "HR_MANAGER",
                        json={"decision": "approve", "reason": "Đủ ngân sách"})  # fmt: skip
     assert r.status_code == 200, r.text
     return dict(r.json()["data"])
@@ -83,7 +89,7 @@ async def test_submit_approve_reject_state_machine(
     dept = (await make_department(api))["id"]
     p = await make_plan(api, dept)
     url = f"/hr/hiring-plans/{p['id']}"
-    early = await api.call("POST", f"{url}/approve", "CFO",
+    early = await api.call("POST", f"{url}/approve", "HR_MANAGER",
                            json={"decision": "approve", "reason": "ok"})  # fmt: skip
     assert early.status_code == 409 and early.json()["error"]["code"] == "CONFLICT_STATE"
 
@@ -94,17 +100,20 @@ async def test_submit_approve_reject_state_machine(
     locked = await api.call("PATCH", url, "HR_MANAGER", json={"headcount": 9, "version": 2})
     assert locked.status_code == 409
 
-    no_reason = await api.call("POST", f"{url}/approve", "CFO", json={"decision": "reject"})
+    no_reason = await api.call("POST", f"{url}/approve", "HR_MANAGER", json={"decision": "reject"})
     assert no_reason.status_code == 422
-    blank = await api.call("POST", f"{url}/approve", "CFO",
+    blank = await api.call("POST", f"{url}/approve", "HR_MANAGER",
                            json={"decision": "reject", "reason": "   "})  # fmt: skip
     assert blank.status_code == 422
-    for role in ("HR_MANAGER", "CEO", "MANAGER"):
+    # CEO / MGR lack hr:approve on EP-86 (the CEO decides in /work/approvals); the CFO has it
+    # through the DIR union but is outside the rule's khối O (R-DEC-173)
+    for role, code in (("CEO", "FORBIDDEN_ROLE"), ("MANAGER", "FORBIDDEN_ROLE"),
+                       ("CFO", "FORBIDDEN_SCOPE")):  # fmt: skip
         r = await api.call("POST", f"{url}/approve", role,
                            json={"decision": "approve", "reason": "x"})  # fmt: skip
-        assert r.status_code == 403 and r.json()["error"]["code"] == "FORBIDDEN_ROLE", role
+        assert r.status_code == 403 and r.json()["error"]["code"] == code, role
 
-    rej = await api.call("POST", f"{url}/approve", "CFO",
+    rej = await api.call("POST", f"{url}/approve", "HR_MANAGER",
                          json={"decision": "reject", "reason": "Chưa có ngân sách"})  # fmt: skip
     assert rej.status_code == 200
     d = rej.json()["data"]
@@ -120,7 +129,7 @@ async def test_submit_approve_reject_state_machine(
     assert back.status_code == 200 and back.json()["data"]["reject_reason"] is None
     v = back.json()["data"]["version"]
     assert (await api.call("POST", f"{url}/submit", "HR_MANAGER")).status_code == 200
-    ok = await api.call("POST", f"{url}/approve", "CFO",
+    ok = await api.call("POST", f"{url}/approve", "HR_MANAGER",
                         json={"decision": "approve", "reason": "Duyệt"})  # fmt: skip
     assert ok.status_code == 200 and ok.json()["data"]["status"] == "approved"
     v = ok.json()["data"]["version"]
@@ -162,10 +171,10 @@ async def test_approver_must_differ_and_cancel(api: ApiClient) -> None:
     same = await api.http.post(
         f"/api/v1/hr/hiring-plans/{pid}/approve",
         json={"decision": "approve", "reason": "x"},
-        headers=api.headers("CFO", user_id=creator, idem=True),
+        headers=api.headers("HR_MANAGER", user_id=creator, idem=True),
     )
     assert same.status_code == 422 and same.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
-    missing = await api.call("POST", f"/hr/hiring-plans/{uuid.uuid4()}/approve", "CFO",
+    missing = await api.call("POST", f"/hr/hiring-plans/{uuid.uuid4()}/approve", "HR_MANAGER",
                              json={"decision": "approve", "reason": "x"})  # fmt: skip
     assert missing.status_code == 404
 
@@ -222,7 +231,7 @@ async def test_idempotent_plan_actions(api: ApiClient) -> None:
     assert s1.status_code == s2.status_code == 200
     assert s1.json()["data"]["version"] == s2.json()["data"]["version"]
     body = {"decision": "approve", "reason": "ok"}
-    ha = api.headers("CFO", idem=True)
+    ha = api.headers("HR_MANAGER", idem=True)  # another HR director (fresh user id)
     a1 = await api.http.post(f"/api/v1/hr/hiring-plans/{p['id']}/approve", json=body, headers=ha)
     a2 = await api.http.post(f"/api/v1/hr/hiring-plans/{p['id']}/approve", json=body, headers=ha)
     assert a1.status_code == a2.status_code == 200
@@ -285,3 +294,45 @@ async def test_delayed_detection_once_per_plan(api: ApiClient, db_session: Async
     third = await detect_delayed_hiring_plans(db_session, as_of + timedelta(days=5))
     assert late["id"] in {str(f.hiring_plan_id) for f in third}
     assert len(await events(db_session, late["id"], "hr.hiring_plan_delayed")) == 2
+
+
+async def test_ceo_decides_in_the_approval_inbox_with_history(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    """TC-M8-02 — submit opens one `hiring_plan` request (HR-DIR khối O / CEO); the CEO approves
+    it via EP-WF-03, the plan follows in the same transaction, history + audit are kept."""
+    dept = (await make_department(api))["id"]
+    p = await make_plan(api, dept)
+    assert (await api.call("POST", f"/hr/hiring-plans/{p['id']}/submit", "HR_MANAGER")).is_success
+    inbox = await api.call("GET", "/workflow/approval-requests", "CEO",
+                           params={"status": "PENDING", "target_kind": "hiring_plan",
+                                   "limit": 100})  # fmt: skip
+    assert inbox.status_code == 200, inbox.text
+    req = next(r for r in inbox.json()["data"] if r["target_id"] == p["id"])
+    assert req["rule_code"] == "RULE-hiring_plan"
+    # a DIR of another khối does not see / cannot decide it
+    cfo = await api.call("POST", f"/workflow/approval-requests/{req['id']}/decide", "CFO",
+                         json={"decision": "approve", "reason": "x"})  # fmt: skip
+    assert cfo.status_code == 403
+    ok = await api.call("POST", f"/workflow/approval-requests/{req['id']}/decide", "CEO",
+                        json={"decision": "approve", "reason": "Đủ ngân sách Q4"})  # fmt: skip
+    assert ok.status_code == 200 and ok.json()["data"]["status"] == "APPROVED", ok.text
+    plan = (await api.call("GET", f"/hr/hiring-plans/{p['id']}", "CEO")).json()["data"]
+    assert plan["status"] == "approved" and plan["approved_by"] is not None
+    actions = {a for a, *_ in await audit_rows(db_session, p["id"])}
+    assert {"hr.hiring_plan_submit", "hr.hiring_plan_approve"} <= actions
+
+
+async def test_rejection_in_the_inbox_moves_the_plan_to_rejected(api: ApiClient) -> None:
+    dept = (await make_department(api))["id"]
+    p = await make_plan(api, dept)
+    await api.call("POST", f"/hr/hiring-plans/{p['id']}/submit", "HR_MANAGER")
+    inbox = await api.call("GET", "/workflow/approval-requests", "HR_MANAGER",
+                           params={"status": "PENDING", "target_kind": "hiring_plan",
+                                   "limit": 100})  # fmt: skip
+    req = next(r for r in inbox.json()["data"] if r["target_id"] == p["id"])
+    r = await api.call("POST", f"/workflow/approval-requests/{req['id']}/decide", "HR_MANAGER",
+                       json={"decision": "reject", "reason": "Chưa có ngân sách"})  # fmt: skip
+    assert r.status_code == 200 and r.json()["data"]["status"] == "REJECTED", r.text
+    plan = (await api.call("GET", f"/hr/hiring-plans/{p['id']}", "CEO")).json()["data"]
+    assert (plan["status"], plan["reject_reason"]) == ("rejected", "Chưa có ngân sách")

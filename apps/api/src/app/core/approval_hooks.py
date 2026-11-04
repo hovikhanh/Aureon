@@ -8,7 +8,11 @@ looks it up by key. `core` holds only the registry — it imports no module.
 
 A hook receives `(db, approver, target_id, payload)` and performs the execution in `db`'s
 transaction (`payload` = the request's stored payload, e.g. `task_reassign` → new assignee +
-the task version seen at request time — R-DEC-45). Registered kinds: `ai_action`, `task_reassign`.
+the task version seen at request time — R-DEC-45). Registered kinds: `ai_action`, `task_reassign`,
+`hiring_plan`.
+
+A **rejection** hook (R-DEC-173) receives `(db, approver, target_id, reason)` when the request is
+rejected — for targets whose own state must follow the decision (a hiring plan → `rejected`).
 """
 
 from __future__ import annotations
@@ -28,3 +32,16 @@ def register_approval_hook(target_kind: str, hook: ApprovalHook) -> None:
 
 def get_approval_hook(target_kind: str) -> ApprovalHook | None:
     return _HOOKS.get(target_kind)
+
+
+RejectionHook = Callable[[Any, Any, uuid.UUID, str], Awaitable[None]]
+
+_REJECT_HOOKS: dict[str, RejectionHook] = {}
+
+
+def register_rejection_hook(target_kind: str, hook: RejectionHook) -> None:
+    _REJECT_HOOKS[target_kind] = hook
+
+
+def get_rejection_hook(target_kind: str) -> RejectionHook | None:
+    return _REJECT_HOOKS.get(target_kind)

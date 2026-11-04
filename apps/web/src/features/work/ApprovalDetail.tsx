@@ -68,6 +68,9 @@ export function ApprovalDetail({ id, canReadOrg, onDone }: { id: string; canRead
             {a.target_kind === "task_reassign" && a.target_id && (
               <Link href={`/work?task=${a.target_id}`} className="text-xs font-medium text-primary hover:underline" data-testid="approval-open-task">{t("approvals.openTask")}</Link>
             )}
+            {a.target_kind === "hiring_plan" && (
+              <Link href="/business/hr/records?tab=hiringPlans" className="text-xs font-medium text-primary hover:underline" data-testid="approval-open-plan">{t("approvals.openPlan")}</Link>
+            )}
           </div>
           <section>
             <h4 className="mb-1 text-xs font-medium text-muted-foreground">{t("approvals.diff")}</h4>
