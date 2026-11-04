@@ -80,10 +80,16 @@ nếu chưa có DEC; mã tự sinh (định dạng); tỷ giá đa tiền tệ.
 
 | Gate | Kết quả |
 |---|---|
-| Backend (pytest đầy đủ + contract) | xem STATE / báo cáo phiên |
-| Unit FE (Vitest) | +12 CRM, +1 hộp phê duyệt — xanh |
-| E2E thật (stack cô lập) | M8 4/4 |
-| lint / typecheck / ruff / mypy / build | xanh |
+| Backend pytest đầy đủ (DB thử `aureon_m4`, không tiến trình nào khác dùng chung) | **1450 passed, 0 failed** · contract **44** |
+| Unit FE (Vitest) | **55 file / 487 test** (gồm +12 CRM, +1 hộp phê duyệt, i18n) |
+| E2E thật — M8 (stack cô lập API :4600 + web production :3600) | **4/4** |
+| E2E thật — hồi quy (M5/M6/M7, CEO 7 bước, NFR, responsive, UC-03, roles, navigation, login, work) | **88/91**; 2 lỗi đã xử lý (test M7 cập nhật theo R-DEC-173 → pass; `work.spec` dừng ở bước e-mail vì stack cô lập không có SMTP — `EmailNotConfiguredErr`, môi trường, phần duyệt chuyển giao đã có test backend + mock) |
+| E2E mock (work, m6-roles) | **11/11** |
+| lint / typecheck / ruff / format / mypy / production build | xanh |
+| gitleaks (6 commit M8) | không phát hiện |
+
+Ghi chú: lượt chạy backend đầu có 1 lỗi khác nhau mỗi lần (onboarding / ai_e2e) do API + worker cô lập còn chạy
+trên cùng DB thử; dừng chúng → 1450/1450.
 
 ## 7. Kế hoạch triển khai & rollback (chỉ chạy khi được đồng ý)
 
