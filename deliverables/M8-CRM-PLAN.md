@@ -1,6 +1,8 @@
 # M8 — Audit, kế hoạch CRM (BRD_Newfeature) và R-DEC-171
 
-> Nhánh `v3/m8-crm` (từ `v3/m7-records`). Ngày 2026-11-04. Chưa push, chưa merge, **chưa deploy** stack chính.
+> Nhánh `v3/m8-crm` (từ `v3/m7-records`). Ngày 2026-11-04. Chưa push, chưa merge.
+> **M8 Phase 1: DEPLOYED** lên stack chính (compose `docker-compose.full.yml`) 2026-11-04 17:42 ICT, mã = HEAD `6361081`,
+> không migration (DB `0027_external_event_link_c19`) — kết quả §8.1. R-DEC-168, R-DEC-176, lịch sử GitLeaks vẫn **OPEN** (§10).
 > Nguồn yêu cầu: `docs/BRD_Newfeature.md` (CRM – Sales Management, ~120 yêu cầu / 10 phân hệ). ID dưới đây là
 > `CRM-*` (BRD tự dùng `ACT-001…`, `DEC-001…`, `NFR-001…` — trùng registry Aureon, nên không dùng lại).
 
@@ -104,6 +106,9 @@ Nguyên tắc chung giữ nguyên: migration **chỉ thêm**, cập nhật 05/10
 
 ## 6. Báo cáo kiểm chứng M8 Phase 1 (2026-11-04, stack cô lập: API :4600 + worker + beat + web production :3600, DB `aureon_m4`, SMTP → Mailpit)
 
+> §6–§7 = kiểm chứng chức năng + regression **trước deploy**, trên stack cô lập (có ghi dữ liệu thử vào `aureon_m4`).
+> Kiểm chứng **sau deploy** trên stack chính (chỉ đọc, không ghi DB) ở §8.1 — hai bộ bằng chứng tách biệt.
+
 | Hạng mục | Bằng chứng | Kết quả |
 |---|---|---|
 | CFO tạo hóa đơn OUT theo MST | E2E: CFO nhập MST của khách hàng do DIR KD tạo → hóa đơn hiện trong danh sách; DB: 1 hóa đơn OUT có `client_id`, MST hóa đơn = MST khách hàng; API: MST lạ → 422 trường MST; CFO GET `/sales/clients` → 403 | PASS |
@@ -133,7 +138,7 @@ Nguyên tắc chung giữ nguyên: migration **chỉ thêm**, cập nhật 05/10
 | `work.spec` assign → e-mail → reassign | Stack cô lập thiếu SMTP: compose cấp `SMTP_HOST=mailpit` cho worker, `.env` để trống → `EmailNotConfiguredErr` | Env stack cô lập `SMTP_HOST=localhost SMTP_PORT=1025` (Mailpit publish 1025) + chạy beat cô lập (sweep e-mail) | PASS (e-mail tới Mailpit) |
 | `work.spec` test kế tiếp ("did not run") | Nhóm `serial` dừng khi test trước lỗi | Theo test trên | PASS |
 
-## 8. Checklist triển khai (CHỜ PHÊ DUYỆT — chưa chạy)
+## 8. Checklist triển khai (human duyệt 2026-11-04 — đã chạy, kết quả §8.1)
 
 | # | Bước | Lệnh / kiểm tra | Kỳ vọng |
 |---|---|---|---|
@@ -152,6 +157,30 @@ Nguyên tắc chung giữ nguyên: migration **chỉ thêm**, cập nhật 05/10
 | 12 | Quét chỉ đọc | CFO/KD/HR/CEO mở `/business/sales`, `/business/sales/pipeline` (KD), `/work/approvals` (CEO), `/admin/roles` — không lỗi trang / 4xx ngoài dự kiến; **không tạo dữ liệu** | |
 | 13 | Kế hoạch tuyển dụng đang `submitted` từ trước (DB chính: **1**) | Không có yêu cầu duyệt → **không hiện** trong `/work/approvals`; HR-DIR quyết định ở trang Nhân sự (EP-86 tự mở yêu cầu — đã test) | Ghi chú vận hành, không sửa dữ liệu |
 
+### 8.1. Kết quả triển khai stack chính (2026-11-04)
+
+Kiểm chứng triển khai = mã đúng bản, hạ tầng khỏe, đăng nhập và mở trang không lỗi; **không** chạy lại test chức năng
+(đã PASS ở §6–§7) và **không** ghi dữ liệu vào DB chính.
+
+| # | Hạng mục | Kết quả thực tế | Đạt |
+|---|---|---|---|
+| 0 | Nhánh / commit | `v3/m8-crm` @ `6361081`; working tree chỉ còn thay đổi của người dùng (không đụng) | ✅ |
+| 1 | Migration | DB chính `alembic current` = repo `alembic heads` = `0027_external_event_link_c19 (head)`; 0 file migration đổi từ `44f522b` → **không migration** | ✅ |
+| 2 | Giờ chạy | backup 17:39, recreate 17:42 ICT (10:42Z) — ngoài phút `:15` và 01:00–02:30 | ✅ |
+| 3 | Backup DB | `var/backup/aureon_prem8_20261104_173919.dump` (pg_dump -Fc, 694 527 byte), `pg_restore -l` = **115** `TABLE DATA` | ✅ |
+| 4 | Tag rollback | `aureon-api:pre-m8` = `sha256:7d1495617631013184aa1314d9ccdb46f2e8c71ccfd6ce0a2346ba60fca4ef98`; `aureon-web:pre-m8` = `sha256:a54b7ba12206951779bca21be923387c98d8f309f7bbd1690d5e39e79808ccc4` (image M7) | ✅ |
+| 5 | Build | exit 0; image M8: api / worker / beat `sha256:078654df7fa7f1c7bdf858ab54e40e1ac958c6969da5e9a71c76b2799eb8fe30`, web `sha256:5d813a3b23d23a4bbf8eabb61763d38ff58806afec21fabdf8c676b583b5eb50` (image ID local, không có registry digest) | ✅ |
+| 6 | Recreate | `api`, `celery-worker`, `celery-beat`, `web` (`--no-deps`); postgres / redis / minio / mailpit / ollama / clamav không bị đụng | ✅ |
+| 7 | Healthcheck | **10/10** healthy | ✅ |
+| 8 | Khóa JWT | `/app/keys` = 2 file ở api, worker, beat | ✅ |
+| 9 | Mã = HEAD `6361081` | `img_diff.sh`: api `apps/api/src` 391 same / 0 diff / 0 missing; web `apps/web/src` 372 / 0 / 0; `apps/web/messages` 2 / 0 / 0 | ✅ |
+| 10 | Beat / log | beat **16** lịch; log api / worker / beat / web: 0 `Traceback`, 0 `Logging error` (kiểm lại sau lượt quét) | ✅ |
+| 11 | Đăng nhập | **10/10** tài khoản demo → 200 (admin, ceo, cfo, cpo, employee, hr, manager, office, reviewer, sales; chỉ in mã trạng thái) | ✅ |
+| 12 | Quét chỉ đọc | **6 role / 17 lượt trang**, 0 lỗi console, 0 API ≥ 400: Sales DIR (`/business/sales`, `/pipeline`, chi tiết deal, Account 360, records deals); CEO (`/business/sales`, `/pipeline`, chi tiết deal, Account 360, `/work/approvals?kind=hiring_plan`, `/admin/roles`); CFO (`/business/sales`, hóa đơn); HR-DIR (kế hoạch tuyển dụng, `/work/approvals`); MGR (`/business/sales`, `/work`); EMP (`/work`). Script chỉ điều hướng — **không ghi DB** | ✅ |
+| 13 | Kế hoạch tuyển dụng cũ | DB chính (đọc): 1 `submitted` (trước M8, không có yêu cầu duyệt), 1 `approved`, 3 `in_progress`. Không sửa dữ liệu. Xử lý: HR-DIR quyết định trực tiếp ở trang kế hoạch (`/business/hr/records?tab=hiringPlans`, EP-86) → hệ thống tự tạo yêu cầu `RULE-hiring_plan` rồi quyết định (TC-M8-02) | ℹ️ vận hành |
+
+Đường lùi: §9 (tag `:pre-m8` + recreate; M8 không đổi schema nên **không** cần khôi phục DB — backup chỉ dùng khi có sự cố dữ liệu thật + quyết định).
+
 ## 9. Checklist rollback (chỉ khi có sự cố + quyết định)
 
 | # | Bước | Ghi chú |
@@ -167,9 +196,10 @@ Nguyên tắc chung giữ nguyên: migration **chỉ thêm**, cập nhật 05/10
 
 | # | Hạng mục | Loại |
 |---|---|---|
-| 1 | **Phê duyệt deploy M8** (§8) | Chờ human |
-| 2 | **R-DEC-176** — 10 điểm §5.2 cần xác nhận trước migration | Chờ human |
-| 3 | R-DEC-168 — xoay khóa JWT RS256 (lộ một phần trong output phiên trước) | Chờ human, blocking bảo mật |
+| 1 | Deploy M8 Phase 1 (§8) | **DONE** — human duyệt, deployed 2026-11-04 (§8.1) |
+| 2 | **R-DEC-176** — 10 điểm §5.2 cần xác nhận trước migration | **OPEN** — chờ human; chưa có bảng / migration |
+| 3 | **R-DEC-168** — xoay khóa JWT RS256 (lộ một phần trong output phiên trước) | **OPEN — SECURITY BLOCKER**, chờ human (M8 deploy dùng khóa hiện có, không xoay) |
+| 3b | **Lịch sử Git — GitLeaks** (`deliverables/GITLEAKS-AUDIT.md`) | **OPEN** — chưa có quyết định xử lý lịch sử; không rewrite / force-push |
 | 4 | Tên người phụ trách trên Kanban / xếp hạng hiện "Tôi" hoặc mã rút gọn (KD không đọc danh bạ) | Backlog (R-DEC-169 danh bạ) |
 | 5 | Xuất Excel/PDF dashboard KD (DASH-010) | Backlog |
 | 6 | Ngân sách: CFO chỉ chọn phòng ban của mình (R-DEC-171 mục 4) | Backlog |
