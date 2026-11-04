@@ -576,6 +576,16 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1209 | Xoay khóa JWT RS256 | R-DEC-168 | — | ☐ chờ human |
 | T-1210 | Backlog: EMP chọn người nhận khi đề nghị chuyển giao (không gọi `/org/tree`) | R-DEC-169 | — | ☐ backlog |
 
+### 6.22. M7 — CRUD dữ liệu nghiệp vụ theo phòng ban (nhánh `v3/m7-records`)
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1301 | Engine form + `RecordCrud` (danh sách, tạo/sửa/lưu trữ, hành động dòng, lỗi theo trường) | R-DEC-170 | TC-M7-01 | ☑ |
+| T-1302 | Tài chính: doanh thu, chi phí, hóa đơn (+ thanh toán), ngân sách, số dư tiền | R-DEC-170 | TC-M7-02 | ☑ |
+| T-1303 | Kinh doanh: khách hàng, deal (+ đổi giai đoạn), hợp đồng, chỉ tiêu | R-DEC-170 | TC-M7-02 | ☑ |
+| T-1304 | Nhân sự: nhân viên, kế hoạch tuyển dụng (+ trình duyệt) | R-DEC-170 | TC-M7-02 | ☑ |
+| T-1305 | Quản lý role/quyền, duyệt tuyển dụng của CFO, hóa đơn OUT của CFO, dự báo | R-DEC-171 | — | ☐ chờ quyết định |
+
 ## 7. Open questions
 
 - OQ-09-01: Task breakdown `T-*` — **ĐÃ CHỐT** (R-DEC-15/19): sinh ở §6.
