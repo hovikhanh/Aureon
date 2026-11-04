@@ -584,7 +584,17 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1302 | Tài chính: doanh thu, chi phí, hóa đơn (+ thanh toán), ngân sách, số dư tiền | R-DEC-170 | TC-M7-02 | ☑ |
 | T-1303 | Kinh doanh: khách hàng, deal (+ đổi giai đoạn), hợp đồng, chỉ tiêu | R-DEC-170 | TC-M7-02 | ☑ |
 | T-1304 | Nhân sự: nhân viên, kế hoạch tuyển dụng (+ trình duyệt) | R-DEC-170 | TC-M7-02 | ☑ |
-| T-1305 | Quản lý role/quyền, duyệt tuyển dụng của CFO, hóa đơn OUT của CFO, dự báo | R-DEC-171 | — | ☐ chờ quyết định |
+| T-1305 | Quản lý role/quyền, duyệt tuyển dụng, hóa đơn OUT của CFO | R-DEC-171 → 172/173/174 | TC-M8-01/02/04 | ☑ (M8) |
+
+### 6.23. M8 — R-DEC-171 + CRM giai đoạn 1 (nhánh `v3/m8-crm`)
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1401 | Hóa đơn OUT theo MST (`core/client_directory`, EP-FIN-07) | R-DEC-172 | TC-M8-01 | ☑ |
+| T-1402 | Duyệt kế hoạch tuyển dụng qua engine (rule, hook từ chối, EP-HR-09/10, hộp phê duyệt FE) | R-DEC-173 | TC-M8-02/04 | ☑ |
+| T-1403 | Ma trận vai trò dễ hiểu + liên kết gán vai trò | R-DEC-174 | TC-M8-04 | ☑ |
+| T-1404 | CRM: Kanban, chi tiết cơ hội, Account 360, phễu, dự báo, xếp hạng | R-DEC-175 | TC-M8-03/04 | ☑ |
+| T-1405 | Thực thể CRM mới (Lead, Contact, Activity, cấu hình pipeline, snapshot dự báo, trạng thái chỉ tiêu) | R-DEC-176 | — | ☐ chờ duyệt |
 
 ## 7. Open questions
 

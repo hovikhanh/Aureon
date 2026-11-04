@@ -129,7 +129,7 @@ Ngưỡng và người duyệt theo loại hành động. "Không cho phép" = A
 | Chuyển task giữa người (cân bằng workload) | L1 | Manager |
 | Gửi email / tin nhắn ra ngoài | L2 | Người gửi xác nhận |
 | Phê duyệt ngân sách | **Không cho phép** | CEO / CFO |
-| Tuyển dụng / thay đổi lương / đánh giá nhân sự | **Không cho phép** | HR / CEO / người được ủy quyền |
+| Tuyển dụng / thay đổi lương / đánh giá nhân sự | **Không cho phép** | HR / CEO / người được ủy quyền — **M8 (R-DEC-173):** kế hoạch tuyển dụng duyệt qua engine phê duyệt (`RULE-hiring_plan`: HR-DIR khối O hoặc CEO, ≠ người trình) |
 | Xóa dữ liệu quan trọng | **Không cho phép** | **Hai người** |
 | Thay đổi quyền / policy AI | **Không cho phép** | Admin + chủ domain |
 
