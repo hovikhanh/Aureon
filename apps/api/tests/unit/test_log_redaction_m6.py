@@ -52,3 +52,27 @@ def test_installed_factory_masks_messages_args_and_tracebacks(
     text = caplog.text + "\n".join(r.exc_text or "" for r in caplog.records)
     assert SAMPLE not in text
     assert "config failed" in text and "ValueError" in text
+
+
+def test_uvicorn_access_lines_keep_their_args(capsys: pytest.CaptureFixture[str]) -> None:
+    """Regression (seen on the stack): args=None broke uvicorn's AccessFormatter on every
+    request. Clean lines are untouched; a line with URL credentials is masked arg by arg."""
+    from uvicorn.logging import AccessFormatter
+
+    log_redaction.install()
+    log = logging.getLogger("uvicorn.access")
+    handler = logging.StreamHandler()
+    handler.setFormatter(AccessFormatter('%(client_addr)s - "%(request_line)s" %(status_code)s'))
+    log.addHandler(handler)
+    level, log.level = log.level, logging.INFO
+    try:
+        log.info('%s - "%s %s HTTP/%s" %d', "172.18.0.1:5000", "GET", "/api/v1/health", "1.1", 200)
+        log.info('%s - "%s %s HTTP/%s" %d', "172.18.0.1:5000", "GET",
+                 f"/x?u=postgresql://aureon:{SAMPLE}@db/x", "1.1", 200)  # fmt: skip
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(level)
+    err = capsys.readouterr().err
+    assert "Logging error" not in err
+    assert '"GET /api/v1/health HTTP/1.1" 200' in err
+    assert SAMPLE not in err

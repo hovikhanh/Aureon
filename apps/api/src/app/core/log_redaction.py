@@ -32,6 +32,11 @@ _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 )  # fmt: skip
 
 
+# Loggers whose formatter reads `record.args` positionally (setting them to None broke every
+# uvicorn access line with "TypeError: cannot unpack non-iterable NoneType object").
+_KEEP_ARGS = {"uvicorn.access": True}
+
+
 def redact(text: str) -> str:
     for pattern, repl in _PATTERNS:
         text = pattern.sub(repl, text)
@@ -50,7 +55,16 @@ def install() -> None:
             message = record.getMessage()
         except Exception:  # a bad %-format must not break logging
             return record
-        record.msg, record.args = redact(message), None
+        masked = redact(message)
+        if masked != message:
+            if _KEEP_ARGS.get(record.name):
+                # formatters that unpack `args` (uvicorn access: client, method, path, version,
+                # status) keep the tuple shape — mask each string argument instead
+                args = record.args if isinstance(record.args, tuple) else ()
+                record.args = tuple(redact(a) if isinstance(a, str) else a for a in args)
+            else:
+                record.msg, record.args = masked, None
+        # nothing to mask → the record stays as created (args intact for any formatter)
         if record.exc_info and not record.exc_text:
             rendered = "".join(traceback.format_exception(*record.exc_info)).rstrip("\n")
             record.exc_text = redact(rendered)
