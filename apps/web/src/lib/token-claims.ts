@@ -17,3 +17,16 @@ export function scopePillarsOf(accessToken: string): string[] {
     return [];
   }
 }
+
+/** The caller's own department (`department_id` claim), display only — e.g. the default department
+ * of a budget form for a role that cannot list departments (`/hr/departments` is khối O). */
+export function departmentIdOf(accessToken: string): string | null {
+  const payload = accessToken.split(".")[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { department_id?: unknown };
+    return typeof claims.department_id === "string" && claims.department_id ? claims.department_id : null;
+  } catch {
+    return null;
+  }
+}

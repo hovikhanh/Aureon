@@ -48,7 +48,19 @@
       "finance": { "title": "Tài chính", "desc": "Ngân sách, dòng tiền, runway và mức sử dụng ngân sách." },
       "sales": { "title": "Kinh doanh", "desc": "Pipeline theo giai đoạn, giá trị trọng số và tỷ lệ thắng." },
       "invoices": { "title": "Hóa đơn", "desc": "Danh sách hóa đơn và trạng thái thanh toán." },
-      "employees": { "title": "Nhân sự", "desc": "Danh sách nhân viên theo phòng ban." }
+      "employees": { "title": "Nhân sự", "desc": "Danh sách nhân viên theo phòng ban." },
+      "financeRecords": {
+        "title": "Quản lý dữ liệu tài chính",
+        "desc": "Thêm, sửa, lưu trữ doanh thu, chi phí, hóa đơn, ngân sách, số dư tiền."
+      },
+      "salesRecords": {
+        "title": "Quản lý dữ liệu kinh doanh",
+        "desc": "Thêm, sửa, lưu trữ khách hàng, cơ hội, hợp đồng, chỉ tiêu."
+      },
+      "hrRecords": {
+        "title": "Quản lý dữ liệu nhân sự",
+        "desc": "Thêm, sửa, lưu trữ nhân viên và kế hoạch tuyển dụng."
+      }
     }
   },
   "buttons": {
@@ -2499,5 +2511,265 @@
     "g4": "Sự cố ghi sai trường trọng yếu",
     "g4_threshold": "= 0",
     "g4_detail": "Số sự cố AI ghi sai trường trọng yếu mà không bị phát hiện."
+  },
+  "records": {
+    "title": {
+      "finance": "Dữ liệu tài chính",
+      "sales": "Dữ liệu kinh doanh",
+      "hr": "Dữ liệu nhân sự"
+    },
+    "resource": {
+      "revenues": "Doanh thu",
+      "expenses": "Chi phí",
+      "invoices": "Hóa đơn",
+      "budgets": "Ngân sách",
+      "cashPositions": "Số dư tiền",
+      "clients": "Khách hàng",
+      "deals": "Cơ hội (deal)",
+      "contracts": "Hợp đồng",
+      "targets": "Chỉ tiêu",
+      "employees": "Nhân viên",
+      "hiringPlans": "Kế hoạch tuyển dụng"
+    },
+    "field": {
+      "amount": "Số tiền (đ)",
+      "category": "Hạng mục",
+      "recognized_on": "Ngày ghi nhận",
+      "client_id": "Khách hàng",
+      "description": "Mô tả",
+      "source_note": "Ghi chú nguồn",
+      "title": "Tiêu đề",
+      "spent_on": "Ngày chi",
+      "department_id": "Phòng ban",
+      "vendor": "Nhà cung cấp",
+      "is_recurring": "Định kỳ",
+      "recurrence_period": "Chu kỳ",
+      "direction": "Chiều",
+      "number": "Số hóa đơn",
+      "series": "Ký hiệu",
+      "issued_on": "Ngày lập",
+      "due_date": "Hạn thanh toán",
+      "counterparty_name": "Đối tác",
+      "counterparty_tax_code": "MST đối tác",
+      "status": "Trạng thái",
+      "lines": "Dòng hàng",
+      "notes": "Ghi chú",
+      "total_amount": "Tổng tiền",
+      "amount_due": "Còn phải thu/trả",
+      "amount_paid": "Số tiền thanh toán (đ)",
+      "paid_at": "Ngày thanh toán",
+      "method": "Phương thức",
+      "fiscal_year": "Năm tài chính",
+      "quarter": "Quý",
+      "allocated_amount": "Ngân sách phân bổ (đ)",
+      "period": "Kỳ (YYYY-MM)",
+      "opening_balance": "Số dư đầu kỳ",
+      "closing_balance": "Số dư cuối kỳ (đ)",
+      "cash_source": "Nguồn số liệu",
+      "note": "Ghi chú",
+      "name": "Tên",
+      "tax_code": "Mã số thuế",
+      "industry": "Ngành",
+      "size": "Quy mô",
+      "address": "Địa chỉ",
+      "website": "Website",
+      "account_owner_id": "Phụ trách khách hàng",
+      "deal_value": "Giá trị (đ)",
+      "probability_pct": "Xác suất (%)",
+      "expected_close_date": "Dự kiến chốt",
+      "owner_id": "Người phụ trách",
+      "stage": "Giai đoạn",
+      "to_stage": "Chuyển sang giai đoạn",
+      "lost_reason": "Lý do thua",
+      "contract_number": "Số hợp đồng",
+      "contract_value": "Giá trị hợp đồng (đ)",
+      "signed_at": "Ngày ký",
+      "effective_date": "Ngày hiệu lực",
+      "expiry_date": "Ngày hết hạn",
+      "renewal_notice_days": "Báo gia hạn trước (ngày)",
+      "period_type": "Loại kỳ",
+      "period_key": "Kỳ (vd 2026-11, 2026-Q4, 2026)",
+      "scope": "Phạm vi",
+      "target_amount": "Chỉ tiêu (đ)",
+      "employee_code": "Mã nhân viên",
+      "full_name": "Họ tên",
+      "email": "Email",
+      "phone": "Điện thoại",
+      "contract_type": "Loại hợp đồng",
+      "hire_date": "Ngày vào làm",
+      "termination_date": "Ngày nghỉ việc",
+      "manager_id": "Quản lý trực tiếp",
+      "position": "Vị trí tuyển",
+      "headcount": "Số lượng",
+      "filled": "Đã tuyển",
+      "priority": "Ưu tiên",
+      "start_date": "Bắt đầu",
+      "target_date": "Hạn tuyển",
+      "budget_amount": "Ngân sách tuyển (đ)",
+      "hiring_manager_id": "Người phụ trách tuyển",
+      "requirements": "Yêu cầu",
+      "decision": "Quyết định",
+      "reason": "Lý do"
+    },
+    "enum": {
+      "category": {
+        "product_sales": "Bán hàng",
+        "service": "Dịch vụ",
+        "consulting": "Tư vấn",
+        "other": "Khác",
+        "cogs": "Giá vốn",
+        "salary": "Lương",
+        "infrastructure": "Hạ tầng",
+        "marketing": "Marketing",
+        "office": "Văn phòng",
+        "travel": "Công tác"
+      },
+      "recurrence_period": {
+        "monthly": "Hằng tháng",
+        "quarterly": "Hằng quý",
+        "yearly": "Hằng năm"
+      },
+      "direction": {
+        "OUT": "Đầu ra (bán)",
+        "IN": "Đầu vào (mua)"
+      },
+      "status": {
+        "draft": "Nháp",
+        "sent": "Đã gửi",
+        "partial": "Thanh toán một phần",
+        "paid": "Đã thanh toán",
+        "cancelled": "Đã hủy",
+        "overdue": "Quá hạn",
+        "prospect": "Tiềm năng",
+        "active": "Đang hoạt động",
+        "churned": "Đã rời",
+        "expired": "Hết hạn",
+        "terminated": "Chấm dứt",
+        "probation": "Thử việc",
+        "on_leave": "Tạm nghỉ",
+        "submitted": "Chờ duyệt",
+        "approved": "Đã duyệt",
+        "rejected": "Từ chối",
+        "in_progress": "Đang tuyển",
+        "completed": "Hoàn tất"
+      },
+      "method": {
+        "bank_transfer": "Chuyển khoản",
+        "cash": "Tiền mặt",
+        "card": "Thẻ",
+        "other": "Khác"
+      },
+      "cash_source": {
+        "bank_statement": "Sao kê ngân hàng",
+        "manual": "Nhập tay",
+        "imported": "Nhập file"
+      },
+      "size": {
+        "startup": "Khởi nghiệp",
+        "small": "Nhỏ",
+        "medium": "Vừa",
+        "enterprise": "Lớn"
+      },
+      "stage": {
+        "lead": "Tiềm năng",
+        "qualified": "Đã xác thực",
+        "proposal": "Báo giá",
+        "negotiation": "Đàm phán",
+        "closed_won": "Thắng",
+        "closed_lost": "Thua"
+      },
+      "period_type": {
+        "month": "Tháng",
+        "quarter": "Quý",
+        "year": "Năm"
+      },
+      "scope": {
+        "team": "Đội",
+        "individual": "Cá nhân"
+      },
+      "contract_type": {
+        "full_time": "Toàn thời gian",
+        "part_time": "Bán thời gian",
+        "contract": "Hợp đồng",
+        "intern": "Thực tập"
+      },
+      "priority": {
+        "low": "Thấp",
+        "medium": "Trung bình",
+        "high": "Cao",
+        "critical": "Khẩn"
+      },
+      "decision": {
+        "approve": "Duyệt",
+        "reject": "Từ chối"
+      },
+      "to_stage": {
+        "lead": "Tiềm năng",
+        "qualified": "Đã xác thực",
+        "proposal": "Báo giá",
+        "negotiation": "Đàm phán",
+        "closed_won": "Thắng",
+        "closed_lost": "Thua"
+      },
+      "quarter": {
+        "Q1": "Quý 1",
+        "Q2": "Quý 2",
+        "Q3": "Quý 3",
+        "Q4": "Quý 4"
+      }
+    },
+    "action": {
+      "invoices": {
+        "pay": "Ghi thanh toán"
+      },
+      "deals": {
+        "stage": "Đổi giai đoạn"
+      },
+      "hiringPlans": {
+        "submit": "Trình duyệt",
+        "approve": "Duyệt / từ chối"
+      }
+    },
+    "line": {
+      "description": "Diễn giải",
+      "quantity": "SL",
+      "unitPrice": "Đơn giá (đ)",
+      "vat": "VAT",
+      "add": "Thêm dòng",
+      "remove": "Bớt dòng"
+    },
+    "msg": {
+      "required": "Bắt buộc nhập.",
+      "number": "Nhập một số hợp lệ.",
+      "tooLong": "Quá dài.",
+      "range": "Giá trị không hợp lệ (không âm; số nguyên; % trong 0–100).",
+      "period": "Kỳ có dạng YYYY-MM.",
+      "lines": "Cần ít nhất một dòng.",
+      "duplicate": "Đã có bản ghi trùng (mã / số đã tồn tại).",
+      "rule": "Dữ liệu chưa đúng quy tắc nghiệp vụ — xem trường được đánh dấu.",
+      "ruleField": "Trường này chưa đúng quy tắc nghiệp vụ (vd hóa đơn bán ra cần khách hàng)."
+    },
+    "me": "Tôi",
+    "myDepartment": "Phòng ban của tôi",
+    "choose": "— Chọn —",
+    "search": "Tìm theo tên, mã…",
+    "create": "Thêm {resource}",
+    "editTitle": "Sửa {resource}",
+    "edit": "Sửa",
+    "archive": "Lưu trữ",
+    "archiveTitle": "Lưu trữ {resource}",
+    "archiveConfirm": "Bản ghi sẽ ẩn khỏi danh sách; lịch sử và nhật ký kiểm toán được giữ lại.",
+    "archived": "Đã lưu trữ.",
+    "created": "Đã thêm.",
+    "updated": "Đã cập nhật.",
+    "done": "Đã thực hiện.",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "actions": "Thao tác",
+    "empty": "Chưa có bản ghi.",
+    "readOnly": "Chỉ xem — vai trò của anh/chị không có quyền ghi dữ liệu này.",
+    "page": "{from}–{to} / {total}",
+    "prev": "Trước",
+    "next": "Sau"
   }
 }

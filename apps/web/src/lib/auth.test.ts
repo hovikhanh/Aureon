@@ -223,6 +223,7 @@ describe("callbacks", () => {
       role: "CEO",
       permissions: ["ai:query"],
       scopePillars: [],
+      departmentId: null, // display-only claim (M7 budget form default), never a token
     });
     expect(JSON.stringify(session)).not.toContain("secret");
   });

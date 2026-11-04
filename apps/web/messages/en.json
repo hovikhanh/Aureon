@@ -48,7 +48,19 @@
       "finance": { "title": "Finance", "desc": "Budget, cash flow, runway and budget utilization." },
       "sales": { "title": "Sales", "desc": "Pipeline by stage, weighted value and win rate." },
       "invoices": { "title": "Invoices", "desc": "Invoice list and payment status." },
-      "employees": { "title": "Employees", "desc": "Employee roster by department." }
+      "employees": { "title": "Employees", "desc": "Employee roster by department." },
+      "financeRecords": {
+        "title": "Manage finance records",
+        "desc": "Add, edit and archive revenue, expenses, invoices, budgets and cash positions."
+      },
+      "salesRecords": {
+        "title": "Manage sales records",
+        "desc": "Add, edit and archive clients, deals, contracts and targets."
+      },
+      "hrRecords": {
+        "title": "Manage HR records",
+        "desc": "Add, edit and archive employees and hiring plans."
+      }
     }
   },
   "buttons": {
@@ -2499,5 +2511,265 @@
     "g4": "Critical-field write errors",
     "g4_threshold": "= 0",
     "g4_detail": "Undetected AI write errors on critical fields."
+  },
+  "records": {
+    "title": {
+      "finance": "Finance records",
+      "sales": "Sales records",
+      "hr": "HR records"
+    },
+    "resource": {
+      "revenues": "Revenue",
+      "expenses": "Expenses",
+      "invoices": "Invoices",
+      "budgets": "Budgets",
+      "cashPositions": "Cash positions",
+      "clients": "Clients",
+      "deals": "Deals",
+      "contracts": "Contracts",
+      "targets": "Targets",
+      "employees": "Employees",
+      "hiringPlans": "Hiring plans"
+    },
+    "field": {
+      "amount": "Amount (VND)",
+      "category": "Category",
+      "recognized_on": "Recognized on",
+      "client_id": "Client",
+      "description": "Description",
+      "source_note": "Source note",
+      "title": "Title",
+      "spent_on": "Spent on",
+      "department_id": "Department",
+      "vendor": "Vendor",
+      "is_recurring": "Recurring",
+      "recurrence_period": "Recurrence",
+      "direction": "Direction",
+      "number": "Number",
+      "series": "Series",
+      "issued_on": "Issued on",
+      "due_date": "Due date",
+      "counterparty_name": "Counterparty",
+      "counterparty_tax_code": "Counterparty tax code",
+      "status": "Status",
+      "lines": "Lines",
+      "notes": "Notes",
+      "total_amount": "Total",
+      "amount_due": "Amount due",
+      "amount_paid": "Amount paid (VND)",
+      "paid_at": "Paid on",
+      "method": "Method",
+      "fiscal_year": "Fiscal year",
+      "quarter": "Quarter",
+      "allocated_amount": "Allocated (VND)",
+      "period": "Period (YYYY-MM)",
+      "opening_balance": "Opening balance",
+      "closing_balance": "Closing balance (VND)",
+      "cash_source": "Source",
+      "note": "Note",
+      "name": "Name",
+      "tax_code": "Tax code",
+      "industry": "Industry",
+      "size": "Size",
+      "address": "Address",
+      "website": "Website",
+      "account_owner_id": "Account owner",
+      "deal_value": "Value (VND)",
+      "probability_pct": "Probability (%)",
+      "expected_close_date": "Expected close",
+      "owner_id": "Owner",
+      "stage": "Stage",
+      "to_stage": "Move to stage",
+      "lost_reason": "Lost reason",
+      "contract_number": "Contract number",
+      "contract_value": "Contract value (VND)",
+      "signed_at": "Signed on",
+      "effective_date": "Effective",
+      "expiry_date": "Expiry",
+      "renewal_notice_days": "Renewal notice (days)",
+      "period_type": "Period type",
+      "period_key": "Period (e.g. 2026-11, 2026-Q4, 2026)",
+      "scope": "Scope",
+      "target_amount": "Target (VND)",
+      "employee_code": "Employee code",
+      "full_name": "Full name",
+      "email": "Email",
+      "phone": "Phone",
+      "contract_type": "Contract type",
+      "hire_date": "Hire date",
+      "termination_date": "Termination date",
+      "manager_id": "Manager",
+      "position": "Position",
+      "headcount": "Headcount",
+      "filled": "Filled",
+      "priority": "Priority",
+      "start_date": "Start date",
+      "target_date": "Target date",
+      "budget_amount": "Budget (VND)",
+      "hiring_manager_id": "Hiring manager",
+      "requirements": "Requirements",
+      "decision": "Decision",
+      "reason": "Reason"
+    },
+    "enum": {
+      "category": {
+        "product_sales": "Product sales",
+        "service": "Service",
+        "consulting": "Consulting",
+        "other": "Other",
+        "cogs": "COGS",
+        "salary": "Salary",
+        "infrastructure": "Infrastructure",
+        "marketing": "Marketing",
+        "office": "Office",
+        "travel": "Travel"
+      },
+      "recurrence_period": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "yearly": "Yearly"
+      },
+      "direction": {
+        "OUT": "Outgoing (sales)",
+        "IN": "Incoming (purchase)"
+      },
+      "status": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "partial": "Partially paid",
+        "paid": "Paid",
+        "cancelled": "Cancelled",
+        "overdue": "Overdue",
+        "prospect": "Prospect",
+        "active": "Active",
+        "churned": "Churned",
+        "expired": "Expired",
+        "terminated": "Terminated",
+        "probation": "Probation",
+        "on_leave": "On leave",
+        "submitted": "Submitted",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "in_progress": "In progress",
+        "completed": "Completed"
+      },
+      "method": {
+        "bank_transfer": "Bank transfer",
+        "cash": "Cash",
+        "card": "Card",
+        "other": "Other"
+      },
+      "cash_source": {
+        "bank_statement": "Bank statement",
+        "manual": "Manual",
+        "imported": "Imported"
+      },
+      "size": {
+        "startup": "Startup",
+        "small": "Small",
+        "medium": "Medium",
+        "enterprise": "Enterprise"
+      },
+      "stage": {
+        "lead": "Lead",
+        "qualified": "Qualified",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "closed_won": "Won",
+        "closed_lost": "Lost"
+      },
+      "period_type": {
+        "month": "Month",
+        "quarter": "Quarter",
+        "year": "Year"
+      },
+      "scope": {
+        "team": "Team",
+        "individual": "Individual"
+      },
+      "contract_type": {
+        "full_time": "Full time",
+        "part_time": "Part time",
+        "contract": "Contract",
+        "intern": "Intern"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "decision": {
+        "approve": "Approve",
+        "reject": "Reject"
+      },
+      "to_stage": {
+        "lead": "Lead",
+        "qualified": "Qualified",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "closed_won": "Won",
+        "closed_lost": "Lost"
+      },
+      "quarter": {
+        "Q1": "Q1",
+        "Q2": "Q2",
+        "Q3": "Q3",
+        "Q4": "Q4"
+      }
+    },
+    "action": {
+      "invoices": {
+        "pay": "Record payment"
+      },
+      "deals": {
+        "stage": "Change stage"
+      },
+      "hiringPlans": {
+        "submit": "Submit",
+        "approve": "Approve / reject"
+      }
+    },
+    "line": {
+      "description": "Description",
+      "quantity": "Qty",
+      "unitPrice": "Unit price (VND)",
+      "vat": "VAT",
+      "add": "Add line",
+      "remove": "Remove line"
+    },
+    "msg": {
+      "required": "Required.",
+      "number": "Enter a valid number.",
+      "tooLong": "Too long.",
+      "range": "Invalid value (non-negative; whole number; % within 0–100).",
+      "period": "Period must be YYYY-MM.",
+      "lines": "At least one line is required.",
+      "duplicate": "A record with this code / number already exists.",
+      "rule": "The data breaks a business rule — see the highlighted field.",
+      "ruleField": "This field breaks a business rule (e.g. an outgoing invoice needs a client)."
+    },
+    "me": "Me",
+    "myDepartment": "My department",
+    "choose": "— Choose —",
+    "search": "Search by name, code…",
+    "create": "Add {resource}",
+    "editTitle": "Edit {resource}",
+    "edit": "Edit",
+    "archive": "Archive",
+    "archiveTitle": "Archive {resource}",
+    "archiveConfirm": "The record is hidden from lists; its history and audit trail are kept.",
+    "archived": "Archived.",
+    "created": "Added.",
+    "updated": "Updated.",
+    "done": "Done.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "actions": "Actions",
+    "empty": "No records yet.",
+    "readOnly": "Read only — your role cannot write this data.",
+    "page": "{from}–{to} of {total}",
+    "prev": "Previous",
+    "next": "Next"
   }
 }

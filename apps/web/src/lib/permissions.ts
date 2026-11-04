@@ -62,6 +62,10 @@ const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
   { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"], dirPillars: ["F"] },
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"], dirPillars: ["O"] },
+  // M7 record editors: the list endpoints are khối-isolated (`require_pillar_permission`) — the HR
+  // one is covered by `/business/hr` above
+  { prefix: "/business/finance/records", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"], dirPillars: ["F"] },
+  { prefix: "/business/sales/records", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["sales:read"], dirPillars: ["C"] },
   { prefix: "/admin/audit", roles: ["ADM"], anyOf: ["platform:read"] },
   { prefix: "/admin/org", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },
   { prefix: "/admin/positions", roles: ["ADM", "CEO", "DIR"], anyOf: ["hr:admin"], dirPillars: ["O"] },

@@ -8,7 +8,7 @@ import { canAccess } from "@/lib/permissions";
 interface HubCard {
   href: string;
   /** i18n keys under `businessHub.cards.<key>` for title + description. */
-  key: "finance" | "sales" | "invoices" | "employees";
+  key: "finance" | "sales" | "invoices" | "employees" | "financeRecords" | "salesRecords" | "hrRecords";
 }
 
 const CARDS: readonly HubCard[] = [
@@ -16,6 +16,10 @@ const CARDS: readonly HubCard[] = [
   { href: "/business/sales", key: "sales" },
   { href: "/business/finance/invoices", key: "invoices" },
   { href: "/business/hr/employees", key: "employees" },
+  // M7: create / edit / archive records (shown only where the role can open them)
+  { href: "/business/finance/records", key: "financeRecords" },
+  { href: "/business/sales/records", key: "salesRecords" },
+  { href: "/business/hr/records", key: "hrRecords" },
 ];
 
 /**
