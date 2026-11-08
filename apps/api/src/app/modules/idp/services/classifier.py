@@ -11,11 +11,20 @@
 
 The caller routes `< 0.95` to `NEEDS_REVIEW` (the reviewer picks the type). Nothing found →
 `OTHER`.
+
+What `confidence` means depends on the tier, and none of them is a calibrated probability:
+`preselected` = the user chose; `header` = share of required columns matched; `keyword` = a
+rule-of-thumb score from counted hits (0.80 + 0.05 per extra hit, ≤ 0.94; the built-in INVOICE
+hints score 0.90 + 0.02 per hit, ≤ 0.99 — the 0.99 says "several invoice words", nothing more);
+`llm` = the model's self-report. The tier is stored with the job so the number can be read for
+what it is. The built-in hints can pass the 0.95 gate on their own: harmless for STP only because
+INVOICE has critical fields, which always go to a person (`critical.py`, FR-DC-16).
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -33,8 +42,10 @@ log = logging.getLogger(__name__)
 
 HEADER_MIN_SHARE = 0.60
 FALLBACK = "OTHER"
-_KEYWORD_BASE, _KEYWORD_STEP, _KEYWORD_CAP = 0.80, 0.05, 0.94  # keywords alone never reach STP
-_INVOICE_HINTS = ("hoa don", "invoice", "vat", "gtgt", "mst", "tien thue")
+_KEYWORD_BASE, _KEYWORD_STEP, _KEYWORD_CAP = 0.80, 0.05, 0.94  # admin keywords never reach STP
+# Whole words of the folded text: "vat" must not hit "vật tư", "mst" must not hit a longer word.
+_INVOICE_HINT = re.compile(r"\b(hoa don|invoice|vat|gtgt|mst|tien thue)\b")
+_NOT_A_VAT = re.compile(r"\bvat (tu|lieu|ly|pham|chat|dung|gia|the|nuoi|kien)\b")
 _MAX_LLM_CHARS = 6000
 
 
@@ -77,8 +88,8 @@ def keyword_score(text: str, keywords: tuple[str, ...]) -> float:
 
 def invoice_score(text: str) -> float:
     """Built-in INVOICE hints (v2.1 reference type, kept until its keywords are configured)."""
-    folded = fold(text)
-    hits = sum(1 for h in _INVOICE_HINTS if h in folded)
+    folded = _NOT_A_VAT.sub(" ", fold(text))
+    hits = len(set(_INVOICE_HINT.findall(folded)))
     return round(min(0.90 + 0.02 * hits, 0.99), 4) if hits >= 2 else 0.0
 
 
@@ -119,7 +130,7 @@ class Classifier:
         score, code = max(scored, default=(0.0, FALLBACK))
         if score >= 0.95 or (score > 0 and self.gateway is None):
             return Classification(code, score, "keyword")
-        if self.gateway is not None and classification != "SECRET":
+        if self.gateway is not None and classification != "SECRET" and text.strip():
             body = scrub_for_llm(text, _level4_headers(cands))  # INJ-02: no level-4 in prompt
             llm = await self._llm(body, [c.code for c in cands], document_id, classification)
             if llm is not None and llm.confidence > score:

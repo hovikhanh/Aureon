@@ -60,6 +60,8 @@ class ChatAnswerOut(BaseModel):
     suggested_actions: list[dict[str, Any]] = Field(default_factory=list)
     truncated: bool = False
     warnings: list[str] = Field(default_factory=list)
+    # what produced the answer; `replay` = fixed demo text around live numbers (F-C2)
+    mode: Literal["live", "fixture", "replay"] = "live"
 
 
 class ConversationOut(BaseModel):
@@ -76,6 +78,7 @@ class MessageOut(BaseModel):
     function_calls: list[FunctionCallOut] = Field(default_factory=list)
     truncated: bool = False
     created_at: datetime
+    mode: Literal["live", "replay"] = "live"
 
 
 class AIActionOut(BaseModel):

@@ -79,8 +79,8 @@ class NaturalLanguageService:
         doc = SourceDocument(
             channel="C2", kind="FILE", mime_type=TXT_MIME, size_bytes=len(data),
             storage_key=storage_key, sha256=hashlib.sha256(data).hexdigest(),
-            scan_status="PENDING", pillars=[], status="UPLOADED", sensitivity_level=2,
-            source="IDP", data_classification="INTERNAL", submitted_by=user.user_id,
+            scan_status="PENDING", pillars=[], status="UPLOADED", sensitivity_level=3,
+            source="IDP", data_classification="CONFIDENTIAL", submitted_by=user.user_id,
             submitted_at=now, department_id=user.department_id,
         )  # fmt: skip
         self.db.add(doc)

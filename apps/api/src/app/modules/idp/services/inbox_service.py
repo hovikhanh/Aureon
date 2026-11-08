@@ -21,6 +21,7 @@ from app.core.errors import (
     BadRequestError,
     BusinessRuleError,
     NotFoundError,
+    PermissionDeniedError,
     ScopeDeniedError,
 )
 from app.core.pagination import PageParams
@@ -174,6 +175,31 @@ class InboxService:
             filename=doc.original_filename,
             pages=await self._text_pages(doc.id),
         )
+
+    async def source_for_model(
+        self, user: Principal, document_id: uuid.UUID, page: int | None, *, max_chars: int
+    ) -> tuple[SourceDocument, list[SourcePageOut]]:
+        """`TOOL-get_source_document`: page text for a prompt, never a URL (05 §11). Same scope and
+        `idp.source_view` audit as EP-DC-14. A level-4 document goes to no model."""
+        from app.modules.idp.repositories import SourceDocumentRepository
+
+        doc = await SourceDocumentRepository(self.db).by_id(document_id)
+        if doc is None or not await self._may_view(user, doc):
+            raise NotFoundError("document not found")
+        if doc.sensitivity_level >= 4:
+            raise PermissionDeniedError("a SECRET document is not sent to any model")
+        pages = await self._text_pages(doc.id) or []
+        if page is not None:
+            pages = [p for p in pages if p.page_number == page]
+        if doc.sensitivity_level >= 3:
+            await record_audit(
+                self.db, action="idp.source_view", target_schema="idp",
+                target_table="source_documents", target_id=doc.id,
+                after={"page": page, "channel": "ai_tool"},
+            )  # fmt: skip
+        return doc, [SourcePageOut(page_number=p.page_number,
+                                   text_content=(p.text_content or "")[:max_chars])
+                     for p in pages]  # fmt: skip
 
     async def _text_pages(self, document_id: uuid.UUID) -> list[SourcePageOut] | None:
         """Extracted text layer (R-DEC-80 fallback) — ordered by page; `None` if no page row."""

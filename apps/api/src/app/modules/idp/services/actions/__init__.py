@@ -7,6 +7,7 @@ from app.modules.idp.services.actions import (
     meeting,
     org,
     recommendation,
+    sales,
     work,
 )
 from app.modules.idp.services.actions.registry import (
@@ -30,5 +31,6 @@ __all__ = [
     "meeting",
     "org",
     "recommendation",
+    "sales",
     "work",
 ]  # importing the ACT modules registers their `ActionDef`s

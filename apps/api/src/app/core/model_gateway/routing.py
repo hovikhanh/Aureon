@@ -2,13 +2,17 @@
 
 | classification      | chain                                                         |
 |---------------------|---------------------------------------------------------------|
-| PUBLIC / INTERNAL   | MODEL_PROVIDER_PRIMARY → MODEL_PROVIDER_FALLBACKS (cloud OK)   |
+| PUBLIC / INTERNAL   | MODEL_PROVIDER_PRIMARY → MODEL_PROVIDER_FALLBACKS              |
 | CONFIDENTIAL        | MODEL_PROVIDER_CONFIDENTIAL (default `ollama`) → `template`    |
 | SECRET              | none — `SecretDataBlockedError` (template, never an LLM)       |
 
 Invariant: a CONFIDENTIAL chain never falls back from local/template to cloud. A configured
 cloud id in MODEL_PROVIDER_CONFIDENTIAL is the explicit, audited ADMIN override path only
 (EP-129, T-3xx) — the env default is local.
+
+D-11 (R-DEC-188 PROPOSED) forbids INTERNAL on any provider, so the demo runs with
+`MODEL_PROVIDER_PRIMARY=ollama`, no fallbacks and no cloud key: every task then resolves to the
+local chain. `chain_has_cloud` is what callers ask before handing a turn CONFIDENTIAL data.
 """
 
 from dataclasses import dataclass
@@ -73,18 +77,30 @@ def route(cfg: "ConfigService", classification: Classification) -> Route:
     chain = [ALIASES.get(cfg.model_provider_primary, cfg.model_provider_primary)]
     chain += [p for p in _csv(cfg.model_provider_fallbacks) if p not in chain]
     usable = tuple(p for p in chain if has_credentials(cfg, p))
-    return Route(classification, usable, f"{classification.lower()}: cloud chain")
+    kind = "cloud" if any(p in CLOUD_PROVIDERS for p in usable) else "local"
+    return Route(classification, usable, f"{classification.lower()}: {kind} chain")
+
+
+def chain_has_cloud(cfg: "ConfigService", classification: Classification) -> bool:
+    """True when a call of this classification could reach a cloud provider (fallback included).
+
+    Fixture mode opens no network connection. SECRET never reaches a provider at all.
+    """
+    if cfg.model_gateway_mode == "fixture" or classification == "SECRET":
+        return False
+    return any(p in CLOUD_PROVIDERS for p in route(cfg, classification).providers)
 
 
 def model_for(cfg: "ConfigService", task: TaskKind, provider: str) -> str:
-    """`MODEL_<TASK>__<PROVIDER>` → (ollama: LOCAL_CHAT_MODEL) → `MODEL_<TASK>`."""
+    """`MODEL_<TASK>__<PROVIDER>` → embed: `EMBEDDING_MODEL` → (ollama: LOCAL_CHAT_MODEL) →
+    `MODEL_<TASK>`. The local chat model serves chat, classify, extract, mapping and insight."""
     override = cfg.model_overrides().get((task, provider))
     if override:
         return override
-    if provider in LOCAL_PROVIDERS:
-        return cfg.local_chat_model
     if task == "embed":
         return cfg.embedding_model
+    if provider in LOCAL_PROVIDERS:
+        return cfg.local_chat_model
     value: str = getattr(cfg, f"model_{task}")
     return value
 

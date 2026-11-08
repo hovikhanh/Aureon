@@ -1,8 +1,8 @@
 """EP-AI-14 Tool Registry catalog (10 §7.2.5, T-644): `ToolDef` → `ToolOut` + filters.
 
-`available` = the caller may use the tool (holds every permission) **and** it is advertised to
-the model (not APPROVAL / `p1_frozen`) — the v2.1 meaning, kept. Filters: `kind`, `domain`,
-`agent`, `available_only`. No pagination (≤ 60 rows).
+`available` = the caller may use the tool (holds every permission), it is advertised to the model
+(not APPROVAL / `p1_frozen`) **and** it can run (`model_ready`: a binding or an `ACT-*` exists).
+Filters: `kind`, `domain`, `agent`, `available_only`. No pagination (≤ 60 rows).
 
 T-646: `agents[]` = agent codes whose `allowed_tools` holds the tool (live `agent_profiles`);
 `effective_level` = `resolve_level` for the caller's role through the chat agent (`ceo`) —
@@ -20,6 +20,7 @@ from app.modules.ai.repositories import AgentProfileRepository
 from app.modules.ai.schemas import ToolOut
 from app.modules.ai.services.agent_catalog import CHAT_AGENT
 from app.modules.ai.services.autonomy import resolve_level
+from app.modules.ai.services.tool_executor import model_ready
 from app.modules.ai.tools import ToolDef, advertisable_for, all_tools
 
 
@@ -42,7 +43,7 @@ async def list_tools(
     db: AsyncSession, user: Principal, *, kind: str | None = None, domain: str | None = None,
     agent: str | None = None, available_only: bool = False,
 ) -> list[ToolOut]:  # fmt: skip
-    advertised = {t.name for t in advertisable_for(user.permissions)}
+    advertised = {t.name for t in advertisable_for(user.permissions) if model_ready(t)}
     holders: dict[str, list[str]] = {}
     for a in await AgentProfileRepository(db).all():
         for name in a.allowed_tools:

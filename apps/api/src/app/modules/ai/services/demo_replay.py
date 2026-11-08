@@ -1,11 +1,16 @@
 """Demo replay of recorded answers (T-509, DEC-241).
 
-When `AI_DEMO_REPLAY` (default: follows `DEMO_MODE`) is on and a question matches one of the
+Off unless `AI_DEMO_REPLAY=true` is set explicitly (`DEMO_MODE` alone no longer turns it on).
+When on and a question matches one of the
 10 recorded intents in `demo_responses.json`, the chat turn skips the LLM: the entry's read tools
 run through `ToolExecutor` with the asker's Principal (P06 — no permission → no replay), every
 `{METRIC-X}` placeholder is filled from those live tool results and every `[[METRIC-X]]` becomes a
 citation `[n]` bound to the matching `SourceRef` (P05 — numbers always come from data). Any
 missing tool/value → `None` → the caller falls back to the live model.
+
+Numbers are live; the sentences around them are fixed text written in advance, including opinions
+such as "Dòng tiền ổn" that do not depend on the value. So a replay never passes as a model answer:
+the text starts with `REPLAY_LABEL` and the payload carries `mode: "replay"` (F-C2).
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor
 DATA_FILE = Path(__file__).resolve().parent.parent / "demo_responses.json"
 _PLACEHOLDER = re.compile(r"\{([A-Za-z0-9_-]+)\}")
 _CITE = re.compile(r"\[\[(METRIC-[A-Z]+-\d+)\]\]")
+REPLAY_LABEL = {"vi": "[Kịch bản demo] ", "en": "[Scripted demo] "}
 
 
 @dataclass(frozen=True)
@@ -44,7 +50,7 @@ class DemoAnswer:
 
 
 def replay_enabled(cfg: ConfigService) -> bool:
-    return cfg.demo_mode if cfg.ai_demo_replay is None else cfg.ai_demo_replay
+    return cfg.ai_demo_replay is True
 
 
 def normalise(text: str) -> str:
@@ -121,4 +127,4 @@ async def build_answer(executor: ToolExecutor, entry: DemoEntry, locale: str) ->
         sources = [refs[c] for c in order]
     except KeyError:
         return None  # a number without data → never invent it (P05)
-    return DemoAnswer(entry.id, text, sources, calls)
+    return DemoAnswer(entry.id, REPLAY_LABEL.get(locale, REPLAY_LABEL["vi"]) + text, sources, calls)

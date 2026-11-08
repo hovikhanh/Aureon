@@ -3,7 +3,9 @@
 Pipeline for one turn:
   1. `classify_prompt(message)` (T-309): salary term → SECRET (gateway blocks, never an LLM);
      other PII → CONFIDENTIAL (local model only). Drives `ChatRequest.classification`.
-  2. Build the tool specs the asker may see (`advertisable_for`, P06 + classification ceiling).
+  2. Build the tool specs the asker may see (`advertisable_for`, P06 + classification ceiling):
+     a turn whose chain can reach a cloud provider gets no CONFIDENTIAL tool (F-H11, D-11). The
+     last `HISTORY_PAIRS` exchanges join the context and count toward the classification.
   3. Loop (≤ `MAX_TOOL_CALLS`): gateway.chat → if the model asked for tools, run each via
      `ToolExecutor` with the asker's Principal, append `tool` messages, loop; else finalize.
   4. Persist Conversation (create/update), the user Message, every ToolCallLog, and the assistant
@@ -17,27 +19,35 @@ the asker's confirmation (EP-AI-09).
 The gateway is injected (`GatewayLike`) so tests drive a scripted gateway; production passes
 `AiService.gateway()`. SECRET prompts raise `SecretDataBlockedError` from the gateway → the caller
 maps it to a safe refusal (handled in the route). Tool results are wrapped as data (injection
-guard) and never returned raw to the model beyond a compact JSON summary.
+guard) and never returned raw to the model beyond a compact JSON summary. A tool that returned
+CONFIDENTIAL data raises the classification of the rest of the turn.
+
+`mode` tells the client what produced the answer: `live` (a provider), `fixture` (recorded, no
+network) or `replay` (fixed demo text, `demo_replay.py`). The chat turn runs to completion before
+anything is sent: EP-AI-02 delivers a finished answer as `token` events, it is not token streaming.
 """
 
 from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_config
 from app.core.deps import Principal
 from app.core.errors import AppError
 from app.core.field_policy import strip_for_model
+from app.core.model_gateway.routing import chain_has_cloud
 from app.core.model_gateway.types import (
+    CLASSIFICATION_RANK,
     ChatRequest,
     ChatResponse,
+    Classification,
     ToolSpec,
 )
 from app.core.model_gateway.types import (
@@ -55,13 +65,24 @@ from app.modules.ai.services.demo_replay import (
     replay_enabled,
 )
 from app.modules.ai.services.grounding import enforce_grounding
-from app.modules.ai.services.prompt_guard import classify_prompt, scrub_for_model, wrap_data
+from app.modules.ai.services.prompt_guard import (
+    classify_prompt,
+    scrub_for_model,
+    scrub_payload,
+    wrap_data,
+)
 from app.modules.ai.services.tool_audit import log_tool_call
-from app.modules.ai.services.tool_executor import SourceRef, ToolExecutor, ToolResult
+from app.modules.ai.services.tool_executor import (
+    SourceRef,
+    ToolExecutor,
+    ToolResult,
+    model_ready,
+)
 from app.modules.ai.tools import get_tool
 
 MAX_TOOL_CALLS = 8
 HISTORY_PAIRS = 10  # FR-AI-05: last 10 message pairs
+HISTORY_MAX_CHARS = 800  # per message: 4096 context on the local model, prompt tokens are slow
 AGENT_CODE = CHAT_AGENT  # M1.6 R-DEC-71: `ceo` for every role (old rows keep `assistant`)
 
 SYSTEM_VI = (
@@ -97,6 +118,7 @@ class ChatTurnResult:
     tokens_out: int = 0
     replayed: str | None = None  # demo entry id when answered by replay (DEC-241)
     suggested_actions: list[dict[str, Any]] = field(default_factory=list)  # EP-AI-01 (T-645b)
+    mode: str = "live"  # live | fixture | replay
 
 
 class ChatService:
@@ -110,6 +132,7 @@ class ChatService:
     ) -> ChatTurnResult:  # fmt: skip
         guard = classify_prompt(message)
         conv = await self._conversation(user, conversation_id, message)
+        past, past_level = await self._history(conv.id)
         user_msg = await self._add_message(conv.id, "user", message, [], [], user)
 
         executor = ToolExecutor(self.db, user)
@@ -118,7 +141,8 @@ class ChatService:
             demo = await build_answer(executor, entry, locale) if entry else None
             if demo is not None:
                 return await self._finish_replay(user, conv, user_msg, demo)
-        tool_specs = await self._tool_specs(user, guard.classification)
+        level: Classification = _higher(guard.classification, past_level)
+        tool_specs = await self._tool_specs(user, level)
         # agent `allowed_tools` ∩ permissions ∩ classification ceiling — a model call outside
         # this set (hallucinated / injected name) is refused, never dispatched (P06, FR-ADM-03)
         advertised = {t.name for t in tool_specs}
@@ -127,6 +151,7 @@ class ChatService:
         # (The user's own message is persisted verbatim; only the model context is scrubbed.)
         history: list[GwMessage] = [
             GwMessage("system", system),
+            *past,
             GwMessage("user", scrub_for_model(message)),
         ]
 
@@ -144,7 +169,7 @@ class ChatService:
         while True:
             req = ChatRequest(
                 task="chat", messages=tuple(history), caller_module="ai",
-                classification=guard.classification, tools=tuple(tool_specs),
+                classification=level, tools=tuple(tool_specs),
                 user_id=user.user_id, message_id=user_msg.id, temperature=0.2,
                 agent_profile_code=AGENT_CODE,
             )  # fmt: skip
@@ -184,24 +209,32 @@ class ChatService:
                 if result.status == "ok":
                     sources.extend(result.sources)
                     tool_data.append(result.data)
+                    if spec is not None:  # the rest of the turn carries this data
+                        level = _higher(level, spec.data_classification)
                 history.append(
                     GwMessage(
                         "tool",
-                        wrap_data(tc.name, scrub_for_model(_summarise(result))),
+                        wrap_data(tc.name, _summarise(result)),
                         tool_call_id=tc.id,
                     )
                 )
             if truncated:
-                # one final synthesis pass with whatever we have
-                answer = (await self.gateway.chat(req)).content if not answer else answer
+                # one final synthesis pass with whatever we have, no further tool call
+                final = await self.gateway.chat(replace(
+                    req, messages=tuple(history), classification=level, tools=()
+                ))  # fmt: skip
+                tokens_in += final.usage.tokens_in
+                tokens_out += final.usage.tokens_out
+                answer = answer or final.content
                 break
 
         answer = answer or ""
         # Hard grounding gate (10 §8, R-DEC-105): strip any number not backed by a SourceRef /
         # tool result, flag no-data — before the answer is ever persisted.
         answer, ground_warnings = enforce_grounding(
-            answer, [s.as_dict() for s in sources], tool_data, data_requested=read_calls > 0
-        )
+            answer, [s.as_dict() for s in sources], tool_data, data_requested=read_calls > 0,
+            locale=locale,
+        )  # fmt: skip
         warnings.extend(ground_warnings)
         assistant = await self._add_message(
             conv.id, "assistant", answer, [s.as_dict() for s in sources], fcalls, user,
@@ -213,6 +246,7 @@ class ChatService:
             conversation_id=conv.id, message_id=assistant.id, answer=answer,
             sources=sources, function_calls=fcalls, truncated=truncated, warnings=warnings,
             tokens_in=tokens_in, tokens_out=tokens_out, suggested_actions=suggested,
+            mode="fixture" if get_config().model_gateway_mode == "fixture" else "live",
         )  # fmt: skip
 
     async def _finish_replay(
@@ -224,17 +258,53 @@ class ChatService:
                 latency_ms=fc["latency_ms"], agent_code=AGENT_CODE, user_id=user.user_id,
                 autonomy_level="L0", message_id=user_msg.id,
             )  # fmt: skip
+        # the marker travels with the stored message: reopening a conversation must still show it
+        stored = [{**fc, "mode": "replay"} for fc in demo.function_calls]
         assistant = await self._add_message(
-            conv.id, "assistant", demo.answer, [s.as_dict() for s in demo.sources],
-            demo.function_calls, user, tokens_in=0, tokens_out=0,
+            conv.id, "assistant", demo.answer, [s.as_dict() for s in demo.sources], stored, user,
+            tokens_in=0, tokens_out=0,
         )  # fmt: skip
         conv.last_message_at = datetime.now(UTC)
         await self.db.flush()
         return ChatTurnResult(
             conversation_id=conv.id, message_id=assistant.id, answer=demo.answer,
             sources=list(demo.sources), function_calls=demo.function_calls,
-            warnings=["ai.warn.demo_replay"], replayed=demo.entry_id,
+            warnings=["ai.warn.demo_replay"], replayed=demo.entry_id, mode="replay",
         )  # fmt: skip
+
+    # ---------- memory (FR-AI-05) ----------
+    async def _history(self, conversation_id: uuid.UUID) -> tuple[list[GwMessage], Classification]:
+        """Last `HISTORY_PAIRS` exchanges, scrubbed, oldest first + the classification they carry.
+
+        Earlier text counts like the current message: PII in it, or an answer built on a
+        CONFIDENTIAL tool, keeps the turn local. A SECRET-class exchange is left out entirely.
+        """
+        rows = (await self.db.execute(
+            select(Message).where(
+                Message.conversation_id == conversation_id,
+                Message.sender.in_(("user", "assistant")),
+            )  # a turn's two messages share `created_at` (one transaction): question first
+            .order_by(Message.created_at.desc(), case((Message.sender == "assistant", 0), else_=1))
+            .limit(HISTORY_PAIRS * 2)
+        )).scalars().all()  # fmt: skip
+        out: list[GwMessage] = []
+        level: Classification = "PUBLIC"
+        seen: str
+        skip_answer = False
+        for m in reversed(rows):
+            if m.sender == "user":
+                seen = classify_prompt(m.content).classification
+                skip_answer = seen == "SECRET"
+            elif skip_answer:
+                continue
+            else:
+                seen = _message_level(m)
+            if seen == "SECRET":
+                continue
+            level = _higher(level, seen)
+            text = scrub_for_model(m.content[:HISTORY_MAX_CHARS])
+            out.append(GwMessage("user" if m.sender == "user" else "assistant", text))
+        return out, level
 
     # ---------- persistence ----------
     async def _conversation(
@@ -343,15 +413,19 @@ class ChatService:
                 "action_name": card.action_name}  # fmt: skip
         return ToolResult(tool, "ok", 0, data=data)
 
-    async def _tool_specs(self, user: Principal, classification: str) -> list[ToolSpec]:
-        """Agent `allowed_tools` ∩ the asker's permissions (FR-ADM-03); disabled agent → none."""
-        ceiling = "INTERNAL" if classification in ("CONFIDENTIAL", "SECRET") else None
+    async def _tool_specs(self, user: Principal, classification: Classification) -> list[ToolSpec]:
+        """Agent `allowed_tools` ∩ permissions (FR-ADM-03) ∩ classification ceiling ∩ tools that
+        can actually run. The ceiling follows where the turn can go, not what the prompt looks
+        like: any cloud provider in the chain, fallback included, → nothing above INTERNAL
+        (F-H11, D-11); a local-only turn may read CONFIDENTIAL. Disabled agent → none."""
+        ceiling = "INTERNAL" if chain_has_cloud(get_config(), classification) else "CONFIDENTIAL"
         tools = await AgentService(self.db).effective_tools(
             AGENT_CODE, user.permissions, max_classification=ceiling
         )
         return [
             ToolSpec(name=t.name, description=t.description, parameters=t.parameters or _EMPTY)
             for t in tools
+            if model_ready(t)
         ]
 
 
@@ -362,12 +436,28 @@ _EMPTY: dict[str, Any] = {"type": "object", "properties": {}}
 _CLIENT_KEYS = ("contacts", "contact", "client", "clients", "customer", "customers")
 
 
+def _higher(a: str, b: str) -> Classification:
+    return cast(Classification, a if CLASSIFICATION_RANK[a] >= CLASSIFICATION_RANK[b] else b)
+
+
+def _message_level(m: Message) -> str:
+    """An answer is as classified as the most classified tool behind it."""
+    level = "INTERNAL"
+    for fc in m.function_calls or ():
+        tool = get_tool(str(fc.get("tool")))
+        if tool is not None and fc.get("status") == "ok":
+            level = _higher(level, tool.data_classification)
+    return _higher(level, classify_prompt(m.content).classification)
+
+
 def _summarise(result: ToolResult) -> str:
-    """Compact JSON for the model: status, the small `data` dict, and source labels only."""
+    """Compact JSON for the model: status, the small `data` dict, and source labels only. Strings
+    are scrubbed one by one, so an amount is not mistaken for an account number."""
     if result.status != "ok":
         return json.dumps({"status": result.status, "error": result.error_code})
     return json.dumps(
-        {"status": "ok", "data": strip_for_model(result.data, client_keys=_CLIENT_KEYS),
-         "sources": [s.label for s in result.sources]},
+        {"status": "ok",
+         "data": scrub_payload(strip_for_model(result.data, client_keys=_CLIENT_KEYS)),
+         "sources": [scrub_for_model(s.label) for s in result.sources]},
         ensure_ascii=False,
     )  # fmt: skip

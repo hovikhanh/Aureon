@@ -145,11 +145,13 @@ async def test_eight_step_demo_flow(api, db_session, idp_store) -> None:
     ).scalar_one()
     assert doc.status == "COMMITTED"
 
-    # --- step 7: the new invoice is listed (reviewer has finance:read) ---
-    inv = await api.http.request("GET", "/api/v1/finance/invoices", headers=rev_headers)
+    # --- step 7: the reviewer's `finance:read ◑r` stops at the review (R-DEC-183, D-07); the
+    # committed invoice is seen by Finance (CFO) with the reviewed values ---
+    rev_list = await api.http.request("GET", "/api/v1/finance/invoices", headers=rev_headers)
+    assert rev_list.status_code == 403, rev_list.text
+    assert rev_list.json()["error"]["code"] == "FORBIDDEN_SCOPE"
+    inv = await api.http.request("GET", "/api/v1/finance/invoices", headers=api.headers("CFO"))
     assert inv.status_code == 200, inv.text
-    ids = {i["id"] for i in inv.json()["data"]}
-    assert inv_id in ids
     created = next(i for i in inv.json()["data"] if i["id"] == inv_id)
     assert created["number"] == "0001234"
     assert created["direction"] == "IN"

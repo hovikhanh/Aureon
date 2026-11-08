@@ -269,8 +269,8 @@ class ImportService:
         return SourceDocument(
             channel="C5", kind="FILE", original_filename=filename, mime_type=stored.mime,
             size_bytes=stored.size, storage_key=stored.storage_key, sha256=stored.sha256,
-            scan_status="SKIPPED", pillars=[], status=status, sensitivity_level=2,
-            source="IMPORT", data_classification="INTERNAL", submitted_by=user.user_id,
+            scan_status="SKIPPED", pillars=[], status=status, sensitivity_level=3,
+            source="IMPORT", data_classification="CONFIDENTIAL", submitted_by=user.user_id,
             submitted_at=datetime.now(UTC), department_id=user.department_id,
         )  # fmt: skip
 
@@ -390,7 +390,7 @@ class ImportService:
         batch.rows_valid = batch.rows_total - batch.rows_invalid
         doc.document_type_id = pub.doc_type.id
         doc.pillars = list(pub.doc_type.pillars or [])
-        doc.sensitivity_level = pub.doc_type.sensitivity_level
+        doc.sensitivity_level = max(doc.sensitivity_level, pub.doc_type.sensitivity_level)
         await self.db.flush()
 
     @staticmethod

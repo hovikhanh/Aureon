@@ -3,7 +3,8 @@
 Flow per request: classification route (§6.5) → budget guard (§6.3) → mode:
   fixture: recorded response by `prompt_sha256` (no network; missing → FixtureMissingError)
   live:    provider chain; each provider retried ≤ 2× on 5xx/429/timeout (backoff 1 s, 3 s),
-           a 4xx content error stops the chain (no fallback); open circuit → provider skipped
+           a 4xx content error stops the chain (no fallback); open circuit → provider skipped.
+           A local model that timed out is not retried: same CPU, same prompt, same result.
   record:  live, then the masked response is written as a fixture (dev only)
 Every attempt (ok, error, fallback, template/blocked decision) goes to the `CallLogSink`
 (`ai` module writes `ENT-ModelCallLog`; `core/` cannot import modules — DEC-125).
@@ -31,8 +32,23 @@ from app.core.model_gateway.errors import (
     provider_error,
 )
 from app.core.model_gateway.fixtures import FixtureStore
-from app.core.model_gateway.routing import TEMPLATE, Route, models_for, route, timeout_for
-from app.core.model_gateway.types import ChatChunk, ChatRequest, ChatResponse, Message, Usage
+from app.core.model_gateway.routing import (
+    LOCAL_PROVIDERS,
+    TEMPLATE,
+    Route,
+    model_for,
+    models_for,
+    route,
+    timeout_for,
+)
+from app.core.model_gateway.types import (
+    ChatChunk,
+    ChatRequest,
+    ChatResponse,
+    Classification,
+    Message,
+    Usage,
+)
 from app.core.request_context import current_request_id
 
 log = logging.getLogger("app.model_gateway")
@@ -273,21 +289,46 @@ class ModelGateway:
             "AI_PROVIDER_ERROR", "live STT not configured (fixture-only at P0, R-DEC-97)"
         )
 
-    async def embed(self, texts: list[str], *, caller_module: str) -> list[list[float]]:
+    async def embed(
+        self, texts: list[str], *, caller_module: str,
+        classification: Classification = "CONFIDENTIAL", timeout_s: float | None = None,
+    ) -> list[list[float]]:  # fmt: skip
         """Embed texts for Knowledge RAG (task=embed, R-DEC-141, DEC-142 bge-m3).
 
         Gated off when `embedding_model` is empty (RAG disabled → the caller falls back to keyword
         search). Fixture mode returns a deterministic unit vector derived from each text's hash —
         no network, stable across runs, cosine-comparable — so RAG wiring is testable without a
-        live embedding model (DEC-150 defers the real provider). Live embed is backlog.
+        live embedding model. Live mode embeds on the local provider only, whatever the chain
+        says: the text is document content (D-11), and there is no cloud embedding route. SECRET
+        raises like any other task.
         """
         if not self.cfg.embedding_model:
             raise ai_error("AI_DISABLED", "embedding model disabled (keyword-only RAG)")
+        req = ChatRequest(
+            task="embed", messages=tuple(Message("user", t) for t in texts),
+            caller_module=caller_module, classification=classification,
+        )  # fmt: skip
+        rt = await self._route(req)
         if self.cfg.model_gateway_mode == "fixture":
             return [hash_embedding(t) for t in texts]
-        raise ai_error(
-            "AI_PROVIDER_ERROR", "live embeddings not configured (fixture-only, DEC-150)"
-        )
+        provider, started = LOCAL_PROVIDERS[0], time.monotonic()
+        model = model_for(self.cfg, "embed", provider)
+        adapter = self._adapter(self.cfg, provider)
+        try:
+            embed = adapter.embed  # type: ignore[attr-defined]
+            vectors, usage = await embed(
+                texts, model=model, timeout_s=timeout_s or timeout_for(self.cfg, "embed")
+            )
+            if any(len(v) != EMBED_DIM for v in vectors):
+                raise ProviderCallError(provider, retryable=False, status=None, timeout=False)
+        except ProviderCallError as err:
+            await self.sink.record(self._rec(
+                req, rt, provider, model, "timeout" if err.timeout else "error", started,
+                error_code="AI_PROVIDER_TIMEOUT" if err.timeout else "AI_PROVIDER_ERROR",
+            ))  # fmt: skip
+            raise provider_error(err) from err
+        await self.sink.record(self._rec(req, rt, provider, model, "ok", started, usage=usage))
+        return [list(map(float, v)) for v in vectors]
 
     async def _fixture(self, req: ChatRequest, rt: Route) -> ChatResponse:
         started = time.monotonic()
@@ -327,6 +368,8 @@ class ModelGateway:
                         ))  # fmt: skip
                         if not err.retryable:
                             raise provider_error(err) from err  # 4xx content: no fallback
+                        if err.timeout and provider in LOCAL_PROVIDERS:
+                            break  # ≤ 2 retries: a CPU model that timed out will time out again
                         if attempt + 1 < attempts:
                             await self._sleep(RETRY_BACKOFF_S[attempt])
                         continue

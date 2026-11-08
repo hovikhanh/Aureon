@@ -5,20 +5,27 @@ Produces one `ENT-DocumentPage` per page/sheet with `text_content`, `text_layer_
 OCR pages that are missing/poor (`text_layer_exists == False`).
 
 Backends by mime:
-- PDF   → `pypdf` text layer; empty pages fall back to OCR (`OCR_PROVIDER`).
+- PDF   → `pypdf` text layer; a page without one is OCRed from the raster images embedded in it.
+  There is no PDF rasteriser in the dependency set, so a page drawn with vector operators and no
+  text layer cannot be read: it is reported `no_raster`, never silently empty.
 - DOCX  → `python-docx` (one logical page).
 - XLSX  → `openpyxl` (one page per sheet; `sheet_name` set).
 - CSV   → decoded text (one page).
 - image → OCR (`OCR_PROVIDER`).
 
-OCR backend `stub` (default) returns deterministic empty/low-confidence output so the pipeline
-is testable without PaddleOCR; `paddle` is used only when the package is importable (DEC-049).
+OCR backend `stub` (default) returns empty text with status `unavailable` so the pipeline is
+testable without PaddleOCR; `paddle` is used only when the package is importable (DEC-049).
+
+Every OCRed page carries `ocr_status`: `ok`, `empty` (ran, read nothing), `failed` (raised),
+`unavailable` (stub backend), `no_raster` (scanned page without an embedded image). Anything but
+`ok` reaches the routing reasons (`Pipeline`), so a reviewer sees why a document came back empty.
 """
 
 from __future__ import annotations
 
 import csv
 import io
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,6 +38,9 @@ XLSX = EXT_MIME[".xlsx"]
 CSV = EXT_MIME[".csv"]
 TXT = "text/plain"  # R-DEC-96: C2 natural-language text stored as a plain-text object
 IMAGES = frozenset({"image/png", "image/jpeg", "image/webp", "image/heic"})
+MIN_RASTER_PX = 64  # logos and rules embedded in a page are not the scan
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -41,6 +51,7 @@ class PageText:
     ocr_used: bool
     ocr_confidence: float | None = None
     sheet_name: str | None = None
+    ocr_status: str | None = None  # None when OCR did not run on this page
 
 
 @dataclass
@@ -54,6 +65,12 @@ class PreprocessResult:
     @property
     def full_text(self) -> str:
         return "\n".join(p.text_content for p in self.pages if p.text_content)
+
+    @property
+    def ocr_problems(self) -> list[tuple[int, str]]:
+        """`(page_number, status)` of every page OCR could not read."""
+        return [(p.page_number, p.ocr_status) for p in self.pages
+                if p.ocr_status not in (None, "ok")]  # fmt: skip
 
 
 def _deskew_image(data: bytes) -> bytes:
@@ -91,29 +108,73 @@ def _paddle_engine() -> Any:  # pragma: no cover - optional paddle dependency, g
     return _PADDLE_ENGINE
 
 
-def _ocr_image(_data: bytes, *, preprocess: bool = False) -> tuple[str, float]:
-    """OCR a single image. `stub` yields empty text (low confidence); `paddle` when available
-    (R-DEC-146 — optional `ocr` extra). `preprocess=True` (C4 photo) runs `_deskew_image` first
-    (FR-DC-08). Returns `(text, mean_confidence)`; any failure degrades to `("", 0.0)` so the
-    document is routed to review rather than crashing the pipeline."""
-    if preprocess:
-        _data = _deskew_image(_data)
-    provider = get_config().ocr_provider
-    if provider == "paddle":
-        try:  # pragma: no cover - heavy optional dependency, not installed in CI
-            import numpy as np
-            from PIL import Image
+@dataclass(frozen=True)
+class OcrResult:
+    text: str
+    confidence: float
+    status: str  # ok | empty | failed | unavailable | no_raster
 
-            with Image.open(io.BytesIO(_data)) as opened:
-                img = np.asarray(opened.convert("RGB"))
-            result = _paddle_engine().ocr(img, cls=True)
-            lines = [line[1][0] for block in (result or []) for line in block]
-            confs = [line[1][1] for block in (result or []) for line in block]
-            conf = sum(confs) / len(confs) if confs else 0.0
-            return "\n".join(lines), float(conf)
-        except Exception:
-            return "", 0.0
-    return "", 0.0
+
+def _ocr(data: bytes, *, preprocess: bool = False) -> OcrResult:
+    """OCR a single image (R-DEC-146 — optional `ocr` extra). `preprocess=True` (C4 photo) runs
+    `_deskew_image` first (FR-DC-08). A failure is logged and reported as a status, so the
+    document goes to review knowing why; it never crashes the pipeline."""
+    if preprocess:
+        data = _deskew_image(data)
+    if get_config().ocr_provider != "paddle":
+        return OcrResult("", 0.0, "unavailable")
+    try:
+        import numpy as np
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as opened:
+            img = np.asarray(opened.convert("RGB"))
+        result = _paddle_engine().ocr(img, cls=True)
+    except Exception as exc:
+        log.warning("idp ocr: page failed (%s)", type(exc).__name__)  # no content in the log
+        return OcrResult("", 0.0, "failed")
+    lines = [line[1][0] for block in (result or []) if block for line in block]
+    confs = [line[1][1] for block in (result or []) if block for line in block]
+    if not lines:
+        return OcrResult("", 0.0, "empty")
+    return OcrResult("\n".join(lines), float(sum(confs) / len(confs)), "ok")
+
+
+def _ocr_image(data: bytes, *, preprocess: bool = False) -> tuple[str, float]:
+    """`(text, mean_confidence)` of `_ocr`."""
+    out = _ocr(data, preprocess=preprocess)
+    return out.text, out.confidence
+
+
+def _raster_images(page: Any) -> list[bytes]:
+    """The scan behind a page: its embedded raster images, largest kept, tiny ones dropped."""
+    from PIL import Image
+
+    found: list[bytes] = []
+    for item in page.images:
+        with Image.open(io.BytesIO(item.data)) as opened:
+            if min(opened.size) >= MIN_RASTER_PX:
+                found.append(item.data)
+    return found
+
+
+def _ocr_pdf_page(page: Any) -> OcrResult:
+    if get_config().ocr_provider != "paddle":
+        return OcrResult("", 0.0, "unavailable")
+    try:
+        images = _raster_images(page)
+    except Exception as exc:
+        log.warning("idp ocr: cannot read page images (%s)", type(exc).__name__)
+        return OcrResult("", 0.0, "failed")
+    if not images:
+        return OcrResult("", 0.0, "no_raster")
+    parts = [_ocr(raw) for raw in images]
+    read = [r for r in parts if r.status == "ok"]
+    if not read:
+        status = "failed" if any(r.status == "failed" for r in parts) else "empty"
+        return OcrResult("", 0.0, status)
+    conf = sum(r.confidence for r in read) / len(read)
+    return OcrResult("\n".join(r.text for r in read), conf, "ok")
 
 
 def _pdf_pages(data: bytes) -> list[PageText]:
@@ -126,11 +187,15 @@ def _pdf_pages(data: bytes) -> list[PageText]:
         if text:
             pages.append(PageText(i, text, text_layer_exists=True, ocr_used=False))
         else:
-            ocr_text, conf = _ocr_image(data)
-            pages.append(
-                PageText(i, ocr_text, text_layer_exists=False, ocr_used=True, ocr_confidence=conf)
-            )
-    return pages or [PageText(1, "", text_layer_exists=False, ocr_used=True, ocr_confidence=0.0)]
+            ocr = _ocr_pdf_page(page)
+            pages.append(PageText(
+                i, ocr.text, text_layer_exists=False, ocr_used=True,
+                ocr_confidence=ocr.confidence, ocr_status=ocr.status,
+            ))  # fmt: skip
+    if pages:
+        return pages
+    return [PageText(1, "", text_layer_exists=False, ocr_used=True, ocr_confidence=0.0,
+                     ocr_status="empty")]  # fmt: skip
 
 
 def _docx_pages(data: bytes) -> list[PageText]:
@@ -172,8 +237,9 @@ def _csv_pages(data: bytes) -> list[PageText]:
 
 def _image_pages(data: bytes) -> list[PageText]:
     # a standalone image upload is a C4 photo capture → deskew/normalise before OCR (R-DEC-98)
-    ocr_text, conf = _ocr_image(data, preprocess=True)
-    return [PageText(1, ocr_text, text_layer_exists=False, ocr_used=True, ocr_confidence=conf)]
+    ocr = _ocr(data, preprocess=True)
+    return [PageText(1, ocr.text, text_layer_exists=False, ocr_used=True,
+                     ocr_confidence=ocr.confidence, ocr_status=ocr.status)]  # fmt: skip
 
 
 def extract_pages(data: bytes, mime: str) -> PreprocessResult:

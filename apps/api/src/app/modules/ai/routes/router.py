@@ -2,9 +2,14 @@
 
 Chat uses the asker's JWT for every tool call (P06). A SECRET-classified prompt (salary term)
 makes the gateway raise `SecretDataBlockedError` → the turn is refused with `423 AI_DISABLED`
-(no LLM is ever called — T-309). The SSE endpoint streams the canonical event order
-`start → (thinking | tool_call → tool_result)* → token* → done | error` (10 §6) with
-`X-Accel-Buffering: no` so no proxy buffers it.
+(no LLM is ever called — T-309). When the local model cannot answer a CONFIDENTIAL turn the gateway
+raises `TemplateRequired`, answered as `AI_PROVIDER_ERROR` with `reason=local_model_unavailable`,
+never as an unhandled 500 (F-M2).
+
+The SSE endpoint emits the canonical event order
+`start → (tool_call → tool_result)* → token* → done | error` (10 §6) with `X-Accel-Buffering: no`.
+All events are sent after the turn has finished: `token` events slice the finished answer (no
+`thinking`, no time to first token worth the name). It is a delivery format, not model streaming.
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ from app.core.config import get_config
 from app.core.deps import DbSession, Principal, require_permission
 from app.core.errors import AppError, ai_error
 from app.core.idempotency import Idem
-from app.core.model_gateway.errors import SecretDataBlockedError
+from app.core.model_gateway.errors import SecretDataBlockedError, TemplateRequired
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
 from app.modules.ai.routes.acceptance import router as acceptance_router
@@ -73,6 +78,13 @@ def get_chat_gateway(db: DbSession) -> Any:
 ChatGateway = Annotated[Any, Depends(get_chat_gateway)]
 
 
+def _no_local_model(exc: TemplateRequired) -> AppError:
+    return ai_error(
+        "AI_PROVIDER_ERROR", "Mô hình nội bộ chưa sẵn sàng; dữ liệu mật không được gửi ra ngoài.",
+        reason="local_model_unavailable", classification=exc.classification,
+    )  # fmt: skip
+
+
 def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
     return {
         "conversation_id": str(turn.conversation_id),
@@ -83,6 +95,7 @@ def _turn_payload(turn: ChatTurnResult) -> dict[str, Any]:
         "suggested_actions": turn.suggested_actions,
         "truncated": turn.truncated,
         "warnings": turn.warnings,
+        "mode": turn.mode,
     }
 
 
@@ -99,6 +112,8 @@ async def chat(
         raise ai_error(
             "AI_DISABLED", "Yêu cầu chứa dữ liệu nhạy cảm (lương) — trợ lý AI không xử lý."
         ) from exc
+    except TemplateRequired as exc:
+        raise _no_local_model(exc) from exc
     await db.commit()
     return ChatAnswerOut.model_validate(_turn_payload(turn))
 
@@ -130,6 +145,12 @@ async def chat_stream(
                 "message": "Yêu cầu chứa dữ liệu nhạy cảm (lương) — không xử lý.",
             })  # fmt: skip
             return
+        except TemplateRequired as exc:
+            await db.rollback()
+            err = _no_local_model(exc)
+            yield ev("start", {"conversation_id": None, "message_id": None})
+            yield ev("error", {"code": err.code, "message": str(err), "details": err.details})
+            return
         except AppError as exc:
             # The 200 + headers are already on the wire, so an error raised by the turn (provider
             # chain down → AI_PROVIDER_ERROR, quota, timeout…) must end the stream as the `error`
@@ -144,6 +165,7 @@ async def chat_stream(
             "conversation_id": str(turn.conversation_id),
             "message_id": str(turn.message_id),
             "model_route": {"task": "chat"},
+            "mode": turn.mode,
         })  # fmt: skip
         for fc in turn.function_calls:
             yield ev("tool_call", {"call_id": fc["tool"], "tool": fc["tool"]})
@@ -153,7 +175,7 @@ async def chat_stream(
                 "sources": [s.as_dict() for s in turn.sources],
             })  # fmt: skip
         if turn.replayed:
-            # demo replay (DEC-241): word-sized tokens paced like a live stream
+            # demo replay (DEC-241): word-sized tokens at a fixed pace; `mode: "replay"` says so
             delay = get_config().ai_demo_token_delay_sec
             for word in _words(turn.answer):
                 yield ev("token", {"delta": word})
@@ -171,6 +193,7 @@ async def chat_stream(
             "truncated": turn.truncated,
             "warnings": turn.warnings,
             "usage": {"tokens_in": turn.tokens_in, "tokens_out": turn.tokens_out},
+            "mode": turn.mode,
         })  # fmt: skip
 
     return StreamingResponse(

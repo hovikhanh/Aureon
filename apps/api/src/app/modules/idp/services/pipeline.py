@@ -9,6 +9,12 @@ Routing (04 §7.3): STP (`AUTO_APPROVED`) requires document confidence ≥ 0.95,
 field ≥ 0.90, no critical field, and no validation error — otherwise REVIEW (`NEEDS_REVIEW`).
 Critical fields (trường trọng yếu) always force review (FR-DC-16).
 
+Sensitivity (D-11): a document is CONFIDENTIAL (level 3) until classified, so classification itself
+runs on the local model. The classified type can raise the level, never lower it, before
+extraction: a level-4 type (HR_ROSTER) is SECRET and no model reads it. When no model may or can
+read the document (SECRET, local model down, no text) it goes to manual review with one empty field
+per spec and the reason in `routing_reasons`; it is not a failure.
+
 `run_pipeline` is synchronous over the given `AsyncSession` so it is callable both from the
 Celery task `process_document` and directly in tests. The extractor gateway is injected
 (falls back to the real ModelGateway) so the pipeline is testable without a provider (DEC-233).
@@ -16,6 +22,7 @@ Celery task `process_document` and directly in tests. The extractor gateway is i
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -26,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.errors import AIError, NotFoundError
+from app.core.model_gateway.errors import SecretDataBlockedError, TemplateRequired
 from app.core.tenant import require_tenant
 from app.modules.idp.models import (
     DocumentPage,
@@ -37,16 +45,30 @@ from app.modules.idp.models import (
     ValidationRule,
 )
 from app.modules.idp.repositories import SourceDocumentRepository
+from app.modules.idp.services.capture_common import classification_of
 from app.modules.idp.services.classifier import Classifier, invoice_score
-from app.modules.idp.services.extractor import Extractor, classification_for_sensitivity
+from app.modules.idp.services.extractor import (
+    ExtractionOutput,
+    Extractor,
+    classification_for_sensitivity,
+)
 from app.modules.idp.services.malware_scan import MalwareScanService
 from app.modules.idp.services.preprocess import extract_pages
 from app.modules.idp.services.prompt_safety import looks_injected
 from app.modules.idp.services.schema_registry import schema_for_code
 from app.modules.idp.services.validator import Validator
 
+log = logging.getLogger(__name__)
+
 STP_DOC_CONFIDENCE = 0.95
 STP_REQUIRED_FIELD_MIN = 0.90
+DOC_DEFAULT_SENSITIVITY = 3  # D-11: CONFIDENTIAL until classified, whatever the channel
+MANUAL_LEVEL4_NO_LLM = "MANUAL_REVIEW_SECRET_NO_LLM"
+MANUAL_NO_MODEL = "MANUAL_REVIEW_LOCAL_MODEL_UNAVAILABLE"
+MANUAL_NO_TEXT = "MANUAL_REVIEW_NO_TEXT"
+# what `classification_confidence` is, per classifier tier (see `classifier.py`)
+CONFIDENCE_KIND = {"preselected": "user_choice", "header": "header_match", "keyword": "heuristic",
+                   "llm": "model_self_report", "fallback": "none"}  # fmt: skip
 
 
 def classify(text: str) -> tuple[str, float]:
@@ -86,6 +108,7 @@ class Pipeline:
     async def run(self, document_id: uuid.UUID) -> PipelineOutcome:
         doc = await self._get_doc(document_id)
         job = await self._latest_job(document_id)
+        self._raise_sensitivity(doc, DOC_DEFAULT_SENSITIVITY)
         job.status = "RUNNING"
         job.started_at = datetime.now(UTC)
         await self.db.flush()
@@ -132,10 +155,12 @@ class Pipeline:
         )  # fmt: skip
         type_code, class_conf = result.code, result.confidence
         self._class_conf = class_conf
+        ocr_reasons = [f"OCR_{status.upper()}:p{page}" for page, status in pre.ocr_problems]
         schema_id = await schema_for_code(self.db, type_code)
         dt = await self._document_type_of(schema_id)
         doc.document_type_id = dt.id
         doc.classification_confidence = class_conf
+        self._raise_sensitivity(doc, dt.sensitivity_level)  # before any extraction prompt
         if dt.pillars:
             doc.pillars = list(dt.pillars)
         if schema_id != job.extraction_schema_id:
@@ -147,12 +172,25 @@ class Pipeline:
         await self.db.flush()
         schema = await self._schema(job.extraction_schema_id)
         fields_spec: list[dict[str, Any]] = list(schema.fields)
+        extractor = Extractor(self.gateway)
+        manual: str | None = None
+        extraction = ExtractionOutput()
         try:
-            extraction = await Extractor(self.gateway).extract(
-                schema_fields=fields_spec,
-                page_text=pre.full_text,
-                sensitivity_level=doc.sensitivity_level,
-                document_id=doc.id,
+            if pre.full_text.strip():
+                extraction = await extractor.extract(
+                    schema_fields=fields_spec,
+                    page_text=pre.full_text,
+                    sensitivity_level=doc.sensitivity_level,
+                    document_id=doc.id,
+                    pages=[(p.page_number, p.text_content) for p in pre.pages],
+                )
+            else:  # nothing to read: a model would only invent values
+                manual = MANUAL_NO_TEXT
+        except TemplateRequired as exc:
+            # SECRET, or the local model cannot answer and the chain stops there (07 §6.5). The
+            # document waits for a person; a retry would not change either fact.
+            manual = (
+                MANUAL_LEVEL4_NO_LLM if isinstance(exc, SecretDataBlockedError) else MANUAL_NO_MODEL
             )
         except AIError as exc:
             # 04 §4: extraction failed → FAILED ("có thể tải lại"), visible in the inbox. Before M6
@@ -160,6 +198,8 @@ class Pipeline:
             # UPLOADED with no reason (the model-call log row is written in this transaction).
             reason = str(exc.details.get("reason") or exc.code)
             return await self._fail(doc, job, "EXTRACTION_FAILED", f"{exc.code}:{reason}")
+        if manual is not None:
+            extraction = extractor.blank(fields_spec)
         job.model_provider = extraction.provider
         job.model_name = extraction.model
         job.document_confidence = extraction.document_confidence
@@ -190,14 +230,19 @@ class Pipeline:
                     source_location=fr.source_location,
                     validation=validation.for_field(fr.field_name),
                     source="IDP",
-                    data_classification="INTERNAL",
+                    data_classification=classification_of(
+                        max(fr.sensitivity_level, doc.sensitivity_level)
+                    ),
                 )
             )
 
         # --- step 9: routing ---
         decision, reasons = self._route(extraction, validation, fields_spec)
+        extra = [*ocr_reasons, *([manual] if manual else [])]
         if doc.suspicious_content:
-            decision, reasons = "REVIEW", [*reasons, "SUSPICIOUS_CONTENT"]
+            extra.append("SUSPICIOUS_CONTENT")
+        if extra:
+            decision, reasons = "REVIEW", [*reasons, *extra]
         job.routing_decision = decision
         job.routing_reasons = reasons
         job.status = "SUCCEEDED"
@@ -205,7 +250,13 @@ class Pipeline:
         job.xd_results = {
             "validation_errors": validation.errors,
             "document_confidence": extraction.document_confidence,
-        }
+            "classification": {
+                "tier": result.tier, "confidence": class_conf,
+                "confidence_kind": CONFIDENCE_KIND.get(result.tier, "none"),
+            },
+            "sensitivity_level": doc.sensitivity_level,
+            "ocr": [{"page": page, "status": status} for page, status in pre.ocr_problems],
+        }  # fmt: skip
         doc.status = "AUTO_APPROVED" if decision == "STP" else "NEEDS_REVIEW"
         doc.routing_reason = ", ".join(reasons) if reasons else None
         await self.db.flush()
@@ -226,6 +277,7 @@ class Pipeline:
                 "confidence": extraction.document_confidence,
             },
         )
+        await self._index_for_search(doc)
         return PipelineOutcome(
             doc.id,
             job.id,
@@ -236,6 +288,25 @@ class Pipeline:
             routing_reasons=reasons,
             document_type=type_code,
         )
+
+    @staticmethod
+    def _raise_sensitivity(doc: SourceDocument, level: int) -> None:
+        """Up only (D-11). `data_classification` follows the level."""
+        doc.sensitivity_level = max(doc.sensitivity_level, level)
+        doc.data_classification = classification_of(doc.sensitivity_level)
+
+    async def _index_for_search(self, doc: SourceDocument) -> None:
+        """Embed the pages on the local model (live only). Search works without it (keyword), so
+        a failure here is logged and costs the document nothing."""
+        from app.core.config import get_config
+        from app.modules.idp.services.knowledge_index import KnowledgeIndexService
+
+        if get_config().model_gateway_mode != "live" or not hasattr(self.gateway, "embed"):
+            return
+        try:
+            await KnowledgeIndexService(self.db, self.gateway).index_document(doc.id)
+        except AIError as exc:
+            log.warning("idp: page embedding skipped (%s)", exc.code)
 
     # -------- review assignment --------
     async def _assign_review(self, doc: SourceDocument) -> None:
@@ -396,8 +467,6 @@ def enqueue_pipeline(document_id: uuid.UUID) -> None:
 
 
 def _page_of(location: dict[str, Any] | None, pages: dict[int, uuid.UUID]) -> uuid.UUID | None:
-    """T-637: the field's own page (`source_location.page`), else page 1 (single-page docs)."""
+    """T-637: the field's own page (`source_location.page`); unknown stays unknown (F-H4)."""
     page = (location or {}).get("page")
-    if isinstance(page, int) and page in pages:
-        return pages[page]
-    return pages.get(1)
+    return pages[page] if isinstance(page, int) and page in pages else None

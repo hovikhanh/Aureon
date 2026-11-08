@@ -91,6 +91,20 @@ async def _post(
     return data
 
 
+def _tool_args(provider: str, raw: Any) -> dict[str, Any]:
+    """Tool arguments of an OpenAI-compatible answer. Local models do produce malformed JSON here:
+    that is a failed call (retried, logged), not an unhandled 500."""
+    if isinstance(raw, dict):
+        return raw
+    try:
+        parsed = json.loads(raw or "{}")
+    except (TypeError, ValueError) as exc:
+        raise ProviderCallError(provider, retryable=True, status=None, timeout=False) from exc
+    if not isinstance(parsed, dict):
+        raise ProviderCallError(provider, retryable=True, status=None, timeout=False)
+    return parsed
+
+
 def _timeout(total: float) -> httpx.Timeout:
     return httpx.Timeout(total, connect=CONNECT_TIMEOUT)
 
@@ -152,7 +166,7 @@ class OpenAICompatAdapter:
             ToolCall(
                 id=c.get("id", ""),
                 name=c["function"]["name"],
-                arguments=json.loads(c["function"].get("arguments") or "{}"),
+                arguments=_tool_args(self.name, c["function"].get("arguments")),
             )
             for c in msg.get("tool_calls") or ()
         )
@@ -165,6 +179,21 @@ class OpenAICompatAdapter:
             tool_calls=calls,
             finish_reason=choice.get("finish_reason") or "stop",
         )
+
+    async def embed(
+        self, texts: list[str], *, model: str, timeout_s: float
+    ) -> tuple[list[list[float]], Usage]:
+        """`POST {base}/embeddings` (OpenAI-compatible; Ollama serves `bge-m3` here)."""
+        async with httpx.AsyncClient(timeout=_timeout(timeout_s)) as client:
+            data = await _post(
+                client, self.name, f"{self.base_url}/embeddings",
+                {"model": model, "input": texts}, self._headers(),
+            )  # fmt: skip
+        rows = sorted(data.get("data") or [], key=lambda r: int(r.get("index", 0)))
+        vectors = [r.get("embedding") or [] for r in rows]
+        if len(vectors) != len(texts):
+            raise ProviderCallError(self.name, retryable=False, status=None, timeout=False)
+        return vectors, openai_usage(data.get("usage") or {})
 
     async def stream(
         self, req: ChatRequest, *, model: str, timeout_s: float

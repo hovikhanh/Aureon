@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, delete, func, select
+from sqlalchemy import ColumnElement, Float, String, bindparam, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_repository import BaseRepository
@@ -295,10 +295,56 @@ class DocumentPageSearchRepository(BaseRepository[SourceDocument]):
         rows = (await self.db.execute(stmt.limit(limit).offset(offset))).all()
         return list(rows), int(total)
 
+    async def keyword_any(
+        self, scope: ColumnElement[bool] | None, terms: Sequence[str], *, limit: int, offset: int
+    ) -> tuple[list[Any], int]:
+        """Pages holding any of `terms`: a sentence-shaped query rarely matches as one phrase."""
+        from sqlalchemy import literal
+
+        stmt = (
+            self._base(scope)
+            .add_columns(literal(0.5).label("score"))
+            .where(or_(*[DocumentPage.text_content.ilike(f"%{t}%") for t in terms]))
+        )
+        total = (
+            await self.db.execute(select(func.count()).select_from(stmt.subquery()))
+        ).scalar_one()
+        stmt = stmt.order_by(DocumentPage.source_document_id, DocumentPage.page_number)
+        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).all()
+        return list(rows), int(total)
+
+    async def pages_to_embed(
+        self, *, document_id: uuid.UUID | None, limit: int, max_sensitivity: int
+    ) -> list[DocumentPage]:
+        """Pages with text and no vector. Level-4 documents are never embedded (no model)."""
+        stmt = (
+            select(DocumentPage)
+            .join(SourceDocument, SourceDocument.id == DocumentPage.source_document_id)
+            .where(
+                DocumentPage.embedding.is_(None),
+                DocumentPage.text_content.is_not(None),
+                DocumentPage.text_content != "",
+                SourceDocument.sensitivity_level <= max_sensitivity,
+                SourceDocument.deleted_at.is_(None),
+                SourceDocument.tenant_id == require_tenant(),
+            )
+            .order_by(DocumentPage.source_document_id, DocumentPage.page_number)
+            .limit(limit)
+        )
+        if document_id is not None:
+            stmt = stmt.where(DocumentPage.source_document_id == document_id)
+        return list((await self.db.execute(stmt)).scalars().all())
+
     async def semantic(
         self, scope: ColumnElement[bool] | None, vec: list[float], *, limit: int, offset: int
     ) -> tuple[list[Any], int]:
-        distance = DocumentPage.embedding.op("<=>")(vec)  # pgvector cosine; smaller = closer
+        # pgvector cosine; smaller = closer. `Vector` has no bind processor and a bare list reaches
+        # Postgres as `double precision[]`, for which `vector <=> …` does not exist: send pgvector
+        # text and cast it.
+        literal_vec = "[" + ",".join(repr(float(x)) for x in vec) + "]"
+        query = cast(bindparam("query_vector", literal_vec, type_=String()),
+                     DocumentPage.embedding.type)  # fmt: skip
+        distance = DocumentPage.embedding.op("<=>", return_type=Float())(query)
         stmt = (
             self._base(scope)
             .add_columns((1.0 - distance).label("score"))

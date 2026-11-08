@@ -10,7 +10,8 @@ Two guards run before any model call:
   delimiter so the model treats them as data, not instructions (prompt-injection guard).
 
 The scan is deliberately conservative: it elevates classification (safer routing) but never
-lowers it. Tool-result classification (§7.4) is handled separately by the executor.
+lowers it. Tool classification is applied by `ChatService`: the tool ceiling before the call, and
+the turn is raised to the classification of every tool it ran.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.model_gateway.types import Classification
 from app.core.pii import PIIHit, PIIType, detect_content_pii, mask_text, pii_spans
@@ -94,6 +96,18 @@ def scrub_for_model(text: str) -> str:
         pos = end
     out.append(text[pos:])
     return "".join(out)
+
+
+def scrub_payload(value: Any) -> Any:
+    """`scrub_for_model` on every string of a JSON-like value. Numbers are aggregates (`core.pii`):
+    run over the serialised JSON, a 10-digit VND amount read as a bank account and was redacted."""
+    if isinstance(value, str):
+        return scrub_for_model(value)
+    if isinstance(value, dict):
+        return {k: scrub_payload(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub_payload(v) for v in value]
+    return value
 
 
 def wrap_data(label: str, body: str) -> str:

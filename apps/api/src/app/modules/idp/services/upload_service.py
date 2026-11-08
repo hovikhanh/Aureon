@@ -27,6 +27,7 @@ from app.modules.idp.repositories import SourceDocumentRepository
 from app.modules.idp.services.mime import resolve_mime
 from app.modules.idp.services.schema_registry import default_schema_id
 
+DOC_DEFAULT_SENSITIVITY = 3  # CONFIDENTIAL until classified (D-11)
 MAX_PREFIX = 4096  # bytes sniffed for magic-byte detection
 IMAGE_MIMES = frozenset({"image/png", "image/jpeg", "image/webp", "image/heic"})  # C4 (R-DEC-98)
 
@@ -161,9 +162,9 @@ class UploadService:
             pillars=[],
             status="DUPLICATE" if original else "UPLOADED",
             status_reason="DUPLICATE_SHA256" if original else None,
-            sensitivity_level=2,
+            sensitivity_level=DOC_DEFAULT_SENSITIVITY,  # D-11: raised, never lowered, by type
             source="IDP",
-            data_classification="INTERNAL",
+            data_classification="CONFIDENTIAL",
             submitted_by=user.user_id,
             submitted_at=now,
             department_id=user.department_id,

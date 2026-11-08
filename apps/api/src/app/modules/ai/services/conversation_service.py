@@ -61,6 +61,9 @@ class ConversationService:
                 function_calls=m.function_calls or [],
                 truncated=m.truncated,
                 created_at=m.created_at,
+                mode="replay"
+                if any(fc.get("mode") == "replay" for fc in m.function_calls or ())
+                else "live",
             )
             for m in rows
         ]
