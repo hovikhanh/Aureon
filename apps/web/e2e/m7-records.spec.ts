@@ -154,10 +154,12 @@ test.describe("M7 · records CRUD", () => {
     await expect(page.getByTestId("records-clients-create")).toBeVisible();
   });
 
-  test("Reviewer: finance records read only", async ({ page }) => {
+  test("Reviewer: no general finance records (D-07, R-DEC-183)", async ({ page }) => {
+    // REV `finance:read ◑r` reads finance only inside an assigned review: the records editor is
+    // not offered and the route answers 403
     await loginSettled(page, "reviewer@abc.demo");
-    await openTab(page, "finance", "invoices");
-    await expect(page.getByTestId("records-readonly")).toBeVisible();
-    await expect(page.getByTestId("records-invoices-create")).toHaveCount(0);
+    await expect(page.getByTestId("nav-business")).toHaveCount(0);
+    await page.goto("/business/finance/records?tab=invoices");
+    await expect(page.getByTestId("forbidden")).toBeVisible();
   });
 });

@@ -44,6 +44,8 @@ async function submit(page: Page): Promise<void> {
 
 /** SCR-13 demo dropdown (T-610c): pick → both fields are filled with real values → submit. */
 export async function pickDemoAccount(page: Page, email: string): Promise<void> {
+  // a pick before hydration has no React handler: the e-mail stays empty under load (flaky logins)
+  await waitForHydration(page);
   await page.getByLabel(/Tài khoản demo|Demo accounts/).selectOption(email);
   await expect(page.getByLabel("Email")).toHaveValue(email);
   await expect(page.getByLabel(/^(Mật khẩu|Password)$/)).not.toHaveValue("");

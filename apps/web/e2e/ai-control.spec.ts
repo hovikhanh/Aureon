@@ -68,7 +68,7 @@ test.describe("M1.6 AI Control Center (TC-M16-16/19/20/21)", { tag: ["@mock", "@
     await page.getByTestId("policy-max_level").selectOption("L3");
     await page.getByTestId("policy-reason").fill("thử");
     await page.getByTestId("policy-save").click();
-    await expect(page.getByTestId("policy-error")).toContainText("Vượt trần tự chủ M1");
+    await expect(page.getByTestId("policy-error")).toContainText("Vượt trần tự chủ hiện tại");
     await page.keyboard.press("Escape");
 
     await page.getByTestId("ai-tab-tools").click();

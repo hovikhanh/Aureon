@@ -1,7 +1,7 @@
 import { expect, request, test, type Page } from "./fixtures";
 import { randomUUID } from "node:crypto";
 import { devPassword, login } from "./helpers";
-import { cleanupReviewDocs, runSupport, seedReviewDoc } from "./support/seed";
+import { cleanupReviewDocs, rootEnv, runSupport, seedReviewDoc } from "./support/seed";
 import { expireAccessToken } from "./support/session";
 
 /**
@@ -92,7 +92,11 @@ test.describe("M1.2 org admin on the real stack (TC-M12-19)", { tag: "@real-only
     await expect(page.getByTestId("dept-members")).toContainText(EMP_CODE);
     await expect(page.getByTestId("dept-archive")).toBeVisible(); // CEO has hr:admin
     // yesterday the department did not exist and the employee was still in ADM
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10); // API day = UTC
+    // the API day is the business date (R-DEC-192): pinned in demo, else the UTC calendar day
+    const env = rootEnv();
+    const ref = env.BUSINESS_DATE_OVERRIDE || (env.DEMO_MODE === "true" ? env.DEMO_REFERENCE_DATE : "");
+    const today = ref || new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
     await page.getByTestId("org-as-of").fill(yesterday);
     await expect(page.getByTestId("org-past-banner")).toBeVisible();
     await expect(page.getByTestId(`org-node-${CODE}`)).toHaveCount(0);

@@ -21,7 +21,7 @@ test.describe("SCR-13 login (T-502/T-503)", () => {
   for (const [email, landing] of [
     ["ceo@abc.demo", "/home"],
     ["cfo@abc.demo", "/home"],
-    // SCR-40 (R-DEC-85): Reviewer vào thẳng hàng chờ /data (không phải /home).
+    // SCR-40 (06 §3.4): Reviewer vào `/data`; hàng chờ `/data/review` là mục nav riêng.
     ["reviewer@abc.demo", "/data"],
   ] as const) {
     test(`demo ${email} lands on ${landing}`, async ({ page }) => {
@@ -30,10 +30,15 @@ test.describe("SCR-13 login (T-502/T-503)", () => {
     });
   }
 
-  test("role-based nav + 403 on unauthorized route", async ({ page }) => {
+  test("role-based nav + 403 on unauthorized route", { tag: "@mock" }, async ({ page }) => {
     await loginAs(page, "reviewer@abc.demo");
     await expect(page.getByTestId("nav-data")).toBeVisible();
     await expect(page.getByTestId("nav-goals")).toHaveCount(0);
+    // U-01: the review queue has its own way in, and only that item is marked current
+    await page.getByTestId("nav-review").click();
+    await expect(page).toHaveURL(/\/data\/review$/);
+    await expect(page.getByTestId("nav-review")).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("nav-data")).not.toHaveAttribute("aria-current", "page");
     await page.goto("/home/pillar/finance");
     await expect(page.getByTestId("forbidden")).toBeVisible();
   });

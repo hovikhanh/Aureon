@@ -51,7 +51,10 @@ test.describe("SCR-18b review detail (T-508)", () => {
     await expect(page).toHaveURL(/\/data\/review$/);
     await expect(page.locator(`[data-document-id="${doc.document_id}"]`)).toHaveCount(0);
 
-    // Invoice may be on page 2+ of the list (20/page, many E2E invoices) — verify via API.
+    // MGR `finance:* ◑d` cannot list company invoices (D-07, R-DEC-183): Finance (CFO) checks the
+    // committed invoice. It may be on page 2+ of the list — verify via API.
+    await page.context().clearCookies();
+    await login(page, "cfo@abc.demo");
     const r = await page.request.get(`/api/backend/finance/invoices?direction=IN&sort_by=created_at&order=desc&limit=5`);
     expect(r.ok()).toBeTruthy();
     const numbers = ((await r.json()).data as { number: string }[]).map((i) => i.number);

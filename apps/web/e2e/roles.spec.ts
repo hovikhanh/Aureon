@@ -78,7 +78,10 @@ test("REVIEWER: queue → open → correct → approve → invoice created", asy
   await page.getByTestId("commit").click();
   await expect(page.getByTestId("undo-toast")).toBeVisible();
   await page.getByTestId("undo-toast").getByRole("button", { name: "Đóng" }).click();
-  // Invoice may land on page 2 of the list (20/page, many E2E invoices) — verify via API instead.
+  // MGR `finance:* ◑d` cannot list company invoices (D-07, R-DEC-183): Finance (CFO) checks the
+  // committed invoice. It may land on page 2 of the list — verify via API instead.
+  await page.context().clearCookies();
+  await login(page, "cfo@abc.demo");
   const r = await page.request.get(`/api/backend/finance/invoices?direction=IN&sort_by=created_at&order=desc&limit=5`);
   expect(r.ok()).toBeTruthy();
   const numbers = ((await r.json()).data as { number: string }[]).map((i) => i.number);

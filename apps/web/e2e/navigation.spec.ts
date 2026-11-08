@@ -7,14 +7,16 @@ import { login } from "./helpers";
  */
 const ALL = ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge", "admin"] as const;
 const EXEC = ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge"];
+/** Roles with review duty (`idp:approve`) also get the "Hàng chờ review" entry (U-01). */
+const REVIEWER = ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"];
 
 const SIDEBAR: readonly (readonly [string, readonly string[]])[] = [
   ["ceo@abc.demo", ALL],
-  ["cfo@abc.demo", EXEC],
-  ["hr@abc.demo", ALL], // DIR khối O → Quản trị (cơ cấu, R-DEC-30; T-617F)
-  ["manager@abc.demo", EXEC],
+  ["cfo@abc.demo", REVIEWER],
+  ["hr@abc.demo", [...REVIEWER, "admin"]], // DIR khối O → Quản trị (cơ cấu, R-DEC-30; T-617F)
+  ["manager@abc.demo", REVIEWER],
   ["employee@abc.demo", EXEC],
-  ["reviewer@abc.demo", ["home", "ask", "data", "business", "knowledge"]],
+  ["reviewer@abc.demo", ["home", "ask", "data", "review", "knowledge"]], // D-07: no general finance / sales read
   ["admin@abc.demo", ["home", "ask", "data", "knowledge", "admin"]],
 ];
 

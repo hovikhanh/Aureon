@@ -132,3 +132,53 @@ test.describe("M5 · goals editors", { tag: "@mock" }, () => {
     await expect(page.getByTestId("goals-createObjective")).toHaveCount(0);
   });
 });
+
+test.describe("F12 strategies", { tag: "@mock" }, () => {
+  test("CEO creates a strategy, then a strategic objective under it", async ({ page }) => {
+    await openGoals(page, "ceo@abc.demo");
+    await page.getByTestId("goals-strategies").click();
+    await expect(page).toHaveURL(/\/goals\/strategies$/);
+    const code = `ST-${uniq()}`;
+    await page.getByTestId("strategy-create").click();
+    await page.getByTestId("st-code").fill(code);
+    await page.getByTestId("st-name").fill("Chiến lược thử nghiệm");
+    await page.getByTestId("st-start").fill("2030-01-01");
+    await page.getByTestId("st-end").fill("2030-12-31");
+    await page.getByTestId("strategy-editor-submit").click();
+    const row = page.locator(`[data-testid=strategy-row][data-code="${code}"]`);
+    await expect(row).toBeVisible();
+    await row.click();
+    await expect(page.getByTestId("so-empty")).toBeVisible();
+    await page.getByTestId("so-create").click();
+    await page.getByTestId("so-code").fill(`SO-${uniq()}`);
+    await page.getByTestId("so-title").fill("Mục tiêu thử nghiệm");
+    await page.getByTestId("so-editor-submit").click();
+    await expect(page.getByTestId("so-row")).toContainText("Mục tiêu thử nghiệm");
+  });
+
+  test("a date range the API refuses is stopped in the form", async ({ page }) => {
+    await openGoals(page, "ceo@abc.demo");
+    await page.goto("/goals/strategies");
+    await page.getByTestId("strategy-create").click();
+    await page.getByTestId("st-code").fill("ST-X");
+    await page.getByTestId("st-name").fill("X");
+    await page.getByTestId("st-start").fill("2030-12-31");
+    await page.getByTestId("st-end").fill("2030-01-01");
+    await page.getByTestId("strategy-editor-submit").click();
+    await expect(page.getByTestId("strategy-editor")).toContainText("Ngày kết thúc phải sau ngày bắt đầu");
+  });
+
+  test("EMP has no way in; MGR reads without create", async ({ page, browser }) => {
+    await loginSettled(page, "employee@abc.demo");
+    await page.goto("/goals/strategies");
+    await expect(page.getByTestId("forbidden")).toBeVisible();
+    const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: "vi-VN" });
+    const mgr = await context.newPage();
+    await loginSettled(mgr, "manager@abc.demo");
+    await mgr.goto("/goals/strategies");
+    await expect(mgr.getByTestId("strategy-list")).toBeVisible();
+    await expect(mgr.getByTestId("strategy-create")).toHaveCount(0);
+    await expect(mgr.getByTestId("so-create")).toHaveCount(0);
+    await context.close();
+  });
+});
