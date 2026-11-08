@@ -606,7 +606,7 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 | EP | Method | Path | Permission | EP v2.1 | Ghi chú (request → response) |
 |---|---|---|---|---|---|
 | EP-AI-01 | POST | `/ai/chat` | `ai:query` | EP-110 | Giữ. **Sửa (T-645b):** tool WRITE/EXECUTION model gọi → `ActionService.propose()` (không còn `AI_WRITE_VIA_ACTION`); `suggested_actions[]` = `AIActionOut` (L2, `status=proposed`) hoặc `{action_name, tool_name, autonomy_level:"L1", input_preview}` (L1, không tạo `ai_actions`); kill switch `mode=L0` áp cho agent → tool ghi trả `ToolCallLog.status=forbidden`, `error_code=AI_DISABLED`, câu trả lời có warning `ai.warn.kill_switch`. Idempotency-Key |
-| EP-AI-02 | POST | `/ai/chat/stream` | `ai:query` | EP-111 | Giữ thứ tự SSE 10 §6; `done` mang `suggested_actions[]` như EP-AI-01 (**không** thêm loại event SSE) |
+| EP-AI-02 | POST | `/ai/chat/stream` | `ai:query` | EP-111 | Giữ thứ tự SSE 10 §6; `done` mang `suggested_actions[]` như EP-AI-01 (**không** thêm loại event SSE). **v4:** `done.mode` ∈ `live`/`fixture`/`replay`; `replay` = câu chữ viết sẵn quanh số liệu thật, kèm warning `ai.warn.demo_replay` (F-C2). `MessageOut.mode` giữ nhãn khi tải lại lịch sử |
 | EP-AI-03 | GET | `/ai/conversations` | `ai:query` | EP-112 | Giữ (chỉ của người gọi) |
 | EP-AI-04 | GET | `/ai/conversations/{id}/messages` | `ai:query` | EP-112 | Giữ |
 | EP-AI-05 | GET | `/ai/insights` | `ai:query` | EP-114 | Giữ (M2.4 mở rộng 9 phần) |
@@ -691,7 +691,7 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 
 | EP | Method | Path | Permission | EP v2.1 | Ghi chú (request → response) |
 |---|---|---|---|---|---|
-| EP-RPT-01 | GET | `/reporting/dashboards/executive` | `dashboard:read` | — | CEO toàn DN / DIR theo khối (`scope_pillars`, R-DEC-85). → `ExecutiveDashboardOut` `{summary_line, tiles: MetricValueOut[] (≤4, theo preference EP-RPT-04 lọc scope), sei: MetricValueOut \| null (METRIC-STR-02), decisions_waiting: {count, items: [{id, title_key, params, kind}]} (Approval + Decision Log ref), open_risks: {count, items: AlertOut[] (severity desc)}, ai_done: {count, items: [{ai_action_id, action_name, created_at, undo_deadline?}]} (L3 feed), generated_at}`. EMP → `403 FORBIDDEN_ROLE`. Cache 60s + Vary |
+| EP-RPT-01 | GET | `/reporting/dashboards/executive` | `dashboard:read` | — | CEO toàn DN / DIR theo khối (`scope_pillars`, R-DEC-85). → `ExecutiveDashboardOut` `{summary_key ("reporting.executiveSummary"), summary_params {decisions, risks, sei_pct?}, summary_line (deprecated, câu tiếng Việt cũ), tiles: MetricValueOut[] (≤4, theo preference EP-RPT-04 lọc scope), sei: MetricValueOut \| null (METRIC-STR-02), decisions_waiting: {count, items: [{id, title_key, params, kind}]} (Approval + Decision Log ref), open_risks: {count, items: AlertOut[] (severity desc)}, ai_done: {count, items: [{ai_action_id, action_name, created_at, undo_deadline?}]} (L3 feed), generated_at}`. EMP → `403 FORBIDDEN_ROLE`. Cache 60s + Vary |
 | EP-RPT-02 | GET | `/reporting/dashboards/department` | `execution:read` | — | DIR/MGR theo phòng + phòng con (`department_subtree`, `core/org_scope.py`). Query `department_id?` (mặc định phòng của người gọi; ngoài subtree → `403 FORBIDDEN_SCOPE`). → `DepartmentDashboardOut` `{department_id, department_name, kpis: MetricValueOut[], okrs: {at_risk_count, items}, workload: {overloaded_count, heatmap_ref: "/work/workload?week="}, late_projects: {count, items}, due_tasks: {overdue, today, this_week}, generated_at}`. EMP → `403`. Cache 60s + Vary |
 | EP-RPT-03 | GET | `/reporting/dashboards/employee` | `execution:read` (token) | — | Của chính người gọi (`employee_id` từ JWT). → `EmployeeDashboardOut` `{my_tasks: {overdue, today, this_week, blocked}, my_goals: {kpis, krs}, pending_checkins: [{target_type, target_id, label, period_key}], workload_week: {planned_pct, status}, upcoming: {calendar_hint} (M3.1 mới đầy đủ), generated_at}`. Không hiển thị dữ liệu ngoài scope cá nhân. Cache 60s + Vary |
 | EP-RPT-04 | GET | `/reporting/preferences/executive-tiles` | `dashboard:read` | — | → `{tiles: string[] (metric_code), version}`. Chưa lưu → mặc định R-DEC-87 (`METRIC-FIN-01/FIN-03/STR-01/OPS-01`), `version=0`. `no-store` |
@@ -718,7 +718,7 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 | EP-FIN-05 | * | `/finance/budgets[/{id}]`, `/finance/budgets/status` | `finance:write`/`finance:read`/`finance:query` | EP-63 | Ngân sách + variance `BudgetStatusOut` |
 | EP-FIN-06 | * | `/finance/forecasts[/{id}]` | `finance:write`/`finance:read` | EP-64 | Dự báo |
 | EP-FIN-07 | * | `/finance/invoices[/{id}]`, `/pay` | `finance:write`/`finance:read` | EP-65 | Hóa đơn (nối IDP `ACT-create_invoice`) **M8 (R-DEC-172):** hóa đơn `OUT` không có `client_id` → API tìm khách hàng **duy nhất** theo `counterparty_tax_code` (MST, duy nhất trong sales) qua `core/client_directory` (sales đăng ký, chỉ trả `id`+`name`) và gắn `client_id`/`client_name`; không tìm thấy → `422 BUSINESS_RULE_VIOLATION` `details.field=counterparty_tax_code` (không có MST → `client_id`). CFO không cần đọc danh sách khách hàng. |
-| EP-FIN-08 | GET | `/finance/dashboard` | `finance:query` | EP-66 | `FinanceDashboardOut`; cache 60s + Vary |
+| EP-FIN-08 | GET | `/finance/dashboard` | `finance:query` | EP-66 | `FinanceDashboardOut`; cache 60s + Vary. **v4:** `metrics[]` dùng công thức + trạng thái của Metric Store trên tháng đóng cuối của kỳ (`period_key` mới); FIN-01 = doanh thu ÷ chỉ tiêu (không còn YoY), FIN-06 = phòng vượt ngân sách nhiều nhất. YoY ở `summary.revenue_growth_pct`, tổng sử dụng ngân sách ở `summary.budget_utilization_pct` (R-DEC-186) |
 | EP-FIN-09 | GET | `/finance/what-if/runway` | `finance:query` | EP-67 | Runway what-if |
 | EP-FIN-10 | GET/POST | `/finance/cash-flow-forecast[/recompute]` | `finance:read`/`finance:query`/`finance:write` | EP-68 | Dự báo dòng tiền; recompute `202` |
 | EP-SAL-01 | * | `/sales/clients[/{id}]` | `sales:write`/`sales:read` | EP-70 | CRUD Client (= Lead, R-DEC-90) |
@@ -727,11 +727,14 @@ Bản ghi ngoài scope ở GET chi tiết → `403 FORBIDDEN_SCOPE` (giữ v2.1)
 | EP-SAL-04 | * | `/sales/targets[/{id}]` | `sales:write`/`sales:read` | EP-73 | Chỉ tiêu bán |
 | EP-SAL-05 | GET | `/sales/pipeline` | `sales:query` | EP-74 | Kanban pipeline theo stage; `PipelineOut` |
 | EP-SAL-06 | GET | `/sales/performance` | `sales:query` | EP-75 | Win rate/row; `PerformanceRow[]` |
-| EP-SAL-07 | GET | `/sales/dashboard` | `sales:query` | EP-76 | `SalesDashboardOut`; cache 60s + Vary |
+| EP-SAL-07 | GET | `/sales/dashboard` | `sales:query` | EP-76 | `SalesDashboardOut`; cache 60s + Vary. **v4 (breaking):** `summary.closed_revenue` → `summary.closed_bookings`; `summary.quota_attainment_pct` = doanh thu Finance ÷ chỉ tiêu (D-09); mới `summary.bookings_attainment_pct`. Không truyền `period` → tháng đang chạy, hoặc tháng gần nhất trong 6 tháng có deal đóng; `period` trả về là kỳ thực dùng |
 | EP-SAL-08 | * | `/sales/contracts[/{id}]` | `sales:write`/`sales:read` | EP-77 | Hợp đồng |
+| EP-SAL-09 | GET | `/sales/funnel` | `sales:read` | — | Phễu tích lũy (R-DEC-186 đề xuất): số deal đã đạt ít nhất từng giai đoạn lead → closed_won, `conversion_pct`/`drop_off_pct` 0–100, `lost` tách riêng; `FunnelOut`. REV → `403 FORBIDDEN_SCOPE`; MGR theo phòng |
 
 - **ACT doc type #6** (R-DEC-92): `ACT-record_revenue` / `ACT-record_expense` / `ACT-record_cash_balance` thêm vào §7 ACT table (doc type #6), permission `finance:write`, wire IDP → service `finance` sẵn có; undo = soft-delete bản ghi do ACT tạo. Trường tiền trọng yếu luôn qua người (04 §confidence). Không event mới.
 - **Event** (R-DEC-91): `sales.deal_closed_won`/`sales.deal_closed_lost` (đã publish khi stage→closed_*; §9.2) feed `METRIC-CUS-02` (Win rate). `finance.invoice_created` giữ.
+
+**Scope Finance + Sales (v4, R-DEC-183 đề xuất, D-07):** REV (`◑r`) đọc `/finance/*`, `/sales/*` ngoài phiên review → `403 FORBIDDEN_SCOPE`; bản ghi đến REV qua review IDP. MGR (`◑d`): budgets, expenses theo phòng mình; bản ghi cấp công ty không có `department_id` (revenues, invoices kể cả `pay`, cash-positions, forecasts, cash-flow-forecast) → `403 FORBIDDEN_SCOPE` cả đọc và ghi. Action Registry IDP gọi service trực tiếp nên commit, undo, lineage không bị ảnh hưởng. `POST /finance/invoices/{id}/pay` khóa dòng trước khi tính số còn nợ (TD-03).
 
 #### 7.2.8. M3.1 — D06 Integration Hub · D13 Calendar (Spec lock M3.1 — agent tự chốt 2026-11-01, R-DEC-117..125)
 
@@ -1012,6 +1015,8 @@ Envelope `{data, meta?}` / `{error:{code,message,details}}`; phân trang `limit/
 - OQ-10-11 (M1.6): Tool ghi nhân sự (`upsert_employee`, phân công) cho AI — **phương án đề xuất — chọn nếu human duyệt: không ở P0** (Approval Matrix "thay đổi nhân sự: không cho phép"); hồ sơ NV chỉ qua import C5 có người duyệt.
 
 ## Version
+
+- **Change (đề xuất, 2026-11-08, v4 demo):** EP-SAL-09 `/sales/funnel`; thay đổi response EP-FIN-08, EP-SAL-07 (breaking: `closed_bookings`), EP-RPT-01 (`summary_key`), EP-AI-02 (`mode`); scope Finance/Sales cho REV, MGR. Version/status do human chốt.
 
 - **Version:** 1.1.0 (current)
 - **Last updated:** 2026-11-02

@@ -200,6 +200,19 @@ Các con số là baseline MVP, xác nhận ở SRS + kiểm thử tải. Mỗi 
 ## 7. Secret & cấu hình
 Mọi cấu hình qua config service (fail-fast khi thiếu biến bắt buộc); không hard-code/commit secret; log filter che khóa chứa `KEY|SECRET|PASSWORD|TOKEN`; JWT ký khóa riêng (RS256 nếu tái dùng nền `main` — chỉ `auth` đọc private key); PII filter trước mọi call model (bỏ mức 4, thay mức 3 bằng mã). Tách bạch routing **build-agent** và routing **runtime** (ModelGateway) — không dùng chung key. (Chi tiết env chốt khi code hóa — R-DEC-09.)
 
+### 7.1. Cấu hình demo v4 (đề xuất)
+
+| Biến | Giá trị demo | Ý nghĩa |
+|---|---|---|
+| `BUSINESS_DATE_OVERRIDE` | `2026-10-20` | Ngày nghiệp vụ duy nhất cho mọi module (R-DEC-192) |
+| `MODEL_PROVIDER_PRIMARY` | `ollama` | D-11: không provider cloud nào nhận dữ liệu INTERNAL (R-DEC-188) |
+| `MODEL_PROVIDER_FALLBACKS` | rỗng | Không có đường cloud dự phòng |
+| `MODEL_PROVIDER_CONFIDENTIAL` | `ollama` | |
+| Key provider cloud | rỗng | Lớp chặn thực sự khi chưa có chốt egress trong code (Phase 8) |
+| `AI_DEMO_REPLAY` | `false` mặc định | Bật chỉ khi trình diễn kịch bản; câu trả lời mang `mode: "replay"` + nhãn |
+
+Ghi chú: chốt chặn egress theo classification ngay trước adapter chưa có trong code; với cấu hình trên mọi chuỗi chỉ gồm `ollama` (`routing.chain_has_cloud`). Model local `qwen2.5:7b-instruct` trên CPU của máy demo chậm, xem báo cáo AI v4.
+
 ## 8. Open questions
 - OQ-07-01: Modular Monolith vs tách service cho Agent Runtime/Orchestrator — ĐÃ CHỐT: R-DEC-06 — Modular Monolith, AI Platform là cụm module logic bên trong (không tách deployable).
 - OQ-07-02: Memory store (conversation/user/enterprise) công nghệ — chờ chi tiết hóa ở đợt code (R-DEC-09).

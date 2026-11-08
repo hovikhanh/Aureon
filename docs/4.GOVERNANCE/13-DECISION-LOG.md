@@ -262,6 +262,34 @@ Human đã chốt 6 quyết định nền (chọn mặc định đề xuất). �
 - OQ-13-08 (còn lại, giữ phương án bản nháp — chọn nếu human duyệt): StrategicObjective bảng riêng (R-DEC-50); không thêm notification kind cho goal (R-DEC-59: `alert`/`reminder`); khóa kỳ KPI giữ `409`, luồng duyệt mở khóa vào backlog; C1 trường trọng yếu ghi thẳng khi người nhập có quyền đích (R-DEC-65); retention `idp.import_rows` bằng job purge hằng ngày; `/lineage/*` route ở module `idp`; duyệt hai bên khi nâng autonomy và ngân sách AI theo phòng ban hoãn M3.4; không tool AI ghi nhân sự ở P0.
 - OQ-13-09 (non-blocking, phát sinh T-625): picker đồng nghiệp cho EMP/DIR ngoài khối O (EP-ORG-24 `/org/tree` → `403`) — đề xuất mở `members[]` mức 2 phòng mình; chốt ở M2.x. Tạm thời (M1.3): "Đề nghị chuyển người" của EMP nhập ID nhân viên thủ công (validate UUID, BE kiểm tồn tại); tiêu đề/diff phê duyệt hiện tên khi người xem đọc được `members[]`, ngược lại mã rút gọn.
 
+## 2ter. Quyết định Aureon v4 — ĐỀ XUẤT, CHỜ REVIEW
+
+> PO đã chốt **nội dung** D-01..D-16 ngày 2026-11-05; các dòng dưới đây **chưa được phê duyệt chính thức**. Số là đề xuất, người duy trì file này cấp số cuối. Định nghĩa `DEC-*` nền: `DEC-REGISTRY.md`.
+
+| ID (đề xuất) | Quyết định | Trạng thái | Ảnh hưởng |
+|---|---|---|---|
+| R-DEC-177 | Ủy quyền chỉnh sửa tài liệu v4: nội dung `00–14`, thêm tài liệu còn thiếu. Không sửa `_reference`, không xóa tài liệu, `CLAUDE.md` chỉ đề xuất | PROPOSED | `docs/` |
+| R-DEC-178 | Stack hiện tại là DEMO/STAGING, không phải production | PROPOSED | Ngôn ngữ tài liệu, vận hành |
+| R-DEC-179 | Aureon v4 = hoàn thiện v3 + CRM; không SaaS. Sửa phạm vi R-DEC-05 cho Sales | PROPOSED | 01, 09 |
+| R-DEC-180 | Ủy quyền một cửa sổ bảo trì bảo mật. Hoãn sang Phase 8 theo R-DEC-196. Sẽ supersede phần R-DEC-28, sửa mô tả R-DEC-168 | PROPOSED; hoãn | Auth, vận hành |
+| R-DEC-181 | Bảo mật repository: không rewrite history. Hoãn sang Phase 8 | PROPOSED; hoãn | GitHub, CI |
+| R-DEC-182 | `_reference` vào Git sau khi repo private; `BRD_Newfeature` canonical cho domain Sales, không thay BRD tổng thể | PROPOSED; chờ repo private | 00, CLAUDE §0 |
+| R-DEC-183 | Thực thi đúng `02` §5.3 cho REV, MGR ở Finance, Sales | PROPOSED | `finance`, `sales` |
+| R-DEC-184 | Quyền EMP theo khối: quyết định riêng, nội dung chưa chốt | PROPOSED; open | RBAC, CRM |
+| R-DEC-185 | CRM: nhận mặc định a–j của R-DEC-176; làm sau V4.0; CEO chỉ đọc Sales | PROPOSED | `sales`, 02, 05, 10 |
+| R-DEC-186 | Finance là nguồn doanh thu thực tế duy nhất; funnel tích lũy; chỉ tiêu Q4 = 20 tỷ VNĐ | PROPOSED | `finance`, `sales`, 03 |
+| R-DEC-187 | Rate limit + đổi mật khẩu V4.0; MFA V4.1; SSO ngoài v4. Theo R-DEC-196, rate limit chuyển Phase 8 | PROPOSED | `auth` |
+| R-DEC-188 | Tài liệu mặc định CONFIDENTIAL trước phân loại; roster không lên cloud; không provider nào nhận INTERNAL. Enforcement trong code thuộc Phase 8; demo chạy model local | PROPOSED; **blocking** | AI Gateway, IDP, CLAUDE §2.2 |
+| R-DEC-189 | Giữ single-tenant; chưa DROP schema `public`; chưa gỡ MinIO khi chưa đánh giá | PROPOSED | DB, compose |
+| R-DEC-190 | Design system có mục tiêu; primary Deep Navy | PROPOSED | `apps/web` |
+| R-DEC-191 | Cô lập mạng. Hoãn sang Phase 8 | PROPOSED; hoãn | Hạ tầng |
+| R-DEC-192 | Tách `BUSINESS_DATE_OVERRIDE` khỏi `DEMO_MODE`; mọi module dùng `business_today()` | PROPOSED | `core/clock.py` |
+| R-DEC-193 | Khôi phục `docs/handover`, `docs/_archive` trước mọi commit | PROPOSED; đã thực hiện 2026-11-05 | `docs/` |
+| R-DEC-194 | Chặn tạm INTERNAL lên cloud: demo đặt provider local | PROPOSED; open | AI Gateway |
+| R-DEC-195 | Kiểm soát Netbird. Hoãn sang Phase 8 | PROPOSED; open | Hạ tầng |
+| R-DEC-196 | **Thứ tự v4:** hoàn thiện demo trước; firewall, Netbird, xoay secret, hardening auth, mạng, CI security, CVE thành backlog Phase 8, không chặn demo (human 2026-11-05) | PROPOSED | Toàn dự án |
+| R-DEC-197 | Bản vá bỏ đăng nhập demo (W-1) không áp ở giai đoạn demo; R-DEC-28 còn hiệu lực cho demo | PROPOSED | `apps/web` |
+
 ## 3. Quyết định mở từ BRD §21.1 — CHỜ CEO (không blocking cho docs P0)
 
 Các quyết định này thuộc về CEO/chủ sản phẩm; không chặn việc hoàn thiện tài liệu P0 (docs ghi mặc định tạm + đánh dấu "chờ CEO"). Khi CEO chốt → nâng thành DEC chính thức và cập nhật file liên quan.
@@ -285,6 +313,7 @@ Các quyết định này thuộc về CEO/chủ sản phẩm; không chặn vi�
 
 ## Version
 - **Version:** 1.2.0 (current)
+- **Change (đề xuất, 2026-11-05):** thêm mục 2ter R-DEC-177..197 ở trạng thái PROPOSED; tách định nghĩa `DEC-*` sang `DEC-REGISTRY.md`.
 - **Last updated:** 2026-11-02
 - **Change (OCR dependency, 2026-11-02 — human giao "hoàn tất OCR"):** thêm R-DEC-146 (resolved) hợp thức hóa dependency OCR thật `paddleocr`/`paddlepaddle`/`setuptools` làm optional-dependency group `ocr` cho đường dẫn `OCR_PROVIDER=paddle` đã có (DEC-049); không đổi API/schema/DB/mã lỗi/tool/event.
 - **Maintainer:** @CyEyes

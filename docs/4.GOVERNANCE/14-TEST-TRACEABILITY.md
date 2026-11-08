@@ -463,6 +463,29 @@ Sửa test tiền tồn lộ ra: helper `outbox_for` (execution/product/sales) t
 
 Kiểm chứng end-to-end qua giao diện (không đưa vào suite vì phụ thuộc LLM thật): stack cô lập API `:4600` (DB `aureon_m4`, provider Ollama `qwen2.5:7b-instruct`) + web production `:3600` — CEO gõ ở `/ask` "Tạo task: …, giao cho tôi, hạn 30/11/2026" → thẻ "AI đã làm · Tạo việc", task trong DB hạn `2026-11-30`, giao `NV-0001`.
 
+### 1.26. V4 demo — đúng số liệu, quyền, AI trung thực (2026-11-08, R-DEC-183..192 đề xuất)
+
+| TC | Nội dung | Loại | File | Trạng thái |
+|---|---|---|---|---|
+| TC-V4-01 | Một ngày nghiệp vụ: `BUSINESS_DATE_OVERRIDE` → `DEMO_REFERENCE_DATE` → ngày thật; Sales, HR, Risk dùng `business_today()` | Unit + integration | `unit/test_clock.py`, `integration/sales/test_targets_analytics.py`, `integration/hr/test_org_api_t613.py` | Passed |
+| TC-V4-02 | METRIC-FIN-01/06 một nghĩa giữa Metric Store và `/finance/dashboard`; ngưỡng từ cấu hình | Integration | `integration/finance/test_metric_meaning_v4.py` | Passed |
+| TC-V4-03 | Funnel tích lũy `/sales/funnel`: 0–100%, không âm, lost tách riêng; REV 403 | Integration + unit FE | `integration/sales/test_targets_analytics.py`, `features/crm/crm.test.ts` | Passed |
+| TC-V4-04 | Scope REV, MGR ở Finance (D-07): REV 403, MGR phòng mình, bản ghi công ty 403, theo id | Integration | `integration/finance/test_scope_d07.py` | Passed |
+| TC-V4-05 | Reviewer duyệt hóa đơn 8 bước; REV không liệt kê hóa đơn công ty, CFO thấy bản ghi đã duyệt | Integration | `integration/idp/test_review_e2e_http.py` | Passed |
+| TC-V4-06 | Thanh toán hóa đơn khóa dòng (TD-03) | Integration | `integration/finance/test_invoices.py` | Passed |
+| TC-V4-07 | Home Department/Employee dùng số thật | Integration | `integration/dashboard/test_reporting.py` | Passed |
+| TC-V4-08 | Undo import HR khi ngày nghiệp vụ ghim: phòng ban biến khỏi cây hiện tại | Integration | `integration/idp/test_undo_t638.py` | Passed |
+| TC-V4-09 | D-11: tài liệu mới CONFIDENTIAL, chỉ nâng mức; roster không tới model | Integration | `integration/idp/test_d11_sensitivity.py` | Passed |
+| TC-V4-10 | Grounding: số bịa viết bằng chữ, gần đúng bị gỡ | Unit | `unit/test_grounding_f_h1.py` | Passed |
+| TC-V4-11 | Knowledge search không 502 khi không có embedding | Integration | `integration/idp/test_knowledge_fallback.py` | Passed |
+| TC-V4-12 | OCR PDF scan có trạng thái thật; `source_location` theo trang thật hoặc null | Unit | `unit/test_idp_ocr_location.py` | Passed |
+| TC-V4-13 | Chat trung thực: không quảng bá tool không chạy được; ceiling theo chuỗi; replay mang `mode` + nhãn | Integration + unit FE | `integration/ai/test_chat_v4_honesty.py`, `features/ai/reducer.test.ts` | Passed |
+| TC-V4-14 | UI: không ID thô, không nhãn snake_case, route theo role, sắp xếp, tiến trình deal | Unit FE | `lib/no-raw-ids.test.ts`, `capture/field-label.test.ts`, `lib/role-routes.test.ts`, `lib/sort.test.ts`, `crm/stage-progress.test.ts` | Passed |
+| TC-V4-15 | Strategy UI: CEO tạo Chiến lược, DIR tạo mục tiêu trong khối | Unit FE | `goals/strategy-forms.test.ts` | Passed |
+| TC-V4-16 | Demo stack sạch: build, seed, 10 tài khoản, E2E | E2E Docker | `deliverables/v4-demo/V4-DEMO-READINESS-REPORT.md` | Passed có ngoại lệ: 128/136; 7 test AI (phần cứng) + 1 lỗi có sẵn (onboarding L2/L3) |
+
+Bằng chứng (2026-11-08): pytest **1656 passed, 0 failed** trên DB cô lập; contract 44; Vitest 566; E2E project `real` trên stack sạch 125/136 trong một lần chạy, sau khi sửa 3 spec còn 8 fail có nguyên nhân (§1.26 TC-V4-16).
+
 ## 2. Ma trận nghiệm thu UC (BRD §14) — tiêu chí mức sản phẩm
 
 Mỗi UC nêu: tiêu chí nghiệm thu (acceptance mức sản phẩm, trích/diễn giải từ BRD §14), domain/FR xuyên suốt, loại test chủ đạo, nhóm `TC-*`. Chi tiết hóa case ở đợt code (R-DEC-09).

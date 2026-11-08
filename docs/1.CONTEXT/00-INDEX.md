@@ -36,6 +36,9 @@ Bộ tài liệu chính thức cho **AI-EOS đầy đủ** (28 domain, 7 role + 
 | 12 | DOC-AUDIT | R3 | Trạng thái bộ tài liệu AI-EOS |
 | 13 | DECISION-LOG | R3 | DEC cho Q1–Q6 + quyết định mở BRD §21.1 |
 | 14 | TEST-TRACEABILITY | R3 | Ma trận test theo US/UC/FR BRD |
+| 16 | OPERATIONS | v4 | Chạy, kiểm tra, reset stack Docker demo; runbook vận hành (gộp từ `docs/handover/`) |
+| — | `4.GOVERNANCE/DEC-REGISTRY.md` | v4 | Định nghĩa `DEC-*` nền v2.x mà code, test, tài liệu vẫn dẫn (219 mã) |
+| — | `_reference/BRD_Newfeature.md` | v4 | Canonical cho domain Sales khi R-DEC-182 được duyệt; không thay BRD tổng thể |
 
 ## 4. ID Registry — trỏ `TRACEABILITY-SKELETON.md`
 
@@ -66,8 +69,18 @@ Bộ tài liệu chính thức cho **AI-EOS đầy đủ** (28 domain, 7 role + 
 | Phạm vi đợt này | **Docs-first P0** (R-DEC-09) — hoàn thiện 00–14 + governance; code/app/migration ở đợt sau |
 | Mở còn lại | B1–B7 (BRD §21.1, CEO) — không blocking docs P0 (13 §3) |
 
+### 5.1. Trạng thái 2026-11-08 (Aureon v4 demo)
+
+| Mục | Trạng thái |
+|---|---|
+| Giai đoạn | Hoàn thiện demo v4 (R-DEC-196 đề xuất): số liệu, quyền, AI trung thực, UI; hardening production thuộc Phase 8 |
+| Code | Đã vượt phạm vi "docs-first": M1–M8 đã code; thay đổi v4 chưa commit |
+| Quyết định mới | R-DEC-177..197 ở trạng thái PROPOSED (13 §2ter) |
+| Tài liệu lệch | `12` khai version cũ; `01` chưa phản ánh M2–M8; xem `deliverables/v4-demo/` |
+
 ## Version
 - **Version:** 1.0.0 (current)
+- **Change (đề xuất, 2026-11-08):** thêm 16-OPERATIONS, DEC-REGISTRY, BRD_Newfeature vào bản đồ; trạng thái v4.
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).

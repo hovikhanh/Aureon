@@ -19,7 +19,7 @@ Theo **R-DEC-05: phủ tập P0 MVP** trước — đủ chạy **UC-01, UC-02 (
 - **DD-02 — Phủ ngưỡng:** bộ dữ liệu phải làm mỗi nhóm chỉ số sức khỏe có cả trạng thái **ok / warning / critical** để Briefing (UC-01) nêu được ngoại lệ — không được "toàn xanh".
 - **DD-03 — Dữ liệu giả:** không PII/dữ liệu thật trong seed/fixture/prompt; trường nhạy cảm (lương) là số giả, che theo quyền (§6).
 - **DD-04 — Idempotent:** bộ seed chạy lại cho cùng kết quả; không nhân bản (chi tiết cơ chế hoãn R-DEC-09).
-- **DD-05 — Mốc thời gian cố định:** mọi dữ liệu tương đối (hạn, kỳ, "hôm nay") neo theo `DEMO_REFERENCE_DATE=2026-10-20` để demo tái lập.
+- **DD-05 — Mốc thời gian cố định:** mọi dữ liệu tương đối (hạn, kỳ, "hôm nay") neo theo `DEMO_REFERENCE_DATE=2026-10-20` để demo tái lập. **v4 (R-DEC-192 đề xuất):** ngày nghiệp vụ tách khỏi `DEMO_MODE`; stack demo đặt `BUSINESS_DATE_OVERRIDE=2026-10-20` (thứ tự ưu tiên: override → `DEMO_MODE` + `DEMO_REFERENCE_DATE` → ngày thật). Mọi module dùng `core/clock.business_today()`; `created_at`, `closed_at` vẫn là giờ thật. FE đọc `NEXT_PUBLIC_DEMO_REFERENCE_DATE` (baked lúc build) và phải cùng giá trị.
 
 ## 2. Doanh nghiệp giả định
 

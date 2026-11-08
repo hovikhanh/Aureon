@@ -53,9 +53,9 @@ Mật khẩu lấy từ `.env` (`DEMO_<ROLE>_PASSWORD`) — không commit, khôn
 | Email | Role v3 | Khối (scope_pillars) | Thấy gì |
 |---|---|---|---|
 | `ceo@abc.demo` | CEO | — (toàn bộ) | Cả 5 trụ F.O.C.U.S, 13 alert, AI Chat, phê duyệt |
-| `cfo@abc.demo` | DIR | **F** (Finance) | Trụ F, Finance drill-down, hóa đơn; duyệt kế hoạch tuyển dụng (cổng ngân sách) |
+| `cfo@abc.demo` | DIR | **F** (Finance) | Trụ F, Finance drill-down, hóa đơn (gồm hóa đơn OUT theo MST, R-DEC-172) |
 | `sales@abc.demo` | DIR | **C** (Customer) | Trụ C (Customer & Growth) |
-| `hr@abc.demo` | DIR | **O** (Operations) | Trụ O (Operations & People), quỹ lương |
+| `hr@abc.demo` | DIR | **O** (Operations) | Trụ O (Operations & People), quỹ lương; duyệt kế hoạch tuyển dụng cùng CEO (R-DEC-173) |
 | `reviewer@abc.demo` | REV | — | Hàng chờ review IDP |
 
 Seed còn 5 tài khoản (`cpo@`→DIR{U}, `risk@`→DIR{S}, `manager@`→MGR, `employee@`→EMP, `admin@abc.demo`→ADM)
@@ -106,6 +106,8 @@ pnpm dev:web                                        # Web :3000
 
 Gate: `pnpm lint && pnpm typecheck && pnpm test && uv run ruff check . && uv run mypy && uv run pytest && pnpm contract:validate`.
 
+> **Cảnh báo:** `uv run pytest` đọc `DATABASE_URL` từ `.env`. Nếu `.env` trỏ DB của stack đang chạy, test sẽ chạy trên DB đó. Chạy test trên DB tạm: xem `docs/3.EXECUTION/16-OPERATIONS.md` §4.
+
 Reset dữ liệu demo (không xoá volume/schema): `./scripts/demo_reset.sh -y`.
 
 ## Chế độ AI (ModelGateway)
@@ -116,6 +118,8 @@ Mọi lời gọi LLM đi qua một điểm duy nhất là `ModelGateway`. Biế
 |---|---|---|
 | `fixture` (mặc định dev/CI) | Phát lại kết quả đã ghi sẵn; không có mạng, không gọi AI thật. Thiếu fixture → lỗi rõ ràng. | ❌ Không |
 | `live` | Gọi LLM thật qua endpoint tương thích OpenAI tại `OMNIROUTE_BASE_URL`. | ✅ Có |
+
+**v4 (D-11, R-DEC-188 đề xuất):** không provider cloud nào được nhận dữ liệu INTERNAL; stack demo chạy model local (`MODEL_PROVIDER_PRIMARY=ollama`, không fallback, không key cloud). Câu trả lời kịch bản (`AI_DEMO_REPLAY=true`) luôn mang nhãn "Kịch bản demo" (`mode: "replay"`).
 
 Chat demo (`DEMO_MODE=true`) phát lại các câu hỏi kịch bản trong ~1,2–1,3 s — **số liệu luôn lấy từ tool thật**, không bịa. Bật AI/chat thật:
 
@@ -133,9 +137,11 @@ Test gọi provider thật chỉ chạy khi cho phép: `RUN_LIVE_TESTS=true uv r
 
 | Bộ | Số lượng |
 |---|---|
-| Backend pytest | **770 passed** (+ 4 pre-existing contract fail — xem 14 §1.4) |
-| Frontend Vitest | **18** |
-| E2E Playwright | **30** (cần full stack docker để chạy) |
+| Backend pytest | **1656 passed** (v4, 2026-11-08, DB tạm), contract **44** |
+| Frontend Vitest | **566** |
+| E2E Playwright | **136** test project `real`: 128 pass; 8 fail có nguyên nhân (7 AI do phần cứng, 1 có sẵn) |
+
+Chi tiết và bằng chứng: `deliverables/v4-demo/`, `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` §1.26.
 
 ## Tài liệu
 
