@@ -22,23 +22,14 @@ export function canMoveTo(from: string, to: string): boolean {
 }
 
 export interface StageCount { stage: string; count: number; value: number; weighted_value: number }
-export interface FunnelStep { stage: string; count: number; value: number; conversionPct: number | null; dropOffPct: number | null }
 
-/**
- * BRD §2.8 Method A (current counts): open stages + Closed Won in pipeline order;
- * `ConversionRate = N_current / N_previous × 100%`, drop-off = 100 − conversion (L910–923).
- * Closed Lost is not a funnel step (it is the loss) — returned apart by the caller.
- */
-export function funnel(stages: readonly StageCount[]): FunnelStep[] {
-  const by = new Map(stages.map((s) => [s.stage, s]));
-  const order: DealStage[] = [...OPEN_STAGES, "closed_won"];
-  return order.map((stage, i) => {
-    const cur = by.get(stage);
-    const prev = i > 0 ? by.get(order[i - 1]!) : undefined;
-    const count = cur?.count ?? 0;
-    const conversionPct = i > 0 && prev && prev.count > 0 ? Math.round((count / prev.count) * 1000) / 10 : null;
-    return { stage, count, value: cur?.value ?? 0, conversionPct, dropOffPct: conversionPct === null ? null : Math.round((100 - conversionPct) * 10) / 10 };
-  });
+/** One step of `/sales/funnel`: deals that reached at least this stage (cumulative, API-computed). */
+export interface FunnelStep { stage: string; reached: number; value: number; conversion_pct: number | null; drop_off_pct: number | null }
+export interface FunnelOut { steps: FunnelStep[]; lost: number; lost_value: number; currency: string }
+
+/** A funnel ratio as displayed; the first step, or one after an empty step, has none. */
+export function funnelPct(pct: number | null): string {
+  return pct === null ? "—" : `${pct}%`;
 }
 
 /**

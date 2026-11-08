@@ -14,6 +14,7 @@ export type KeyResultOut = Api.KeyResultOut;
 export type CheckInOut = Api.CheckInOut;
 export type CheckInDueOut = Api.CheckInDueOut;
 export type StrategyOut = Api.StrategyOut;
+export type StrategicObjectiveOut = Api.StrategicObjectiveOut;
 
 const get = <T,>(path: string, query?: Record<string, string | number | boolean | undefined>) =>
   ({ signal }: { signal: AbortSignal }) => apiRequest<T>(path, { query, signal }).then((r) => r.data);
@@ -21,6 +22,10 @@ const get = <T,>(path: string, query?: Record<string, string | number | boolean 
 export interface TreeParams { period_key: string; strategy_id?: string; department_id?: string }
 export const useGoalTree = (p: TreeParams) => useQuery({ queryKey: qk.goalTree({ ...p }), queryFn: get<Api.GoalTreeOut>("/goals/tree", { ...p }) });
 export const useStrategies = () => useQuery({ queryKey: qk.strategies(), queryFn: get<StrategyOut[]>("/goals/strategies", { limit: 100 }) });
+export const useStrategicObjectives = (strategyId: string | null) => useQuery({
+  queryKey: [...qk.strategies(), strategyId, "objectives"], enabled: Boolean(strategyId),
+  queryFn: get<StrategicObjectiveOut[]>("/goals/strategic-objectives", { strategy_id: strategyId ?? undefined, limit: 100 }),
+});
 
 export const useKpi = (id: string) => useQuery({ queryKey: qk.kpi(id), queryFn: get<KpiOut>(`/kpis/${id}`), retry: false });
 export const useKpiEvaluations = (id: string) => useQuery({ queryKey: qk.kpiPart(id, "evaluations"), queryFn: get<KpiEvaluationOut[]>(`/kpis/${id}/evaluations`) });
@@ -56,6 +61,8 @@ export const postTarget = (kpiId: string, body: Api.KpiTargetCreate) => post<Kpi
 const patch = <T,>(path: string, body: unknown) => apiRequest<T>(path, { method: "PATCH", body }).then((r) => r.data);
 const del = (path: string) => apiRequest<void>(path, { method: "DELETE" }).then(() => undefined);
 
+export const createStrategy = (body: Api.StrategyCreate) => post<StrategyOut>("/goals/strategies", body);
+export const createStrategicObjective = (body: Api.StrategicObjectiveCreate) => post<StrategicObjectiveOut>("/goals/strategic-objectives", body);
 export const createKpi = (body: Api.KpiCreate) => post<KpiOut>("/kpis", body);
 export const updateKpi = (id: string, body: Api.KpiUpdate) => patch<KpiOut>(`/kpis/${id}`, body);
 /** Archive = soft delete (`deleted_at`); a KPI with child KPIs / tasks → `409 CONFLICT_STATE`. */

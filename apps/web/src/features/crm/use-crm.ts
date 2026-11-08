@@ -1,6 +1,7 @@
 "use client";
 /** Queries / mutations of the CRM views — existing endpoints only (10 EP-SAL-01..08, EP-FIN). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/api-client";
 
 export interface DealOut {
@@ -59,4 +60,16 @@ export function useMoveStage() {
       apiRequest<DealOut>(`/sales/deals/${v.id}/stage`, { method: "POST", body: { to_stage: v.to_stage, lost_reason: v.lost_reason || null }, idempotent: true }),
     onSettled: () => qc.invalidateQueries({ queryKey: crmKeys.all }),
   });
+}
+
+/** Owner label for a user id: "Tôi", the name when `/platform/users` is readable, else a plain label (never the id). */
+export function useOwnerLabel(userId: string, canReadUsers: boolean): (ownerId: string) => string {
+  const t = useTranslations();
+  const users = useQuery({
+    queryKey: [...crmKeys.all, "users"],
+    enabled: canReadUsers,
+    staleTime: 300_000,
+    queryFn: ({ signal }) => apiRequest<{ id: string; full_name: string }[]>("/platform/users", { query: { limit: 100 }, signal }).then((r) => r.data),
+  });
+  return (ownerId) => (ownerId === userId ? t("crm.me") : users.data?.find((u) => u.id === ownerId)?.full_name ?? t("common.otherPerson"));
 }

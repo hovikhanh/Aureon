@@ -48,7 +48,7 @@ export function MyTasksView({ onOpen }: { onOpen: (id: string) => void }) {
         <p className="text-sm text-muted-foreground">{t("mine.hint")}</p>
       </div>
       <Card className="flex flex-wrap items-end gap-4 p-3">
-        <fieldset className="flex flex-wrap items-center gap-3" data-testid="status-filter">
+        <fieldset className="flex min-w-0 flex-wrap items-center gap-3" data-testid="status-filter">
           <legend className="mb-1 text-xs font-medium text-muted-foreground">{t("mine.statusFilter")}</legend>
           {TASK_STATUSES.map((s) => (
             <span key={s} className="flex items-center gap-1.5">
@@ -57,7 +57,7 @@ export function MyTasksView({ onOpen }: { onOpen: (id: string) => void }) {
             </span>
           ))}
         </fieldset>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <Label htmlFor="due-from" className="text-xs">{t("mine.dueFrom")}</Label>
             <Input id="due-from" type="date" value={filters.dueFrom ?? ""} onChange={(e) => set({ ...filters, dueFrom: e.target.value || null })} data-testid="due-from" aria-invalid={bad} />

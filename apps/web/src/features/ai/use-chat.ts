@@ -18,7 +18,9 @@ export function fromHistory(m: MessageOut): ChatMessage {
     content: m.content,
     sources: m.sources,
     tools: m.function_calls.map((f) => ({ tool: f.tool, status: f.status, latency_ms: f.latency_ms })),
-    warnings: [],
+    // a reloaded replay answer keeps its label (F-C2): never shown as a live AI answer
+    warnings: m.mode === "replay" ? ["ai.warn.demo_replay"] : [],
+    mode: m.mode ?? "live",
     streaming: false,
     truncated: m.truncated,
   };

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -30,10 +30,10 @@ function FormDialog({ open, onOpenChange, title, testId, busy, error, onSubmit, 
         <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3" noValidate>
           {children}
           {error && <p role="alert" className="text-sm text-danger" data-testid={`${testId}-error`}>{error}</p>}
-          <div className="mt-2 flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={busy} data-testid={`${testId}-submit`}>{t("buttons.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -73,8 +73,8 @@ export function DepartmentDialog({ open, onOpenChange, orgId, departments, membe
   return (
     <FormDialog open={open} onOpenChange={(o) => { save.reset(); onOpenChange(o); }} title={t(editing ? "orgAdmin.form.editDept" : "orgAdmin.form.newDept")} testId="dept-form"
       busy={save.isPending} error={save.isError ? errText(save.error) : null} onSubmit={(ev) => void submit(ev)}>
-      <Field id="dept-code" label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="dept-code" {...form.register("code")} aria-invalid={Boolean(e.code)} data-testid="dept-code" /></Field>
-      <Field id="dept-name" label={t("orgAdmin.form.name")} error={e.name?.message}><Input id="dept-name" {...form.register("name")} aria-invalid={Boolean(e.name)} data-testid="dept-name" /></Field>
+      <Field id="dept-code" required label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="dept-code" {...form.register("code")} aria-invalid={Boolean(e.code)} data-testid="dept-code" /></Field>
+      <Field id="dept-name" required label={t("orgAdmin.form.name")} error={e.name?.message}><Input id="dept-name" {...form.register("name")} aria-invalid={Boolean(e.name)} data-testid="dept-name" /></Field>
       <Field id="dept-parent" label={t("orgAdmin.form.parent")}>
         <NativeSelect id="dept-parent" {...form.register("parent_id")} data-testid="dept-parent">
           <option value="">{t("orgAdmin.form.noParent")}</option>
@@ -87,7 +87,7 @@ export function DepartmentDialog({ open, onOpenChange, orgId, departments, membe
           {members.map((m) => <option key={m.employee_id} value={m.employee_id}>{m.employee_code} — {m.full_name}</option>)}
         </NativeSelect>
       </Field>
-      {!editing && <Field id="dept-from" label={t("orgAdmin.form.validFrom")} error={e.valid_from?.message}><Input id="dept-from" type="date" {...form.register("valid_from")} data-testid="dept-from" /></Field>}
+      {!editing && <Field id="dept-from" required label={t("orgAdmin.form.validFrom")} error={e.valid_from?.message}><Input id="dept-from" type="date" {...form.register("valid_from")} data-testid="dept-from" /></Field>}
     </FormDialog>
   );
 }
@@ -115,8 +115,8 @@ export function TeamDialog({ open, onOpenChange, department }: { open: boolean; 
   return (
     <FormDialog open={open} onOpenChange={(o) => { save.reset(); onOpenChange(o); }} title={t("orgAdmin.form.newTeam", { dept: department?.name ?? "" })} testId="team-form"
       busy={save.isPending} error={save.isError ? errText(save.error) : null} onSubmit={(ev) => void submit(ev)}>
-      <Field id="team-code" label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="team-code" {...form.register("code")} data-testid="team-code" /></Field>
-      <Field id="team-name" label={t("orgAdmin.form.name")} error={e.name?.message}><Input id="team-name" {...form.register("name")} data-testid="team-name" /></Field>
+      <Field id="team-code" required label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="team-code" {...form.register("code")} data-testid="team-code" /></Field>
+      <Field id="team-name" required label={t("orgAdmin.form.name")} error={e.name?.message}><Input id="team-name" {...form.register("name")} data-testid="team-name" /></Field>
       <Field id="team-lead" label={t("orgAdmin.form.lead")}>
         <NativeSelect id="team-lead" {...form.register("lead_employee_id")} data-testid="team-lead">
           <option value="">{t("common.none")}</option>
@@ -173,7 +173,7 @@ export function AssignDialog({ open, onOpenChange, departments, employees, emplo
           </NativeSelect>
         </Field>
       )}
-      <Field id="as-dept" label={t("orgAdmin.form.department")} error={e.department_id?.message}>
+      <Field id="as-dept" required label={t("orgAdmin.form.department")} error={e.department_id?.message}>
         <NativeSelect id="as-dept" {...form.register("department_id", { onChange: () => { form.setValue("team_id", ""); form.setValue("position_id", ""); } })} data-testid="assign-dept">
           <option value="">{t("orgAdmin.form.pick")}</option>
           {departments.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
@@ -199,7 +199,7 @@ export function AssignDialog({ open, onOpenChange, departments, employees, emplo
           {employees.map((m) => <option key={m.employee_id} value={m.employee_id}>{m.employee_code} — {m.full_name}</option>)}
         </NativeSelect>
       </Field>
-      <Field id="as-from" label={t("orgAdmin.form.effectiveFrom")} error={e.valid_from?.message}>
+      <Field id="as-from" required label={t("orgAdmin.form.effectiveFrom")} error={e.valid_from?.message}>
         <Input id="as-from" type="date" max={today} {...form.register("valid_from")} aria-invalid={Boolean(e.valid_from)} data-testid="assign-from" />
       </Field>
       <Field id="as-reason" label={t("orgAdmin.form.reason")}><Input id="as-reason" {...form.register("reason")} data-testid="assign-reason" /></Field>

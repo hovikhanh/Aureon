@@ -40,6 +40,7 @@ export function Pager({ pagination, offset, onOffset, limit }: { pagination?: Pa
 
 /** User names for the "người được phục vụ" column (EP-ADM-05, `platform:read` — ADM/CEO have it). */
 export function useUserNames(): (id: string | null | undefined) => string {
+  const t = useTranslations();
   const users = useQuery({
     queryKey: qk.users({ purpose: "ai-logs" }),
     queryFn: () => apiRequest<{ id: string; full_name: string; email: string }[]>("/platform/users", { query: { limit: 100 } }).then((r) => r.data),
@@ -47,6 +48,6 @@ export function useUserNames(): (id: string | null | undefined) => string {
   });
   return React.useCallback((id) => {
     if (!id) return "—";
-    return users.data?.find((u) => u.id === id)?.full_name ?? `${id.slice(0, 8)}…`;
-  }, [users.data]);
+    return users.data?.find((u) => u.id === id)?.full_name ?? t("common.otherPerson");
+  }, [users.data, t]);
 }

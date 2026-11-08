@@ -93,6 +93,39 @@ export const toKeyResultCreate = (v: KeyResultValues) => ({
 });
 export const toKeyResultUpdate = (v: KeyResultValues, version: number) => ({ version, ...toKeyResultCreate(v) });
 
+// ---- Strategy / StrategicObjective (EP-STR-03/08) -------------------------------------------
+export const PILLARS = ["F", "O", "C", "U", "S"] as const;
+const isDay = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+export function strategySchema(m: GoalFormMessages & { dateInvalid: string; endBeforeStart: string }) {
+  return z.object({
+    code: z.string().trim().min(1, m.required).max(50, m.tooLong).regex(/^[A-Za-z0-9._-]+$/, m.codeInvalid),
+    name: z.string().trim().min(1, m.required).max(500, m.tooLong),
+    period_start: z.string().refine(isDay, m.dateInvalid),
+    period_end: z.string().refine(isDay, m.dateInvalid),
+    status: z.enum(GOAL_STATUSES),
+    owner_id: z.string().min(1, m.required),
+  }).refine((v) => !isDay(v.period_start) || !isDay(v.period_end) || v.period_end > v.period_start, { path: ["period_end"], message: m.endBeforeStart });
+}
+export type StrategyValues = z.infer<ReturnType<typeof strategySchema>>;
+export const toStrategyCreate = (v: StrategyValues) => ({
+  code: v.code.trim(), name: v.name.trim(), period_start: v.period_start, period_end: v.period_end, status: v.status, owner_id: v.owner_id,
+});
+
+export function strategicObjectiveSchema(m: GoalFormMessages) {
+  return z.object({
+    code: z.string().trim().min(1, m.required).max(50, m.tooLong).regex(/^[A-Za-z0-9._-]+$/, m.codeInvalid),
+    title: z.string().trim().min(1, m.required).max(500, m.tooLong),
+    pillar: z.union([z.enum(PILLARS), z.literal("")]),
+    owner_id: z.string().min(1, m.required),
+    department_id: z.string(),
+  });
+}
+export type StrategicObjectiveValues = z.infer<ReturnType<typeof strategicObjectiveSchema>>;
+export const toStrategicObjectiveCreate = (strategyId: string, v: StrategicObjectiveValues) => ({
+  strategy_id: strategyId, code: v.code.trim(), title: v.title.trim(), pillar: v.pillar || null, owner_id: v.owner_id, department_id: v.department_id || null,
+});
+
 /** Owner choices: CEO/ADM (`platform:read`) pick any active user; everyone else owns what they create. */
 export function ownerOptions(
   self: { id: string; label: string },

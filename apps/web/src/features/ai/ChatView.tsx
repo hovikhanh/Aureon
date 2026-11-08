@@ -54,7 +54,7 @@ function AssistantMessage({ m, viewer, flow }: { m: ChatMessage; viewer: ChatVie
         </div>
       )}
       {m.warnings.map((w) => (
-        <p key={w} className="text-xs text-warning" data-testid="chat-warning">{w === "AI_NO_DATA_AVAILABLE" ? t("ai.warning.AI_NO_DATA_AVAILABLE") : w === "ai.warn.kill_switch" ? t("ai.warning.kill_switch") : t("ai.warning.default", { code: w })}</p>
+        <p key={w} className="text-xs text-warning" data-testid="chat-warning">{w === "AI_NO_DATA_AVAILABLE" ? t("ai.warning.AI_NO_DATA_AVAILABLE") : w === "ai.warn.kill_switch" ? t("ai.warning.kill_switch") : w === "ai.warn.demo_replay" ? t("ai.warning.demo_replay") : t("ai.warning.default", { code: w })}</p>
       ))}
       {m.truncated && <p className="text-xs text-muted-foreground">{t("ai.truncated")}</p>}
       {m.error && <p role="alert" className="text-sm text-danger" data-testid="chat-error">{KNOWN.includes(m.error) ? t(`errors.${m.error}` as "errors.generic") : t("errors.generic")}</p>}
@@ -153,7 +153,7 @@ export function ChatView({ viewer, initialQuestion }: { viewer: ChatViewer; init
             data-testid="chat-input"
             className="max-h-40 min-h-10 flex-1 resize-none rounded border bg-card px-3 py-2 text-sm"
           />
-          <Button type="submit" variant="ai" disabled={busy || !input.trim()} aria-label={t("buttons.send")} data-testid="chat-send">
+          <Button type="submit" disabled={busy || !input.trim()} aria-label={t("buttons.send")} data-testid="chat-send">
             <Send className="h-4 w-4" aria-hidden /><span className="hidden sm:inline">{t("buttons.send")}</span>
           </Button>
         </form>

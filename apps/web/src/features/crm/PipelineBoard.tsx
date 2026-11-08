@@ -15,9 +15,9 @@ import { formatDate, formatMoneyShort, type AppLocale } from "@/lib/format";
 import { business_today } from "./today";
 import { STAGES, canMoveTo, dealRisk } from "./crm";
 import { LostReasonDialog, StageSelect, useStageMove } from "./StageMove";
-import { useClients, useDeals, usePipeline, type DealOut } from "./use-crm";
+import { useClients, useDeals, useOwnerLabel, usePipeline, type DealOut } from "./use-crm";
 
-export function PipelineBoard({ canMove, userId }: { canMove: boolean; userId: string }) {
+export function PipelineBoard({ canMove, userId, canReadUsers }: { canMove: boolean; userId: string; canReadUsers: boolean }) {
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
   const deals = useDeals({ sort_by: "expected_close_date", order: "asc" });
@@ -26,6 +26,7 @@ export function PipelineBoard({ canMove, userId }: { canMove: boolean; userId: s
   const clientName = new Map((clients.data ?? []).map((c) => [c.id, c.name]));
   const [dragged, setDragged] = React.useState<DealOut | null>(null);
   const mover = useStageMove();
+  const ownerLabel = useOwnerLabel(userId, canReadUsers);
   const today = business_today();
 
   const drop = (stage: string) => {
@@ -66,7 +67,7 @@ export function PipelineBoard({ canMove, userId }: { canMove: boolean; userId: s
                     <span className="tabular-nums">{formatMoneyShort(d.deal_value, locale)} · {d.probability_pct}%</span>
                     <span className="text-xs text-muted-foreground tabular-nums">{t("crm.weighted")}: {formatMoneyShort(d.weighted_value, locale)}</span>
                     <span className="text-xs tabular-nums">{t("crm.closeDate")}: {formatDate(d.expected_close_date, locale)}</span>
-                    <span className="text-xs text-muted-foreground">{t("crm.owner")}: {d.owner_id === userId ? t("crm.me") : d.owner_id.slice(0, 8)}</span>
+                    <span className="text-xs text-muted-foreground">{t("crm.owner")}: {ownerLabel(d.owner_id)}</span>
                     {risk && <Badge variant={risk === "overdue" ? "danger" : "warning"} data-testid="crm-risk">{t(`crm.risk.${risk}`)}</Badge>}
                     {canMove && <StageSelect deal={d} disabled={mover.busy} onMove={(to) => mover.request(d, to)} testId="crm-card-move" />}
                   </Card>

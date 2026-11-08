@@ -14,11 +14,12 @@ describe("scoreBand", () => {
 
 describe("fmtPct", () => {
   it("formats one decimal and dashes null/NaN", () => {
-    expect(fmtPct(95.833)).toBe("95.8%");
-    expect(fmtPct(100)).toBe("100.0%");
-    expect(fmtPct(null)).toBe("—");
-    expect(fmtPct(undefined)).toBe("—");
-    expect(fmtPct(NaN)).toBe("—");
+    expect(fmtPct(95.833, "vi")).toBe("95,8%");
+    expect(fmtPct(95.833, "en")).toBe("95.8%");
+    expect(fmtPct(100, "vi")).toBe("100,0%");
+    expect(fmtPct(null, "vi")).toBe("—");
+    expect(fmtPct(undefined, "vi")).toBe("—");
+    expect(fmtPct(NaN, "vi")).toBe("—");
   });
 });
 

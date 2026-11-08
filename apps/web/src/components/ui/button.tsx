@@ -13,7 +13,6 @@ const buttonVariants = cva(
         ghost: "hover:bg-muted",
         danger: "bg-danger text-white hover:bg-danger/90",
         success: "bg-success text-white hover:bg-success/90",
-        ai: "bg-ai text-ai-foreground hover:bg-ai/90",
       },
       size: { default: "h-10 px-4", sm: "h-8 px-3 text-xs", lg: "h-11 px-6", icon: "h-9 w-9" },
     },

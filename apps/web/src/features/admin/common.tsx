@@ -83,11 +83,16 @@ export function ConfirmDialog({ open, onOpenChange, title, body, confirmLabel, d
   );
 }
 
-export function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: React.ReactNode }) {
+/** `required` is the one way to mark a mandatory field: a visual `*` and `aria-required` on the control. */
+export function Field({ id, label, error, required, children }: { id: string; label: string; error?: string; required?: boolean; children: React.ReactNode }) {
+  // a wrapper `div` cannot carry `aria-required`: its input sets it itself
+  const control = required && React.isValidElement(children) && children.type !== "div"
+    ? React.cloneElement(children as React.ReactElement<{ "aria-required"?: boolean }>, { "aria-required": true })
+    : children;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
+      <Label htmlFor={id}>{label}{required && <span className="ml-0.5 text-danger" aria-hidden>*</span>}</Label>
+      {control}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

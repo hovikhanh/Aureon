@@ -21,7 +21,7 @@ export function KpiChart({ evaluations, direction, unit }: { evaluations: KpiEva
           <YAxis fontSize={12} tickFormatter={fmt} width={72} />
           <Tooltip formatter={(v) => fmt(Number(v))} labelFormatter={(p) => formatPeriod(String(p), locale)} />
           <Legend />
-          <Line type="monotone" dataKey="actual" name={t("actual")} stroke="var(--color-primary, #2563eb)" strokeWidth={2} dot />
+          <Line type="monotone" dataKey="actual" name={t("actual")} stroke="var(--color-primary, #0b2545)" strokeWidth={2} dot />
           <Line type="stepAfter" dataKey="target" name={t("target")} stroke="var(--color-success, #16a34a)" strokeDasharray="6 3" dot={false} />
           <Line type="stepAfter" dataKey="near" name={t("near")} stroke="var(--color-warning, #d97706)" strokeDasharray="2 4" dot={false} />
           <Line type="stepAfter" dataKey="below" name={t("below")} stroke="var(--color-danger, #dc2626)" strokeDasharray="2 4" dot={false} />

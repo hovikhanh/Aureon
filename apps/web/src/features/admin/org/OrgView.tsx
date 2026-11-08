@@ -219,7 +219,7 @@ function EmployeePanel({ dept, member, depts, editable, onTransfer }: { dept: Tr
   const locale = useLocale() as AppLocale;
   const history = useAssignmentHistory(member?.employee_id ?? null);
   if (!member) return null;
-  const nameOf = (id: string | null) => depts.find((d) => d.id === id)?.name ?? id?.slice(0, 8) ?? t("common.none");
+  const nameOf = (id: string | null) => depts.find((d) => d.id === id)?.name ?? (id ? t("common.otherDepartment") : t("common.none"));
   const teamOf = (id: string | null) => depts.flatMap((d) => d.teams).find((x) => x.id === id)?.code ?? "";
   const people = depts.flatMap((d) => d.members);
   const manager = people.find((m) => m.employee_id === member.manager_id);

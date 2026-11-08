@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -65,10 +65,10 @@ export function ReassignDialog({ open, onOpenChange, task }: { open: boolean; on
             <textarea id="ra-reason" rows={3} maxLength={500} {...form.register("reason")} aria-invalid={Boolean(e.reason)} className="rounded border bg-card px-3 py-2 text-sm" data-testid="reassign-reason" />
           </Field>
           {error && <p role="alert" className="text-sm text-danger" data-testid="reassign-error">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{tb("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={send.isPending} data-testid="reassign-submit">{t("submit")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

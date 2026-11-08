@@ -37,7 +37,10 @@ export interface Counted<T> {
 }
 
 export interface ExecutiveDashboard {
+  /** Deprecated: Vietnamese display line; render `summary_key` + `summary_params` instead (CLAUDE §5.2). */
   summary_line: string;
+  summary_key?: string;
+  summary_params?: { decisions: number; risks: number; sei_pct?: number };
   tiles: MetricValue[];
   sei: MetricValue | null;
   decisions_waiting: Counted<unknown>;

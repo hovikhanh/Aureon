@@ -7,7 +7,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/api-client";
 import { formatDate, type AppLocale } from "@/lib/format";
+import { codeLabel } from "@/lib/humanize";
 import { qk } from "@/lib/query-keys";
+import { SortHeader } from "@/components/SortHeader";
+import { nextSort, type SortState } from "@/lib/sort";
 import { QueryError } from "@/components/QueryError";
 
 interface EmployeeOut {
@@ -20,6 +23,8 @@ interface EmployeeOut {
 }
 
 const PAGE = 20;
+/** Columns EP-82 can sort (`page_params` whitelist). */
+const SORT_FIELD: Partial<Record<string, string>> = { code: "employee_code", name: "full_name", hired: "hire_date" };
 
 /** Minimal EP-82 employee list (T-516 HR flow; full SCR-O drill-down = S5b-full). */
 export function EmployeesView() {
@@ -27,7 +32,9 @@ export function EmployeesView() {
   const locale = useLocale() as AppLocale;
   const [q, setQ] = React.useState("");
   const [offset, setOffset] = React.useState(0);
-  const params = { q, limit: PAGE, offset, sort_by: "full_name", order: "asc" };
+  const [sort, setSort] = React.useState<SortState>({ field: "full_name", order: "asc" });
+  const params = { q, limit: PAGE, offset, sort_by: sort.field, order: sort.order };
+  const onSort = (field: string) => { setSort(nextSort(sort, field)); setOffset(0); };
   const res = useQuery({
     queryKey: qk.employees(params),
     queryFn: ({ signal }) => apiRequest<EmployeeOut[]>("/hr/employees", { query: params, signal }),
@@ -49,7 +56,12 @@ export function EmployeesView() {
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm" data-testid="employee-table">
             <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
-              <tr>{(["code", "name", "title", "status", "hired"] as const).map((c) => <th key={c} scope="col" className="px-3 py-2 font-medium">{t(`hr.col.${c}`)}</th>)}</tr>
+              <tr>{(["code", "name", "title", "status", "hired"] as const).map((c) => {
+                const field = SORT_FIELD[c];
+                return field
+                  ? <SortHeader key={c} field={field} label={t(`hr.col.${c}`)} sort={sort} onSort={onSort} />
+                  : <th key={c} scope="col" className="px-3 py-2 font-medium">{t(`hr.col.${c}`)}</th>;
+              })}</tr>
             </thead>
             <tbody className="divide-y">
               {items.map((e) => (
@@ -57,7 +69,7 @@ export function EmployeesView() {
                   <td className="px-3 py-2 font-mono">{e.employee_code}</td>
                   <td className="px-3 py-2">{e.full_name}</td>
                   <td className="px-3 py-2">{e.title ?? "—"}</td>
-                  <td className="px-3 py-2">{e.status}</td>
+                  <td className="px-3 py-2" data-status={e.status}>{codeLabel(t as never, "records.enum.status", e.status)}</td>
                   <td className="px-3 py-2 tabular-nums">{formatDate(e.hire_date, locale)}</td>
                 </tr>
               ))}

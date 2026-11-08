@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/features/admin/common";
@@ -40,10 +40,10 @@ export function MeasureDialog({ open, onOpenChange, kpiId, period }: Props) {
           <Field id="m-value" label={t("form.value")} error={e.actual_value?.message}><Input id="m-value" inputMode="decimal" {...form.register("actual_value")} data-testid="m-value" /></Field>
           <Field id="m-note" label={t("form.note")} error={e.note?.message}><Input id="m-note" {...form.register("note")} data-testid="m-note" /></Field>
           {error && <p role="alert" className="text-sm text-danger" data-testid="measure-error">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("form.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={m.isPending} data-testid="m-submit">{t("form.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -77,10 +77,10 @@ export function TargetDialog({ open, onOpenChange, kpiId, period }: Props) {
           <Field id="t-from" label={t("form.validFrom")} error={e.valid_from?.message}><Input id="t-from" type="date" {...form.register("valid_from")} data-testid="t-from" /></Field>
           <Field id="t-reason" label={t("form.reason")} error={e.reason?.message}><Input id="t-reason" {...form.register("reason")} data-testid="t-reason" /></Field>
           {error && <p role="alert" className="text-sm text-danger" data-testid="target-error">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("form.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={m.isPending} data-testid="t-submit">{t("form.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

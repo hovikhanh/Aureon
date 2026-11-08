@@ -1,6 +1,6 @@
 /** TC-M8-03 (unit) — CRM helpers on the existing sales model (BRD §2.6/2.8/2.9). */
 import { describe, expect, it } from "vitest";
-import { canMoveTo, dealRisk, forecast, funnel, quarterOptions } from "./crm";
+import { canMoveTo, dealRisk, forecast, funnelPct, quarterOptions } from "./crm";
 
 describe("canMoveTo mirrors the API stage rule", () => {
   it.each([
@@ -10,19 +10,12 @@ describe("canMoveTo mirrors the API stage rule", () => {
   ])("%s → %s = %s", (from, to, ok) => expect(canMoveTo(from, to)).toBe(ok));
 });
 
-describe("funnel (Method A, BRD L910–923)", () => {
-  it("conversion = N_current / N_previous, drop-off = 100 − conversion; lost is not a step", () => {
-    const steps = funnel([
-      { stage: "lead", count: 50, value: 0, weighted_value: 0 },
-      { stage: "qualified", count: 30, value: 0, weighted_value: 0 },
-      { stage: "proposal", count: 10, value: 0, weighted_value: 0 },
-      { stage: "negotiation", count: 0, value: 0, weighted_value: 0 },
-      { stage: "closed_won", count: 5, value: 0, weighted_value: 0 },
-      { stage: "closed_lost", count: 9, value: 0, weighted_value: 0 },
-    ]);
-    expect(steps.map((s) => s.stage)).toEqual(["lead", "qualified", "proposal", "negotiation", "closed_won"]);
-    expect(steps.map((s) => s.conversionPct)).toEqual([null, 60, 33.3, 0, null]); // ÷0 → null, never Infinity
-    expect(steps[1]!.dropOffPct).toBe(40);
+describe("funnelPct (the API computes the cumulative funnel, D-09)", () => {
+  it("shows a ratio as sent, nothing when there is none", () => {
+    expect(funnelPct(75)).toBe("75%");
+    expect(funnelPct(33.3)).toBe("33.3%");
+    expect(funnelPct(0)).toBe("0%");
+    expect(funnelPct(null)).toBe("—");
   });
 });
 

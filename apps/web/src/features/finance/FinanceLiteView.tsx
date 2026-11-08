@@ -8,6 +8,7 @@ import { formatMoney, formatMoneyShort, formatNumber, formatPct, type AppLocale 
 import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/QueryError";
+import { useDepartments } from "@/features/admin/org/use-org";
 
 interface FinanceSummary {
   total_revenue: number;
@@ -49,9 +50,13 @@ const STATUS_CLASS: Record<BudgetStatusOut["status"], string> = {
 };
 
 /** M2.2 Finance Lite overview (T-715F, SCR-46): budget utilization, cash balance, runway. */
-export function FinanceLiteView() {
+export function FinanceLiteView({ canReadDepartments, departmentId }: { canReadDepartments: boolean; departmentId: string | null }) {
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
+  const departments = useDepartments(canReadDepartments);
+  // `/hr/departments` is khối O: a role that cannot read it gets a plain label, never a hash
+  const departmentName = (id: string) =>
+    departments.data?.data.find((d) => d.id === id)?.name ?? (id === departmentId ? t("common.myDepartment") : t("common.otherDepartment"));
 
   const dash = useQuery({
     queryKey: qk.financeDashboard(),
@@ -129,7 +134,7 @@ export function FinanceLiteView() {
               <tbody className="divide-y">
                 {budgetRows.map((b) => (
                   <tr key={b.budget_id} data-testid="budget-row" data-status={b.status}>
-                    <td className="px-3 py-2 font-mono text-xs">{b.department_id.slice(0, 8)}</td>
+                    <td className="px-3 py-2">{departmentName(b.department_id)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatMoneyShort(b.allocated_amount, locale)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatMoneyShort(b.spent_amount, locale)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatPct(b.budget_utilization_pct, locale)}</td>

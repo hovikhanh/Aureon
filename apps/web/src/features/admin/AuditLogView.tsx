@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { apiRequest } from "@/lib/api-client";
 import { formatDateTime, type AppLocale } from "@/lib/format";
+import { codeLabel } from "@/lib/humanize";
 import { qk } from "@/lib/query-keys";
 
 interface AuditLogOut {
@@ -27,6 +28,15 @@ export function dayBound(day: string, end: boolean): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return undefined;
   return new Date(`${day}T${end ? "23:59:59.999" : "00:00:00.000"}+07:00`).toISOString();
 }
+
+type T = { (key: string): string; has: (key: string) => boolean };
+
+/** Role name, else the actor type — never the role code. */
+export const auditActor = (t: T, a: Pick<AuditLogOut, "actor_role" | "actor_type">): string =>
+  a.actor_role ? codeLabel(t, "role", a.actor_role) : codeLabel(t, "audit.actor", a.actor_type);
+
+/** Object type in plain words; the record id stays available as the cell tooltip for investigations. */
+export const auditTarget = (t: T, table: string | null): string => (table ? codeLabel(t, "audit.table", table) : "—");
 
 /** SCR-14 — EP-52 append-only audit log for ADMIN (T-516) + M1.2 filters `from`/`to`/`actor_type` (EP-ADM-12, T-617F). Read only. */
 export function AuditLogView() {
@@ -78,9 +88,9 @@ export function AuditLogView() {
               {items.map((a) => (
                 <tr key={a.id} data-testid="audit-row" data-action={a.action}>
                   <td className="px-3 py-2 tabular-nums">{formatDateTime(a.occurred_at, locale)}</td>
-                  <td className="px-3 py-2">{a.actor_role ?? a.actor_type}</td>
+                  <td className="px-3 py-2">{auditActor(t as never, a)}</td>
                   <td className="px-3 py-2 font-mono">{a.action}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{a.target_table ?? "—"}{a.target_id ? ` · ${a.target_id.slice(0, 8)}` : ""}</td>
+                  <td className="px-3 py-2" title={a.target_id ?? undefined} data-target-id={a.target_id ?? undefined}>{auditTarget(t as never, a.target_table)}</td>
                 </tr>
               ))}
             </tbody>

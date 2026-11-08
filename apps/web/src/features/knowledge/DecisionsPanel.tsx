@@ -16,7 +16,7 @@ import { useDecisions } from "./use-knowledge";
 
 const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
   open: "primary",
-  in_progress: "ai",
+  in_progress: "primary",
   done: "success",
   cancelled: "default",
 };

@@ -5,6 +5,13 @@ import type { ChatMessage } from "./types";
 const empty: ChatMessage = { id: "tmp", sender: "assistant", content: "", sources: [], tools: [], warnings: [], streaming: true };
 
 describe("chat stream reducer", () => {
+  it("keeps the replay mode of a scripted demo answer (F-C2)", () => {
+    const r = applyEvent(empty, { event: "done", data: { answer: "x", warnings: ["ai.warn.demo_replay"], mode: "replay" } });
+    expect(r.msg.mode).toBe("replay");
+    expect(r.msg.warnings).toContain("ai.warn.demo_replay");
+    expect(applyEvent(empty, { event: "done", data: { answer: "x" } }).msg.mode).toBe("live");
+  });
+
   it("applies start → tool → token → done", () => {
     let r = applyEvent(empty, { event: "start", data: { conversation_id: "c1", message_id: "m1" } });
     expect(r.conversationId).toBe("c1");

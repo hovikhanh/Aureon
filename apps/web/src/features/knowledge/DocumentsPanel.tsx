@@ -12,10 +12,12 @@ import { FileText, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { codeLabel } from "@/lib/humanize";
 import { useDocumentSearch } from "./use-knowledge";
 
 export function DocumentsPanel() {
   const t = useTranslations("documents");
+  const tAll = useTranslations();
   const [term, setTerm] = useState("");
   const [q, setQ] = useState("");
   // Debounce the query 300ms so each keystroke does not fire EP-24.
@@ -55,13 +57,13 @@ export function DocumentsPanel() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <a
                     href={`/idp/documents/${h.document_id}?page=${h.page_number}`}
-                    className="flex items-center gap-2 font-medium text-ai hover:underline"
+                    className="flex items-center gap-2 font-medium text-primary hover:underline"
                   >
                     <FileText className="h-4 w-4" aria-hidden />
                     {h.title}
                   </a>
                   <div className="flex items-center gap-2">
-                    {h.doc_type && <Badge variant="outline">{h.doc_type}</Badge>}
+                    {h.doc_type && <Badge variant="outline">{codeLabel(tAll as never, "capture.docType", h.doc_type)}</Badge>}
                     <span className="text-xs text-muted-foreground">
                       {t("page", { n: h.page_number })} · {Math.round((h.score ?? 0) * 100)}%
                     </span>

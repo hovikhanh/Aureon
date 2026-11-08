@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { apiRequest } from "@/lib/api-client";
 import { formatDate, formatMoney, type AppLocale } from "@/lib/format";
+import { codeLabel } from "@/lib/humanize";
 import { qk } from "@/lib/query-keys";
+import { SortHeader } from "@/components/SortHeader";
+import { nextSort, type SortState } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/QueryError";
 
@@ -24,6 +27,8 @@ interface InvoiceOut {
 }
 
 const PAGE = 20;
+/** Columns the EP-6x list can sort (`page_params` whitelist). */
+const SORT_FIELD: Partial<Record<string, string>> = { issued: "issued_on", total: "total_amount" };
 
 /** Minimal EP-6x invoice list (S5a: verifies the IDP commit; full SCR-0x Finance in S5b). */
 export function InvoicesView() {
@@ -31,7 +36,9 @@ export function InvoicesView() {
   const locale = useLocale() as AppLocale;
   const [direction, setDirection] = React.useState<"" | "IN" | "OUT">("");
   const [offset, setOffset] = React.useState(0);
-  const params = { direction, limit: PAGE, offset, sort_by: "issued_on", order: "desc" };
+  const [sort, setSort] = React.useState<SortState>({ field: "issued_on", order: "desc" });
+  const params = { direction, limit: PAGE, offset, sort_by: sort.field, order: sort.order };
+  const onSort = (field: string) => { setSort(nextSort(sort, field)); setOffset(0); };
   const q = useQuery({
     queryKey: qk.invoices(params),
     queryFn: ({ signal }) => apiRequest<InvoiceOut[]>("/finance/invoices", { query: params, signal }),
@@ -56,7 +63,12 @@ export function InvoicesView() {
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm" data-testid="invoice-table">
             <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
-              <tr>{(["number", "direction", "counterparty", "issued", "total", "status"] as const).map((c) => <th key={c} scope="col" className={cn("px-3 py-2 font-medium", c === "total" && "text-right")}>{t(`finance.col.${c}`)}</th>)}</tr>
+              <tr>{(["number", "direction", "counterparty", "issued", "total", "status"] as const).map((c) => {
+                const field = SORT_FIELD[c];
+                return field
+                  ? <SortHeader key={c} field={field} label={t(`finance.col.${c}`)} sort={sort} onSort={onSort} className={cn(c === "total" && "text-right")} />
+                  : <th key={c} scope="col" className="px-3 py-2 font-medium">{t(`finance.col.${c}`)}</th>;
+              })}</tr>
             </thead>
             <tbody className="divide-y">
               {items.map((i) => (
@@ -66,7 +78,7 @@ export function InvoicesView() {
                   <td className="px-3 py-2">{i.client_name ?? i.counterparty_name ?? "—"}</td>
                   <td className="px-3 py-2 tabular-nums">{formatDate(i.issued_on, locale)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatMoney(i.total_amount, locale)}</td>
-                  <td className="px-3 py-2">{i.status}</td>
+                  <td className="px-3 py-2" data-status={i.status}>{codeLabel(t as never, "records.enum.status", i.status)}</td>
                 </tr>
               ))}
             </tbody>

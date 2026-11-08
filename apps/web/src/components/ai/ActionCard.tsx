@@ -81,7 +81,7 @@ export function ActionCard({ action, viewerId, permissions, onConfirm, onReject,
             </>
           ) : (
             <>
-              <Button size="sm" variant="ai" disabled={busy} onClick={() => void run(() => onConfirm!(diffEdits(preview, edits)))} data-testid="action-confirm"><Check className="h-4 w-4" aria-hidden />{t("confirm")}</Button>
+              <Button size="sm" disabled={busy} onClick={() => void run(() => onConfirm!(diffEdits(preview, edits)))} data-testid="action-confirm"><Check className="h-4 w-4" aria-hidden />{t("confirm")}</Button>
               {mode === "view" && <Button size="sm" variant="outline" onClick={() => setMode("edit")} data-testid="action-edit"><Pencil className="h-4 w-4" aria-hidden />{t("edit")}</Button>}
               <Button size="sm" variant="ghost" onClick={() => setMode("reject")} data-testid="action-reject"><X className="h-4 w-4" aria-hidden />{t("reject")}</Button>
             </>

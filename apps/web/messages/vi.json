@@ -34,7 +34,7 @@
     "work": "Task, workload và dự án.",
     "meetings": "Cuộc họp, biên bản → việc, lịch.",
     "data": "Gửi/duyệt tài liệu, Hộp thư dữ liệu, review.",
-    "business": "Finance Lite, Sales Lite, HR cơ bản.",
+    "business": "Tài chính, kinh doanh và nhân sự.",
     "knowledge": "Tài liệu, báo cáo, decision log.",
     "admin": "Tổ chức, quyền, AI policy, audit."
   },
@@ -216,6 +216,37 @@
     "alertsPageTitle": "Cảnh báo & rủi ro đang mở"
   },
   "metricDetail": {
+    "entity": {
+      "MetricValue": "Giá trị chỉ số",
+      "Initiative": "Sáng kiến",
+      "Decision": "Quyết định",
+      "Project": "Dự án",
+      "Task": "Công việc",
+      "Mitigation": "Biện pháp",
+      "Risk": "Rủi ro",
+      "Release": "Phát hành",
+      "RoadmapItem": "Lộ trình",
+      "ProductMetric": "Chỉ số sản phẩm",
+      "Product": "Sản phẩm",
+      "HiringPlan": "Kế hoạch tuyển dụng",
+      "Employee": "Nhân viên",
+      "SalesTarget": "Chỉ tiêu bán hàng",
+      "Deal": "Cơ hội",
+      "CashPosition": "Vị thế tiền mặt",
+      "Budget": "Ngân sách",
+      "Invoice": "Hóa đơn",
+      "Expense": "Chi phí",
+      "Revenue": "Doanh thu"
+    },
+    "module": {
+      "platform": "Nền tảng",
+      "execution": "Thực thi",
+      "risk": "Rủi ro",
+      "product": "Sản phẩm",
+      "hr": "Nhân sự",
+      "sales": "Kinh doanh",
+      "finance": "Tài chính"
+    },
     "title": "Chi tiết chỉ số",
     "lineageSource": "Nguồn",
     "lineageComputedAt": "Tính lúc",
@@ -289,7 +320,7 @@
     "VND": "đ"
   },
   "insight": {
-    "sectionTitle": "AI phát hiện",
+    "sectionTitle": "AI gợi ý",
     "badge": "AI gợi ý",
     "evidence": "Bằng chứng",
     "impact": "Tác động",
@@ -340,7 +371,8 @@
     "warning": {
       "AI_NO_DATA_AVAILABLE": "Không có dữ liệu để trả lời câu này.",
       "default": "Lưu ý: {code}",
-      "kill_switch": "Kill switch đang bật — AI không soạn thao tác."
+      "kill_switch": "Kill switch đang bật — AI không soạn thao tác.",
+      "demo_replay": "Kịch bản demo: nhận định viết sẵn, số liệu lấy từ dữ liệu hiện tại. Không phải câu trả lời của AI."
     },
     "truncated": "Câu trả lời bị cắt ngắn.",
     "suggestions": {
@@ -527,6 +559,9 @@
     }
   },
   "common": {
+    "otherPerson": "Người khác",
+    "otherDepartment": "Phòng ban khác",
+    "myDepartment": "Phòng ban của tôi",
     "loading": "Đang tải…",
     "none": "—",
     "page": "Trang",
@@ -583,6 +618,37 @@
     }
   },
   "audit": {
+    "table": {
+      "agent_profiles": "Hồ sơ AI Agent",
+      "autonomy_policies": "Chính sách tự chủ",
+      "briefings": "Briefing",
+      "budgets": "Ngân sách",
+      "capture_incidents": "Sự cố nhập liệu",
+      "cash_flow_forecasts": "Dự báo dòng tiền",
+      "document_types": "Loại tài liệu",
+      "extracted_fields": "Trường trích xuất",
+      "extraction_jobs": "Lượt trích xuất",
+      "forecasts": "Dự báo",
+      "import_rows": "Dòng nhập liệu",
+      "notification_preferences": "Tùy chọn thông báo",
+      "positions": "Vị trí",
+      "reports": "Báo cáo",
+      "user_preferences": "Tùy chọn người dùng",
+      "ai_actions": "Hành động AI",
+      "approval_requests": "Yêu cầu phê duyệt",
+      "extraction_schemas": "Mẫu trích xuất",
+      "review_assignments": "Phân công review",
+      "system_settings": "Cấu hình hệ thống",
+      "tasks": "Công việc",
+      "validation_rules": "Quy tắc kiểm tra",
+      "invoices": "Hóa đơn",
+      "alerts": "Cảnh báo",
+      "calendar_accounts": "Tài khoản lịch",
+      "hiring_plans": "Kế hoạch tuyển dụng",
+      "users": "Người dùng",
+      "employee_assignments": "Phân công nhân sự",
+      "source_documents": "Tài liệu nguồn"
+    },
     "title": "Nhật ký kiểm toán",
     "total": "{total} bản ghi",
     "appendOnly": "Chỉ đọc — nhật ký không thể sửa hoặc xóa (append-only).",
@@ -810,8 +876,8 @@
     "granted": "Có quyền",
     "notGranted": "Không có quyền",
     "legendTitle": "Ký hiệu phạm vi",
-    "otherMarks": "Các ký hiệu khác (k, l, t, u) là phạm vi đặc thù theo ma trận quyền 02 §5.3.",
-    "readOnly": "Chỉ đọc — ma trận quyền là cấu hình hệ thống (R-DEC-174); thay đổi quyền cần quyết định riêng (Admin + chủ domain, 02 §7).",
+    "otherMarks": "Các ký hiệu khác (k, l, t, u) là phạm vi đặc thù theo ma trận quyền.",
+    "readOnly": "Chỉ đọc — ma trận quyền là cấu hình hệ thống; thay đổi quyền cần quyết định riêng của Admin và chủ dữ liệu.",
     "scope": {
       "d": "phòng ban của mình (+ phòng con)",
       "o": "của chính mình",
@@ -1170,6 +1236,26 @@
     "retry": "Thử lại"
   },
   "goals": {
+    "strategy": {
+      "soTitle": "Mục tiêu chiến lược của {name}",
+      "soEmpty": "Chiến lược này chưa có mục tiêu.",
+      "empty": "Chưa có chiến lược nào.",
+      "soCreated": "Đã tạo mục tiêu chiến lược {code}",
+      "created": "Đã tạo chiến lược {code}",
+      "endBeforeStart": "Ngày kết thúc phải sau ngày bắt đầu.",
+      "dateInvalid": "Chọn ngày hợp lệ.",
+      "pillarNone": "Toàn công ty",
+      "pillar": "Khối",
+      "status": "Trạng thái",
+      "periodEnd": "Kết thúc",
+      "periodStart": "Bắt đầu",
+      "soName": "Tên mục tiêu chiến lược",
+      "name": "Tên chiến lược",
+      "code": "Mã",
+      "createSo": "Tạo mục tiêu chiến lược",
+      "create": "Tạo chiến lược",
+      "title": "Chiến lược"
+    },
     "tabs": {
       "label": "Mục tiêu",
       "tree": "Cây mục tiêu",
@@ -1234,6 +1320,7 @@
       }
     },
     "kpi": {
+      "linkedKr": "Key Result đã liên kết",
       "back": "Quay lại cây mục tiêu",
       "tabs": {
         "overview": "Tổng quan",
@@ -1270,7 +1357,7 @@
       "source": "Nguồn",
       "note": "Ghi chú",
       "noSources": "Chưa có tài liệu gốc cho KPI này.",
-      "aiPlaceholder": "Hoạt động AI sẽ có từ M2.",
+      "aiPlaceholder": "Hoạt động AI sẽ có ở bản sau.",
       "lockedHint": "Kỳ đã khóa — không thể ghi thêm.",
       "measure": "Ghi số đo",
       "setTarget": "Đặt target kỳ",
@@ -1329,8 +1416,8 @@
       "blocker": "Vướng mắc (nếu có)",
       "submit": "Gửi check-in",
       "saving": "Đang gửi…",
-      "prefill": "AI điền sẵn",
-      "prefillSoon": "AI điền sẵn sẽ có ở bản M2.4.",
+      "prefill": "AI soạn",
+      "prefillSoon": "AI soạn sẽ có ở bản sau.",
       "prefillUse": "Dùng gợi ý",
       "kr": "Key Result",
       "kpi": "KPI",
@@ -1465,6 +1552,15 @@
     }
   },
   "capture": {
+    "fieldEnum": {
+      "LOW": "Thấp",
+      "MEDIUM": "Trung bình",
+      "HIGH": "Cao",
+      "terminated": "Đã nghỉ việc",
+      "on_leave": "Tạm nghỉ",
+      "active": "Đang làm việc",
+      "probation": "Thử việc"
+    },
     "inbox": {
       "title": "Hộp thư dữ liệu",
       "subtitle": "Tài liệu và dữ liệu bạn đã gửi: trạng thái, người duyệt, bản ghi đã ghi.",
@@ -1676,6 +1772,23 @@
       "unknown": "Chưa phân loại"
     },
     "field": {
+      "revenue_category": "Nhóm doanh thu",
+      "revenue_amount": "Số tiền doanh thu",
+      "phone": "Số điện thoại",
+      "national_id": "Số CCCD",
+      "kr_ref": "Mã Key Result",
+      "expense_vendor": "Nhà cung cấp",
+      "expense_title": "Nội dung chi",
+      "expense_category": "Nhóm chi phí",
+      "expense_amount": "Số tiền chi",
+      "date_of_birth": "Ngày sinh",
+      "confidence": "Mức tự tin",
+      "closing_balance": "Số dư cuối kỳ",
+      "bank_account": "Số tài khoản ngân hàng",
+      "address": "Địa chỉ",
+      "action_item_title": "Việc cần làm",
+      "action_item_owner": "Người phụ trách việc",
+      "action_item_due": "Hạn việc cần làm",
       "employee_code": "Mã NV",
       "full_name": "Họ tên",
       "title": "Chức danh",
@@ -1794,7 +1907,7 @@
       "submit": "Gửi {valid, plural, other {# dòng hợp lệ}} (bỏ {invalid, plural, other {# dòng lỗi}})",
       "submitted": "Đã gửi {n} dòng để duyệt",
       "alreadySubmitted": "Lô này đã được gửi",
-      "suggested": "AI gợi ý loại: {type} ({pct})",
+      "suggested": "AI gợi ý: {type} ({pct})",
       "preview": "Xem trước các dòng đầu",
       "upload": "Đang tải file lên…",
       "started": "Đã nhận file — hãy ghép cột"
@@ -1926,7 +2039,7 @@
     "title": "AI Control Center",
     "subtitle": "Kill switch, agent, mức tự chủ và Tool Registry",
     "openLogs": "Xem log & chi phí",
-    "openInM3": "Mở ở M3",
+    "openInM3": "Mở ở bản sau",
     "conflict": "Dữ liệu đã đổi, tải lại",
     "tabs": {
       "overview": "Tổng quan",
@@ -1941,7 +2054,7 @@
       "L3": "AI đã làm"
     },
     "reason": {
-      "above_ceiling": "Vượt trần tự chủ M1 (L2)",
+      "above_ceiling": "Vượt trần tự chủ hiện tại (L2)",
       "above_tool_max": "Vượt mức tối đa của tool",
       "critical_field": "Thao tác có trường trọng yếu — không được hạ xuống dưới L2",
       "not_configurable": "Tool này không cấu hình được mức tự chủ",
@@ -1974,7 +2087,7 @@
       "offToast": "Đã tắt kill switch"
     },
     "ceiling": {
-      "title": "Mức tự chủ tối đa: {level} (M1)",
+      "title": "Mức tự chủ tối đa: {level}",
       "hint": "trần hệ thống, chỉ đọc"
     },
     "queue": {
@@ -2021,7 +2134,7 @@
       "hint": "Chỉ tool WRITE/EXECUTION. Ghi đè theo agent, role hoặc ngưỡng tiền.",
       "new": "Thêm ghi đè",
       "add": "ghi đè",
-      "capped": "hạ theo trần M1",
+      "capped": "hạ theo trần hiện tại",
       "everyone": "Mọi người",
       "forRole": "role {role}",
       "forAgent": "agent {agent}",
@@ -2032,7 +2145,7 @@
       "deleted": "Đã xóa ghi đè",
       "saved": "Đã lưu chính sách",
       "editTitle": "Sửa ghi đè",
-      "dialogHint": "Mức hiệu lực = min(chính sách, trần M1, mức tối đa của agent).",
+      "dialogHint": "Mức hiệu lực = min(chính sách, trần hiện tại, mức tối đa của agent).",
       "agent": "Agent (tùy chọn)",
       "role": "Role (tùy chọn)",
       "any": "— Bất kỳ —",
@@ -2079,7 +2192,7 @@
         "cost_estimate": "Chi phí ước tính",
         "owner": "Chủ sở hữu",
         "endpoint_ref": "EP tham chiếu",
-        "brd_name": "Tên BRD",
+        "brd_name": "Tên nghiệp vụ",
         "agents": "Agent dùng",
         "input_schema": "input_schema",
         "output_schema": "output_schema"
@@ -2142,7 +2255,7 @@
     "rejectReason": "Lý do từ chối",
     "doItMyself": "Tự làm",
     "error": "Không thực hiện được thao tác",
-    "executed": "AI đã thực hiện thao tác bạn xác nhận",
+    "executed": "AI đã làm thao tác bạn xác nhận",
     "rejected": "Đã từ chối thẻ",
     "undone": "Đã hoàn tác",
     "undoExpired": "Đã quá hạn hoàn tác"
@@ -2159,7 +2272,7 @@
     "from": "Từ ngày",
     "to": "Đến ngày",
     "requestId": "request_id",
-    "auditLink": "Xem audit (SCR-14)",
+    "auditLink": "Xem nhật ký kiểm toán",
     "error": "Không tải được dữ liệu",
     "empty": "Không có bản ghi trong khoảng này.",
     "copy": "Sao chép request_id",
@@ -2357,7 +2470,7 @@
         "in_use": "Micro đang bận.",
         "too_long": "Ghi âm quá dài — chỉ dùng cho ghi chú ngắn.",
         "unknown": "Không ghi âm được. Anh/chị thử lại.",
-        "meetingBlocked": "Không ghi âm cuộc họp qua kênh này (R-DEC-22).",
+        "meetingBlocked": "Không ghi âm cuộc họp qua kênh này.",
         "sttUnavailable": "Máy chủ chưa bật chuyển giọng nói thành văn bản (STT). Anh/chị dán hoặc gõ nội dung vào ô bên trên."
       },
       "notAvailable": "Ghi âm chưa được hỗ trợ — hệ thống chưa bật chuyển giọng nói thành văn bản. Anh/chị dán hoặc gõ nội dung vào ô bên trên."
@@ -2444,6 +2557,7 @@
     "undoExpired": "Đã quá hạn hoàn tác"
   },
   "briefing": {
+    "aiLabel": "AI gợi ý",
     "title": "Tóm tắt điều hành hôm nay",
     "new": "Mới",
     "openedAt": "Đã mở lúc {time}",
@@ -2511,8 +2625,13 @@
     }
   },
   "acceptance": {
+    "sourceRef": {
+      "incidents": "Sự cố nhập liệu",
+      "briefings": "Lượt mở Daily Briefing"
+    },
+    "daysPerWeek": "ngày/tuần",
     "title": "Nghiệm thu MVP",
-    "subtitle": "Bốn cổng G1–G4 (BRD §19.1). Ngưỡng thật xác nhận ở thí điểm.",
+    "subtitle": "Bốn cổng nghiệm thu G1–G4. Ngưỡng thật xác nhận ở thí điểm.",
     "loading": "Đang tải…",
     "loadError": "Không tải được dữ liệu nghiệm thu.",
     "empty": "Chưa có dữ liệu.",
@@ -2528,15 +2647,21 @@
     "g1_detail": "Số ngày CEO mở briefing trung bình mỗi tuần.",
     "g2": "KPI/OKR cập nhật đúng kỳ",
     "g2_threshold": "≥ 80%",
-    "g2_detail": "Tỷ lệ KPI/OKR cập nhật đúng kỳ (METRIC-STR-01).",
+    "g2_detail": "Tỷ lệ KPI/OKR cập nhật đúng kỳ.",
     "g3": "Dữ liệu mới qua tài liệu/NL",
     "g3_threshold": "≥ 60%",
-    "g3_detail": "Tỷ lệ bản ghi mới vào qua tài liệu hoặc ngôn ngữ tự nhiên (METRIC-DQ-02).",
+    "g3_detail": "Tỷ lệ bản ghi mới vào qua tài liệu hoặc ngôn ngữ tự nhiên.",
     "g4": "Sự cố ghi sai trường trọng yếu",
     "g4_threshold": "= 0",
     "g4_detail": "Số sự cố AI ghi sai trường trọng yếu mà không bị phát hiện."
   },
   "records": {
+    "other": {
+      "user": "Người khác",
+      "employee": "Nhân viên khác",
+      "client": "Khách hàng khác",
+      "department": "Phòng ban khác"
+    },
     "title": {
       "finance": "Dữ liệu tài chính",
       "sales": "Dữ liệu kinh doanh",
@@ -2796,6 +2921,11 @@
     "prev": "Trước",
     "next": "Sau"
   },
+  "salesFunnel": {
+    "title": "Phễu bán hàng (tích lũy)",
+    "reached": "Số cơ hội đạt tới",
+    "note": "Mỗi giai đoạn tính mọi cơ hội đã đi tới ít nhất giai đoạn đó. Thua: {lost} cơ hội."
+  },
   "crm": {
     "pipelineTitle": "Pipeline cơ hội",
     "manageDeals": "Quản lý dữ liệu cơ hội",
@@ -2837,7 +2967,7 @@
     "count": "Số cơ hội",
     "conversion": "Chuyển đổi",
     "dropOff": "Rơi rụng",
-    "funnelNote": "Phương pháp số lượng hiện tại (BRD §2.8 A): chuyển đổi = số ở giai đoạn ÷ số ở giai đoạn trước. Thua: {lost} cơ hội.",
+    "funnelNote": "Phương pháp số lượng hiện tại: chuyển đổi = số ở giai đoạn ÷ số ở giai đoạn trước. Thua: {lost} cơ hội.",
     "forecastTitle": "Dự báo doanh số theo quý",
     "period": "Kỳ",
     "forecast": {
@@ -2852,5 +2982,9 @@
     "quota": "Chỉ tiêu",
     "attainment": "Đạt",
     "winRate": "Tỷ lệ thắng"
+  },
+  "reporting": {
+    "executiveSummary": "{decisions} việc cần quyết, {risks} rủi ro mở",
+    "executiveSummarySei": "{decisions} việc cần quyết, {risks} rủi ro mở, SEI {sei_pct}%"
   }
 }

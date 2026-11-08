@@ -12,10 +12,10 @@ const nav = (r: RoleCode) => visibleNav(r, perms(r)).map((i) => i.key);
 describe("sidebar per role (06 §3.2/§3.4, default deny)", () => {
   it.each([
     ["CEO", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge", "admin"]],
-    ["DIR", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge"]],
-    ["MGR", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge"]],
+    ["DIR", ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"]],
+    ["MGR", ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"]],
     ["EMP", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge"]],
-    ["REV", ["home", "ask", "data", "business", "knowledge"]],
+    ["REV", ["home", "ask", "data", "review", "knowledge"]], // D-07: no general finance / sales read
     ["ADM", ["home", "ask", "data", "knowledge", "admin"]],
     ["AI", []],
   ] as const)("%s", (role, keys) => {
@@ -61,7 +61,7 @@ describe("route guard (06 §3.4)", () => {
     ["/home/pillar/finance", "CEO", true], ["/home/pillar/finance", "MGR", false],
     ["/data/review", "REV", true], ["/data/review/abc", "MGR", true], ["/data/review", "EMP", false],
     ["/work/approvals", "MGR", true], ["/work/approvals", "EMP", false],
-    ["/business/finance/invoices", "REV", true], ["/business/finance/invoices", "EMP", false],
+    ["/business/finance/invoices", "REV", false], ["/business/finance/invoices", "EMP", false],
     ["/business/hr/employees", "EMP", true], ["/business/hr/employees", "ADM", false],
     ["/data/new/PLAN_KPI_OKR", "EMP", true], ["/data/new/HR_ROSTER", "ADM", true], ["/data/imports/abc", "REV", true], ["/data/imports/abc", "ADM", true],
     ["/admin/data-capture", "ADM", true], ["/admin/data-capture", "CEO", false], ["/admin/data-capture", "DIR", false],

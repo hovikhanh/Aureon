@@ -34,7 +34,7 @@
     "work": "Tasks, workload and projects.",
     "meetings": "Meetings, minutes → tasks, calendar.",
     "data": "Submit/review documents, data inbox, review.",
-    "business": "Finance Lite, Sales Lite, basic HR.",
+    "business": "Finance, sales and HR.",
     "knowledge": "Documents, reports, decision log.",
     "admin": "Organisation, permissions, AI policy, audit."
   },
@@ -216,6 +216,37 @@
     "alertsPageTitle": "Open alerts & risks"
   },
   "metricDetail": {
+    "entity": {
+      "MetricValue": "Metric values",
+      "Initiative": "Initiatives",
+      "Decision": "Decisions",
+      "Project": "Projects",
+      "Task": "Tasks",
+      "Mitigation": "Mitigations",
+      "Risk": "Risks",
+      "Release": "Releases",
+      "RoadmapItem": "Roadmap items",
+      "ProductMetric": "Product metrics",
+      "Product": "Products",
+      "HiringPlan": "Hiring plans",
+      "Employee": "Employees",
+      "SalesTarget": "Sales targets",
+      "Deal": "Deals",
+      "CashPosition": "Cash positions",
+      "Budget": "Budgets",
+      "Invoice": "Invoices",
+      "Expense": "Expenses",
+      "Revenue": "Revenue"
+    },
+    "module": {
+      "platform": "Platform",
+      "execution": "Execution",
+      "risk": "Risk",
+      "product": "Product",
+      "hr": "HR",
+      "sales": "Sales",
+      "finance": "Finance"
+    },
     "title": "Metric details",
     "lineageSource": "Source",
     "lineageComputedAt": "Computed at",
@@ -289,7 +320,7 @@
     "VND": "VND"
   },
   "insight": {
-    "sectionTitle": "AI findings",
+    "sectionTitle": "AI suggests",
     "badge": "AI suggests",
     "evidence": "Evidence",
     "impact": "Impact",
@@ -340,7 +371,8 @@
     "warning": {
       "AI_NO_DATA_AVAILABLE": "No data available to answer this.",
       "default": "Note: {code}",
-      "kill_switch": "Kill switch is on — AI will not draft actions."
+      "kill_switch": "Kill switch is on — AI will not draft actions.",
+      "demo_replay": "Demo script: the wording is pre-written, the numbers come from current data. This is not an AI answer."
     },
     "truncated": "The answer was truncated.",
     "suggestions": {
@@ -527,6 +559,9 @@
     }
   },
   "common": {
+    "otherPerson": "Someone else",
+    "otherDepartment": "Other department",
+    "myDepartment": "My department",
     "loading": "Loading…",
     "none": "—",
     "page": "Page",
@@ -583,6 +618,37 @@
     }
   },
   "audit": {
+    "table": {
+      "agent_profiles": "Agent profile",
+      "autonomy_policies": "Autonomy policy",
+      "briefings": "Briefing",
+      "budgets": "Budget",
+      "capture_incidents": "Capture incident",
+      "cash_flow_forecasts": "Cash-flow forecast",
+      "document_types": "Document type",
+      "extracted_fields": "Extracted field",
+      "extraction_jobs": "Extraction job",
+      "forecasts": "Forecast",
+      "import_rows": "Import row",
+      "notification_preferences": "Notification preference",
+      "positions": "Position",
+      "reports": "Report",
+      "user_preferences": "User preference",
+      "ai_actions": "AI action",
+      "approval_requests": "Approval request",
+      "extraction_schemas": "Extraction schema",
+      "review_assignments": "Review assignment",
+      "system_settings": "System setting",
+      "tasks": "Task",
+      "validation_rules": "Validation rule",
+      "invoices": "Invoice",
+      "alerts": "Alert",
+      "calendar_accounts": "Calendar account",
+      "hiring_plans": "Hiring plan",
+      "users": "User",
+      "employee_assignments": "Employee assignment",
+      "source_documents": "Source document"
+    },
     "title": "Audit log",
     "total": "{total} entries",
     "appendOnly": "Read only — the audit log is append-only.",
@@ -810,8 +876,8 @@
     "granted": "Granted",
     "notGranted": "Not granted",
     "legendTitle": "Scope marks",
-    "otherMarks": "Other marks (k, l, t, u) are specific scopes from the permission matrix 02 §5.3.",
-    "readOnly": "Read only — the permission matrix is system configuration (R-DEC-174); changing it needs a separate decision (Admin + domain owner, 02 §7).",
+    "otherMarks": "Other marks (k, l, t, u) are specific scopes from the permission matrix.",
+    "readOnly": "Read only — the permission matrix is system configuration; changing it needs a separate decision by the Admin and the data owner.",
     "scope": {
       "d": "own department (+ sub-departments)",
       "o": "own records only",
@@ -1170,6 +1236,26 @@
     "retry": "Retry"
   },
   "goals": {
+    "strategy": {
+      "soTitle": "Strategic objectives of {name}",
+      "soEmpty": "This strategy has no objectives yet.",
+      "empty": "No strategies yet.",
+      "soCreated": "Strategic objective {code} created",
+      "created": "Strategy {code} created",
+      "endBeforeStart": "End must be after start.",
+      "dateInvalid": "Pick a valid date.",
+      "pillarNone": "Company-wide",
+      "pillar": "Pillar",
+      "status": "Status",
+      "periodEnd": "End",
+      "periodStart": "Start",
+      "soName": "Strategic objective name",
+      "name": "Strategy name",
+      "code": "Code",
+      "createSo": "Create strategic objective",
+      "create": "Create strategy",
+      "title": "Strategies"
+    },
     "tabs": {
       "label": "Goals",
       "tree": "Goal tree",
@@ -1234,6 +1320,7 @@
       }
     },
     "kpi": {
+      "linkedKr": "Linked Key Result",
       "back": "Back to goal tree",
       "tabs": {
         "overview": "Overview",
@@ -1270,7 +1357,7 @@
       "source": "Source",
       "note": "Note",
       "noSources": "No source documents for this KPI yet.",
-      "aiPlaceholder": "AI activity arrives in M2.",
+      "aiPlaceholder": "AI activity arrives in a later release.",
       "lockedHint": "Period locked — no more measurements.",
       "measure": "Record measurement",
       "setTarget": "Set period target",
@@ -1329,8 +1416,8 @@
       "blocker": "Blocker (if any)",
       "submit": "Submit check-in",
       "saving": "Submitting…",
-      "prefill": "AI prefill",
-      "prefillSoon": "AI prefill arrives in M2.4.",
+      "prefill": "AI drafts",
+      "prefillSoon": "AI drafts arrive in a later release.",
       "prefillUse": "Use suggestion",
       "kr": "Key result",
       "kpi": "KPI",
@@ -1465,6 +1552,15 @@
     }
   },
   "capture": {
+    "fieldEnum": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "terminated": "Terminated",
+      "on_leave": "On leave",
+      "active": "Active",
+      "probation": "Probation"
+    },
     "inbox": {
       "title": "Data inbox",
       "subtitle": "Documents and data you submitted: status, reviewer, written records.",
@@ -1676,6 +1772,23 @@
       "unknown": "Unclassified"
     },
     "field": {
+      "revenue_category": "Revenue category",
+      "revenue_amount": "Revenue amount",
+      "phone": "Phone",
+      "national_id": "National ID",
+      "kr_ref": "Key Result reference",
+      "expense_vendor": "Vendor",
+      "expense_title": "Expense title",
+      "expense_category": "Expense category",
+      "expense_amount": "Expense amount",
+      "date_of_birth": "Date of birth",
+      "confidence": "Confidence",
+      "closing_balance": "Closing balance",
+      "bank_account": "Bank account",
+      "address": "Address",
+      "action_item_title": "Action item",
+      "action_item_owner": "Action item owner",
+      "action_item_due": "Action item due",
       "employee_code": "Employee code",
       "full_name": "Full name",
       "title": "Title",
@@ -1794,7 +1907,7 @@
       "submit": "Send {valid, plural, one {# valid row} other {# valid rows}} (skip {invalid, plural, one {# error row} other {# error rows}})",
       "submitted": "Sent {n} rows for review",
       "alreadySubmitted": "This batch was already sent",
-      "suggested": "AI suggests type: {type} ({pct})",
+      "suggested": "AI suggests: {type} ({pct})",
       "preview": "Preview of the first rows",
       "upload": "Uploading file…",
       "started": "File received — map the columns"
@@ -1926,7 +2039,7 @@
     "title": "AI Control Center",
     "subtitle": "Kill switch, agents, autonomy and Tool Registry",
     "openLogs": "Logs & cost",
-    "openInM3": "Opens in M3",
+    "openInM3": "Opens in a later release",
     "conflict": "Data changed, reloading",
     "tabs": {
       "overview": "Overview",
@@ -1941,7 +2054,7 @@
       "L3": "AI did it"
     },
     "reason": {
-      "above_ceiling": "Above the M1 autonomy ceiling (L2)",
+      "above_ceiling": "Above the current autonomy ceiling (L2)",
       "above_tool_max": "Above the tool's maximum level",
       "critical_field": "Action has critical fields — cannot go below L2",
       "not_configurable": "This tool's autonomy is not configurable",
@@ -1974,7 +2087,7 @@
       "offToast": "Kill switch turned off"
     },
     "ceiling": {
-      "title": "Maximum autonomy: {level} (M1)",
+      "title": "Maximum autonomy: {level}",
       "hint": "system ceiling, read only"
     },
     "queue": {
@@ -2021,7 +2134,7 @@
       "hint": "WRITE/EXECUTION tools only. Override by agent, role or amount threshold.",
       "new": "Add override",
       "add": "override",
-      "capped": "capped by the M1 ceiling",
+      "capped": "capped by the current ceiling",
       "everyone": "Everyone",
       "forRole": "role {role}",
       "forAgent": "agent {agent}",
@@ -2032,7 +2145,7 @@
       "deleted": "Override deleted",
       "saved": "Policy saved",
       "editTitle": "Edit override",
-      "dialogHint": "Effective level = min(policy, M1 ceiling, agent max).",
+      "dialogHint": "Effective level = min(policy, current ceiling, agent max).",
       "agent": "Agent (optional)",
       "role": "Role (optional)",
       "any": "— Any —",
@@ -2079,7 +2192,7 @@
         "cost_estimate": "Cost estimate",
         "owner": "Owner",
         "endpoint_ref": "Endpoint",
-        "brd_name": "BRD name",
+        "brd_name": "Business name",
         "agents": "Agents",
         "input_schema": "input_schema",
         "output_schema": "output_schema"
@@ -2142,7 +2255,7 @@
     "rejectReason": "Reason for rejecting",
     "doItMyself": "Do it myself",
     "error": "The action failed",
-    "executed": "AI executed the confirmed action",
+    "executed": "AI did the confirmed action",
     "rejected": "Card rejected",
     "undone": "Undone",
     "undoExpired": "The undo window has expired"
@@ -2159,7 +2272,7 @@
     "from": "From",
     "to": "To",
     "requestId": "request_id",
-    "auditLink": "View audit (SCR-14)",
+    "auditLink": "View audit log",
     "error": "Could not load data",
     "empty": "No records in this range.",
     "copy": "Copy request_id",
@@ -2357,7 +2470,7 @@
         "in_use": "The microphone is busy.",
         "too_long": "Recording too long — short notes only.",
         "unknown": "Recording failed. Please try again.",
-        "meetingBlocked": "Meeting audio cannot be captured via this channel (R-DEC-22).",
+        "meetingBlocked": "Meeting audio cannot be captured via this channel.",
         "sttUnavailable": "Speech-to-text is not enabled on the server. Please paste or type the text above."
       },
       "notAvailable": "Voice recording is not supported yet — speech-to-text is not enabled. Please paste or type the text above."
@@ -2444,6 +2557,7 @@
     "undoExpired": "Undo window has passed"
   },
   "briefing": {
+    "aiLabel": "AI suggests",
     "title": "Today's executive briefing",
     "new": "New",
     "openedAt": "Opened at {time}",
@@ -2511,8 +2625,13 @@
     }
   },
   "acceptance": {
+    "sourceRef": {
+      "incidents": "Capture incidents",
+      "briefings": "Daily Briefing opens"
+    },
+    "daysPerWeek": "days/week",
     "title": "MVP Acceptance",
-    "subtitle": "The four gates G1–G4 (BRD §19.1). True thresholds confirmed at pilot.",
+    "subtitle": "The four acceptance gates G1–G4. True thresholds confirmed at pilot.",
     "loading": "Loading…",
     "loadError": "Could not load acceptance data.",
     "empty": "No data yet.",
@@ -2528,15 +2647,21 @@
     "g1_detail": "Average days per week the CEO opened a briefing.",
     "g2": "KPI/OKR updated on time",
     "g2_threshold": "≥ 80%",
-    "g2_detail": "Share of KPI/OKR updated on time (METRIC-STR-01).",
+    "g2_detail": "Share of KPI/OKR updated on time.",
     "g3": "New data via document/NL",
     "g3_threshold": "≥ 60%",
-    "g3_detail": "Share of new records captured from documents or natural language (METRIC-DQ-02).",
+    "g3_detail": "Share of new records captured from documents or natural language.",
     "g4": "Critical-field write errors",
     "g4_threshold": "= 0",
     "g4_detail": "Undetected AI write errors on critical fields."
   },
   "records": {
+    "other": {
+      "user": "Someone else",
+      "employee": "Other employee",
+      "client": "Other client",
+      "department": "Other department"
+    },
     "title": {
       "finance": "Finance records",
       "sales": "Sales records",
@@ -2796,6 +2921,11 @@
     "prev": "Previous",
     "next": "Next"
   },
+  "salesFunnel": {
+    "title": "Sales funnel (cumulative)",
+    "reached": "Opportunities reached",
+    "note": "Each stage counts every opportunity that reached at least that stage. Lost: {lost} opportunities."
+  },
   "crm": {
     "pipelineTitle": "Opportunity pipeline",
     "manageDeals": "Manage opportunity records",
@@ -2837,7 +2967,7 @@
     "count": "Opportunities",
     "conversion": "Conversion",
     "dropOff": "Drop-off",
-    "funnelNote": "Current-count method (BRD §2.8 A): conversion = count at a stage ÷ count at the previous stage. Lost: {lost} opportunities.",
+    "funnelNote": "Current-count method: conversion = count at a stage ÷ count at the previous stage. Lost: {lost} opportunities.",
     "forecastTitle": "Quarterly sales forecast",
     "period": "Period",
     "forecast": {
@@ -2852,5 +2982,9 @@
     "quota": "Quota",
     "attainment": "Attainment",
     "winRate": "Win rate"
+  },
+  "reporting": {
+    "executiveSummary": "{decisions} decisions waiting, {risks} open risks",
+    "executiveSummarySei": "{decisions} decisions waiting, {risks} open risks, SEI {sei_pct}%"
   }
 }

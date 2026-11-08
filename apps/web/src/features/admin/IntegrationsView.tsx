@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ApiError } from "@/lib/api-client";
+import { errorText } from "@/lib/error-text";
 import type { Api } from "@aureon/shared-types";
 import {
   useConnectProvider,
@@ -28,6 +28,7 @@ const BADGE: Record<string, "success" | "danger" | "warning" | "outline"> = {
  */
 export function IntegrationsView() {
   const t = useTranslations("integrations");
+  const tAll = useTranslations();
   const providers = useIntegrationProviders();
   const connect = useConnectProvider();
   const disconnect = useDisconnectProvider();
@@ -52,7 +53,7 @@ export function IntegrationsView() {
 
       {err ? (
         <p role="alert" className="text-sm text-destructive" data-testid="integrations-error">
-          {err instanceof ApiError ? err.message : t("errorGeneric")}
+          {errorText(tAll as never, err)}
         </p>
       ) : null}
 

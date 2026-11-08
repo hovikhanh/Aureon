@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatValue, gateTone, overallStatus } from "./logic";
+import { formatValue, gateSourceKey, gateTone, overallStatus } from "./logic";
 
 describe("gateTone", () => {
   it("maps each status to a tone and defaults unknown to muted", () => {
@@ -13,13 +13,15 @@ describe("gateTone", () => {
 
 describe("formatValue", () => {
   it("formats by unit and dashes null/NaN", () => {
-    expect(formatValue(80, "pct")).toBe("80.0%");
-    expect(formatValue(4, "days_per_week")).toBe("4.0 d/wk");
-    expect(formatValue(3, "count")).toBe("3");
-    expect(formatValue(2.6, "count")).toBe("3");
-    expect(formatValue(null, "pct")).toBe("—");
-    expect(formatValue(undefined, "count")).toBe("—");
-    expect(formatValue(NaN, "pct")).toBe("—");
+    expect(formatValue(66.67, "pct", "vi", "ngày/tuần")).toBe("66,7%");
+    expect(formatValue(80, "pct", "en", "d/wk")).toBe("80.0%");
+    expect(formatValue(3.5, "days_per_week", "vi", "ngày/tuần")).toBe("3,5 ngày/tuần");
+    expect(formatValue(3, "count", "vi", "")).toBe("3");
+    expect(formatValue(2.6, "count", "vi", "")).toBe("3");
+    expect(formatValue(1200, "count", "vi", "")).toBe("1.200");
+    expect(formatValue(null, "pct", "vi", "")).toBe("—");
+    expect(formatValue(undefined, "count", "vi", "")).toBe("—");
+    expect(formatValue(NaN, "pct", "vi", "")).toBe("—");
   });
 });
 
@@ -38,5 +40,14 @@ describe("overallStatus", () => {
     expect(overallStatus([])).toBe("no_data");
     expect(overallStatus(["no_data", "no_data"])).toBe("no_data");
     expect(overallStatus(["pass", "no_data"])).toBe("no_data");
+  });
+});
+
+describe("gateSourceKey (U-13)", () => {
+  it("maps the API's source_ref to an i18n key; an unknown one has no label", () => {
+    expect(gateSourceKey("METRIC-STR-01")).toBe("metric.METRIC-STR-01");
+    expect(gateSourceKey("/ai/briefings")).toBe("acceptance.sourceRef.briefings");
+    expect(gateSourceKey("/idp/incidents")).toBe("acceptance.sourceRef.incidents");
+    expect(gateSourceKey("/internal/x")).toBeNull();
   });
 });

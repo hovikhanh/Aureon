@@ -41,7 +41,20 @@ export function formatDateTime(iso: string, locale: AppLocale): string {
   }).format(d);
 }
 
-/** `T9/2026` / `Sep 2026`; quarters `Q3/2026` / `Q3 2026`. */
+/** Weekday + date of a timestamp: `thứ ba, 20/10/2026` / `Tuesday, Oct 20, 2026` (calendar day headers). */
+export function formatWeekdayDate(iso: string, locale: AppLocale): string {
+  const opts: Intl.DateTimeFormatOptions = locale === "vi"
+    ? { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }
+    : { weekday: "long", month: "short", day: "numeric", year: "numeric" };
+  return new Intl.DateTimeFormat(tag(locale), { ...opts, timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso));
+}
+
+/** `14:30` in the business time zone. */
+export function formatTime(iso: string, locale: AppLocale): string {
+  return new Intl.DateTimeFormat(tag(locale), { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso));
+}
+
+/** `T9/2026` / `Sep 2026`; quarters `Q3/2026` / `Q3 2026`; ISO weeks `Tuần 40/2026` / `Week 40, 2026`. */
 export function formatPeriod(key: string, locale: AppLocale): string {
   const m = /^(\d{4})-(\d{2})$/.exec(key);
   if (m) {
@@ -53,7 +66,24 @@ export function formatPeriod(key: string, locale: AppLocale): string {
   }
   const q = /^(\d{4})-Q(\d)$/.exec(key);
   if (q) return locale === "vi" ? `Q${q[2]}/${q[1]}` : `Q${q[2]} ${q[1]}`;
+  const w = /^(\d{4})-W(\d{2})$/.exec(key);
+  if (w) return locale === "vi" ? `Tuần ${Number(w[2])}/${w[1]}` : `Week ${Number(w[2])}, ${w[1]}`;
   return key;
+}
+
+/**
+ * A reviewed field value by its schema `value_type` (P04). A value that does not parse stays as it
+ * came: the Reviewer must see what the document says, not a blank.
+ */
+export function formatFieldValue(value: unknown, valueType: string, locale: AppLocale): string {
+  if (value === null || value === undefined) return "";
+  const n = Number(value);
+  const numeric = value !== "" && !Number.isNaN(n);
+  if (valueType === "money" && numeric) return formatMoney(n, locale);
+  if ((valueType === "number" || valueType === "integer") && numeric) return formatNumber(n, locale, 6);
+  if (valueType === "percent" && numeric) return `${formatNumber(n, locale, 2)}%`;
+  if (valueType === "date" && /^\d{4}-\d{2}-\d{2}/.test(String(value)) && !Number.isNaN(Date.parse(String(value)))) return formatDate(String(value), locale);
+  return String(value);
 }
 
 /** Metric value by unit (API returns code + value; FE only formats, never computes KPIs). */

@@ -66,8 +66,9 @@ function dashboard(): Response {
       deals_lost: lost.count,
       win_rate_pct: cusValue("METRIC-CUS-02"), // 100.0
       avg_deal_value: Math.round(closedRevenue / won.count),
-      closed_revenue: closedRevenue,
+      closed_bookings: closedRevenue,
       quota_attainment_pct: cusValue("METRIC-CUS-03"), // 103.7
+      bookings_attainment_pct: cusValue("METRIC-CUS-03"),
       avg_sales_cycle_days: cusValue("METRIC-CUS-06"), // 60.0
       pipeline_coverage: cusValue("METRIC-CUS-01"), // 2.7
       currency: CURRENCY,

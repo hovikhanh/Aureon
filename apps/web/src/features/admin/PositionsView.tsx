@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -106,17 +106,17 @@ function PositionDialog({ editing, onClose, departments, positions }: { editing:
         <DialogTitle>{t(current ? "positionsAdmin.edit" : "positionsAdmin.new")}</DialogTitle>
         <DialogDescription className="sr-only">{t("positionsAdmin.hint")}</DialogDescription>
         <form onSubmit={(ev) => void submit(ev)} className="mt-4 flex flex-col gap-3" noValidate>
-          <Field id="pos-dept" label={t("orgAdmin.form.department")} error={e.department_id?.message}>
+          <Field id="pos-dept" required label={t("orgAdmin.form.department")} error={e.department_id?.message}>
             <NativeSelect id="pos-dept" {...form.register("department_id")} disabled={Boolean(current)} data-testid="position-dept">
               <option value="">{t("orgAdmin.form.pick")}</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </NativeSelect>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field id="pos-code" label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="pos-code" {...form.register("code")} disabled={Boolean(current)} data-testid="position-code" /></Field>
+            <Field id="pos-code" required label={t("orgAdmin.form.code")} error={e.code?.message}><Input id="pos-code" {...form.register("code")} disabled={Boolean(current)} data-testid="position-code" /></Field>
             <Field id="pos-level" label={t("positionsAdmin.col.level")} error={e.level?.message}><Input id="pos-level" inputMode="numeric" {...form.register("level")} data-testid="position-level" /></Field>
           </div>
-          <Field id="pos-title" label={t("positionsAdmin.col.title")} error={e.title?.message}><Input id="pos-title" {...form.register("title")} data-testid="position-title" /></Field>
+          <Field id="pos-title" required label={t("positionsAdmin.col.title")} error={e.title?.message}><Input id="pos-title" {...form.register("title")} data-testid="position-title" /></Field>
           <Field id="pos-budget" label={t("positionsAdmin.col.budget")} error={e.headcount_budget?.message}><Input id="pos-budget" type="number" min={0} {...form.register("headcount_budget")} data-testid="position-budget" /></Field>
           <Field id="pos-reports" label={t("positionsAdmin.reportsTo")}>
             <NativeSelect id="pos-reports" {...form.register("reports_to_position_id")} data-testid="position-reports">
@@ -125,10 +125,10 @@ function PositionDialog({ editing, onClose, departments, positions }: { editing:
             </NativeSelect>
           </Field>
           {save.isError && <p role="alert" className="text-sm text-danger" data-testid="position-form-error">{errText(save.error)}</p>}
-          <div className="mt-2 flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={save.isPending} data-testid="position-form-submit">{t("buttons.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

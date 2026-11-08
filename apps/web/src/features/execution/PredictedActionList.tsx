@@ -78,7 +78,6 @@ export function PredictedActionList({
                 ) : (
                   <Button
                     size="sm"
-                    variant="ai"
                     disabled={!canTask}
                     data-testid="action-approve"
                     onClick={() => approve(i)}

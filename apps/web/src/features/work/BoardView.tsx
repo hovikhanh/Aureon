@@ -21,6 +21,7 @@ import { useMembers, useTasks, type Member, type TaskOut } from "./use-work";
 /** `pinned` (MGR): the department filter is locked to the own department (EP-ORG-24 returns only it for MGR). */
 export function BoardView({ pinned, canReadOrg, onOpen }: { pinned: boolean; canReadOrg: boolean; onOpen: (id: string) => void }) {
   const t = useTranslations("work");
+  const tAll = useTranslations();
   const toast = useToast();
   const move = useMoveTask();
   const members = useMembers(canReadOrg);
@@ -100,7 +101,7 @@ export function BoardView({ pinned, canReadOrg, onOpen }: { pinned: boolean; can
                 <article key={task.id} draggable onDragStart={(e) => { e.dataTransfer.setData("text/plain", task.id); e.dataTransfer.effectAllowed = "move"; setDragging(task); }} onDragEnd={() => setDragging(null)} data-testid={`card-${task.id}`}
                   className="flex cursor-grab flex-col gap-2 rounded border bg-card p-2 text-sm shadow-sm">
                   <button type="button" className="text-left font-medium hover:underline" onClick={() => onOpen(task.id)}>{task.title}</button>
-                  <span className="text-xs text-muted-foreground">{task.assignee_id ? nameOf.get(task.assignee_id) ?? task.assignee_id.slice(0, 8) : t("board.unassigned")}</span>
+                  <span className="text-xs text-muted-foreground">{task.assignee_id ? nameOf.get(task.assignee_id) ?? tAll("common.otherPerson") : t("board.unassigned")}</span>
                   <StatusMenu task={task} testId={`card-move-${task.id}`} />
                 </article>
               ))}

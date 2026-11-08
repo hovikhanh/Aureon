@@ -4,7 +4,7 @@
  * of 06 §3.4 **and** the user holds one of `anyOf` (empty = any authenticated user).
  */
 export type RoleCode = "CEO" | "DIR" | "MGR" | "EMP" | "REV" | "ADM" | "AI";
-export type NavKey = "home" | "ask" | "goals" | "work" | "meetings" | "data" | "business" | "knowledge" | "admin";
+export type NavKey = "home" | "ask" | "goals" | "work" | "meetings" | "data" | "review" | "business" | "knowledge" | "admin";
 
 const HUMANS: readonly RoleCode[] = ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"];
 const EXECUTION_ROLES: readonly RoleCode[] = ["CEO", "DIR", "MGR", "EMP"];
@@ -25,7 +25,11 @@ export interface NavItem extends AccessRule {
   group: "main" | "admin";
 }
 
-/** 8 IA items + Quản trị (06 §3.1). product/risk have no item of their own (R-DEC-16). */
+/**
+ * 8 IA items + Quản trị (06 §3.1). product/risk have no item of their own (R-DEC-16). `review` is
+ * the shortcut to SCR-18a for whoever holds review duty (`idp:approve`): the queue used to be
+ * reachable only from a document row, so a Reviewer had no way in.
+ */
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "home", href: "/home", scr: "SCR-40", group: "main", roles: HUMANS, anyOf: [] },
   { key: "ask", href: "/ask", scr: "SCR-16", group: "main", roles: HUMANS, anyOf: ["ai:query"] },
@@ -33,7 +37,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "work", href: "/work", scr: "SCR-42", group: "main", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { key: "meetings", href: "/meetings", scr: "SCR-44", group: "main", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { key: "data", href: "/data", scr: "SCR-45", group: "main", roles: HUMANS, anyOf: ["idp:read", "idp:admin"] },
-  { key: "business", href: "/business", scr: "SCR-46", group: "main", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read", "sales:read", "hr:read"] },
+  { key: "review", href: "/data/review", scr: "SCR-18a", group: "main", roles: ["REV", "DIR", "MGR", "CEO"], anyOf: ["idp:approve"] },
+  { key: "business", href: "/business", scr: "SCR-46", group: "main", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:read", "sales:read", "hr:read"] },
   { key: "knowledge", href: "/knowledge", scr: "SCR-49", group: "main", roles: HUMANS, anyOf: [] },
   // M1.2 (06 §3.4): DIR khối O reaches Quản trị for SCR-51/52 (org structure) only.
   { key: "admin", href: "/admin", scr: "SCR-50", group: "admin", roles: ["ADM", "CEO", "DIR"], anyOf: ["platform:read", "hr:admin"], dirPillars: ["O"] },
@@ -43,6 +48,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
 type RouteRule = { prefix: string } & AccessRule;
 const SUB_ROUTES: readonly RouteRule[] = [
   { prefix: "/home/pillar", roles: ["CEO", "DIR"], anyOf: ["dashboard:read"] },
+  // EP-12 / EP-15 are `dashboard:read`: MGR / EMP / REV / ADM would open a page of permission errors.
+  { prefix: "/home/alerts", roles: HUMANS, anyOf: ["dashboard:read"] },
+  { prefix: "/home/metrics", roles: HUMANS, anyOf: ["dashboard:read"] },
   { prefix: "/work/approvals", roles: ["CEO", "DIR", "MGR"], anyOf: ["platform:approve"] },
   // M1.3 (06 §3.4, R-DEC-48): SCR-55/56 projects (EMP: projects with own tasks), SCR-57 workload
   { prefix: "/work/projects", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
@@ -50,22 +58,29 @@ const SUB_ROUTES: readonly RouteRule[] = [
   // M1.4 (06 §3.4): SCR-58 KPI detail, SCR-59 Objective detail, SCR-60 check-ins (EMP: own scope — the API filters)
   { prefix: "/goals/kpis", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
   { prefix: "/goals/objectives", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
+  // F12: Strategy + StrategicObjective list (EP-STR-02/03/07/08); EMP stays on the own tree
+  { prefix: "/goals/strategies", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:read"] },
   { prefix: "/goals/check-ins", roles: EXECUTION_ROLES, anyOf: ["execution:read"] },
-  { prefix: "/data/review", roles: ["REV", "DIR", "MGR", "CEO"], anyOf: ["idp:approve"] },
   // M1.5 (06 §3.4): SCR-61 C1 form, SCR-62 C5 import wizard (ADM: R-DEC-76 `idp:write` scope s), SCR-63 capture config
   { prefix: "/data/new", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
   { prefix: "/data/imports", roles: ["CEO", "DIR", "MGR", "EMP", "REV", "ADM"], anyOf: ["idp:write"] },
   { prefix: "/admin/data-capture", roles: ["ADM"], anyOf: ["idp:admin"] },
   // M6: record screens follow the API's khối isolation (`require_pillar_permission`) — a DIR of another
   // khối is sent to /403 instead of a page whose every call answers 403. Overviews built on the
-  // cross-khối `:query` endpoints (/finance/dashboard, /sales/pipeline) stay open to every DIR.
-  { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"] },
-  { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"], dirPillars: ["F"] },
-  { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["hr:read"], dirPillars: ["O"] },
-  // M7 record editors: the list endpoints are khối-isolated (`require_pillar_permission`) — the HR
-  // one is covered by `/business/hr` above
-  { prefix: "/business/finance/records", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["finance:read"], dirPillars: ["F"] },
-  { prefix: "/business/sales/records", roles: ["CEO", "DIR", "MGR", "EMP", "REV"], anyOf: ["sales:read"], dirPillars: ["C"] },
+  // cross-khối `:query` endpoints (/finance/dashboard, /sales/pipeline) stay open to every DIR, and
+  // need that `:query` permission: `:read` alone (REV, EMP's `/business` hub) gets only 403 there.
+  // D-07 (R-DEC-183): REV `◑r` reads finance / sales only inside an assigned review, and MGR `◑d` has no
+  // company invoices (no `department_id`) — the API answers 403 FORBIDDEN_SCOPE, so no route leads there.
+  { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:query"] },
+  { prefix: "/business/sales", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["sales:query"] },
+  { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "EMP"], anyOf: ["finance:read"], dirPillars: ["F"] },
+  // REV: `hr:read ◑r` covers an assigned review only — every employee / hiring-plan list is 403 (scope.py)
+  { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["hr:read"], dirPillars: ["O"] },
+  // EMP reads the own profile on `/business/hr/employees`; the records editor is for HR managers
+  { prefix: "/business/hr/records", roles: ["CEO", "DIR", "MGR"], anyOf: ["hr:read"], dirPillars: ["O"] },
+  // M7 record editors: the list endpoints are khối-isolated (`require_pillar_permission`)
+  { prefix: "/business/finance/records", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:read"], dirPillars: ["F"] },
+  { prefix: "/business/sales/records", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["sales:read"], dirPillars: ["C"] },
   // M8 CRM views (R-DEC-175): deal / client records in khối C; REV's sales:read is review-scoped
   { prefix: "/business/sales/pipeline", roles: ["CEO", "DIR", "MGR"], anyOf: ["sales:read"], dirPillars: ["C"] },
   { prefix: "/business/sales/deals", roles: ["CEO", "DIR", "MGR"], anyOf: ["sales:read"], dirPillars: ["C"] },
@@ -105,6 +120,11 @@ export function inPillar(domain: string, pillars: readonly string[]): boolean {
 /** `<domain>:<action>` held **and** inside the caller's khối — what a `require_pillar_permission` endpoint accepts. */
 export function canDomain(perms: readonly string[], pillars: readonly string[], domain: string, action = "read"): boolean {
   return perms.includes(`${domain}:${action}`) && inPillar(domain, pillars);
+}
+
+/** Department / employee directory (`/hr/departments`, `/hr/employees`, `/org/tree`): `hr:read` in khối O; EMP / REV have no structure scope (10 §7.2.1). */
+export function canReadHrDirectory(role: string, perms: readonly string[], pillars: readonly string[]): boolean {
+  return canDomain(perms, pillars, "hr") && role !== "EMP" && role !== "REV";
 }
 
 export function hasAny(perms: readonly string[], anyOf: readonly string[]): boolean {
@@ -147,6 +167,30 @@ export function safeCallback(cb: string | null, origin: string): string {
 
 export function visibleNav(role: string, perms: readonly string[], pillars: readonly string[] = []): NavItem[] {
   return NAV_ITEMS.filter((i) => allowed(i, role, perms, pillars));
+}
+
+/** The one nav item for `pathname`: the longest match, so `/data/review` lights "review", not "data" too. */
+export function activeNavHref(pathname: string, items: readonly Pick<NavItem, "href">[]): string | undefined {
+  return items
+    .map((i) => i.href)
+    .filter((h) => pathname === h || pathname.startsWith(`${h}/`))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
+/** Hub cards of `/business` (SCR-46): built screens, shown only where the role may open them. */
+export const HUB_CARDS = [
+  { href: "/business/finance", key: "finance" },
+  { href: "/business/sales", key: "sales" },
+  { href: "/business/finance/invoices", key: "invoices" },
+  { href: "/business/hr/employees", key: "employees" },
+  // M7: create / edit / archive records
+  { href: "/business/finance/records", key: "financeRecords" },
+  { href: "/business/sales/records", key: "salesRecords" },
+  { href: "/business/hr/records", key: "hrRecords" },
+] as const;
+
+export function visibleHubCards(role: string, perms: readonly string[], pillars: readonly string[] = []) {
+  return HUB_CARDS.filter((c) => canAccess(c.href, role, perms, pillars));
 }
 
 /** Tab bar of `/work` (06 §3.4 Spec lock M1.3): Task của tôi · Nhóm (not EMP) · Dự án · Workload · Phê duyệt. */

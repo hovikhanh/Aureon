@@ -25,6 +25,10 @@ export const goalCaps = (u: GoalsUser) => ({
   companyWide: u.role === "CEO",
   /** KPI/OKR owner picker reads `/platform/users` (EP-ADM, `platform:read`: CEO/ADM); others own what they create. */
   canPickOwner: u.permissions.includes("platform:read"),
+  /** EP-STR-03: the CEO writes Strategy; EP-STR-08: CEO, and a DIR inside `scope_pillars` for SO. */
+  canWriteStrategy: u.role === "CEO" && u.permissions.includes("execution:write"),
+  canWriteSo: (u.role === "CEO" || u.role === "DIR") && u.permissions.includes("execution:write"),
+  scopePillars: u.scopePillars,
 });
 export type GoalCaps = ReturnType<typeof goalCaps>;
 

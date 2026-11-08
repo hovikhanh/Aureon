@@ -5,10 +5,11 @@
  * KPI / OKR→KR / Initiative→Project · "Chưa gắn chiến lược" last. Filters live in the URL.
  */
 import * as React from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select";
@@ -61,7 +62,8 @@ export function GoalTreeView({ caps }: { caps: GoalCaps }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-xl font-semibold">{caps.isEmployee ? t("tree.empSelf") : t("tree.title")}</h1>
         {caps.canManage && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/goals/strategies" className={buttonVariants({ size: "sm", variant: "outline" })} data-testid="goals-strategies">{t("strategy.title")}</Link>
             <Button size="sm" variant="outline" onClick={() => setEditor("kpi")} data-testid="goals-createKpi">{t("tree.createKpi")}</Button>
             <Button size="sm" variant="outline" onClick={() => setEditor("objective")} data-testid="goals-createObjective">{t("tree.createObjective")}</Button>
           </div>
@@ -73,11 +75,11 @@ export function GoalTreeView({ caps }: { caps: GoalCaps }) {
           </>
         )}
       </div>
-      <div className="flex flex-wrap items-end gap-3" data-testid="goals-filters">
+      <div className="flex min-w-0 flex-wrap items-end gap-3" data-testid="goals-filters">
         {!caps.isEmployee && (
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 max-w-full flex-col gap-1">
             <Label htmlFor="g-strategy">{t("tree.strategy")}</Label>
-            <NativeSelect id="g-strategy" value={strategyId} onChange={(e) => set("strategy", e.target.value)} data-testid="goals-strategy">
+            <NativeSelect id="g-strategy" className="max-w-full" value={strategyId} onChange={(e) => set("strategy", e.target.value)} data-testid="goals-strategy">
               {(strategies.data ?? []).filter((s) => s.status === "active").map((s) => <option key={s.id} value="">{s.code} · {s.name}</option>)}
               {(strategies.data ?? []).filter((s) => s.status !== "active").map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}
             </NativeSelect>

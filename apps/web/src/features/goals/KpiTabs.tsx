@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatPeriod, type AppLocale } from "@/lib/format";
 import { businessToday } from "@/lib/work-dates";
 import { BandChip, KrConfidence, LoadError } from "./common";
-import { formatValue, periodKeyOf, type KpiNode } from "./logic";
+import { formatValue, periodKeyOf, treeKrs, type KpiNode } from "./logic";
 import { useGoalTree, useKpiCheckIns, useKpiMeasurements, type KpiOut } from "./use-goals";
 
 /** Find the KPI in the tree to read its parent / SO (no extra endpoint — EP-STR-01 is the link source). */
@@ -42,7 +42,7 @@ export function KpiLinks({ k }: { k: KpiOut }) {
       <dt className="text-muted-foreground">{t("children")}</dt>
       <dd className="flex flex-col gap-1">{(hit?.node.children ?? []).length ? hit!.node.children!.map((c) => <span key={c.id} className="flex items-center gap-2">{link(c)} <BandChip band={c.latest_evaluation?.band} /></span>) : t("none")}</dd>
       <dt className="text-muted-foreground">{t("keyResult")}</dt>
-      <dd>{k.key_result_id ? <Badge variant="outline">{k.key_result_id.slice(0, 8)}</Badge> : t("none")}</dd>
+      <dd>{k.key_result_id ? <Badge variant="outline">{treeKrs(tree.data).find((kr) => kr.id === k.key_result_id)?.title ?? t("linkedKr")}</Badge> : t("none")}</dd>
     </dl>
   );
 }

@@ -2,7 +2,7 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* 06 §7.1–7.2 design tokens. `ai` hue (violet) is distinct from `primary` (blue). */
+/* 06 §7.1–7.2 design tokens. `ai` hue (violet) is distinct from `primary` (Deep Navy, D-13). */
 :root {
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.21 0.02 260);
@@ -10,9 +10,8 @@
   --muted: oklch(0.96 0.005 260);
   --muted-foreground: oklch(0.48 0.02 260);
   --border: oklch(0.91 0.01 260);
-  /* T-1022: 0.52 put `text-primary` on `bg-primary/15` (avatar, chips) at 4.46:1 — just under
-     the AA floor; 0.50 clears it (4.84:1) and keeps white-on-primary at 6.08:1. */
-  --primary: oklch(0.5 0.17 255);
+  /* D-13: Deep Navy #0B2545 — 15.4:1 on white, 13.7:1 on `muted`, 15:1 under near-white text. */
+  --primary: oklch(0.264 0.068 255.3);
   --primary-foreground: oklch(0.99 0 0);
   --ai: oklch(0.55 0.2 300);
   --ai-subtle: oklch(0.96 0.03 300);
@@ -37,6 +36,11 @@
   --muted: oklch(0.26 0.01 260);
   --muted-foreground: oklch(0.7 0.02 260);
   --border: oklch(0.32 0.01 260);
+  /* D-13: one colour cannot reach AA both under near-white text and on dark surfaces (it would
+     need 20:1 between them, near-white/card is 16:1). `primary` is also link text here, so it
+     goes light (6.3:1 on `muted`) and the text on it goes dark (7.3:1). */
+  --primary: oklch(0.72 0.1 255.3);
+  --primary-foreground: oklch(0.2 0.04 255.3);
   --ai-subtle: oklch(0.3 0.06 300);
   --success-subtle: oklch(0.3 0.05 150);
   --warning-subtle: oklch(0.32 0.06 85);

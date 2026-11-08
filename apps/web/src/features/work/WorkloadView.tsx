@@ -21,7 +21,7 @@ import { loadShade, shortId } from "./logic";
 import { WorkloadCellTasks } from "./WorkloadCellTasks";
 import { useMembers, useWorkload } from "./use-work";
 
-const SHADE = { low: "bg-primary/10", mid: "bg-warning/40", high: "bg-danger/70 text-white" } as const;
+const SHADE = { low: "bg-primary/10", mid: "bg-warning/40", high: "bg-danger text-background" } as const;
 const WEEK_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 /** `metricHref`: METRIC-HR-03 lineage entry (SCR-03 pillar O) when the role can open it, else plain text. */

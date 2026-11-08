@@ -21,6 +21,8 @@ export interface ChatMessage {
   sources: SourceRef[];
   tools: ToolCall[];
   warnings: string[];
+  /** What produced the answer (F-C2): `replay` = pre-written demo wording around live numbers. */
+  mode?: "live" | "fixture" | "replay";
   streaming: boolean;
   truncated?: boolean;
   error?: string;
@@ -55,4 +57,5 @@ export interface MessageOut {
   function_calls: { tool: string; status: ToolCall["status"]; latency_ms: number }[];
   truncated: boolean;
   created_at: string;
+  mode?: "live" | "replay";
 }

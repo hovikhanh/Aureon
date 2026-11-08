@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -64,10 +64,10 @@ export function CreateTaskDialog({ open, onOpenChange, members }: { open: boolea
             <Field id="ct-est" label={t("detail.fieldEstimate")} error={e.estimate_hours?.message}><Input id="ct-est" inputMode="decimal" {...form.register("estimate_hours")} data-testid="ct-est" /></Field>
           </div>
           {error && <p role="alert" className="text-sm text-danger" data-testid="create-task-error">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{tb("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={create.isPending} data-testid="ct-submit">{t("create.submit")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

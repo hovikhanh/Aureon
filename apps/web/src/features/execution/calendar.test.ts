@@ -33,8 +33,8 @@ describe("defaultRange", () => {
 
 describe("timeLabel", () => {
   it("renders start only when no end, start–end otherwise", () => {
-    expect(timeLabel({ starts_at: "2026-10-20T02:00:00Z", ends_at: null })).not.toContain("–");
-    expect(timeLabel({ starts_at: "2026-10-20T02:00:00Z", ends_at: "2026-10-20T03:00:00Z" })).toContain("–");
+    expect(timeLabel({ starts_at: "2026-10-20T02:00:00Z", ends_at: null }, "vi")).toBe("09:00");
+    expect(timeLabel({ starts_at: "2026-10-20T02:00:00Z", ends_at: "2026-10-20T03:00:00Z" }, "vi")).toBe("09:00–10:00");
   });
 });
 
@@ -52,7 +52,7 @@ describe("groupByDay", () => {
       ev({ title: "late", starts_at: "2026-10-21T06:00:00Z" }),
       ev({ title: "early", starts_at: "2026-10-20T02:00:00Z" }),
       ev({ title: "mid", starts_at: "2026-10-20T08:00:00Z" }),
-    ]);
+    ], "vi");
     expect(groups).toHaveLength(2); // two distinct days
     const [firstDay, secondDay] = groups;
     // first bucket is the earliest day, with its two events in time order
@@ -61,6 +61,6 @@ describe("groupByDay", () => {
   });
 
   it("returns an empty list for no events", () => {
-    expect(groupByDay([])).toEqual([]);
+    expect(groupByDay([], "vi")).toEqual([]);
   });
 });

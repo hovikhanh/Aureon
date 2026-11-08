@@ -81,7 +81,7 @@ export function SalesPipelineView() {
             {stages.map((s) => {
               const dimmed = DIMMED_STAGES.includes(s.stage as DealStage);
               return (
-                <Card key={s.stage} data-testid={`pipeline-col-${s.stage}`} className={cn("flex flex-col", dimmed && "opacity-60")}>
+                <Card key={s.stage} data-testid={`pipeline-col-${s.stage}`} className={cn("flex flex-col", dimmed && "bg-muted/50")}>
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold">{t(`sales.stage.${s.stage}`)}</span>

@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -107,10 +107,10 @@ export function PolicyDialog({ value, tools, onClose }: { value: Policy | { tool
             <textarea id="po-reason" rows={2} className="w-full rounded-md border bg-background p-2 text-sm" {...form.register("reason")} aria-invalid={Boolean(e.reason)} data-testid="policy-reason" />
           </Field>
           {error && <p role="alert" className="text-sm text-danger" data-testid="policy-error">{error}</p>}
-          <div className="mt-2 flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={form.formState.isSubmitting} data-testid="policy-save">{t("buttons.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

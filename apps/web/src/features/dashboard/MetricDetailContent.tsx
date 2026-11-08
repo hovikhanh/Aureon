@@ -5,8 +5,8 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import { Database, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatMetric, formatPeriod, type AppLocale } from "@/lib/format";
-import { chartSeries, hasTrend } from "./metric-detail";
+import { formatDateTime, formatMetric, formatPeriod, type AppLocale } from "@/lib/format";
+import { chartSeries, hasTrend, isInternalRef, metricSource } from "./metric-detail";
 import type { CardStatus } from "./types";
 import { useMetricDetail } from "./use-metric-detail";
 
@@ -22,10 +22,14 @@ type Slot = ComponentType<{ className?: string; children?: ReactNode }>;
 export function MetricDetailContent({ code, Title, Desc }: { code: string | null; Title: Slot; Desc: Slot }) {
   const t = useTranslations("metricDetail");
   const tm = useTranslations("metric");
+  const tu = useTranslations("unit");
+  const tAll = useTranslations();
   const locale = useLocale() as AppLocale;
   const { detail, loading, error, errorCode, refetch } = useMetricDetail(code);
   const [showLineage, setShowLineage] = useState(false);
   const denied = errorCode?.startsWith("FORBIDDEN") ?? false;
+  const value = (v: number | null) => formatMetric(v, detail?.unit ?? "", locale, detail && tu.has(detail.unit) ? tu(detail.unit as "DAYS") : "");
+  const source = detail ? metricSource(tAll as never, detail.data_source) : "";
 
   return (
     <>
@@ -52,7 +56,7 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
           </Title>
           <Desc className="mt-1 flex flex-wrap items-baseline gap-3">
             <span className="text-2xl font-semibold tabular-nums text-foreground" data-testid="metric-detail-value">
-              {formatMetric(detail.value, detail.unit, locale)}
+              {value(detail.value)}
             </span>
             {detail.period_key && <span className="text-xs text-muted-foreground">{formatPeriod(detail.period_key, locale)}</span>}
             {detail.is_stale && (
@@ -64,9 +68,9 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
         </div>
 
         <section className="rounded-md border bg-muted/40 p-3 text-sm">
-          <span className="font-medium">{t("formula")}:</span> <span className="font-mono text-xs">{detail.formula_display}</span>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {t("thresholds")}: {t("warning")} {detail.thresholds.warning} · {t("critical")} {detail.thresholds.critical} ·{" "}
+          {!isInternalRef(detail.formula_display) && <div><span className="font-medium">{t("formula")}:</span> <span className="font-mono text-xs">{detail.formula_display}</span></div>}
+          <div className="text-xs text-muted-foreground">
+            {t("thresholds")}: {t("warning")} {value(detail.thresholds.warning)} · {t("critical")} {value(detail.thresholds.critical)} ·{" "}
             {detail.direction === "up" ? t("directionUp") : t("directionDown")}
           </div>
         </section>
@@ -100,7 +104,7 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
                 <li key={r.key} className="flex items-center justify-between gap-3 px-3 py-2">
                   <span>{r.label}</span>
                   <span className="flex items-center gap-3">
-                    <span className="tabular-nums">{formatMetric(r.value, detail.unit, locale)}</span>
+                    <span className="tabular-nums">{value(r.value)}</span>
                     <span className="text-xs text-muted-foreground">{t("records", { count: r.record_count })}</span>
                   </span>
                 </li>
@@ -119,7 +123,7 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
                 <li key={a.id} className="flex items-center gap-2">
                   <StatusBadge status={a.severity === "critical" ? "critical" : "warning"} />
                   <span>{tm(a.metric_code as "METRIC-FIN-01")}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{a.value}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{value(a.value)}</span>
                 </li>
               ))}
             </ul>
@@ -129,7 +133,7 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5" aria-hidden />
-            {t("dataSource")}: {detail.data_source.module} · {detail.data_source.entities.join(", ")}
+            {t("dataSource")}: {source}
           </span>
           {/* lineage_url là đường dẫn API, không phải page route → không dùng <Link>/<a> (tránh prefetch/điều hướng 404). */}
           <button
@@ -146,9 +150,9 @@ export function MetricDetailContent({ code, Title, Desc }: { code: string | null
         {showLineage && (
           <dl id="metric-detail-lineage-info" className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border bg-muted/40 p-3 text-xs" data-testid="metric-detail-lineage-info">
             <dt className="text-muted-foreground">{t("lineageSource")}</dt>
-            <dd>{detail.data_source.module} · {detail.data_source.entities.join(", ")}</dd>
+            <dd>{source}</dd>
             <dt className="text-muted-foreground">{t("lineageComputedAt")}</dt>
-            <dd className="tabular-nums">{detail.computed_at}</dd>
+            <dd className="tabular-nums">{detail.computed_at ? formatDateTime(detail.computed_at, locale) : "—"}</dd>
             <dt className="text-muted-foreground">{t("lineageRef")}</dt>
             <dd className="break-all font-mono">{detail.lineage_url}</dd>
           </dl>

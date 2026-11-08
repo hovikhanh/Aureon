@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { QueryError } from "@/components/QueryError";
 import { formatDate, formatDateTime, formatMoney, type AppLocale } from "@/lib/format";
-import { OPEN_STAGES, dealRisk, isClosed } from "./crm";
+import { dealRisk } from "./crm";
+import { stageProgress } from "./stage-progress";
 import { LostReasonDialog, StageSelect, useStageMove } from "./StageMove";
 import { business_today } from "./today";
-import { useClient, useDeal, useStageHistory } from "./use-crm";
+import { useClient, useDeal, useOwnerLabel, useStageHistory } from "./use-crm";
 
-export function DealDetailView({ id, canMove, userId }: { id: string; canMove: boolean; userId: string }) {
+export function DealDetailView({ id, canMove, userId, canReadUsers }: { id: string; canMove: boolean; userId: string; canReadUsers: boolean }) {
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
   const deal = useDeal(id);
@@ -24,6 +25,7 @@ export function DealDetailView({ id, canMove, userId }: { id: string; canMove: b
   const d = deal.data;
   const client = useClient(d?.client_id ?? "");
   const mover = useStageMove();
+  const ownerLabel = useOwnerLabel(userId, canReadUsers);
   if (deal.isPending) return <div className="h-40 animate-pulse rounded-lg bg-muted" />;
   if (deal.isError || !d) return <QueryError error={deal.error} onRetry={() => void deal.refetch()} testId="deal-error" />;
   const risk = dealRisk(d, business_today());
@@ -33,7 +35,7 @@ export function DealDetailView({ id, canMove, userId }: { id: string; canMove: b
     [t("crm.probability"), `${d.probability_pct}%`],
     [t("crm.weighted"), formatMoney(d.weighted_value, locale)],
     [t("crm.closeDate"), formatDate(d.expected_close_date, locale)],
-    [t("crm.owner"), d.owner_id === userId ? t("crm.me") : d.owner_id.slice(0, 8)],
+    [t("crm.owner"), ownerLabel(d.owner_id)],
   ];
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4" data-testid="deal-detail">
@@ -46,10 +48,10 @@ export function DealDetailView({ id, canMove, userId }: { id: string; canMove: b
       </div>
       {/* stage progress (CRM-OPP-04 "Stage Progress") */}
       <ol className="flex flex-wrap gap-1" aria-label={t("crm.progress")} data-testid="deal-progress">
-        {[...OPEN_STAGES, isClosed(d.stage) ? d.stage : "closed_won"].map((s) => {
-          const reached = isClosed(d.stage) || OPEN_STAGES.indexOf(s as never) <= OPEN_STAGES.indexOf(d.stage as never);
-          return <li key={s} className={`rounded px-2 py-1 text-xs ${s === d.stage ? "bg-primary text-primary-foreground" : reached ? "bg-primary/15" : "bg-muted text-muted-foreground"}`}>{t(`sales.stage.${s}` as "sales.stage.lead")}</li>;
-        })}
+        {stageProgress(d.stage).map(({ stage, state }) => (
+          <li key={stage} data-state={state} aria-current={state === "current" ? "step" : undefined}
+            className={`rounded px-2 py-1 text-xs ${state === "current" ? "bg-primary text-primary-foreground" : state === "reached" ? "bg-primary/15" : "bg-muted text-muted-foreground"}`}>{t(`sales.stage.${stage}` as "sales.stage.lead")}</li>
+        ))}
       </ol>
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-4 md:col-span-2">

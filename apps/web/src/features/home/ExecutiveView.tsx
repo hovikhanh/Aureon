@@ -6,6 +6,7 @@ import { AlertTriangle, Bot, ClipboardCheck } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
 import { InsightsPanel } from "@/features/ai/InsightsPanel";
+import { humanizeKey } from "@/lib/humanize";
 import { BriefingBanner } from "@/features/briefing/BriefingBanner";
 import { MetricTile } from "./MetricTile";
 import type { ExecutiveDashboard } from "./types";
@@ -13,6 +14,7 @@ import type { ExecutiveDashboard } from "./types";
 /** SCR-40 cấp Executive (CEO/DIR) — EP-RPT-01: 4 ô + SEI + quyết chờ + rủi ro + "AI đã làm". */
 export function ExecutiveView() {
   const t = useTranslations("home");
+  const tr = useTranslations("reporting");
   const q = useQuery({
     queryKey: ["reporting", "executive"],
     queryFn: ({ signal }) => api.get<ExecutiveDashboard>("/reporting/dashboards/executive", undefined, signal),
@@ -24,7 +26,7 @@ export function ExecutiveView() {
   return (
     <div className="flex flex-col gap-6" data-testid="exec-view">
       <BriefingBanner />
-      <p className="text-base text-muted-foreground" data-testid="summary-line">{d.summary_line}</p>
+      <p className="text-base text-muted-foreground" data-testid="summary-line">{summaryText(d, tr)}</p>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="exec-tiles">
         {d.tiles.map((m) => <MetricTile key={m.metric_code} m={m} />)}
       </section>
@@ -53,9 +55,16 @@ export function ExecutiveView() {
           <Bot className="h-4 w-4" aria-hidden />{t("aiDone", { count: d.ai_done.count })}
         </h2>
         <ul className="mt-2 space-y-1 text-sm">
-          {d.ai_done.items.map((a) => <li key={a.id}>{a.action_name}</li>)}
+          {d.ai_done.items.map((a) => <li key={a.id}>{humanizeKey(a.action_name)}</li>)}
         </ul>
       </Card>
     </div>
   );
+}
+
+/** API key + params (CLAUDE §5.2) → localized line; the legacy `summary_line` only as fallback. */
+function summaryText(d: ExecutiveDashboard, tr: (key: "executiveSummary" | "executiveSummarySei", values: Record<string, number>) => string): string {
+  const p = d.summary_params;
+  if (d.summary_key !== "reporting.executiveSummary" || !p) return d.summary_line;
+  return p.sei_pct === undefined ? tr("executiveSummary", p) : tr("executiveSummarySei", p);
 }

@@ -1,13 +1,14 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ApiError } from "@/lib/api-client";
+import { errorText } from "@/lib/error-text";
 import {
   useCalendarEvents,
   useCreateCalendarEvent,
@@ -31,8 +32,10 @@ export function CalendarView() {
   const [start, setStart] = React.useState("");
   const [end, setEnd] = React.useState("");
 
+  const locale = useLocale() as AppLocale;
+  const tAll = useTranslations();
   const events = React.useMemo(() => list.data ?? [], [list.data]);
-  const grouped = React.useMemo(() => groupByDay(events), [events]);
+  const grouped = React.useMemo(() => groupByDay(events, locale), [events, locale]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +89,7 @@ export function CalendarView() {
 
       {err ? (
         <p role="alert" className="text-sm text-destructive" data-testid="calendar-error">
-          {err instanceof ApiError ? err.message : t("errorGeneric")}
+          {errorText(tAll as never, err)}
         </p>
       ) : null}
 
@@ -102,7 +105,7 @@ export function CalendarView() {
               <div key={ev.id} className="flex items-center justify-between gap-3 rounded-md border p-3" data-testid="calendar-event">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{ev.title}</p>
-                  <p className="text-xs text-muted-foreground">{timeLabel(ev)}</p>
+                  <p className="text-xs text-muted-foreground">{timeLabel(ev, locale)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={isEditable(ev) ? "primary" : "outline"}>{t(`source.${ev.event_source}`)}</Badge>

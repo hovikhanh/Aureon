@@ -73,7 +73,7 @@ export function CommandPalette() {
         <ul className="max-h-80 overflow-auto p-1 text-sm">
           <li>
             <button type="button" onClick={() => go(askHref)} data-testid="palette-ask"
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-ai hover:bg-ai-subtle/60">
+              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-muted">
               <Sparkles className="h-4 w-4" aria-hidden />
               <span className="font-medium">{term ? t("askWith", { q: q.trim() }) : t("ask")}</span>
             </button>

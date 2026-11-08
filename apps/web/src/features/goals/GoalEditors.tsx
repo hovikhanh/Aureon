@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -33,13 +33,13 @@ import {
 
 type Open = { open: boolean; onOpenChange: (o: boolean) => void };
 
-function useMessages() {
+export function useMessages() {
   const t = useTranslations("goals.editor");
   return React.useMemo(() => ({ required: t("required"), number: t("number"), tooLong: t("tooLong"), periodInvalid: t("periodInvalid"), codeInvalid: t("codeInvalid") }), [t]);
 }
 
 /** Owner select: CEO/ADM (`platform:read`) choose any active user via EP-ADM `/platform/users`; others own what they create. */
-function useOwners(caps: GoalCaps, current?: string | null) {
+export function useOwners(caps: GoalCaps, current?: string | null) {
   const t = useTranslations("goals.editor");
   const users = useQuery({
     queryKey: qk.users({ purpose: "goal-owner" }),
@@ -55,7 +55,7 @@ function useOwners(caps: GoalCaps, current?: string | null) {
  * endpoint). Empty = company level for the CEO, own department for a DIR; the API rejects a department
  * outside the caller's scope (`403 FORBIDDEN_SCOPE`, shown in place). Hidden for other roles.
  */
-function DepartmentSelect<F extends FieldValues>({ form, id, caps }: { form: UseFormReturn<F>; id: string; caps: GoalCaps }) {
+export function DepartmentSelect<F extends FieldValues>({ form, id, caps }: { form: UseFormReturn<F>; id: string; caps: GoalCaps }) {
   const t = useTranslations("goals.editor");
   const depts = useDepartments(caps.canFilterDepartment); // hook before the early return: never fetch for a role that cannot read it
   if (!caps.canFilterDepartment) return null;
@@ -80,7 +80,7 @@ function Select<F extends FieldValues>({ form, name, id, label, values, tKey }: 
   );
 }
 
-function Shell({ open, onOpenChange, title, testId, error, pending, onSubmit, children }: Open & {
+export function Shell({ open, onOpenChange, title, testId, error, pending, onSubmit, children }: Open & {
   title: string; testId: string; error: string | null; pending: boolean; onSubmit: (e: React.FormEvent) => void; children: React.ReactNode;
 }) {
   const t = useTranslations("goals.form");
@@ -92,10 +92,10 @@ function Shell({ open, onOpenChange, title, testId, error, pending, onSubmit, ch
         <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3" noValidate>
           {children}
           {error && <p role="alert" className="text-sm text-danger" data-testid={`${testId}-error`}>{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={pending} data-testid={`${testId}-submit`}>{t("save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -132,12 +132,12 @@ export function KpiEditorDialog({ open, onOpenChange, caps, kpi }: Open & { caps
   return (
     <Shell open={open} onOpenChange={onOpenChange} title={t(creating ? "createKpi" : "editKpi")} testId="kpi-editor" error={error} pending={m.isPending} onSubmit={(ev) => void submit(ev)}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="ke-code" label={t("code")} error={e.code?.message}><Input id="ke-code" {...form.register("code")} disabled={!creating} data-testid="ke-code" /></Field>
-        <Field id="ke-unit" label={t("unit")} error={e.unit?.message}><Input id="ke-unit" {...form.register("unit")} data-testid="ke-unit" /></Field>
+        <Field id="ke-code" required={creating} label={t("code")} error={e.code?.message}><Input id="ke-code" {...form.register("code")} disabled={!creating} data-testid="ke-code" /></Field>
+        <Field id="ke-unit" required label={t("unit")} error={e.unit?.message}><Input id="ke-unit" {...form.register("unit")} data-testid="ke-unit" /></Field>
       </div>
-      <Field id="ke-name" label={t("name")} error={e.name?.message}><Input id="ke-name" {...form.register("name")} data-testid="ke-name" /></Field>
+      <Field id="ke-name" required label={t("name")} error={e.name?.message}><Input id="ke-name" {...form.register("name")} data-testid="ke-name" /></Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="ke-target" label={t("target")} error={e.target?.message}><Input id="ke-target" inputMode="decimal" {...form.register("target")} data-testid="ke-target" /></Field>
+        <Field id="ke-target" required label={t("target")} error={e.target?.message}><Input id="ke-target" inputMode="decimal" {...form.register("target")} data-testid="ke-target" /></Field>
         {creating
           ? <Select form={form} name="period_type" id="ke-period-type" label={t("periodType")} values={PERIOD_TYPES} tKey="periodTypes" />
           : <Field id="ke-period-type" label={t("periodType")}><Input id="ke-period-type" value={t(`periodTypes.${kpi.period_type}` as "periodTypes.MONTH")} disabled readOnly /></Field>}
@@ -148,7 +148,7 @@ export function KpiEditorDialog({ open, onOpenChange, caps, kpi }: Open & { caps
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Select form={form} name="status" id="ke-status" label={t("statusLabel")} values={GOAL_STATUSES} tKey="status" />
-        <Field id="ke-owner" label={t("owner")} error={e.owner_id?.message}>
+        <Field id="ke-owner" required label={t("owner")} error={e.owner_id?.message}>
           <NativeSelect id="ke-owner" {...form.register("owner_id")} data-testid="ke-owner">{owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</NativeSelect>
         </Field>
       </div>
@@ -186,16 +186,16 @@ export function ObjectiveEditorDialog({ open, onOpenChange, caps, objective, def
   });
   return (
     <Shell open={open} onOpenChange={onOpenChange} title={t(creating ? "createObjective" : "editObjective")} testId="objective-editor" error={error} pending={m.isPending} onSubmit={(ev) => void submit(ev)}>
-      <Field id="oe-title" label={t("title")} error={e.title?.message}><Input id="oe-title" {...form.register("title")} data-testid="oe-title" /></Field>
+      <Field id="oe-title" required label={t("title")} error={e.title?.message}><Input id="oe-title" {...form.register("title")} data-testid="oe-title" /></Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="oe-period" label={t("period")} error={e.period_key?.message}><Input id="oe-period" placeholder="2026-Q4" {...form.register("period_key")} data-testid="oe-period" /></Field>
+        <Field id="oe-period" required label={t("period")} error={e.period_key?.message}><Input id="oe-period" placeholder="2026-Q4" {...form.register("period_key")} data-testid="oe-period" /></Field>
         <Select form={form} name="level" id="oe-level" label={t("level")} values={OBJECTIVE_LEVELS} tKey="levels" />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Select form={form} name="okr_type" id="oe-type" label={t("okrType")} values={OKR_TYPES} tKey="okrTypes" />
         <Select form={form} name="status" id="oe-status" label={t("statusLabel")} values={GOAL_STATUSES} tKey="status" />
       </div>
-      <Field id="oe-owner" label={t("owner")} error={e.owner_id?.message}>
+      <Field id="oe-owner" required label={t("owner")} error={e.owner_id?.message}>
         <NativeSelect id="oe-owner" {...form.register("owner_id")} data-testid="oe-owner">{owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</NativeSelect>
       </Field>
       <DepartmentSelect form={form} id="oe-department" caps={caps} />
@@ -226,15 +226,15 @@ export function KeyResultEditorDialog({ open, onOpenChange, caps, objectiveId, k
   });
   return (
     <Shell open={open} onOpenChange={onOpenChange} title={t(creating ? "createKr" : "editKr")} testId="kr-editor" error={error} pending={m.isPending} onSubmit={(ev) => void submit(ev)}>
-      <Field id="re-title" label={t("title")} error={e.title?.message}><Input id="re-title" {...form.register("title")} data-testid="re-title" /></Field>
+      <Field id="re-title" required label={t("title")} error={e.title?.message}><Input id="re-title" {...form.register("title")} data-testid="re-title" /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field id="re-baseline" label={t("baseline")} error={e.baseline?.message}><Input id="re-baseline" inputMode="decimal" {...form.register("baseline")} data-testid="re-baseline" /></Field>
-        <Field id="re-target" label={t("target")} error={e.target?.message}><Input id="re-target" inputMode="decimal" {...form.register("target")} data-testid="re-target" /></Field>
-        <Field id="re-unit" label={t("unit")} error={e.unit?.message}><Input id="re-unit" {...form.register("unit")} data-testid="re-unit" /></Field>
+        <Field id="re-baseline" required label={t("baseline")} error={e.baseline?.message}><Input id="re-baseline" inputMode="decimal" {...form.register("baseline")} data-testid="re-baseline" /></Field>
+        <Field id="re-target" required label={t("target")} error={e.target?.message}><Input id="re-target" inputMode="decimal" {...form.register("target")} data-testid="re-target" /></Field>
+        <Field id="re-unit" required label={t("unit")} error={e.unit?.message}><Input id="re-unit" {...form.register("unit")} data-testid="re-unit" /></Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Select form={form} name="status" id="re-status" label={t("statusLabel")} values={GOAL_STATUSES} tKey="status" />
-        <Field id="re-owner" label={t("owner")} error={e.owner_id?.message}>
+        <Field id="re-owner" required label={t("owner")} error={e.owner_id?.message}>
           <NativeSelect id="re-owner" {...form.register("owner_id")} data-testid="re-owner">{owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</NativeSelect>
         </Field>
       </div>

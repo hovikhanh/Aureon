@@ -1,8 +1,8 @@
 "use client";
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatFieldValue, type AppLocale } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { display } from "./FieldRow";
 import type { ReviewField } from "./types";
 
 const BAND: Record<string, string> = { HIGH: "", MEDIUM: "bg-warning-subtle", LOW: "bg-danger-subtle" };
@@ -14,13 +14,14 @@ const PAGE = 25;
  */
 export function RowGrid({ rows, activeId, onSelect, label }: { rows: Array<{ row_index: number; fields: ReviewField[] }>; activeId: string | null; onSelect: (id: string) => void; label: (f: ReviewField) => string }) {
   const t = useTranslations("capture.review");
+  const locale = useLocale() as AppLocale;
   const [page, setPage] = React.useState(0);
   const cols = [...new Map(rows.flatMap((r) => r.fields).map((f) => [f.field_name, f])).values()];
   const shown = rows.slice(page * PAGE, page * PAGE + PAGE);
   const pages = Math.ceil(rows.length / PAGE);
   const val = (f: ReviewField | undefined) => {
     const v = f?.effective_value;
-    return typeof v === "object" && v !== null && (v as { masked?: boolean }).masked ? "•••" : display(v);
+    return typeof v === "object" && v !== null && (v as { masked?: boolean }).masked ? "•••" : formatFieldValue(v, f?.value_type ?? "", locale);
   };
   return (
     <section className="flex flex-col gap-2" data-testid="row-grid">
@@ -33,7 +34,7 @@ export function RowGrid({ rows, activeId, onSelect, label }: { rows: Array<{ row
               const by = new Map(r.fields.map((f) => [f.field_name, f]));
               return (
                 <tr key={r.row_index} className="border-b last:border-0" data-testid="grid-row" data-row={r.row_index}>
-                  <td className="px-2 py-1 tabular-nums text-muted-foreground">{t("row", { n: r.row_index })}</td>
+                  <td className="px-2 py-1 tabular-nums text-muted-foreground">{t("row", { n: r.row_index + 1 })}</td>
                   {cols.map((c) => {
                     const f = by.get(c.field_name);
                     return (

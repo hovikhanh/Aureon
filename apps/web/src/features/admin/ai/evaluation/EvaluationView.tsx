@@ -5,7 +5,8 @@
  * (grounding / accuracy / tool_choice) and overall score, colour-banded. Runs are produced by the
  * `run_eval` CLI — this view never triggers an LLM call.
  */
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/lib/format";
 import type { Api } from "@aureon/shared-types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +20,11 @@ const BAND_CLASS: Record<Band, string> = {
 };
 
 function Score({ pct, label }: { pct: number; label: string }) {
+  const locale = useLocale() as AppLocale;
   return (
     <div className="flex flex-col">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={`font-mono text-sm font-semibold ${BAND_CLASS[scoreBand(pct)]}`}>{fmtPct(pct)}</span>
+      <span className={`font-mono text-sm font-semibold ${BAND_CLASS[scoreBand(pct)]}`}>{fmtPct(pct, locale)}</span>
     </div>
   );
 }

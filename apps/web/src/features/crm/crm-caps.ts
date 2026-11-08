@@ -12,5 +12,6 @@ export async function crmCaps() {
   const canSeeDeals = canDomain(perms, pillars, "sales") && role !== "REV" && role !== "EMP";
   // stage moves: sales:write in khối C — the CEO's sales:write is targets-only (scope `t`)
   const canMove = canSeeDeals && canDomain(perms, pillars, "sales", "write") && role !== "CEO";
-  return { userId: u?.id ?? "", canSeeDeals, canMove };
+  // user names: only `/platform/users` maps a user id to a name (CEO / ADM) — others see a plain label
+  return { userId: u?.id ?? "", canSeeDeals, canMove, canReadUsers: perms.includes("platform:read") };
 }

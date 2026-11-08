@@ -19,7 +19,7 @@ import { qk } from "@/lib/query-keys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
@@ -199,10 +199,10 @@ function UserDialog({ editing, onClose, selfId, actorRole, departments }: { edit
         <DialogTitle>{t(current ? "usersAdmin.edit" : "usersAdmin.new")}</DialogTitle>
         <DialogDescription className="sr-only">{t("usersAdmin.hint")}</DialogDescription>
         <form onSubmit={(ev) => void submit(ev)} className="mt-4 flex flex-col gap-3" noValidate>
-          <Field id="u-email" label={t("auth.email")} error={e.email?.message}><Input id="u-email" type="email" autoComplete="off" disabled={Boolean(current)} {...form.register("email")} aria-invalid={Boolean(e.email)} data-testid="user-email" /></Field>
-          <Field id="u-name" label={t("usersAdmin.col.name")} error={e.full_name?.message}><Input id="u-name" {...form.register("full_name")} aria-invalid={Boolean(e.full_name)} data-testid="user-name" /></Field>
+          <Field id="u-email" required label={t("auth.email")} error={e.email?.message}><Input id="u-email" type="email" autoComplete="off" disabled={Boolean(current)} {...form.register("email")} aria-invalid={Boolean(e.email)} data-testid="user-email" /></Field>
+          <Field id="u-name" required label={t("usersAdmin.col.name")} error={e.full_name?.message}><Input id="u-name" {...form.register("full_name")} aria-invalid={Boolean(e.full_name)} data-testid="user-name" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field id="u-role" label={t("usersAdmin.col.role")}>
+            <Field id="u-role" required label={t("usersAdmin.col.role")}>
               <NativeSelect id="u-role" {...form.register("role_code")} disabled={self} title={self ? t("usersAdmin.selfRole") : undefined} data-testid="user-role">
                 {roles.map((r) => <option key={r} value={r}>{t(`role.${r}` as "role.CEO")}</option>)}
               </NativeSelect>
@@ -232,9 +232,9 @@ function UserDialog({ editing, onClose, selfId, actorRole, departments }: { edit
             </NativeSelect>
           </Field>
           {!current && (
-            <Field id="u-pass" label={t("usersAdmin.initialPassword")} error={e.initial_password?.message}>
+            <Field id="u-pass" required label={t("usersAdmin.initialPassword")} error={e.initial_password?.message}>
               <div className="relative">
-                <Input id="u-pass" type={show ? "text" : "password"} autoComplete="new-password" className="pr-10" {...form.register("initial_password")} aria-invalid={Boolean(e.initial_password)} data-testid="user-password" />
+                <Input id="u-pass" aria-required type={show ? "text" : "password"} autoComplete="new-password" className="pr-10" {...form.register("initial_password")} aria-invalid={Boolean(e.initial_password)} data-testid="user-password" />
                 <button type="button" onClick={() => setShow(!show)} className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground" aria-label={t(show ? "auth.hidePassword" : "auth.showPassword")} aria-pressed={show} data-testid="user-password-toggle">
                   {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -242,10 +242,10 @@ function UserDialog({ editing, onClose, selfId, actorRole, departments }: { edit
             </Field>
           )}
           {save.isError && <p role="alert" className="text-sm text-danger" data-testid="user-form-error">{errText(save.error)}</p>}
-          <div className="mt-2 flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={save.isPending} data-testid="user-form-submit">{t("buttons.save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

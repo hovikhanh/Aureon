@@ -13,15 +13,18 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { QueryError } from "@/components/QueryError";
+import { SortHeader } from "@/components/SortHeader";
 import { Field } from "@/features/admin/common";
 import { ApiError, apiRequest } from "@/lib/api-client";
 import { errorText } from "@/lib/error-text";
 import { formatDate, formatMoney, formatNumber, type AppLocale } from "@/lib/format";
+import { canAccess } from "@/lib/permissions";
+import { nextSort, type SortState } from "@/lib/sort";
 import { createBody, emptyLine, initialValues, recordSchema, updateBody, VAT_RATES, type FieldSpec, type FormValues, type RefKind } from "./record-form";
 import type { ActionSpec, ColumnSpec, ResourceSpec } from "./specs";
 
@@ -90,7 +93,7 @@ function Cell({ col, row, refs }: { col: ColumnSpec; row: Row; refs: Record<RefK
     case "date": return <>{formatDate(String(v), locale)}</>;
     case "bool": return <>{v ? "✓" : "—"}</>;
     case "enum": return <>{t.has(`enum.${col.name}.${v}`) ? t(`enum.${col.name}.${v}` as "me") : String(v)}</>;
-    case "ref": return <>{refs[col.ref!]?.find((o) => o.id === v)?.label ?? `${String(v).slice(0, 8)}…`}</>;
+    case "ref": return <>{refs[col.ref!]?.find((o) => o.id === v)?.label ?? t(`other.${col.ref!}` as "me")}</>;
     default: return <>{String(v)}</>;
   }
 }
@@ -127,7 +130,7 @@ function FieldInput({ f, form, refs, disabled, prefix }: { f: FieldSpec; form: U
     const placeholder = f.type === "month" ? "2026-11" : undefined;
     control = <Input id={id} type={type} inputMode={inputMode} placeholder={placeholder} disabled={disabled} {...form.register(f.name)} data-testid={id} />;
   }
-  return <Field id={id} label={label} error={err}>{control}</Field>;
+  return <Field id={id} label={t(`field.${f.name}` as "me")} error={err} required={f.required}>{control}</Field>;
 }
 
 function LinesInput({ form, name, label, disabled, error }: { form: UseFormReturn<FormValues>; name: string; label: string; disabled: boolean; error?: string }) {
@@ -196,7 +199,7 @@ function FormDialog({ open, onClose, title, testId, fields, row, defaults, submi
   });
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid={testId}>
+      <DialogContent className="max-w-2xl" data-testid={testId}>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription className="sr-only">{title}</DialogDescription>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-4 flex flex-col gap-3" noValidate>
@@ -208,10 +211,10 @@ function FormDialog({ open, onClose, title, testId, fields, row, defaults, submi
             ))}
           </div>
           {error && <p role="alert" className="text-sm text-danger" data-testid={`${testId}-error`}>{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={form.formState.isSubmitting} data-testid={`${testId}-submit`}>{t("save")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -229,7 +232,9 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
   const [editing, setEditing] = React.useState<Row | "new" | null>(null);
   const [acting, setActing] = React.useState<{ action: ActionSpec; row: Row } | null>(null);
   const [archiving, setArchiving] = React.useState<Row | null>(null);
-  const params = { limit: PAGE, offset, sort_by: spec.sortBy, order: spec.order ?? "desc", q: spec.searchable && q ? q : undefined };
+  const [sort, setSort] = React.useState<SortState>({ field: spec.sortBy, order: spec.order ?? "desc" });
+  const onSort = (field: string) => { setSort(nextSort(sort, field)); setOffset(0); };
+  const params = { limit: PAGE, offset, sort_by: sort.field, order: sort.order, q: spec.searchable && q ? q : undefined };
   const list = useQuery({
     queryKey: ["records", spec.path, params],
     queryFn: ({ signal }) => apiRequest<Row[]>(spec.path, { query: params, signal }),
@@ -252,6 +257,11 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
   const allowed = (a: ActionSpec) =>
     (a.permission ? caps.permissions.includes(a.permission) : caps.canWrite) && (a.allowed?.({ role: caps.role, scopePillars: caps.scopePillars }) ?? true);
   const label = t(`resource.${spec.key}` as "me");
+  // detail pages are narrower than the list (REV reads clients here, but not `/business/sales/clients/*`)
+  const detailHref = (row: Row) => {
+    const href = spec.detailHref?.(row);
+    return href && canAccess(href, caps.role, caps.permissions, caps.scopePillars) ? href : null;
+  };
 
   return (
     <section className="flex flex-col gap-3" data-testid={`records-${spec.key}`}>
@@ -269,20 +279,25 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
           <table className="w-full min-w-[720px] text-sm" data-testid={`records-${spec.key}-table`}>
             <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
-                {spec.columns.map((c) => <th key={c.name} scope="col" className="px-3 py-2 font-medium">{t(`field.${c.name}` as "me")}</th>)}
+                {spec.columns.map((c) => spec.sortable?.includes(c.name)
+                  ? <SortHeader key={c.name} field={c.name} label={t(`field.${c.name}` as "me")} sort={sort} onSort={onSort} />
+                  : <th key={c.name} scope="col" className="px-3 py-2 font-medium">{t(`field.${c.name}` as "me")}</th>)}
                 <th scope="col" className="px-3 py-2"><span className="sr-only">{t("actions")}</span></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.map((row) => (
                 <tr key={row.id} data-testid="record-row" data-id={row.id}>
-                  {spec.columns.map((c, i) => (
-                    <td key={c.name} className="px-3 py-2">
-                      {i === 0 && spec.detailHref
-                        ? <Link href={spec.detailHref(row)} className="font-medium text-primary hover:underline" data-testid="record-open"><Cell col={c} row={row} refs={refs} /></Link>
-                        : <Cell col={c} row={row} refs={refs} />}
-                    </td>
-                  ))}
+                  {spec.columns.map((c, i) => {
+                    const href = i === 0 ? detailHref(row) : null;
+                    return (
+                      <td key={c.name} className="px-3 py-2">
+                        {href
+                          ? <Link href={href} className="font-medium text-primary hover:underline" data-testid="record-open"><Cell col={c} row={row} refs={refs} /></Link>
+                          : <Cell col={c} row={row} refs={refs} />}
+                      </td>
+                    );
+                  })}
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     {(spec.actions ?? []).filter((a) => allowed(a) && a.visible(row)).map((a) => (
                       <Button key={a.key} size="sm" variant="outline" className="mr-1" onClick={() => setActing({ action: a, row })} data-testid={`record-action-${a.key}`}>{t(`action.${spec.key}.${a.key}` as "me")}</Button>

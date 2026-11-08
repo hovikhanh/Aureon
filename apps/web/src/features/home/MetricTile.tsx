@@ -17,6 +17,7 @@ export function MetricTile({ m }: { m: MetricValue }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("metric");
   const td = useTranslations("dashboard");
+  const tu = useTranslations("unit");
   const [open, setOpen] = useState(false);
   const label = t(m.metric_code as "METRIC-FIN-01");
   return (
@@ -41,7 +42,7 @@ export function MetricTile({ m }: { m: MetricValue }) {
         data-testid="metric-value"
         aria-label={td("openMetric", { metric: label })}
       >
-        {formatMetric(m.value, m.unit, locale)}
+        {formatMetric(m.value, m.unit, locale, tu.has(m.unit) ? tu(m.unit as "DAYS") : "")}
       </button>
       {m.is_stale && (
         <span className="text-xs text-amber-600" data-testid="stale-flag">

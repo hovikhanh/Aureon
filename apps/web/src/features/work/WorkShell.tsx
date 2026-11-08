@@ -2,7 +2,7 @@
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 import { authOptions } from "@/lib/auth";
-import { canDomain, visibleWorkTabs, type WorkTabKey } from "@/lib/permissions";
+import { canReadHrDirectory, visibleWorkTabs, type WorkTabKey } from "@/lib/permissions";
 import { WorkTabs } from "./WorkTabs";
 
 export interface WorkUser { id: string; role: string; permissions: string[]; scopePillars: string[] }
@@ -15,7 +15,7 @@ export async function workUser(): Promise<WorkUser> {
 
 /** Members / org tree readable (EP-ORG-24): `hr:read` inside khối O, never EMP / REV (→ `FORBIDDEN_SCOPE`, 10 §7.2.1). */
 export function canReadOrg(user: WorkUser): boolean {
-  return canDomain(user.permissions, user.scopePillars, "hr") && user.role !== "EMP" && user.role !== "REV";
+  return canReadHrDirectory(user.role, user.permissions, user.scopePillars);
 }
 
 /** Capabilities of the task panel from the session (server-side; the API still enforces every rule). */

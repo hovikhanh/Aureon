@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { NativeSelect } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/features/admin/common";
@@ -86,12 +86,12 @@ export function KillSwitchDialog({ open, onOpenChange, current, agents }: { open
             <textarea id="ks-reason" rows={3} className="w-full rounded-md border bg-background p-2 text-sm" {...form.register("reason")} aria-invalid={Boolean(e.reason)} data-testid="kill-reason-input" />
           </Field>
           {error && <p role="alert" className="text-sm text-danger" data-testid="kill-error">{error}</p>}
-          <div className="mt-2 flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" variant={turningOn ? "danger" : "default"} disabled={form.formState.isSubmitting} data-testid="kill-submit">
               {t(turningOn ? "aiAdmin.kill.turnOn" : "aiAdmin.kill.turnOff")}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -28,6 +28,7 @@ export function applyEvent(msg: ChatMessage, e: SseEvent): { msg: ChatMessage; c
           content: typeof d.answer === "string" && d.answer ? d.answer : msg.content,
           sources: mergeSources(msg.sources, (d.sources as SourceRef[]) ?? []),
           warnings: (d.warnings as string[]) ?? [],
+          mode: d.mode === "replay" || d.mode === "fixture" ? d.mode : "live",
           truncated: Boolean(d.truncated),
           actions: (d.suggested_actions as SuggestedAction[] | undefined) ?? [],
           streaming: false,

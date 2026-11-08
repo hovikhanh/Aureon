@@ -15,6 +15,7 @@ import { useBriefingToday, useOpenBriefing } from "./use-briefing";
 
 export function BriefingBanner() {
   const t = useTranslations("briefing");
+  const tm = useTranslations("metric");
   const locale = useLocale() as AppLocale;
   const q = useBriefingToday();
   useOpenBriefing(q.data);
@@ -32,6 +33,7 @@ export function BriefingBanner() {
         <h2 className="flex items-center gap-2 text-sm font-medium text-ai">
           <Bot className="h-4 w-4" aria-hidden />
           {t("title")}
+          <Badge variant="ai" data-testid="briefing-ai-label">{t("aiLabel")}</Badge>
         </h2>
         <Badge variant={opened ? "default" : "ai"} data-testid="briefing-opened">
           {opened && openedIso ? t("openedAt", { time: formatDateTime(openedIso, locale) }) : t("new")}
@@ -46,7 +48,7 @@ export function BriefingBanner() {
       </div>
       {stale > 0 && (
         <Badge variant="warning" data-testid="briefing-stale" className="self-start">
-          {t("stale", { count: stale, codes: b.stale_metric_codes?.join(", ") ?? "" })}
+          {t("stale", { count: stale, codes: (b.stale_metric_codes ?? []).map((c) => (tm.has(c) ? tm(c as "METRIC-FIN-01") : c)).join(", ") })}
         </Badge>
       )}
     </Card>

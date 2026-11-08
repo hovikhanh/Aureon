@@ -41,7 +41,7 @@ export function CostTab() {
               <XAxis dataKey="label" fontSize={12} />
               <YAxis fontSize={12} tickFormatter={(v: number) => `$${v}`} width={56} />
               <Tooltip formatter={(v) => usd4(Number(v))} />
-              <Bar dataKey="cost_usd" name={t("col.cost")} fill="var(--color-primary, #2563eb)" />
+              <Bar dataKey="cost_usd" name={t("col.cost")} fill="var(--color-primary, #0b2545)" />
             </BarChart>
           </ResponsiveContainer>
         </figure>

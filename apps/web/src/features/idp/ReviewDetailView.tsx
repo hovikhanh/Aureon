@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { fieldLabel } from "@/features/capture/field-label";
 import { ArrowLeft, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export function ReviewDetailView({ documentId }: { documentId: string }) {
     setDrafts(Object.fromEntries(fields.map((f) => [f.id, { confirmed: f.is_confirmed, value: display(f.effective_value), reason: f.correction_reason ?? "" }])));
   }, [fields]);
 
-  const label = (f: ReviewField) => (t.has(`idp.fieldName.${f.field_name}`) ? t(`idp.fieldName.${f.field_name}` as "idp.fieldName.subtotal") : f.field_name) + (f.row_index !== null ? ` #${f.row_index + 1}` : "");
+  const label = (f: ReviewField) => fieldLabel(t as never, { name: f.field_name }) + (f.row_index !== null ? ` #${f.row_index + 1}` : "");
   const errMsg = (e: unknown) => reviewErr(t, e);
 
   const validate = (): boolean => {

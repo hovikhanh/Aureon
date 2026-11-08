@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import type { Api } from "@aureon/shared-types";
+import { formatNumber } from "@/lib/format";
 
 export const MAX_FILES = 100;
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -31,7 +32,7 @@ export function parseVnNumber(s: string): number | null {
   return Number(t.replace(/\./g, "").replace(",", "."));
 }
 export function formatVnNumber(n: number): string {
-  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 6 }).format(n);
+  return formatNumber(n, "vi", 6);
 }
 /** `dd/mm/yyyy` → `yyyy-mm-dd`; invalid → null. */
 export function parseVnDate(s: string): string | null {

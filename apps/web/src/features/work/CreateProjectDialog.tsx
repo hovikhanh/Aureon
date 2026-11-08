@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/features/admin/common";
@@ -47,17 +47,17 @@ export function CreateProjectDialog({ open, onOpenChange, ownerId }: { open: boo
         <DialogTitle>{t("projects.createTitle")}</DialogTitle>
         <DialogDescription className="sr-only">{t("projects.createTitle")}</DialogDescription>
         <form onSubmit={(ev) => void submit(ev)} className="mt-4 flex flex-col gap-3" noValidate>
-          <Field id="cp-code" label={t("projects.fieldCode")} error={e.code?.message}><Input id="cp-code" {...form.register("code")} data-testid="cp-code" /></Field>
-          <Field id="cp-name" label={t("projects.fieldName")} error={e.name?.message}><Input id="cp-name" {...form.register("name")} data-testid="cp-name" /></Field>
+          <Field id="cp-code" required label={t("projects.fieldCode")} error={e.code?.message}><Input id="cp-code" {...form.register("code")} data-testid="cp-code" /></Field>
+          <Field id="cp-name" required label={t("projects.fieldName")} error={e.name?.message}><Input id="cp-name" {...form.register("name")} data-testid="cp-name" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field id="cp-start" label={t("projects.fieldStart")}><Input id="cp-start" type="date" {...form.register("start_date")} data-testid="cp-start" /></Field>
             <Field id="cp-due" label={t("projects.fieldDue")} error={e.due_date?.message}><Input id="cp-due" type="date" {...form.register("due_date")} data-testid="cp-due" /></Field>
           </div>
           {error && <p role="alert" className="text-sm text-danger" data-testid="create-project-error">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{tb("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={create.isPending} data-testid="cp-submit">{t("projects.create")}</Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

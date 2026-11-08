@@ -1,4 +1,5 @@
 /** TC-M7-01 (unit) — every field / column / enum value / action of the record specs has a vi + en label. */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import vi from "../../../messages/vi.json";
 import en from "../../../messages/en.json";
@@ -22,5 +23,26 @@ describe("records i18n", () => {
   it.each(["vi", "en"] as const)("%s has every label", (lang) => {
     const tree = (lang === "vi" ? vi : en) as Tree;
     expect([...keys].filter((k) => !has(tree, k))).toEqual([]);
+  });
+});
+
+describe("records sort (U-10)", () => {
+  /** `page_params(...)` whitelist of a list endpoint, read from the routers: an unlisted field is a 4xx. */
+  const whitelist = (path: string) => {
+    const domain = path.split("/")[1]!;
+    const src = readFileSync(new URL(`../../../../api/src/app/modules/${domain}/routes/router.py`, import.meta.url), "utf8");
+    const route = src.indexOf(`@router.get("${path}"`);
+    return [...src.slice(route).match(/page_params\(([^)]*)\)/)![1]!.matchAll(/"(\w+)"/g)].map((m) => m[1]!);
+  };
+
+  it.each(RESOURCES.map((r) => [r.key, r] as const))("%s sorts only on its columns, within the API whitelist", (_, r) => {
+    const columns = r.columns.map((c) => c.name);
+    const allowed = whitelist(r.path);
+    expect(allowed).toContain(r.sortBy);
+    for (const f of r.sortable ?? []) {
+      expect(columns).toContain(f);
+      expect(allowed).toContain(f);
+    }
+    expect(r.sortable?.length).toBeGreaterThan(0);
   });
 });

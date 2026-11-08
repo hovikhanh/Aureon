@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Api } from "@aureon/shared-types";
 import { apiRequest } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
+import { businessToday } from "@/lib/work-dates";
 
 export type DepartmentOut = Api.DepartmentOut;
 export type EmployeeAssignmentOut = Api.EmployeeAssignmentOut;
@@ -15,7 +16,8 @@ export type TreeMember = TreeDept["members"][number];
 
 /** "Today" as the API sees it: EP-ORG-* compare `valid_from` / `as_of` with the UTC date
  *  (`hr/services/org_service._today`). A local date would be "future" between 00:00–07:00 ICT. */
-export const todayIso = (): string => new Date().toISOString().slice(0, 10);
+/** Org effective dates use the business day of the API (`business_today()`, R-DEC-192), not the browser clock. */
+export const todayIso = (): string => businessToday();
 
 export function useOrgTree(asOf: string) {
   return useQuery({

@@ -492,6 +492,7 @@ export type ChatAnswerOut = {
   suggested_actions?: Record<string, unknown>[];
   truncated?: boolean;
   warnings?: string[];
+  mode?: "live" | "fixture" | "replay";
 };
 
 export type ChatContext = {
@@ -1279,6 +1280,11 @@ export type Envelope_FormOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_FunnelOut_ = {
+  data: FunnelOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_GoalTreeOut_ = {
   data: GoalTreeOut;
   meta?: Meta | null;
@@ -2036,6 +2042,8 @@ export type ExecutionSummary = {
 
 export type ExecutiveDashboardOut = {
   summary_line: string;
+  summary_key: string;
+  summary_params?: Record<string, number>;
   tiles?: MetricValueOut[];
   sei?: MetricValueOut | null;
   decisions_waiting: CountedApprovals;
@@ -2233,6 +2241,7 @@ export type FinanceMetricOut = {
   freshness: "fresh" | "stale" | "no_data";
   data_quality_pct?: number | null;
   lineage_url: string;
+  period_key?: string | null;
 };
 
 export type FinanceSummary = {
@@ -2321,6 +2330,22 @@ export type FunctionCallOut = {
   tool: string;
   status: "ok" | "error" | "forbidden" | "timeout";
   latency_ms: number;
+};
+
+export type FunnelOut = {
+  period: PeriodOut | null;
+  steps: FunnelStepOut[];
+  lost: number;
+  lost_value: number;
+  currency?: string;
+};
+
+export type FunnelStepOut = {
+  stage: string;
+  reached: number;
+  value: number;
+  conversion_pct: number | null;
+  drop_off_pct: number | null;
 };
 
 export type GoalSummary = {
@@ -3089,6 +3114,7 @@ export type MessageOut = {
   function_calls?: FunctionCallOut[];
   truncated?: boolean;
   created_at: string;
+  mode?: "live" | "replay";
 };
 
 export type Meta = {
@@ -4130,8 +4156,9 @@ export type SalesSummary = {
   deals_lost: number;
   win_rate_pct: number | null;
   avg_deal_value: number | null;
-  closed_revenue: number;
+  closed_bookings: number;
   quota_attainment_pct: number | null;
+  bookings_attainment_pct: number | null;
   avg_sales_cycle_days: number | null;
   pipeline_coverage: number | null;
   currency?: string;
@@ -6030,6 +6057,10 @@ export interface ApiOperations {
   "GET /api/v1/sales/deals/{deal_id}/stage-history": {
     request: void;
     response: Envelope_list_StageHistoryOut__;
+  };
+  "GET /api/v1/sales/funnel": {
+    request: void;
+    response: Envelope_FunnelOut_;
   };
   "GET /api/v1/sales/performance": {
     request: void;

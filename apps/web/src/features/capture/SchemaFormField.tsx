@@ -4,13 +4,15 @@ import type { UseFormRegisterReturn } from "react-hook-form";
 import { ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
+import { codeLabel } from "@/lib/humanize";
 import { ruleMessage } from "./errors";
+import { fieldLabel } from "./field-label";
 import type { FormField } from "./types";
 
-/** Field label from `label_key` (i18n) with the raw name as fallback. */
+/** Field label from `label_key` (i18n), never the raw `snake_case` name (see `fieldLabel`). */
 export function useFieldLabel() {
   const t = useTranslations();
-  return (f: Pick<FormField, "name" | "label_key">) => (f.label_key && t.has(f.label_key) ? t(f.label_key) : t.has(`capture.field.${f.name}`) ? t(`capture.field.${f.name}`) : f.name);
+  return (f: Pick<FormField, "name" | "label_key">) => fieldLabel(t as never, f);
 }
 
 /** One SCR-61 input: VN placeholders for date/number, enum → select, critical marker, inline error. */
@@ -18,11 +20,11 @@ export function SchemaFormField({ field, reg, error, id, compact = false }: { fi
   const t = useTranslations();
   const label = useFieldLabel()(field);
   const errId = `${id}-err`;
-  const common = { id, "aria-invalid": Boolean(error), "aria-describedby": error ? errId : undefined, "data-testid": `field-${id}` };
+  const common = { id, "aria-invalid": Boolean(error), "aria-required": field.required || undefined, "aria-describedby": error ? errId : undefined, "data-testid": `field-${id}` };
   const input = field.enum?.length ? (
     <NativeSelect {...reg} {...common}>
       <option value="">{t("capture.form.choose")}</option>
-      {field.enum.map((v) => <option key={v} value={v}>{v}</option>)}
+      {field.enum.map((v) => <option key={v} value={v}>{codeLabel(t as never, "capture.fieldEnum", v)}</option>)}
     </NativeSelect>
   ) : (
     <Input {...reg} {...common} inputMode={["number", "money"].includes(field.value_type) ? "decimal" : undefined}

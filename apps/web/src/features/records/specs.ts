@@ -30,6 +30,8 @@ export interface ResourceSpec {
   sortBy: string;
   /** default `desc` (newest first); names read better ascending */
   order?: "asc" | "desc";
+  /** Columns the list endpoint can sort (its `page_params` whitelist ∩ `columns`). */
+  sortable?: readonly string[];
   columns: readonly ColumnSpec[];
   fields: readonly FieldSpec[];
   /** The API has DELETE (soft, `deleted_at`) for this resource. */
@@ -49,6 +51,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   // ---------------------------------------------------------------- finance (EP-FIN-02..07)
   {
     key: "revenues", domain: "finance", path: "/finance/revenues", sortBy: "recognized_on", archivable: true,
+    sortable: ["recognized_on", "amount"],
     columns: [{ name: "recognized_on", type: "date" }, { name: "category", type: "enum" }, { name: "amount", type: "money" }, { name: "description", type: "text" }],
     fields: [
       { name: "amount", type: "money", required: true },
@@ -61,6 +64,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "expenses", domain: "finance", path: "/finance/expenses", sortBy: "spent_on", archivable: true,
+    sortable: ["spent_on", "amount"],
     columns: [{ name: "spent_on", type: "date" }, { name: "title", type: "text" }, { name: "category", type: "enum" }, { name: "amount", type: "money" }, { name: "vendor", type: "text" }],
     fields: [
       { name: "title", type: "text", required: true },
@@ -76,6 +80,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "invoices", domain: "finance", path: "/finance/invoices", sortBy: "issued_on", archivable: true,
+    sortable: ["issued_on", "due_date", "total_amount"],
     columns: [{ name: "number", type: "text" }, { name: "direction", type: "enum" }, { name: "counterparty_name", type: "text" }, { name: "issued_on", type: "date" },
       { name: "due_date", type: "date" }, { name: "total_amount", type: "money" }, { name: "amount_due", type: "money" }, { name: "status", type: "enum" }],
     fields: [
@@ -104,6 +109,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "budgets", domain: "finance", path: "/finance/budgets", sortBy: "fiscal_year", archivable: true,
+    sortable: ["fiscal_year", "allocated_amount"],
     columns: [{ name: "fiscal_year", type: "text" }, { name: "quarter", type: "text" }, { name: "department_id", type: "ref", ref: "department" }, { name: "category", type: "enum" }, { name: "allocated_amount", type: "money" }],
     fields: [
       { name: "department_id", type: "ref", ref: "department", required: true },
@@ -116,6 +122,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "cashPositions", domain: "finance", path: "/finance/cash-positions", sortBy: "period", archivable: false, // EP-FIN-04: no DELETE
+    sortable: ["period", "closing_balance"],
     columns: [{ name: "period", type: "text" }, { name: "opening_balance", type: "money" }, { name: "closing_balance", type: "money" }, { name: "cash_source", type: "enum" }],
     fields: [
       { name: "period", type: "month", required: true, createOnly: true },
@@ -127,6 +134,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   // ------------------------------------------------------------------ sales (EP-SAL-01..04)
   {
     key: "clients", domain: "sales", path: "/sales/clients", sortBy: "name", order: "asc", archivable: true,
+    sortable: ["name"],
     detailHref: (r) => `/business/sales/clients/${String(r.id)}`,
     columns: [{ name: "name", type: "text" }, { name: "tax_code", type: "text" }, { name: "industry", type: "text" }, { name: "size", type: "enum" }, { name: "status", type: "enum" }],
     fields: [
@@ -143,6 +151,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "deals", domain: "sales", path: "/sales/deals", sortBy: "expected_close_date", archivable: true,
+    sortable: ["deal_value", "expected_close_date"],
     detailHref: (r) => `/business/sales/deals/${String(r.id)}`,
     columns: [{ name: "name", type: "text" }, { name: "client_id", type: "ref", ref: "client" }, { name: "stage", type: "enum" }, { name: "deal_value", type: "money" },
       { name: "probability_pct", type: "pct" }, { name: "expected_close_date", type: "date" }],
@@ -162,6 +171,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "contracts", domain: "sales", path: "/sales/contracts", sortBy: "effective_date", archivable: true,
+    sortable: ["contract_value", "effective_date", "expiry_date"],
     columns: [{ name: "contract_number", type: "text" }, { name: "client_id", type: "ref", ref: "client" }, { name: "contract_value", type: "money" },
       { name: "effective_date", type: "date" }, { name: "expiry_date", type: "date" }, { name: "status", type: "enum" }],
     fields: [
@@ -178,6 +188,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "targets", domain: "sales", path: "/sales/targets", sortBy: "period_key", archivable: true,
+    sortable: ["period_key", "target_amount"],
     columns: [{ name: "period_key", type: "text" }, { name: "period_type", type: "enum" }, { name: "scope", type: "enum" }, { name: "target_amount", type: "money" }],
     fields: [
       { name: "period_type", type: "select", required: true, options: ["month", "quarter", "year"], createOnly: true },
@@ -190,6 +201,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   // --------------------------------------------------------------------- hr (EP-HR-02..10)
   {
     key: "employees", domain: "hr", path: "/hr/employees", sortBy: "full_name", order: "asc", archivable: true, searchable: true,
+    sortable: ["employee_code", "full_name", "hire_date"],
     columns: [{ name: "employee_code", type: "text" }, { name: "full_name", type: "text" }, { name: "title", type: "text" },
       { name: "department_id", type: "ref", ref: "department" }, { name: "status", type: "enum" }, { name: "hire_date", type: "date" }],
     fields: [
@@ -208,6 +220,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
   },
   {
     key: "hiringPlans", domain: "hr", path: "/hr/hiring-plans", sortBy: "target_date", archivable: true,
+    sortable: ["priority", "status", "target_date"],
     columns: [{ name: "position", type: "text" }, { name: "department_id", type: "ref", ref: "department" }, { name: "headcount", type: "text" },
       { name: "filled", type: "text" }, { name: "priority", type: "enum" }, { name: "status", type: "enum" }, { name: "target_date", type: "date" }],
     fields: [

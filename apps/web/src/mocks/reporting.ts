@@ -43,7 +43,9 @@ function executive(req: MockRequest): Response {
   const sei = byCode.has(SEI_CODE) ? metricOut(byCode.get(SEI_CODE)!) : null;
   const risks = sessionFor(req.claims.sub).alerts.filter((a) => metricVisible(req.claims, a.metric_code, a.pillar));
   return ok({
-    summary_line: `${risks.length} rủi ro mở`,
+    summary_line: `0 việc cần quyết, ${risks.length} rủi ro mở`,
+    summary_key: "reporting.executiveSummary",
+    summary_params: { decisions: 0, risks: risks.length },
     tiles, sei,
     decisions_waiting: { count: 0, items: [] },
     open_risks: { count: risks.length, items: risks.slice(0, 5) },

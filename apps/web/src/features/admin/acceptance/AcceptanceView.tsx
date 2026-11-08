@@ -5,11 +5,12 @@
  * source it reads (metric code or endpoint). An overall banner summarises the four gates. True
  * thresholds are confirmed at pilot; this page only reads existing instrumentation.
  */
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/lib/format";
 import type { Api } from "@aureon/shared-types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatValue, gateTone, overallStatus, type Tone } from "./logic";
+import { formatValue, gateSourceKey, gateTone, overallStatus, type Tone } from "./logic";
 import { useAcceptance } from "./use-acceptance";
 
 const BADGE: Record<Tone, "success" | "warning" | "danger" | "outline"> = {
@@ -23,6 +24,7 @@ export function AcceptanceView() {
   // Root scope: BE gate keys are fully-qualified ("acceptance.g1", "acceptance.g1_threshold").
   const t = useTranslations();
   const tr = (k: string) => t(`acceptance.${k}`);
+  const locale = useLocale() as AppLocale;
   const q = useAcceptance();
   const gates = q.data?.data.gates ?? [];
   const overall = overallStatus(gates.map((g) => g.status));
@@ -48,7 +50,7 @@ export function AcceptanceView() {
       {gates.length > 0 && (
         <ul className="flex flex-col gap-3" data-testid="acceptance-gates">
           {gates.map((g) => (
-            <GateRow key={g.gate} g={g} t={t} tr={tr} />
+            <GateRow key={g.gate} g={g} t={t} tr={tr} locale={locale} />
           ))}
         </ul>
       )}
@@ -60,11 +62,14 @@ function GateRow({
   g,
   t,
   tr,
+  locale,
 }: {
   g: Api.AcceptanceGateOut;
   t: ReturnType<typeof useTranslations>;
   tr: (k: string) => string;
+  locale: AppLocale;
 }) {
+  const sourceKey = gateSourceKey(g.source_ref);
   return (
     <li>
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4" data-testid="acceptance-gate">
@@ -73,12 +78,12 @@ function GateRow({
             {g.gate} · {t.has(g.label_key) ? t(g.label_key) : g.label_key}
           </span>
           <span className="text-xs text-muted-foreground">
-            {t.has(g.threshold_key) ? t(g.threshold_key) : g.threshold_key} · {tr("source")}: {g.source_ref}
+            {t.has(g.threshold_key) ? t(g.threshold_key) : g.threshold_key}{sourceKey && t.has(sourceKey) ? ` · ${tr("source")}: ${t(sourceKey)}` : ""}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm" data-testid="acceptance-gate-value">
-            {formatValue(g.value, g.unit)}
+            {formatValue(g.value, g.unit, locale, tr("daysPerWeek"))}
           </span>
           <Badge variant={BADGE[gateTone(g.status)]} data-testid="acceptance-gate-status">
             {tr(`status.${g.status}`)}
