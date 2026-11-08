@@ -23,7 +23,8 @@ __all__ = ["MONTH_RE", "QUARTER_RE", "Period", "PeriodType", "add_months", "mont
 
 Status = Literal["ok", "warning", "critical"]
 
-# 03 §2 METRIC-HR-02 / METRIC-HR-04 default bands (DEC-143); metric store (T-220) owns config.
+# 03 §2 METRIC-HR-02 / METRIC-HR-04 catalog defaults (DEC-143), for pure use only: callers on the
+# request path pass the store's live thresholds (`platform.metric_rules`, NFR-19).
 TURNOVER_WARNING_PCT = 15.0
 TURNOVER_CRITICAL_PCT = 20.0
 DELAY_CRITICAL_DAYS = 45
@@ -72,17 +73,21 @@ def trend_months(end: date, count: int = 12) -> list[tuple[str, date, date]]:
     return out
 
 
-def turnover_status(pct: float | None) -> Status | None:
+def turnover_status(
+    pct: float | None,
+    warning: float = TURNOVER_WARNING_PCT,
+    critical: float = TURNOVER_CRITICAL_PCT,
+) -> Status | None:
     if pct is None:
         return None
-    if pct >= TURNOVER_CRITICAL_PCT:
+    if pct >= critical:
         return "critical"
-    return "warning" if pct >= TURNOVER_WARNING_PCT else "ok"
+    return "warning" if pct >= warning else "ok"
 
 
-def delay_status(days_late: list[int]) -> Status:
-    """METRIC-HR-04: any plan late > 45 days → critical; any late → warning."""
-    if any(d > DELAY_CRITICAL_DAYS for d in days_late):
+def delay_status(days_late: list[int], critical_days: float = DELAY_CRITICAL_DAYS) -> Status:
+    """METRIC-HR-04: any plan late > `critical_days` → critical; any late → warning."""
+    if any(d > critical_days for d in days_late):
         return "critical"
     return "warning" if days_late else "ok"
 

@@ -1,6 +1,12 @@
-"""Business "today" (08 §1: `DEMO_REFERENCE_DATE` is today for every date-dependent metric).
+"""Business "today" — the single calendar every date-dependent rule and metric reads (08 §1).
 
-`DEMO_MODE=true` → the configured reference date; otherwise the UTC calendar date.
+Resolution order (D-15, separate from `DEMO_MODE`):
+1. `BUSINESS_DATE_OVERRIDE` — explicit pin, independent of `DEMO_MODE`;
+2. `DEMO_MODE=true` → `DEMO_REFERENCE_DATE` (backward-compatible alias: existing demo stacks and
+   seeds keep their timeline without new configuration);
+3. otherwise the UTC calendar date.
+
+Timestamps of what happened (`created_at`, `done_at`, `computed_at`…) stay wall-clock.
 """
 
 from datetime import UTC, date, datetime
@@ -10,6 +16,8 @@ from app.core.config import get_config
 
 def business_today() -> date:
     cfg = get_config()
+    if cfg.business_date_override is not None:
+        return cfg.business_date_override
     if cfg.demo_mode and cfg.demo_reference_date:
         return date.fromisoformat(cfg.demo_reference_date)
     return datetime.now(UTC).date()
@@ -18,9 +26,9 @@ def business_today() -> date:
 def business_now() -> datetime:
     """Wall-clock instant pinned to the business calendar day (08 §1, DD-05).
 
-    In demo mode a KPI/OKR check-in recorded "now" must land inside the business period
-    (`period_key` derives from `business_today()`), so we keep the live time-of-day but move the
-    date onto `DEMO_REFERENCE_DATE`. Outside demo mode this is plain `datetime.now(UTC)`.
+    With a pinned business date a KPI/OKR check-in recorded "now" must land inside the business
+    period (`period_key` derives from `business_today()`), so we keep the live time-of-day but
+    move the date onto it. Without a pin this is plain `datetime.now(UTC)`.
     """
     now = datetime.now(UTC)
     day = business_today()

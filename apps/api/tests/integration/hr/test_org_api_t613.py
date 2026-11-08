@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
 from app.seed.ids import seed_uuid
 from tests.conftest import ApiClient
 from tests.integration.hr.helpers import (
@@ -23,8 +24,13 @@ from tests.integration.hr.helpers import (
 
 pytestmark = pytest.mark.integration
 SAL = str(seed_uuid("department", "SAL"))
-# API uses UTC date for valid_from; date.today() breaks after midnight ICT (UTC = ICT-7)
+# API uses the business date for valid_from; date.today() breaks after midnight ICT (UTC = ICT-7)
 TODAY = datetime.now(UTC).date()
+
+
+@pytest.fixture(autouse=True)
+def _business_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_config(), "business_date_override", TODAY)
 
 
 def data(r: Any, status: int = 200) -> Any:

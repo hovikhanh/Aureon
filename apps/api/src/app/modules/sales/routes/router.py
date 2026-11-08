@@ -30,6 +30,7 @@ from app.modules.sales.schemas import (
     DealOut,
     DealStage,
     DealUpdate,
+    FunnelOut,
     GroupBy,
     PerformanceRow,
     PipelineOut,
@@ -42,6 +43,7 @@ from app.modules.sales.schemas import (
     TargetUpdate,
 )
 from app.modules.sales.services import calculations as calc
+from app.modules.sales.services import scope as sales_scope
 from app.modules.sales.services.analytics import SalesAnalytics
 from app.modules.sales.services.sales_service import (
     SalesService,
@@ -55,10 +57,26 @@ router = EnvelopeRouter(tags=["sales"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
 # Record/detail reads + writes bị cô lập theo khối C (R-DEC-12a): DIR ngoài khối C → 403.
-Reader = Annotated[Principal, Depends(require_pillar_permission("sales:read"))]
+PillarReader = Annotated[Principal, Depends(require_pillar_permission("sales:read"))]
 Writer = Annotated[Principal, Depends(require_pillar_permission("sales:write"))]
 # Tổng hợp (pipeline/performance/dashboard) mở cho mọi DIR; chi tiết per-owner chặn ở scope.
 Querier = Annotated[Principal, Depends(require_permission("sales:query"))]
+AnyReader = Annotated[Principal, Depends(require_permission("sales:read"))]
+
+
+async def _reader(user: PillarReader) -> Principal:
+    sales_scope.require_record_reader(user)
+    return user
+
+
+async def _aggregate_reader(user: AnyReader) -> Principal:
+    sales_scope.require_record_reader(user)
+    return user
+
+
+Reader = Annotated[Principal, Depends(_reader)]  # 02 §5.3 `◑r`: REV outside a review → 403
+# Funnel: an aggregate like the pipeline, so it stays open across khối; deals are still scoped.
+FunnelReader = Annotated[Principal, Depends(_aggregate_reader)]
 DASHBOARD_CACHE = {"Cache-Control": "private, max-age=60", "Vary": "Authorization"}
 
 
@@ -240,6 +258,11 @@ async def pipeline(
     db: Db, user: Querier, period: Period = None, owner_id: uuid.UUID | None = None
 ) -> Any:
     return await SalesAnalytics(db).pipeline(user, period, owner_id)
+
+
+@router.get("/sales/funnel", response_model=FunnelOut)
+async def funnel(db: Db, user: FunnelReader, period: Period = None) -> Any:
+    return await SalesAnalytics(db).funnel(user, period)
 
 
 @router.get("/sales/performance", response_model=list[PerformanceRow])

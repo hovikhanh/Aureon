@@ -4,6 +4,8 @@
   only through a deal of their department; clients/targets have no `department_id` → master
   data readable, client create allowed (needed to open a deal), other client/target writes
   denied (DEC-193).
+- REV (`◑r`): only inside an assigned review session; every general sales read →
+  `FORBIDDEN_SCOPE` (D-07, same pattern as hr / product / risk).
 - CEO `sales:write ◑t`: writes **targets only** — any other sales write → `FORBIDDEN_SCOPE`.
 - Deal delete: Sales-DIR only (ex VP_SALES, FR-SAL-01) → `FORBIDDEN_ROLE` for everyone else.
 - `sales:query` without `sales:read` (`○`, non-Sales DIR): aggregates only — per-owner
@@ -18,6 +20,7 @@ from app.core.deps import Principal
 from app.core.errors import PermissionDeniedError, ScopeDeniedError
 
 DEPARTMENT_SCOPED_ROLES = frozenset({"MGR"})
+REVIEW_SCOPED_ROLES = frozenset({"REV"})
 TARGET_ONLY_WRITERS = frozenset({"CEO"})
 
 
@@ -35,6 +38,11 @@ def check_department(user: Principal, department_id: uuid.UUID | None) -> None:
         raise ScopeDeniedError(
             "deal outside your department", details={"department_id": str(department_id)}
         )
+
+
+def require_record_reader(user: Principal) -> None:
+    if user.role in REVIEW_SCOPED_ROLES:
+        raise ScopeDeniedError("sales records are readable only inside an assigned review")
 
 
 def require_record_writer(user: Principal) -> None:

@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, func, or_, select
 
 from app.core.base_repository import BaseRepository
+from app.core.clock import business_today
 from app.modules.hr.models import (
     Department,
     Employee,
@@ -44,11 +45,14 @@ class _Dated[ModelT: Organization | Department | Team](BaseRepository[ModelT]):
 
         A row archived on or before `as_of` is gone that day even when `valid_to` had to be
         pushed to `valid_from + 1` (archived the day it was created — e.g. a capture undo,
-        R-DEC-66; CHECK `valid_to > valid_from`)."""
+        R-DEC-66; CHECK `valid_to > valid_from`). `deleted_at` is wall-clock while `as_of` is a
+        business date (R-DEC-192): from the business today on, an archived row is gone whatever
+        its timestamp, so a pinned demo date still sees today's archive."""
         deleted = self._col("deleted_at")
-        stmt = self._scoped(select(self.model)).where(
-            valid_on(self.model, as_of), or_(deleted.is_(None), deleted >= _day_after(as_of))
-        )
+        live = deleted.is_(None)
+        if as_of < business_today():
+            live = or_(live, deleted >= _day_after(as_of))
+        stmt = self._scoped(select(self.model)).where(valid_on(self.model, as_of), live)
         for name, value in filters.items():
             stmt = stmt.where(self._col(name) == value)
         stmt = stmt.order_by(self._col("code"))

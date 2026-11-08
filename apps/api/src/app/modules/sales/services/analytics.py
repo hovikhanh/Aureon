@@ -1,4 +1,4 @@
-"""Sales read models — EP-70 dashboard, EP-75 pipeline, EP-76 performance (FR-SAL-04/05/07).
+"""Sales read models — EP-70 dashboard, EP-75 pipeline, funnel, EP-76 performance (FR-SAL-04/05/07).
 
 Aggregates are computed from the scoped deal set with the pure BR-SAL functions in
 `calculations.py`. Scope (02 §6.2, DEC-193): MANAGER sees only deals of their department;
@@ -17,7 +17,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import business_now, business_today, month_key, shift_month
 from app.core.deps import Principal
+from app.modules.finance.services.revenue_query import revenue_total, revenue_vs_target_pct
 from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 from app.modules.sales.models import Deal, SalesTarget
 from app.modules.sales.repositories import (
@@ -26,6 +28,8 @@ from app.modules.sales.repositories import (
     TargetRepository,
 )
 from app.modules.sales.schemas import (
+    FunnelOut,
+    FunnelStepOut,
     PerformanceRow,
     PeriodOut,
     PipelineOut,
@@ -69,6 +73,13 @@ def _team_target(targets: Sequence[SalesTarget]) -> int | None:
     return next((t.target_amount for t in targets if t.scope == "team"), None)
 
 
+def _month_keys(p: calc.Period) -> list[str]:
+    keys, last = [month_key(p.start)], month_key(p.end)
+    while keys[-1] < last:
+        keys.append(shift_month(keys[-1], 1))
+    return keys
+
+
 class SalesAnalytics:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -78,7 +89,7 @@ class SalesAnalytics:
 
     @staticmethod
     def today() -> date:
-        return datetime.now(UTC).date()
+        return business_today()
 
     async def _scoped_deals(self, user: Principal, owner_id: uuid.UUID | None = None) -> list[Deal]:
         where: list[Any] = []
@@ -110,7 +121,7 @@ class SalesAnalytics:
         per_deal: dict[uuid.UUID, list[tuple[str, datetime]]] = defaultdict(list)
         for h in hist:
             per_deal[h.deal_id].append((h.stage, h.entered_at))
-        now = datetime.now(UTC)
+        now = business_now()
         spent: dict[str, list[timedelta]] = defaultdict(list)
         for rows in per_deal.values():
             for stage, dur in calc.stage_durations(rows, now):
@@ -139,6 +150,29 @@ class SalesAnalytics:
         return PipelineOut(
             period=period_out(p) if p else None, stages=stages, coverage_ratio=coverage
         )
+
+    # ---------- cumulative funnel (D-09) ----------
+    async def funnel(self, user: Principal, period: str | None) -> FunnelOut:
+        """How many deals reached at least each stage, from `deal_stage_history` + current stage.
+
+        Same deal set as `/sales/pipeline?period=`: without a period every scoped deal, with one
+        the open deals expected to close in it and the deals closed in it.
+        """
+        p = calc.resolve_period(period, self.today()) if period else None
+        deals = await self._scoped_deals(user)
+        if p is not None:
+            closed = [*_closed_in(deals, p, "closed_won"), *_closed_in(deals, p, "closed_lost")]
+            deals = [*_open_closing_in(deals, p), *closed]
+        stages: dict[uuid.UUID, set[str]] = {d.id: {d.stage} for d in deals}
+        for h in await self.history.for_deals(list(stages)):
+            stages[h.deal_id].add(h.stage)
+        steps = calc.funnel_steps([(calc.furthest_rank(stages[d.id]), d.deal_value) for d in deals])
+        lost = [d for d in deals if d.stage == "closed_lost"]
+        return FunnelOut(
+            period=period_out(p) if p else None,
+            steps=[FunnelStepOut(**vars(s)) for s in steps],
+            lost=len(lost), lost_value=sum(d.deal_value for d in lost),
+        )  # fmt: skip
 
     # ---------- EP-76 ----------
     async def performance(
@@ -182,8 +216,12 @@ class SalesAnalytics:
         p = calc.resolve_period(period, today)
         deals = await self._scoped_deals(user)
         open_ = _open(deals)
-        won, lost = _closed_in(deals, p, "closed_won"), _closed_in(deals, p, "closed_lost")
-        closed_revenue = sum(d.deal_value for d in won)
+        closing = p if period else self._latest_closed_period(deals, today, p)
+        won = _closed_in(deals, closing, "closed_won")
+        lost = _closed_in(deals, closing, "closed_lost")
+        bookings = sum(d.deal_value for d in won)
+        quota = await self._quota(user, closing.key, None)
+        revenue = await revenue_total(self.db, _month_keys(closing)) if quota else 0
         quarter = calc.quarter_of(p.end)
         q_open = sum(d.deal_value for d in _open_closing_in(deals, quarter))
         summary = SalesSummary(
@@ -192,10 +230,9 @@ class SalesAnalytics:
             deals_open=len(open_), deals_won=len(won), deals_lost=len(lost),
             win_rate_pct=calc.win_rate_pct(len(won), len(lost)),
             avg_deal_value=calc.avg_amount(d.deal_value for d in won),
-            closed_revenue=closed_revenue,
-            quota_attainment_pct=calc.attainment_pct(
-                closed_revenue, await self._quota(user, p.key, None)
-            ),
+            closed_bookings=bookings,
+            quota_attainment_pct=revenue_vs_target_pct(revenue, quota),
+            bookings_attainment_pct=calc.attainment_pct(bookings, quota),
             avg_sales_cycle_days=calc.avg_days(
                 d.closed_at - d.created_at for d in won if d.closed_at
             ),
@@ -212,10 +249,23 @@ class SalesAnalytics:
         metrics: list[dict[str, Any]] = snap.metrics
         return SalesDashboardOut(
             status=calc.pillar_status(m["status"] for m in metrics),
-            period=period_out(p), summary=summary, metrics=metrics, open_alerts=snap.open_alerts,
+            period=period_out(closing), summary=summary, metrics=metrics,
+            open_alerts=snap.open_alerts,
             pipeline_trend=self._pipeline_trend(deals, p.end),
             win_rate_trend=self._win_rate_trend(deals, p.end),
         )  # fmt: skip
+
+    @staticmethod
+    def _latest_closed_period(
+        deals: Sequence[Deal], today: date, default: calc.Period
+    ) -> calc.Period:
+        """Default dashboard period: the running month, or else the latest month of the trend
+        window with a closed deal (K6: a month barely started must not read `win rate null`
+        while deals exist; `METRIC-CUS-02` reads the last closed month the same way)."""
+        for m in reversed(calc.last_months(today, TREND_MONTHS)):
+            if _closed_in(deals, m, "closed_won") or _closed_in(deals, m, "closed_lost"):
+                return m
+        return default
 
     @staticmethod
     def _pipeline_trend(deals: Sequence[Deal], end: date) -> list[PipelineTrendPoint]:

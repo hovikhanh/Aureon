@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, DuplicateResourceError, NotFoundError
 from app.core.events.outbox import publish_in_tx
@@ -48,7 +49,7 @@ from app.modules.hr.services.scope import deny, structure_scope
 
 
 def today() -> date:
-    return datetime.now(UTC).date()
+    return business_today()
 
 
 def _rule(message: str, reason: str, field: str | None = None, **extra: Any) -> BusinessRuleError:

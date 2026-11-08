@@ -1,14 +1,21 @@
 """T-104 — EP-67 invoices (+ lines), EP-68 pay → events (TC-FIN-004)."""
 
+import asyncio
 import uuid
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
+from app.core.config import get_config
+from app.core.deps import Principal
+from app.core.errors import BusinessRuleError
 from app.core.events.envelope import OUTBOX
+from app.modules.finance.models import Invoice
+from app.modules.finance.schemas import InvoicePay
 from app.modules.finance.services.invoice_service import InvoiceService, today
 from tests.conftest import ApiClient
 
@@ -184,3 +191,46 @@ async def test_invoice_permissions_and_404(api: ApiClient) -> None:
     assert (await api.call("GET", f"/finance/invoices/{uuid.uuid4()}")).status_code == 404
     assert (await api.call("POST", "/finance/invoices", "CEO", json=_inv())).status_code == 403
     assert (await api.call("GET", "/finance/invoices", "VP_SALES")).status_code == 403
+
+
+async def test_concurrent_payments_cannot_lose_an_amount() -> None:
+    """TD-03: two payments of 60 on 100 due: one wins, the other sees the new amount due."""
+    cfg = get_config()
+    engine = create_async_engine(cfg.database_url.get_secret_value(), poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    user = Principal(user_id=uuid.uuid4(), role="DIR")
+    invoice_id = uuid.uuid4()
+    paid_at = datetime(2039, 1, 20, tzinfo=UTC)
+    async with maker() as s:
+        s.add(Invoice(
+            id=invoice_id, direction="IN", number=uuid.uuid4().hex[:10], counterparty_name="NCC",
+            issue_date=date(2039, 1, 1), due_date=date(2039, 2, 1), subtotal=100,
+            vat_rate_pct=0, vat_amount=0, total_amount=100, paid_amount=0, currency="VND",
+            status="sent", source="MANUAL",
+        ))  # fmt: skip
+        await s.commit()
+
+    async def pay() -> str:
+        async with maker() as s:
+            await asyncio.sleep(0)  # both requests start before either commits
+            body = InvoicePay(amount_paid=60, paid_at=paid_at, method="bank_transfer")
+            try:
+                await InvoiceService(s).pay(user, invoice_id, body)
+                await asyncio.sleep(0.1)  # hold the row while the other waits
+                await s.commit()
+                return "paid"
+            except BusinessRuleError:
+                await s.rollback()
+                return "rejected"
+
+    try:
+        results = await asyncio.gather(pay(), pay())
+        assert sorted(results) == ["paid", "rejected"]
+        async with maker() as s:
+            inv = await s.get(Invoice, invoice_id)
+            assert inv is not None and inv.paid_amount == 60 and inv.status == "partial"
+    finally:
+        async with maker() as s:
+            await s.execute(delete(Invoice).where(Invoice.id == invoice_id))
+            await s.commit()
+        await engine.dispose()

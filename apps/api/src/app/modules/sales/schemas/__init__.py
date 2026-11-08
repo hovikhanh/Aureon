@@ -211,6 +211,22 @@ class PipelineOut(BaseModel):
     currency: str = "VND"
 
 
+class FunnelStepOut(BaseModel):
+    stage: str
+    reached: int  # deals that reached at least this stage
+    value: int
+    conversion_pct: float | None  # of the previous step, 0–100; None on the first / after empty
+    drop_off_pct: float | None
+
+
+class FunnelOut(BaseModel):
+    period: PeriodOut | None
+    steps: list[FunnelStepOut]
+    lost: int  # closed_lost deals: counted in the steps they reached, reported apart
+    lost_value: int
+    currency: str = "VND"
+
+
 GroupBy = Literal["team", "owner"]
 
 
@@ -231,8 +247,9 @@ class SalesSummary(BaseModel):
     deals_lost: int
     win_rate_pct: float | None
     avg_deal_value: int | None
-    closed_revenue: int
-    quota_attainment_pct: float | None
+    closed_bookings: int  # deals won: bookings, never actual revenue (D-09)
+    quota_attainment_pct: float | None  # Finance revenue ÷ team quota: the METRIC-FIN-01 formula
+    bookings_attainment_pct: float | None  # closed_bookings ÷ team quota
     avg_sales_cycle_days: float | None
     pipeline_coverage: float | None
     currency: str = "VND"

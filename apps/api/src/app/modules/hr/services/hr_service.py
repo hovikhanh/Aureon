@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.base_model import Base
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.directory import register_employee_lookup, register_employee_name_matcher
 from app.core.errors import (
@@ -81,8 +82,8 @@ def _err(message: str, field: str, reason: str) -> BusinessRuleError:
 
 
 def today() -> date:
-    """Business "today" (UTC date) — single clock for delay filters and the dashboard."""
-    return datetime.now(UTC).date()
+    """Business "today" (`core.clock`) — single clock for delay filters and the dashboard."""
+    return business_today()
 
 
 def normalize_name(name: str) -> str:

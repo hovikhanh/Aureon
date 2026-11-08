@@ -12,13 +12,14 @@ EP-ORG-21..23 live in `routes/org.py` (T-613).
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import record_audit
 from app.core.base_repository import BaseRepository
+from app.core.clock import business_today
 from app.core.errors import BusinessRuleError, ConflictStateError, NotFoundError, ScopeDeniedError
 from app.core.events.outbox import publish_in_tx
 from app.modules.hr.models import Employee, EmployeeAssignment, Position, Team
@@ -54,7 +55,7 @@ def _snapshot(a: EmployeeAssignment) -> dict[str, str | None]:
 
 
 def _today() -> date:
-    return datetime.now(UTC).date()
+    return business_today()
 
 
 class OrgService:

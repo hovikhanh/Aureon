@@ -1,7 +1,8 @@
 """Public service interface of `finance` — the only entry point for other modules.
 
 Every mutation writes `ENT-AuditLog` in the caller's transaction (10 §1.8); the route commits.
-Scope (02 §7): MANAGER sees / writes only expenses of their own department (FORBIDDEN_SCOPE).
+Scope (02 §5.3, `scope.py`): MANAGER sees / writes only expenses of their own department; the
+other records are guarded at the route so the IDP Action Registry can still commit them.
 """
 
 import uuid
@@ -13,12 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit
 from app.core.base_model import Base
 from app.core.deps import Principal
-from app.core.errors import (
-    BusinessRuleError,
-    DuplicateResourceError,
-    NotFoundError,
-    ScopeDeniedError,
-)
+from app.core.errors import BusinessRuleError, DuplicateResourceError, NotFoundError
 from app.core.pagination import PageParams
 from app.modules.finance.models import CashPosition, Expense, Revenue
 from app.modules.finance.repositories import (
@@ -37,9 +33,8 @@ from app.modules.finance.schemas import (
     RevenueOut,
     RevenueUpdate,
 )
+from app.modules.finance.services import scope
 from app.modules.finance.services.budget_service import BudgetService
-
-DEPARTMENT_SCOPED_ROLES = frozenset({"MGR"})  # R-DEC-12: ROLE-MGR scope phòng ban
 
 
 def period_of(d: Any) -> str:
@@ -164,24 +159,18 @@ class FinanceService:
         await self._audit("finance.revenue_delete", "revenues", obj, before=before)
 
     # ---------- EP-62 expenses ----------
-    @staticmethod
-    def _scope_department(user: Principal, department_id: uuid.UUID | None) -> None:
-        if user.role in DEPARTMENT_SCOPED_ROLES and department_id != user.department_id:
-            raise ScopeDeniedError(
-                "expense outside your department", details={"department_id": str(department_id)}
-            )
+    async def _check_budget(self, user: Principal, budget_id: uuid.UUID | None) -> None:
+        """An expense cannot draw on the budget of a department outside the caller's scope."""
+        if budget_id is not None:
+            await BudgetService(self.db).get(user, budget_id)
 
     async def list_expenses(
         self, user: Principal, page: PageParams, *, period: str | None,
         department_id: uuid.UUID | None, category: str | None,
     ) -> tuple[list[ExpenseOut], int]:  # fmt: skip
         filters: dict[str, Any] = {}
-        if user.role in DEPARTMENT_SCOPED_ROLES:
-            if department_id is not None:
-                self._scope_department(user, department_id)
-            department_id = user.department_id
-            filters["department_id"] = department_id
-        elif department_id:
+        department_id = scope.department_filter(user, department_id)
+        if department_id:
             filters["department_id"] = department_id
         if period:
             filters["period_key"] = period
@@ -198,12 +187,13 @@ class FinanceService:
         obj = await self.expenses.get(id_)
         if obj is None:
             raise NotFoundError("expense not found")
-        self._scope_department(user, obj.department_id)
+        scope.check_department(user, obj.department_id)
         return obj
 
     async def create_expense(self, user: Principal, body: ExpenseCreate) -> ExpenseOut:
         _positive(body.amount, "amount")
-        self._scope_department(user, body.department_id)
+        scope.check_department(user, body.department_id)
+        await self._check_budget(user, body.budget_id)
         if body.is_recurring and body.recurrence_period is None:
             raise BusinessRuleError(
                 "recurring expense needs recurrence_period",
@@ -232,7 +222,9 @@ class FinanceService:
         data["updated_by"] = user.user_id
         _positive(data.get("amount"), "amount")
         if "department_id" in data:
-            self._scope_department(user, data["department_id"])
+            scope.check_department(user, data["department_id"])
+        if "budget_id" in data:
+            await self._check_budget(user, data["budget_id"])
         if "spent_on" in data:
             d = data.pop("spent_on")
             data["expense_date"], data["period_key"] = d, period_of(d)

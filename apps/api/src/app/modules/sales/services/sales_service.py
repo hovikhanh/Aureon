@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import MASK, record_audit
 from app.core.base_model import Base
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import (
     BusinessRuleError,
@@ -75,6 +76,12 @@ async def client_ref_by_tax_code(db: AsyncSession, tax_code: str) -> tuple[uuid.
     links an OUT invoice from the customer's MST without reading the sales client list."""
     c = await ClientRepository(db).by_tax_code(tax_code.strip())
     return (c.id, c.name) if c is not None else None
+
+
+async def team_revenue_target(db: AsyncSession, period_key: str) -> int | None:
+    """Public lookup for other modules (METRIC-FIN-01): the team target amount of a period."""
+    rows = await TargetRepository(db).by_period(period_key)
+    return next((t.target_amount for t in rows if t.scope == "team"), None)
 
 
 def client_out(c: Client, similar: list[SimilarClient] | None = None) -> ClientOut:
@@ -307,7 +314,7 @@ class SalesService:
     async def create_deal(self, user: Principal, body: DealCreate) -> DealOut:
         scope.require_record_writer(user)
         _positive(body.deal_value, "deal_value", "FR-SAL-01")
-        if body.expected_close_date <= now_utc().date():
+        if body.expected_close_date <= business_today():
             raise BusinessRuleError(
                 "expected_close_date must be after today",
                 details={"field": "expected_close_date", "rule": "FR-SAL-01"},
@@ -527,7 +534,7 @@ class SalesService:
             mine = DealRepository.ids_where(Deal.department_id == user.department_id)
             where.append(Contract.deal_id.in_(mine))
         if expiring_within_days is not None:
-            today = now_utc().date()
+            today = business_today()
             where.append(Contract.expiry_date.between(
                 today, today + timedelta(days=expiring_within_days)
             ))  # fmt: skip

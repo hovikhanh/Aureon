@@ -127,6 +127,10 @@ OPEN_STATUSES = ("sent", "partial", "overdue")
 class InvoiceRepository(BaseRepository[Invoice]):
     model = Invoice
 
+    async def lock(self, invoice: Invoice) -> None:
+        """`SELECT … FOR UPDATE` and reload: serializes payments on one invoice (TD-03)."""
+        await self.db.refresh(invoice, with_for_update=True)
+
     async def lines(self, invoice_id: uuid.UUID) -> list[InvoiceLine]:
         stmt = (
             select(InvoiceLine)

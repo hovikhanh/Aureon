@@ -5,12 +5,13 @@ No `os.environ` reads anywhere else. Secrets are `SecretStr` so they never print
 
 import os
 import re
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from dotenv import dotenv_values
-from pydantic import AliasChoices, Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # apps/api/src/app/core/config.py -> repo root is 5 levels up.
@@ -185,7 +186,9 @@ class ConfigService(BaseSettings):
 
     # --- Demo ---
     demo_mode: bool = False
-    demo_reference_date: str = "2026-10-20"
+    demo_reference_date: str = "2026-10-20"  # alias of the override below, only when DEMO_MODE
+    # D-15: pins `business_today()` regardless of DEMO_MODE; unset/empty = follow the alias/clock
+    business_date_override: date | None = None
     # pgcrypto key for level-4 PII columns (T-234, DEC-207); 05 OQ-08 name accepted as alias
     db_encryption_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("DB_ENCRYPTION_KEY", "PII_ENCRYPTION_KEY")
@@ -223,6 +226,12 @@ class ConfigService(BaseSettings):
     def demo_password_for(self, role: str) -> SecretStr | None:
         value: SecretStr | None = getattr(self, f"demo_{role.lower()}_password", None)
         return value or self.demo_password
+
+    @field_validator("business_date_override", mode="before")
+    @classmethod
+    def _blank_business_date(cls, value: object) -> object:
+        """`BUSINESS_DATE_OVERRIDE=` (empty in .env) means unset; anything else must be ISO."""
+        return None if isinstance(value, str) and not value.strip() else value
 
     @model_validator(mode="after")
     def _resolve_key_paths(self) -> "ConfigService":

@@ -53,6 +53,7 @@ from app.modules.finance.schemas import (
     Scenario,
     check_period,
 )
+from app.modules.finance.services import scope
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
 from app.modules.finance.services.budget_service import BudgetService, budget_out
 from app.modules.finance.services.cash_flow_service import CashFlowService
@@ -64,8 +65,29 @@ router = EnvelopeRouter(tags=["finance"])
 
 Db = Annotated[AsyncSession, Depends(get_db)]
 # Bản ghi/chi tiết tài chính cô lập theo khối F (R-DEC-12a): DIR ngoài khối F → 403.
-Reader = Annotated[Principal, Depends(require_pillar_permission("finance:read"))]
+PillarReader = Annotated[Principal, Depends(require_pillar_permission("finance:read"))]
 Writer = Annotated[Principal, Depends(require_pillar_permission("finance:write"))]
+
+
+async def _reader(user: PillarReader) -> Principal:
+    scope.require_reader(user)
+    return user
+
+
+async def _company_reader(user: PillarReader) -> Principal:
+    scope.require_company_reader(user)
+    return user
+
+
+async def _company_writer(user: Writer) -> Principal:
+    scope.require_company_writer(user)
+    return user
+
+
+# Scope marks of 02 §5.3 (D-07): Reader = department-scoped records, Company* = no department.
+Reader = Annotated[Principal, Depends(_reader)]
+CompanyReader = Annotated[Principal, Depends(_company_reader)]
+CompanyWriter = Annotated[Principal, Depends(_company_writer)]
 
 
 def period_query(name: str = "period") -> Any:
@@ -84,7 +106,7 @@ Period = Annotated[str | None, period_query()]
 # ---------- EP-61 revenues ----------
 @router.get("/finance/revenues", response_model=list[RevenueOut])
 async def list_revenues(
-    db: Db, _: Reader,
+    db: Db, _: CompanyReader,
     page: Annotated[PageParams, Depends(page_params("recognized_on", "amount"))],
     period: Period = None, category: RevenueCategory | None = None,
     client_id: uuid.UUID | None = None,
@@ -96,7 +118,7 @@ async def list_revenues(
 
 
 @router.post("/finance/revenues", response_model=RevenueOut, status_code=201)
-async def create_revenue(body: RevenueCreate, db: Db, user: Writer, idem: Idem) -> Any:
+async def create_revenue(body: RevenueCreate, db: Db, user: CompanyWriter, idem: Idem) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return RevenueOut.model_validate(hit)
     out = await FinanceService(db).create_revenue(user, body)
@@ -106,13 +128,17 @@ async def create_revenue(body: RevenueCreate, db: Db, user: Writer, idem: Idem) 
 
 
 @router.get("/finance/revenues/{revenue_id}", response_model=RevenueOut)
-async def get_revenue(revenue_id: uuid.UUID, db: Db, _: Reader) -> Any:
+async def get_revenue(revenue_id: uuid.UUID, db: Db, _: CompanyReader) -> Any:
     return revenue_out(await FinanceService(db).get_revenue(revenue_id))
 
 
 @router.patch("/finance/revenues/{revenue_id}", response_model=RevenueOut)
 async def update_revenue(
-    revenue_id: uuid.UUID, body: RevenueUpdate, db: Db, user: Writer, if_match: IfMatch = None
+    revenue_id: uuid.UUID,
+    body: RevenueUpdate,
+    db: Db,
+    user: CompanyWriter,
+    if_match: IfMatch = None,
 ) -> Any:
     exp = expected_version(if_match, body.version)
     out = await FinanceService(db).update_revenue(user, revenue_id, body, exp)
@@ -121,7 +147,7 @@ async def update_revenue(
 
 
 @router.delete("/finance/revenues/{revenue_id}", status_code=204, response_class=Response)
-async def delete_revenue(revenue_id: uuid.UUID, db: Db, user: Writer) -> Response:
+async def delete_revenue(revenue_id: uuid.UUID, db: Db, user: CompanyWriter) -> Response:
     await FinanceService(db).delete_revenue(user, revenue_id)
     await db.commit()
     return Response(status_code=204)
@@ -176,7 +202,7 @@ async def delete_expense(expense_id: uuid.UUID, db: Db, user: Writer) -> Respons
 # ---------- EP-65 cash positions (L C R U — no delete) ----------
 @router.get("/finance/cash-positions", response_model=list[CashPositionOut])
 async def list_cash_positions(
-    db: Db, _: Reader,
+    db: Db, _: CompanyReader,
     page: Annotated[PageParams, Depends(page_params("period", "closing_balance"))],
     from_: Annotated[str | None, period_query("from")] = None,
     to: Annotated[str | None, period_query("to")] = None,
@@ -186,7 +212,9 @@ async def list_cash_positions(
 
 
 @router.post("/finance/cash-positions", response_model=CashPositionOut, status_code=201)
-async def create_cash_position(body: CashPositionCreate, db: Db, user: Writer, idem: Idem) -> Any:
+async def create_cash_position(
+    body: CashPositionCreate, db: Db, user: CompanyWriter, idem: Idem
+) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return CashPositionOut.model_validate(hit)
     out = await FinanceService(db).create_cash_position(user, body)
@@ -196,14 +224,14 @@ async def create_cash_position(body: CashPositionCreate, db: Db, user: Writer, i
 
 
 @router.get("/finance/cash-positions/{position_id}", response_model=CashPositionOut)
-async def get_cash_position(position_id: uuid.UUID, db: Db, _: Reader) -> Any:
+async def get_cash_position(position_id: uuid.UUID, db: Db, _: CompanyReader) -> Any:
     svc = FinanceService(db)
     return await svc.cash_out(await svc.get_cash_position(position_id))
 
 
 @router.patch("/finance/cash-positions/{position_id}", response_model=CashPositionOut)
 async def update_cash_position(
-    position_id: uuid.UUID, body: CashPositionUpdate, db: Db, user: Writer,
+    position_id: uuid.UUID, body: CashPositionUpdate, db: Db, user: CompanyWriter,
     if_match: IfMatch = None,
 ) -> Any:  # fmt: skip
     exp = expected_version(if_match, body.version)
@@ -226,22 +254,23 @@ async def _budget_period(period: str | None = None) -> str | None:
 
 @router.get("/finance/budgets/status", response_model=list[BudgetStatusOut])
 async def budget_status(
-    db: Db, _: Annotated[Principal, Depends(require_permission("finance:query"))],
+    db: Db, user: Annotated[Principal, Depends(require_permission("finance:query"))],
     period: Annotated[str | None, Depends(_budget_period)] = None,
     department_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
-    return await BudgetService(db).statuses(period=period, department_id=department_id)
+    department = scope.department_filter(user, department_id)
+    return await BudgetService(db).statuses(period=period, department_id=department)
 
 
 @router.get("/finance/budgets", response_model=list[BudgetOut])
 async def list_budgets(
-    db: Db, _: Reader,
+    db: Db, user: Reader,
     page: Annotated[PageParams, Depends(page_params("fiscal_year", "allocated_amount"))],
     fiscal_year: int | None = None, quarter: Quarter | None = None,
     department_id: uuid.UUID | None = None,
 ) -> Any:  # fmt: skip
     items, total = await BudgetService(db).list_budgets(
-        page, fiscal_year=fiscal_year, quarter=quarter, department_id=department_id
+        user, page, fiscal_year=fiscal_year, quarter=quarter, department_id=department_id
     )
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
@@ -257,8 +286,8 @@ async def create_budget(body: BudgetCreate, db: Db, user: Writer, idem: Idem) ->
 
 
 @router.get("/finance/budgets/{budget_id}", response_model=BudgetOut)
-async def get_budget(budget_id: uuid.UUID, db: Db, _: Reader) -> Any:
-    return budget_out(await BudgetService(db).get(budget_id))
+async def get_budget(budget_id: uuid.UUID, db: Db, user: Reader) -> Any:
+    return budget_out(await BudgetService(db).get(user, budget_id))
 
 
 @router.patch("/finance/budgets/{budget_id}", response_model=BudgetOut)
@@ -281,7 +310,7 @@ async def delete_budget(budget_id: uuid.UUID, db: Db, user: Writer) -> Response:
 # ---------- EP-66 forecasts (+ lines; L C R U — history kept, no delete) ----------
 @router.get("/finance/forecasts", response_model=list[ForecastOut])
 async def list_forecasts(
-    db: Db, _: Reader,
+    db: Db, _: CompanyReader,
     page: Annotated[PageParams, Depends(page_params("generated_at", "scenario"))],
     scenario: Scenario | None = None, horizon: Horizon | None = None,
     is_current: bool = False,
@@ -293,7 +322,7 @@ async def list_forecasts(
 
 
 @router.post("/finance/forecasts", response_model=ForecastOut, status_code=201)
-async def create_forecast(body: ForecastCreate, db: Db, user: Writer, idem: Idem) -> Any:
+async def create_forecast(body: ForecastCreate, db: Db, user: CompanyWriter, idem: Idem) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return ForecastOut.model_validate(hit)
     out = await ForecastService(db).create(user, body)
@@ -303,14 +332,18 @@ async def create_forecast(body: ForecastCreate, db: Db, user: Writer, idem: Idem
 
 
 @router.get("/finance/forecasts/{forecast_id}", response_model=ForecastOut)
-async def get_forecast(forecast_id: uuid.UUID, db: Db, _: Reader) -> Any:
+async def get_forecast(forecast_id: uuid.UUID, db: Db, _: CompanyReader) -> Any:
     svc = ForecastService(db)
     return await svc.out(await svc.get(forecast_id))
 
 
 @router.patch("/finance/forecasts/{forecast_id}", response_model=ForecastOut)
 async def update_forecast(
-    forecast_id: uuid.UUID, body: ForecastUpdate, db: Db, user: Writer, if_match: IfMatch = None
+    forecast_id: uuid.UUID,
+    body: ForecastUpdate,
+    db: Db,
+    user: CompanyWriter,
+    if_match: IfMatch = None,
 ) -> Any:
     exp = expected_version(if_match, body.version)
     out = await ForecastService(db).update(user, forecast_id, body, exp)
@@ -321,7 +354,7 @@ async def update_forecast(
 # ---------- EP-67 invoices (+ lines) / EP-68 pay ----------
 @router.get("/finance/invoices", response_model=list[InvoiceOut])
 async def list_invoices(
-    db: Db, _: Reader,
+    db: Db, _: CompanyReader,
     page: Annotated[PageParams, Depends(page_params("issued_on", "due_date", "total_amount"))],
     status: InvoiceStatus | None = None, client_id: uuid.UUID | None = None,
     overdue: bool | None = None, period: Period = None,
@@ -335,7 +368,7 @@ async def list_invoices(
 
 
 @router.post("/finance/invoices", response_model=InvoiceOut, status_code=201)
-async def create_invoice(body: InvoiceCreate, db: Db, user: Writer, idem: Idem) -> Any:
+async def create_invoice(body: InvoiceCreate, db: Db, user: CompanyWriter, idem: Idem) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return InvoiceOut.model_validate(hit)
     out = await InvoiceService(db).create(user, body)
@@ -345,14 +378,18 @@ async def create_invoice(body: InvoiceCreate, db: Db, user: Writer, idem: Idem) 
 
 
 @router.get("/finance/invoices/{invoice_id}", response_model=InvoiceOut)
-async def get_invoice(invoice_id: uuid.UUID, db: Db, _: Reader) -> Any:
+async def get_invoice(invoice_id: uuid.UUID, db: Db, _: CompanyReader) -> Any:
     svc = InvoiceService(db)
     return await svc.out(await svc.get(invoice_id))
 
 
 @router.patch("/finance/invoices/{invoice_id}", response_model=InvoiceOut)
 async def update_invoice(
-    invoice_id: uuid.UUID, body: InvoiceUpdate, db: Db, user: Writer, if_match: IfMatch = None
+    invoice_id: uuid.UUID,
+    body: InvoiceUpdate,
+    db: Db,
+    user: CompanyWriter,
+    if_match: IfMatch = None,
 ) -> Any:
     exp = expected_version(if_match, body.version)
     out = await InvoiceService(db).update(user, invoice_id, body, exp)
@@ -361,7 +398,7 @@ async def update_invoice(
 
 
 @router.delete("/finance/invoices/{invoice_id}", status_code=204, response_class=Response)
-async def delete_invoice(invoice_id: uuid.UUID, db: Db, user: Writer) -> Response:
+async def delete_invoice(invoice_id: uuid.UUID, db: Db, user: CompanyWriter) -> Response:
     await InvoiceService(db).delete(user, invoice_id)
     await db.commit()
     return Response(status_code=204)
@@ -369,7 +406,7 @@ async def delete_invoice(invoice_id: uuid.UUID, db: Db, user: Writer) -> Respons
 
 @router.post("/finance/invoices/{invoice_id}/pay", response_model=InvoiceOut)
 async def pay_invoice(
-    invoice_id: uuid.UUID, body: InvoicePay, db: Db, user: Writer, idem: Idem
+    invoice_id: uuid.UUID, body: InvoicePay, db: Db, user: CompanyWriter, idem: Idem
 ) -> Any:
     if (hit := await idem.replay(body)) is not None:
         return InvoiceOut.model_validate(hit)
@@ -407,13 +444,13 @@ async def what_if_runway(
 
 # ---------- EP-128 13-week cash flow ----------
 @router.get("/finance/cash-flow-forecast", response_model=CashFlowForecastOut)
-async def cash_flow_forecast(db: Db, _: Reader, as_of: date | None = None) -> Any:
+async def cash_flow_forecast(db: Db, _: CompanyReader, as_of: date | None = None) -> Any:
     return await CashFlowService(db).current(as_of)
 
 
 @router.post("/finance/cash-flow-forecast/recompute", response_model=JobAccepted, status_code=202)
 async def recompute_cash_flow(
-    db: Db, _: Writer, idem: Idem, body: CashFlowRecompute | None = None
+    db: Db, _: CompanyWriter, idem: Idem, body: CashFlowRecompute | None = None
 ) -> Any:
     """Computed inline (13 rows, sub-second) inside the request; `job_id` = new forecast id,
     so the client polls GET for the result (DEC-201)."""

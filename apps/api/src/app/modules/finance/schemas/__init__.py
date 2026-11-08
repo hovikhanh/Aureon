@@ -395,6 +395,7 @@ class FinanceMetricOut(BaseModel):
     freshness: Literal["fresh", "stale", "no_data"]
     data_quality_pct: float | None = None
     lineage_url: str
+    period_key: str | None = None  # the period this reading covers, as in the metric store
 
 
 class RevenueTrendPoint(BaseModel):

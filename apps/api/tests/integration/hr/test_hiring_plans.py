@@ -363,3 +363,30 @@ async def test_plan_submitted_before_the_engine_is_still_decidable(
         select(ApprovalRequest.status).where(ApprovalRequest.target_id == uuid.UUID(p["id"]))
     )).scalar_one()  # fmt: skip
     assert req == "APPROVED"  # the decision is on record in the engine too
+
+
+# ---------- F19: the plan lives on after "approved", through the existing PATCH ----------
+async def test_lifecycle_after_approval_is_audited_and_clears_the_delay(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    dept = (await make_department(api))["id"]
+    p = await approved_plan(api, dept, headcount=2)
+    url, day = f"/hr/hiring-plans/{p['id']}", date(2026, 11, 15)
+    late = {"delayed": "true", "department_id": dept}
+    listed = await api.call("GET", "/hr/hiring-plans", "HR_MANAGER", params=late)
+    assert [x["id"] for x in listed.json()["data"]] == [p["id"]]
+    assert len(await detect_delayed_hiring_plans(db_session, day)) >= 1
+
+    v = p["version"]
+    started = await api.call("PATCH", url, "HR_MANAGER",
+                             json={"status": "in_progress", "filled": 1, "version": v})  # fmt: skip
+    assert started.status_code == 200 and started.json()["data"]["status"] == "in_progress"
+    filled = await api.call("PATCH", url, "HR_MANAGER", json={"filled": 2, "version": v + 1})
+    assert filled.status_code == 200
+    done = await api.call("PATCH", url, "HR_MANAGER", json={"status": "completed",
+                                                            "version": v + 2})  # fmt: skip
+    assert done.status_code == 200 and done.json()["data"]["status"] == "completed"
+    listed = await api.call("GET", "/hr/hiring-plans", "HR_MANAGER", params=late)
+    assert listed.json()["data"] == []
+    updates = [a for a, *_ in await audit_rows(db_session, p["id"])]
+    assert updates.count("hr.hiring_plan_update") == 3

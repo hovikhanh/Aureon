@@ -13,6 +13,7 @@ Only company-scope readings drive alerts (one alert per metric+period: 05 UQ).
 
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -83,6 +84,39 @@ def status_of(m: Metric, r: MetricReading, thr: dict[str, float] | None = None) 
         m.direction, float(x), warn, crit,
         d.inclusive if d else False,
     )  # fmt: skip
+
+
+@dataclass(frozen=True)
+class MetricRules:
+    """The store's thresholds (`platform.metrics` + `THR_*` overrides) for live dashboards, so a
+    metric code reads the same status everywhere (NFR-19): no module keeps its own bands."""
+
+    rows: dict[str, Metric]
+    thr: dict[str, float]
+
+    def status(self, reading: MetricReading) -> str:
+        row = self.rows.get(reading.code) or _catalog_row(reading.code)
+        return status_of(row, reading, self.thr)
+
+    def bounds(self, code: str) -> tuple[float, float]:
+        """Effective `(warning, critical)` of a metric."""
+        m = self.rows.get(code) or _catalog_row(code)
+        return (
+            self.thr.get(setting_key(code, "WARN"), float(m.warning_threshold)),
+            self.thr.get(setting_key(code, "CRIT"), float(m.critical_threshold)),
+        )
+
+
+def _catalog_row(code: str) -> Metric:
+    """Transient row with the catalog defaults (catalog not seeded yet); never persisted."""
+    d = BY_CODE[code]
+    return Metric(code=d.code, direction=d.direction, warning_threshold=d.warning,
+                  critical_threshold=d.critical)  # fmt: skip
+
+
+async def metric_rules(db: AsyncSession) -> MetricRules:
+    rows = {m.code: m for m in (await db.execute(select(Metric))).scalars()}
+    return MetricRules(rows, await threshold_settings(db))
 
 
 class MetricStore:

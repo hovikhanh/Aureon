@@ -5,14 +5,17 @@ same rolled-back transaction; department-scoped (MANAGER) numbers are asserted e
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
 from app.modules.execution.models import Task
+from app.modules.hr.models import HiringPlan
+from app.modules.platform.models import SystemSetting
 from tests.conftest import ApiClient
 from tests.integration.execution.helpers import make_task
 from tests.integration.hr.helpers import make_department, make_employee
@@ -141,3 +144,30 @@ async def test_workload_scope(api: ApiClient) -> None:
     assert (
         await api.call("GET", "/hr/workload", "CEO", params={"period": "bad"})
     ).status_code == 400
+
+
+async def test_dashboard_status_reads_the_store_thresholds(
+    api: ApiClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K8: a plan 50 days late is critical on the 45-day default, warning once THR_HR_04_CRIT
+    moves to 60. Same config as the metric store (NFR-19)."""
+    monkeypatch.setattr(get_config(), "business_date_override", date(2039, 3, 1))
+    dept = (await make_department(api))["id"]
+    plan = HiringPlan(
+        title="x", department_id=uuid.UUID(dept), position="x", headcount=2, filled=0,
+        priority="high", status="in_progress", currency="VND", start_date=date(2038, 12, 1),
+        target_fill_date=date(2039, 1, 10), hiring_manager_id=uuid.uuid4(), budget_allocated=0,
+        budget_spent=0, source="MANUAL",
+    )  # fmt: skip
+    db_session.add(plan)
+    await db_session.flush()
+
+    async def status() -> str:
+        r = await api.call("GET", "/hr/dashboard", "MANAGER", department_id=dept)
+        assert r.status_code == 200, r.text
+        return str(r.json()["data"]["status"])
+
+    assert await status() == "critical"
+    db_session.add(SystemSetting(key="THR_HR_04_CRIT", value=60))
+    await db_session.flush()
+    assert await status() == "warning"

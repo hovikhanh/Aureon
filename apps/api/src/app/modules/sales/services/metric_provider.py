@@ -15,7 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.clock import month_key, shift_month
 from app.core.data_quality import DqSource, register_dq
 from app.core.metrics import MetricReading, RecordRef, metric_provider
-from app.modules.finance.services.revenue_query import revenue_by_client, revenue_total
+from app.modules.finance.services.revenue_query import (
+    revenue_by_client,
+    revenue_total,
+    revenue_vs_target_pct,
+)
 from app.modules.sales import models as m
 from app.modules.sales.models import Client, Deal
 from app.modules.sales.repositories import DealRepository, TargetRepository
@@ -52,7 +56,7 @@ async def compute_sales(db: AsyncSession, as_of: date) -> list[MetricReading]:
     month_target = _team_target(await TargetRepository(db).by_period(last))
     revenue = await revenue_total(db, [last])
     out.append(MetricReading(
-        "METRIC-FIN-01", calc_pct(revenue, month_target or 0), last,
+        "METRIC-FIN-01", revenue_vs_target_pct(revenue, month_target), last,
         status_reason=None if month_target else "NO_TARGET",
     ))  # fmt: skip
 

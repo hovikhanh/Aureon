@@ -1,19 +1,23 @@
 """BR-FIN burn / runway, EP-69 what-if, EP-60 dashboard, FR-FIN-08 job (T-105).
 
-Until the platform metric store exists (T-220, S2) the dashboard is computed on read from the
-finance schema (DEC-200); `metrics[]` carries the 7 METRIC-FIN codes with `lineage_url`, and
-`open_alerts` is 0 until the alert engine (T-221) consumes the finance events.
+`summary` and the trends of the dashboard are computed on read for the requested period (DEC-200).
+`metrics[]` carries the 7 METRIC-FIN codes with the metric store's meaning: same formulas (the
+`finance` provider, `revenue_vs_target_pct`) on the last closed month of that period, same
+thresholds (`platform.metric_rules`, NFR-19), so a code never reads two ways (K1, K7, K8).
+YoY growth is `summary.revenue_growth_pct`, not a METRIC.
 """
 
 import calendar
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import business_today, month_key, month_range, shift_month
 from app.core.errors import BadRequestError
 from app.core.events.outbox import publish_in_tx
+from app.core.metrics import MetricReading
+from app.core.revenue_target import team_revenue_target
 from app.modules.finance import rules
 from app.modules.finance.models import Expense, Revenue
 from app.modules.finance.repositories import (
@@ -32,11 +36,16 @@ from app.modules.finance.schemas import (
     RunwayWhatIfOut,
     SourceRefOut,
 )
+from app.modules.finance.services.revenue_query import revenue_vs_target_pct
+from app.modules.platform.services.metric_store import metric_rules
 from app.modules.platform.services.pillar_snapshot import pillar_snapshot
 
 EVT_BURN_OVER = "finance.burn_over_forecast"
-BURN_WARN_PCT = 10.0  # THR_FIN_07_WARN default (03 §3) — config store arrives with T-220
-BURN_CRIT_PCT = 25.0
+METRIC_UNITS = {
+    "METRIC-FIN-01": "PCT", "METRIC-FIN-02": "PCT", "METRIC-FIN-03": "MONTHS",
+    "METRIC-FIN-04": "DAYS", "METRIC-FIN-05": "PCT", "METRIC-FIN-06": "PCT",
+    "METRIC-FIN-07": "PCT",
+}  # fmt: skip
 Status = Literal["ok", "warning", "critical", "no_data"]
 _RANK = {"no_data": 0, "ok": 1, "warning": 2, "critical": 3}
 
@@ -94,18 +103,6 @@ def months_in(period: DashboardPeriod) -> list[str]:
     return keys
 
 
-def _status_hi_bad(value: float | None, warn: float, crit: float) -> Status:
-    if value is None:
-        return "no_data"
-    return "critical" if value > crit else "warning" if value > warn else "ok"
-
-
-def _status_lo_bad(value: float | None, warn: float, crit: float) -> Status:
-    if value is None:
-        return "no_data"
-    return "critical" if value < crit else "warning" if value < warn else "ok"
-
-
 class FinanceAnalyticsService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -121,8 +118,12 @@ class FinanceAnalyticsService:
         return burn, balance, rules.runway_months(balance, burn)
 
     async def monthly_burn(self, months: list[str]) -> int:
-        """BR-FIN-01 on cash "chi − thu" (DEC-202): a month whose opening and closing
-        CashPosition both exist uses `opening − closing`; otherwise `expense − revenue`."""
+        return rules.net_burn(*await self.burn_basis(months))
+
+    async def burn_basis(self, months: list[str]) -> tuple[list[int], list[int]]:
+        """(out, in) per month of BR-FIN-01 on cash "chi − thu" (DEC-202): a month whose opening
+        and closing CashPosition both exist uses `opening − closing`; otherwise
+        `expense − revenue`. The one burn definition of METRIC-FIN-03 and the what-if (K3)."""
         exp = await self.repo.monthly_expense(months)
         rev = await self.repo.monthly_revenue(months)
         cash = await self.repo.cash_by_period([shift_month(months[0], -1), *months])
@@ -135,7 +136,7 @@ class FinanceAnalyticsService:
             else:
                 outflow.append(exp.get(m, 0))
                 inflow.append(rev.get(m, 0))
-        return rules.net_burn(outflow, inflow)
+        return outflow, inflow
 
     # ---------- EP-69 ----------
     async def what_if_runway(
@@ -164,7 +165,12 @@ class FinanceAnalyticsService:
         avg_rev = round(sum(incomes) / 3)
         adj_exp = [round(e * (1 + expense_change_pct / 100)) + extra_monthly_cost for e in expenses]
         adj_inc = [round(i * (1 + revenue_change_pct / 100)) for i in incomes]
-        burn = rules.net_burn(adj_exp, adj_inc)
+        # the scenario shifts the store's burn by what changes, so 0 % / 0 reads METRIC-FIN-03
+        out, inc = await self.burn_basis(months)
+        burn = rules.net_burn(
+            [o + new - old for o, new, old in zip(out, adj_exp, expenses, strict=True)],
+            [i + new - old for i, new, old in zip(inc, adj_inc, incomes, strict=True)],
+        )
         sources = [
             SourceRefOut(
                 type="record", id=str(cash.id), label=f"Số dư tiền mặt {cash.period_key}",
@@ -202,13 +208,12 @@ class FinanceAnalyticsService:
 
         # BR-FIN-01 uses closed months only: never include the month in progress
         basis = min(shift_month(last, 1), month_key(today))
-        burn, balance, runway = await self.burn_and_runway(basis)
+        burn, _, runway = await self.burn_and_runway(basis)
         ar_total, overdue = await InvoiceRepository(self.db).receivables(per.end_date)
         days = (per.end_date - per.start_date).days + 1
         margin = rules.gross_margin_pct(total_rev, sum(cogs.values()))
         dso = rules.dso_days(ar_total, total_rev, days)
         util = await self._budget_utilization(per)
-        overdue_pct = rules.pct(overdue, ar_total)
 
         trend_months = last_months(last, 12)
         t_rev = await self.repo.monthly_revenue(trend_months)
@@ -218,33 +223,22 @@ class FinanceAnalyticsService:
             _, _, r = await self.burn_and_runway(shift_month(m, 1))
             runway_trend.append(RunwayTrendPoint(period_key=m, runway_months=r))
 
-        burn_var = await self.burn_variance(today)
         now = datetime.now(UTC)
-        has_data = total_rev > 0 or total_exp > 0
+        thresholds = await metric_rules(self.db)
 
-        def metric(code: str, value: float | None, unit: str, status: Status) -> FinanceMetricOut:
+        def metric(r: MetricReading) -> FinanceMetricOut:
+            status = cast(Status, thresholds.status(r))
             return FinanceMetricOut(
-                metric_code=code, value=value, unit=unit, status=status, computed_at=now,
-                freshness="fresh" if value is not None else "no_data",
-                lineage_url=f"/dashboard/metrics/{code}",
+                metric_code=r.code, value=r.value, unit=METRIC_UNITS[r.code], status=status,
+                computed_at=now, freshness="no_data" if status == "no_data" else "fresh",
+                lineage_url=f"/dashboard/metrics/{r.code}", period_key=r.period_key,
             )  # fmt: skip
 
         # Emit the dashboard output unit vocabulary (PCT), same as every other domain dashboard
         # and the platform metric store (`UNIT_OUT` in metric_query.py). The catalog's internal
         # unit is "PERCENT"; the FE `unit.*` i18n namespace only knows the normalized codes, so a
         # raw "PERCENT" here surfaced as `MISSING_MESSAGE: unit.PERCENT`.
-        metrics = [
-            metric("METRIC-FIN-01", rules.growth_pct(total_rev, prev_rev), "PCT",
-                   "ok" if has_data else "no_data"),
-            metric("METRIC-FIN-02", margin, "PCT", "ok" if margin is not None else "no_data"),
-            metric("METRIC-FIN-03", runway, "MONTHS",
-                   _status_lo_bad(runway, 12, 6) if balance is not None else "no_data"),
-            metric("METRIC-FIN-04", dso, "DAYS", "ok" if dso is not None else "no_data"),
-            metric("METRIC-FIN-05", overdue_pct, "PCT", _status_hi_bad(overdue_pct, 15, 25)),
-            metric("METRIC-FIN-06", util, "PCT", _status_hi_bad(util, 100, 110)),
-            metric("METRIC-FIN-07", burn_var, "PCT",
-                   _status_hi_bad(burn_var, BURN_WARN_PCT, BURN_CRIT_PCT)),
-        ]  # fmt: skip
+        metrics = [metric(r) for r in await self._store_readings(basis, today)]
         snap = await pillar_snapshot(self.db, "F")  # open alerts of pillar F (store)
         no_data = sum(m.status == "no_data" for m in metrics)
         worst = max((m.status for m in metrics), key=lambda s: _RANK[s])
@@ -265,6 +259,29 @@ class FinanceAnalyticsService:
             ],
             runway_trend=runway_trend, open_alerts=snap.open_alerts or 0,
         )  # fmt: skip
+
+    async def _store_readings(self, basis: str, today: date) -> list[MetricReading]:
+        """The store's readings of METRIC-FIN-01..07 with `basis` as the running month.
+
+        FIN-01 comes from the sales provider in the store (target), see `revenue_vs_target_pct`;
+        FIN-07 projects the month in progress, so it always reads `today`.
+        """
+        # local import: `metrics` builds on this service
+        from app.modules.finance.services.metrics import FinanceMetrics
+
+        closed = shift_month(basis, -1)
+        revenue = sum((await self.repo.monthly_revenue([closed])).values())
+        target = await team_revenue_target(self.db, closed)
+        as_of = today if basis == month_key(today) else month_range(basis)[0]
+        rows = await FinanceMetrics(self.db).compute(as_of)
+        by_code = {r.code: r for r in rows if r.scope_type == "company"}
+        by_code["METRIC-FIN-01"] = MetricReading(
+            "METRIC-FIN-01", revenue_vs_target_pct(revenue, target), closed
+        )
+        by_code["METRIC-FIN-07"] = MetricReading(
+            "METRIC-FIN-07", await self.burn_variance(today), month_key(today)
+        )
+        return [by_code[code] for code in sorted(METRIC_UNITS)]
 
     async def _budget_utilization(self, per: DashboardPeriod) -> float | None:
         """Company-wide utilization of the quarter budgets containing the period end."""
@@ -301,9 +318,11 @@ class FinanceAnalyticsService:
         """Daily job: variance > THR_FIN_07_WARN → `burn_over_forecast`, ≤ 1/day (FR-FIN-08)."""
         day = today or business_today()
         variance = await self.burn_variance(day)
-        if variance is None or variance <= BURN_WARN_PCT:
-            return False
         key = month_key(day)
+        reading = MetricReading("METRIC-FIN-07", variance, key)
+        severity = (await metric_rules(self.db)).status(reading)
+        if severity not in ("warning", "critical"):
+            return False
         if await self.repo.burn_event_published(day):
             return False
         line = await self.repo.forecast_line("base", key)
@@ -323,7 +342,7 @@ class FinanceAnalyticsService:
                 "period_key": key, "as_of": day.isoformat(), "actual_burn": actual,
                 "forecast_burn": line.projected_expenses - line.projected_revenue,
                 "variance_pct": variance,
-                "severity": "critical" if variance > BURN_CRIT_PCT else "warning",
+                "severity": severity,
                 "currency": "VND",
             },
         )  # fmt: skip

@@ -27,6 +27,7 @@ from app.modules.dashboard.schemas.reporting import (
     ExecutiveDashboardOut,
     GoalSummary,
     OkrSummary,
+    PendingCheckin,
     WorkloadSummary,
 )
 from app.modules.dashboard.services.dashboard_service import DashboardService
@@ -34,6 +35,7 @@ from app.modules.platform.services.approval_service import ApprovalService
 from app.modules.platform.services.preference_service import UserPreferenceService
 
 SEI_CODE = "METRIC-STR-02"
+SUMMARY_KEY = "reporting.executiveSummary"
 
 
 class ReportingService:
@@ -61,7 +63,9 @@ class ReportingService:
         briefs, ai_total = await recent_ai_actions(self.db, user.user_id, limit=5)
         ai_items = [AiActionBriefOut(**vars(b)) for b in briefs]
         return ExecutiveDashboardOut(
-            summary_line=_summary(len(tiles), total, alerts.total, sei),
+            summary_line=_summary(total, alerts.total, sei),
+            summary_key=SUMMARY_KEY,
+            summary_params=_summary_params(total, alerts.total, sei),
             tiles=tiles,
             sei=sei,
             decisions_waiting=CountedApprovals(count=total, items=approvals),
@@ -80,7 +84,16 @@ class ReportingService:
         return await _employee(self, user)
 
 
-def _summary(tiles: int, decisions: int, risks: int, sei: Any) -> str:
+def _summary_params(decisions: int, risks: int, sei: Any) -> dict[str, int]:
+    """Parameters of `SUMMARY_KEY`; `sei_pct` only when the store has SEI (CLAUDE.md §5.2)."""
+    has_sei = sei is not None and sei.value is not None
+    return {"decisions": decisions, "risks": risks} | (
+        {"sei_pct": round(sei.value)} if has_sei else {}
+    )
+
+
+def _summary(decisions: int, risks: int, sei: Any) -> str:
+    """Deprecated display line, kept until the FE renders `summary_key` + `summary_params`."""
     sei_txt = f", SEI {sei.value:.0f}%" if sei and sei.value is not None else ""
     return f"{decisions} việc cần quyết, {risks} rủi ro mở{sei_txt}"
 
@@ -89,6 +102,7 @@ async def _department(
     svc: ReportingService, user: Principal, department_id: Any
 ) -> DepartmentDashboardOut:
     from app.modules.execution.services.dashboard_service import ExecutionDashboardService
+    from app.modules.execution.services.goal_summary import GoalSummaryService
 
     if user.role not in ("CEO", "DIR", "MGR"):
         raise PermissionDeniedError("department dashboard is DIR/MGR only")
@@ -97,20 +111,22 @@ async def _department(
     # ExecutionDashboardService kiểm scope phòng ban (subtree) + raise FORBIDDEN_SCOPE
     exe = await ExecutionDashboardService(svc.db).dashboard(user, period, today, department_id)
     kpis = [m for m in await svc.dash.metrics(user) if m.group in ("OPS", "STR", "PPL")]
+    goals = GoalSummaryService(svc.db)
+    scoped = ExecutionDashboardService.department(user, department_id)
+    at_risk, total = await goals.department_okrs(scoped, today)
+    due_tasks = await goals.department_due(scoped, today)
     due = exe.summary
     return DepartmentDashboardOut(
         department_id=str(department_id) if department_id else None,
         kpis=kpis,
-        okrs=OkrSummary(at_risk_count=0, total=0),
+        okrs=OkrSummary(at_risk_count=at_risk, total=total),
         workload=WorkloadSummary(
             overloaded_count=due.overloaded_count,
             heatmap_ref="/work/workload",
         ),
         late_projects=due.projects_late,
         due_tasks=DueTasks(
-            overdue=sum(1 for c in exe.workload_heatmap if c.load_pct > 110),
-            today=0,
-            this_week=len(exe.workload_heatmap),
+            overdue=due_tasks.overdue, today=due_tasks.today, this_week=due_tasks.this_week
         ),
         generated_at=datetime.now(UTC),
     )
@@ -119,6 +135,7 @@ async def _department(
 async def _employee(svc: ReportingService, user: Principal) -> EmployeeDashboardOut:
     from datetime import timedelta
 
+    from app.modules.execution.services.goal_summary import GoalSummaryService
     from app.modules.execution.services.task_service import TaskService
 
     today = business_today()
@@ -137,10 +154,13 @@ async def _employee(svc: ReportingService, user: Principal) -> EmployeeDashboard
         due_from=today,
         due_to=today + timedelta(days=7),
     )
+    goals = GoalSummaryService(svc.db)
+    kpis, krs = await goals.my_goals(user, today)
+    pending = await goals.pending_checkins(user, today)
     return EmployeeDashboardOut(
         my_tasks=DueTasks(overdue=overdue, today=due_today, this_week=due_week),
-        my_goals=GoalSummary(kpis=0, krs=0),
-        pending_checkins=[],
-        workload_week_pct=None,
+        my_goals=GoalSummary(kpis=kpis, krs=krs),
+        pending_checkins=[PendingCheckin(**vars(p)) for p in pending],
+        workload_week_pct=await goals.workload_week_pct(user, today),
         generated_at=datetime.now(UTC),
     )

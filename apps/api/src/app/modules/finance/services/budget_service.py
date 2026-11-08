@@ -31,6 +31,7 @@ from app.modules.finance.schemas import (
     BudgetStatusOut,
     BudgetUpdate,
 )
+from app.modules.finance.services import scope
 
 EVT_BUDGET_EXCEEDED = "finance.budget_exceeded"
 
@@ -65,10 +66,11 @@ class BudgetService:
         )  # fmt: skip
 
     async def list_budgets(
-        self, page: PageParams, *, fiscal_year: int | None, quarter: str | None,
+        self, user: Principal, page: PageParams, *, fiscal_year: int | None, quarter: str | None,
         department_id: uuid.UUID | None,
     ) -> tuple[list[BudgetOut], int]:  # fmt: skip
         filters: dict[str, Any] = {}
+        department_id = scope.department_filter(user, department_id)
         if fiscal_year is not None:
             filters["fiscal_year"] = fiscal_year
         if quarter is not None:
@@ -81,13 +83,15 @@ class BudgetService:
         )  # fmt: skip
         return [budget_out(b) for b in items], total
 
-    async def get(self, id_: uuid.UUID) -> Budget:
+    async def get(self, user: Principal, id_: uuid.UUID) -> Budget:
         obj = await self.repo.get(id_)
         if obj is None:
             raise NotFoundError("budget not found")
+        scope.check_department(user, obj.department_id)
         return obj
 
     async def create(self, user: Principal, body: BudgetCreate) -> BudgetOut:
+        scope.check_department(user, body.department_id)
         if await self.repo.find(body.department_id, body.fiscal_year, body.quarter):
             raise DuplicateResourceError(
                 "budget for this department and period already exists",
@@ -112,7 +116,7 @@ class BudgetService:
     async def update(
         self, user: Principal, id_: uuid.UUID, body: BudgetUpdate, expected: int
     ) -> BudgetOut:
-        obj = await self.get(id_)
+        obj = await self.get(user, id_)
         before = budget_out(obj)
         data = body.model_dump(exclude_unset=True, exclude={"version"})
         if "categories" in data and data["categories"] is not None:
@@ -125,7 +129,7 @@ class BudgetService:
         return out
 
     async def delete(self, user: Principal, id_: uuid.UUID) -> None:
-        obj = await self.get(id_)
+        obj = await self.get(user, id_)
         before = budget_out(obj)
         obj.updated_by = user.user_id
         await self.repo.soft_delete(obj)

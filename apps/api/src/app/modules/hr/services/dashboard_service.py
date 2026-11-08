@@ -50,6 +50,7 @@ from app.modules.hr.services.metrics import (
     worst,
 )
 from app.modules.hr.services.scope import DEPARTMENT_ROLES, sees_hr_dashboard, sees_payroll
+from app.modules.platform.services.metric_store import metric_rules
 from app.modules.platform.services.pillar_snapshot import PillarSnapshot, pillar_snapshot
 
 CURRENCY = "VND"
@@ -114,7 +115,12 @@ class HrDashboardService:
         ]
         # METRIC-HR-* from the metric store — company scope only (department roles: live only)
         snap = await pillar_snapshot(self.db, "O") if dept is None else PillarSnapshot()
-        status = worst(turnover_status(turnover), delay_status(late) if rows or late else None)
+        thresholds = await metric_rules(self.db)  # NFR-19: same config as the metric store
+        delay_crit = thresholds.bounds("METRIC-HR-04")[1]
+        status = worst(
+            turnover_status(turnover, *thresholds.bounds("METRIC-HR-02")),
+            delay_status(late, delay_crit) if rows or late else None,
+        )
         period_out = PeriodOut(
             key=period.key, type=period.type, start_date=period.start, end_date=end
         )

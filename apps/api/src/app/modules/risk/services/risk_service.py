@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleError, ConflictStateError, NotFoundError
 from app.core.pagination import PageParams
@@ -50,7 +51,7 @@ class RiskService:
 
     async def new_code(self) -> str:
         await self.risks.lock_codes()
-        year = now_utc().year
+        year = business_today().year
         return rules.format_code(year, rules.next_seq(await self.risks.last_code(year)))
 
     async def get_row(self, user: Principal, id_: uuid.UUID) -> Risk:

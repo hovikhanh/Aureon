@@ -44,7 +44,9 @@ class CountedActions(BaseModel):
 class ExecutiveDashboardOut(BaseModel):
     """EP-RPT-01 — CEO toàn DN / DIR theo khối (scope_pillars)."""
 
-    summary_line: str
+    summary_line: str  # deprecated display text, replaced by the two fields below
+    summary_key: str  # i18n key; params: decisions, risks, sei_pct (only when SEI exists)
+    summary_params: dict[str, int] = Field(default_factory=dict)
     tiles: list[MetricValueOut] = Field(default_factory=list)  # ≤ 4, theo preference
     sei: MetricValueOut | None = None  # METRIC-STR-02
     decisions_waiting: CountedApprovals

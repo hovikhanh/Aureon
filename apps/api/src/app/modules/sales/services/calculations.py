@@ -1,11 +1,11 @@
-"""Pure Sales calculations — BR-SAL-01..04, METRIC-CUS-01/02/06, periods (03 §2.3, §5.2).
+"""Pure Sales calculations — BR-SAL-01..04, METRIC-CUS-01/02/06, funnel, periods (03 §2.3, §5.2).
 
 No I/O: the service feeds plain numbers / dates in, so every rule is unit-tested in isolation.
 Ratios use `Decimal` (CLAUDE.md §6.5: never float for money) and are rounded only at the end.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -14,6 +14,7 @@ from typing import Literal
 OPEN_STAGES: tuple[str, ...] = ("lead", "qualified", "proposal", "negotiation")
 CLOSED_STAGES: tuple[str, ...] = ("closed_won", "closed_lost")
 STAGE_ORDER: tuple[str, ...] = OPEN_STAGES + CLOSED_STAGES
+FUNNEL_STAGES: tuple[str, ...] = (*OPEN_STAGES, "closed_won")
 
 
 def _round(value: Decimal, places: int) -> float:
@@ -73,6 +74,41 @@ def attainment_pct(closed_value: int, quota: int | None) -> float | None:
     return _round(Decimal(closed_value) * 100 / Decimal(quota), 1)
 
 
+# ---------- cumulative funnel (D-09) ----------
+def furthest_rank(stages: Iterable[str]) -> int:
+    """Index in `FUNNEL_STAGES` of the furthest stage a deal reached; stages may be skipped and
+    `closed_lost` is no step, so a lost deal stays at the last open stage it held (min. `lead`)."""
+    return max((FUNNEL_STAGES.index(s) for s in stages if s in FUNNEL_STAGES), default=0)
+
+
+@dataclass(frozen=True)
+class FunnelStep:
+    stage: str
+    reached: int
+    value: int
+    conversion_pct: float | None
+    drop_off_pct: float | None
+
+
+def funnel_steps(deals: Sequence[tuple[int, int]]) -> list[FunnelStep]:
+    """Steps from `(furthest rank, deal value)`: a deal counts for every stage up to its rank.
+
+    `reached` never grows along the funnel, so conversion and drop-off stay within 0–100; the
+    first step, or a step after an empty one, has no ratio (`None`).
+    """
+    out: list[FunnelStep] = []
+    prev = 0
+    for rank, stage in enumerate(FUNNEL_STAGES):
+        reached = [value for r, value in deals if r >= rank]
+        conversion = _round(Decimal(len(reached)) * 100 / Decimal(prev), 1) if prev else None
+        out.append(FunnelStep(
+            stage=stage, reached=len(reached), value=sum(reached), conversion_pct=conversion,
+            drop_off_pct=None if conversion is None else _round(100 - Decimal(str(conversion)), 1),
+        ))  # fmt: skip
+        prev = len(reached)
+    return out
+
+
 # ---------- METRIC-CUS-06 / averages ----------
 def avg_days(durations: Iterable[timedelta]) -> float | None:
     """Average length in days (1 decimal) — `AVG(closed_at − created_at)` for won deals."""
@@ -95,8 +131,9 @@ def stage_durations(
 ) -> list[tuple[str, timedelta]]:
     """`[(stage, time spent)]` for one deal's ordered `(stage, entered_at)` rows.
 
-    A stage ends when the next row starts; the current open stage runs until `now`; a closed
-    stage is terminal and has no duration.
+    A stage ends when the next row starts; the current open stage runs until `now` (never
+    negative: `now` is the business instant, a stage may have started on the wall clock after a
+    pinned business date); a closed stage is terminal and has no duration.
     """
     rows = list(history)
     out: list[tuple[str, timedelta]] = []
@@ -104,7 +141,7 @@ def stage_durations(
         if i + 1 < len(rows):
             out.append((stage, rows[i + 1][1] - entered))
         elif stage not in CLOSED_STAGES:
-            out.append((stage, now - entered))
+            out.append((stage, max(now - entered, timedelta(0))))
     return out
 
 

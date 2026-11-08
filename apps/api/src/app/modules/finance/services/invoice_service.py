@@ -255,6 +255,7 @@ class InvoiceService:
 
     async def pay(self, user: Principal, id_: uuid.UUID, body: InvoicePay) -> InvoiceOut:
         inv = await self.get(id_)
+        await self.repo.lock(inv)  # a concurrent payment must read the amount this one wrote
         if inv.status in ("paid", "cancelled", "draft"):
             raise ConflictStateError(
                 f"cannot pay a {inv.status} invoice", details={"status": inv.status}

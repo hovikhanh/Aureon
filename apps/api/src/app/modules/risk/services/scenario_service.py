@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import business_today
 from app.core.deps import Principal
 from app.core.errors import NotFoundError
 from app.modules.finance.services.analytics_service import FinanceAnalyticsService
@@ -153,7 +154,7 @@ class ScenarioService:
         return SalesImpact(status="ok", pipeline_delta=round(total * s.pipeline_pct / 100))
 
     async def _hr(self, user: Principal, s: Shock) -> HrImpact:
-        today = now_utc().date()
+        today = business_today()
         got = await guarded(lambda: HrDashboardService(self.db).dashboard(
             user, resolve_period(None, today), today))  # fmt: skip
         if got is None or got.summary.get("headcount") is None:

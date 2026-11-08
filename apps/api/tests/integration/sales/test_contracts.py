@@ -7,12 +7,19 @@ from typing import Any
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
 from tests.conftest import ApiClient
 from tests.integration.sales.helpers import audit_actions, make_client, make_deal
 
 pytestmark = pytest.mark.integration
 
 TODAY = datetime.now(UTC).date()
+
+
+@pytest.fixture(autouse=True)
+def _business_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deals close on the wall clock: pin the business date to it, whatever DEMO_MODE says."""
+    monkeypatch.setattr(get_config(), "business_date_override", TODAY)
 
 
 def body(client_id: str, **kw: Any) -> dict[str, Any]:

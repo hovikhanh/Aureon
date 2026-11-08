@@ -8,6 +8,8 @@ import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
+from app.modules.finance import rules
 from app.modules.sales.models import Deal, SalesTarget
 from app.modules.sales.services import calculations as calc
 from tests.conftest import ApiClient
@@ -18,6 +20,12 @@ pytestmark = pytest.mark.integration
 TODAY = datetime.now(UTC).date()
 MONTH = calc.month_period(TODAY.year, TODAY.month)
 QUARTER = calc.quarter_of(TODAY)
+
+
+@pytest.fixture(autouse=True)
+def _business_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deals close on the wall clock: pin the business date to it, whatever DEMO_MODE says."""
+    monkeypatch.setattr(get_config(), "business_date_override", TODAY)
 
 
 def target(**kw: Any) -> dict[str, Any]:
@@ -159,6 +167,8 @@ async def test_performance(api: ApiClient, db_session: AsyncSession) -> None:
 
 async def test_dashboard_contract(api: ApiClient, db_session: AsyncSession) -> None:
     await _book(api, db_session)
+    finance = await api.call("GET", "/finance/dashboard", "CEO", params={"period": MONTH.key})
+    revenue = finance.json()["data"]["summary"]["total_revenue"]
     r = await api.call("GET", "/sales/dashboard", "CEO")
     assert r.status_code == 200, r.text
     assert r.headers["cache-control"] == "private, max-age=60"
@@ -174,11 +184,14 @@ async def test_dashboard_contract(api: ApiClient, db_session: AsyncSession) -> N
     assert s == {
         "pipeline_value": 3_000_000_000, "weighted_pipeline": 1_100_000_000, "deals_open": 2,
         "deals_won": 1, "deals_lost": 1, "win_rate_pct": 50.0, "avg_deal_value": 600_000_000,
-        "closed_revenue": 600_000_000, "quota_attainment_pct": 50.0,
+        "closed_bookings": 600_000_000, "bookings_attainment_pct": 50.0,
+        "quota_attainment_pct": s["quota_attainment_pct"],
         "avg_sales_cycle_days": s["avg_sales_cycle_days"], "pipeline_coverage": 3.0,
         "currency": "VND",
     }  # fmt: skip
     assert 9.9 <= s["avg_sales_cycle_days"] <= 10.1
+    # D-09: attainment against the same quota, from Finance's actual revenue, not from deals
+    assert s["quota_attainment_pct"] == rules.pct(revenue, 1_200_000_000)
     trend = d["win_rate_trend"]
     assert len(trend) == 6 and trend[-1]["period_key"] == MONTH.key
     assert trend[-1]["win_rate_pct"] == 50.0
@@ -203,7 +216,117 @@ async def test_manager_analytics_scoped(api: ApiClient, db_session: AsyncSession
     s = r.json()["data"]["summary"]
     assert s["pipeline_value"] == 70 and s["deals_open"] == 1
     assert s["quota_attainment_pct"] is None and s["pipeline_coverage"] is None
+    assert s["bookings_attainment_pct"] is None
     perf = await api.call(
         "GET", "/sales/performance", "MANAGER", department_id=dept, params={"group_by": "owner"}
     )
     assert perf.status_code == 200 and perf.json()["data"] == []
+
+
+# ---------- K6: default period under the business date ----------
+async def _closed_last_month(api: ApiClient, db: AsyncSession) -> None:
+    c = await make_client(api)
+    won = await make_deal(api, c["id"], deal_value=500)
+    await stage(api, won["id"], "closed_won")
+    lost = await make_deal(api, c["id"], deal_value=300)
+    await stage(api, lost["id"], "closed_lost", lost_reason="giá")
+    closed = datetime.combine(MONTH.start - timedelta(days=3), datetime.min.time(), tzinfo=UTC)
+    await db.execute(
+        update(Deal).where(Deal.client_id == uuid.UUID(c["id"])).values(closed_at=closed)
+    )
+    db.expire_all()
+
+
+async def test_default_period_falls_back_to_the_latest_month_with_closed_deals(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    await _closed_last_month(api, db_session)
+    d = (await api.call("GET", "/sales/dashboard", "CEO")).json()["data"]
+    s = d["summary"]
+    assert d["period"]["key"] < MONTH.key and d["period"]["type"] == "month"
+    assert s["deals_won"] >= 1 and s["win_rate_pct"] is not None
+    assert s["closed_bookings"] >= 500
+
+
+async def test_explicit_period_stays_explicit(api: ApiClient, db_session: AsyncSession) -> None:
+    await _closed_last_month(api, db_session)
+    d = await api.call("GET", "/sales/dashboard", "CEO", params={"period": MONTH.key})
+    data = d.json()["data"]
+    assert data["period"]["key"] == MONTH.key
+    assert data["summary"]["win_rate_pct"] is None and data["summary"]["deals_won"] == 0
+
+
+async def test_default_period_keeps_the_running_quarter_for_coverage(
+    api: ApiClient, db_session: AsyncSession
+) -> None:
+    await _book(api, db_session)
+    await _closed_last_month(api, db_session)
+    await db_session.execute(
+        update(Deal)
+        .where(Deal.stage.in_(("closed_won", "closed_lost")), Deal.closed_at >= _month_start())
+        .values(closed_at=_month_start() - timedelta(days=1))
+    )
+    db_session.expire_all()
+    d = (await api.call("GET", "/sales/dashboard", "CEO")).json()["data"]
+    assert d["period"]["key"] < MONTH.key
+    assert d["summary"]["pipeline_coverage"] == 3.0  # open pipeline of the running quarter
+    assert d["win_rate_trend"][-1]["period_key"] == MONTH.key
+
+
+def _month_start() -> datetime:
+    return datetime.combine(MONTH.start, datetime.min.time(), tzinfo=UTC)
+
+
+# ---------- D-09: cumulative funnel ----------
+async def _funnel(api: ApiClient, role: str = "VP_SALES", **kw: Any) -> dict[str, Any]:
+    r = await api.call("GET", "/sales/funnel", role, **kw)
+    assert r.status_code == 200, r.text
+    return dict(r.json()["data"])
+
+
+async def _ladder(api: ApiClient, dept: uuid.UUID) -> None:
+    """3 leads, 2 qualified (one lost there), 1 won straight from lead; all in one department."""
+    c = await make_client(api)
+    await make_deal(api, c["id"], "MANAGER", department_id=dept, deal_value=100)
+    q = await make_deal(api, c["id"], "MANAGER", department_id=dept, deal_value=200)
+    assert (await stage(api, q["id"], "qualified")).status_code == 200
+    lost = await make_deal(api, c["id"], "MANAGER", department_id=dept, deal_value=400)
+    await stage(api, lost["id"], "qualified")
+    await stage(api, lost["id"], "closed_lost", lost_reason="giá")
+    won = await make_deal(api, c["id"], "MANAGER", department_id=dept, deal_value=800)
+    await stage(api, won["id"], "closed_won")
+
+
+async def test_funnel_is_cumulative_and_bounded(api: ApiClient) -> None:
+    dept = uuid.uuid4()
+    await _ladder(api, dept)
+    d = await _funnel(api, "MANAGER", department_id=dept)
+    assert d["period"] is None and d["lost"] == 1 and d["lost_value"] == 400
+    by = {s["stage"]: s for s in d["steps"]}
+    assert [s["stage"] for s in d["steps"]] == list(calc.FUNNEL_STAGES)
+    assert [s["reached"] for s in d["steps"]] == [4, 3, 1, 1, 1]
+    assert by["lead"]["conversion_pct"] is None and by["lead"]["value"] == 1500
+    assert by["qualified"]["conversion_pct"] == 75.0 and by["qualified"]["drop_off_pct"] == 25.0
+    assert by["proposal"]["conversion_pct"] == 33.3 and by["proposal"]["drop_off_pct"] == 66.7
+    assert by["closed_won"]["conversion_pct"] == 100.0 and by["closed_won"]["value"] == 800
+    for step in d["steps"][1:]:
+        assert 0 <= step["conversion_pct"] <= 100 and 0 <= step["drop_off_pct"] <= 100
+
+
+async def test_funnel_scope_and_period(api: ApiClient) -> None:
+    mine, other = uuid.uuid4(), uuid.uuid4()
+    await _ladder(api, mine)
+    await _ladder(api, other)
+    only_mine = await _funnel(api, "MANAGER", department_id=mine)
+    assert only_mine["steps"][0]["reached"] == 4
+    assert (await _funnel(api, "MANAGER", department_id=uuid.uuid4()))["steps"][0]["reached"] == 0
+    company = await _funnel(api, "VP_SALES")
+    assert company["steps"][0]["reached"] >= 8
+    # an aggregate like the pipeline: a DIR of another khối sees it too, nothing per person
+    assert (await _funnel(api, "CFO"))["steps"][0]["reached"] == company["steps"][0]["reached"]
+    assert (await api.call("GET", "/sales/funnel", "EMPLOYEE")).status_code == 403
+    p = await _funnel(api, "MANAGER", department_id=mine, params={"period": "current_month"})
+    assert p["period"]["key"] == MONTH.key
+    assert p["lost"] == 1 and p["steps"][-1]["reached"] == 1  # closed this month
+    bad = await api.call("GET", "/sales/funnel", "CEO", params={"period": "custom"})
+    assert bad.status_code == 400

@@ -97,3 +97,12 @@ def test_statuses() -> None:
     assert worst(None, None) == "no_data"
     assert worst("ok", None, "warning") == "warning"
     assert worst("critical", "ok") == "critical"
+
+
+def test_status_bands_take_the_store_thresholds() -> None:
+    """K8 (NFR-19): the bands are parameters, the constants only catalog defaults."""
+    assert turnover_status(18.0, 20.0, 30.0) == "ok"
+    assert turnover_status(25.0, 20.0, 30.0) == "warning"
+    assert turnover_status(30.0, 20.0, 30.0) == "critical"
+    assert delay_status([50], 60) == "warning"
+    assert delay_status([61], 60) == "critical"

@@ -145,3 +145,30 @@ async def test_project_crud(api: ApiClient, db_session: AsyncSession) -> None:
     acts = await audit_actions(db_session, p["id"])
     assert acts == ["execution.project_create", "execution.project_delete",
                     "execution.project_update"]  # fmt: skip
+
+
+# ---------- FR-DEC-01: the Decision Log write path ----------
+async def test_decision_log_write_path(api: ApiClient, db_session: AsyncSession) -> None:
+    body = {"content": "Mở chi nhánh Đà Nẵng", "rationale": "Nhu cầu miền Trung",
+            "alternatives_rejected": "Đại lý", "expected_outcome": "Doanh thu +10%",
+            "owner_id": str(uuid.uuid4()), "decided_at": HELD}  # fmt: skip
+    url = "/execution/decisions"
+    no_key = await api.http.post(f"/api/v1{url}", json=body, headers=api.headers("CEO"))
+    assert no_key.status_code == 400
+    headers = api.headers("CEO", idem=True)
+    first = await api.http.post(f"/api/v1{url}", json=body, headers=headers)
+    assert first.status_code == 201, first.text
+    again = await api.http.post(f"/api/v1{url}", json=body, headers=headers)
+    d = first.json()["data"]
+    assert again.json()["data"]["id"] == d["id"]
+    assert d["review_at"] == ["2037-07-01", "2037-07-31", "2037-08-30"]  # 30/60/90 (FR-DEC-02)
+    assert await audit_actions(db_session, d["id"]) == ["execution.decision_create"]
+
+    verified = await patch(api, f"{url}/{d['id']}", 1, actual_outcome="Doanh thu +12%",
+                           outcome_verified_at="2037-08-30T00:00:00Z", status="done")  # fmt: skip
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["data"]["actual_outcome"] == "Doanh thu +12%"
+    assert await audit_actions(db_session, d["id"]) == [
+        "execution.decision_create", "execution.decision_update",
+    ]  # fmt: skip
+    assert (await api.call("POST", url, "REVIEWER", json=body)).status_code == 403

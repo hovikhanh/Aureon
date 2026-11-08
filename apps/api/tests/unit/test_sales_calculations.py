@@ -94,3 +94,32 @@ def test_target_period_key_and_trend_months() -> None:
     keys = [p.key for p in calc.last_months(date(2026, 2, 3), 3)]
     assert keys == ["2025-12", "2026-01", "2026-02"]
     assert calc.quarter_of(date(2026, 5, 1)).key == "2026-Q2"
+
+
+# ---------- cumulative funnel (D-09) ----------
+def test_furthest_rank_counts_skipped_stages_and_ignores_lost() -> None:
+    assert calc.furthest_rank(["lead"]) == 0
+    assert calc.furthest_rank(["lead", "negotiation"]) == 3  # proposal skipped: still reached
+    assert calc.furthest_rank(["lead", "proposal", "closed_lost"]) == 2
+    assert calc.furthest_rank(["closed_lost"]) == 0  # seed rows carry no history
+    assert calc.furthest_rank(["lead", "closed_won"]) == 4
+
+
+def test_funnel_steps_stay_within_0_100() -> None:
+    steps = calc.funnel_steps([(0, 10), (0, 10), (1, 20), (3, 30), (4, 40)])
+    assert [s.reached for s in steps] == [5, 3, 2, 2, 1]
+    assert [s.value for s in steps] == [110, 90, 70, 70, 40]
+    assert [s.conversion_pct for s in steps] == [None, 60.0, 66.7, 100.0, 50.0]
+    assert [s.drop_off_pct for s in steps] == [None, 40.0, 33.3, 0.0, 50.0]
+
+
+def test_funnel_steps_empty_has_no_ratio() -> None:
+    steps = calc.funnel_steps([])
+    assert [s.reached for s in steps] == [0] * 5
+    assert {s.conversion_pct for s in steps} == {None}
+
+
+def test_stage_duration_is_never_negative_under_a_pinned_date() -> None:
+    now = datetime(2026, 10, 20, tzinfo=UTC)
+    rows = [("lead", now + timedelta(days=16))]  # moved on the wall clock, after the pinned date
+    assert calc.stage_durations(rows, now) == [("lead", timedelta(0))]

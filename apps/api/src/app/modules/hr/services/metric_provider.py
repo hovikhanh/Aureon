@@ -25,6 +25,7 @@ from app.modules.hr.services.metrics import (
     on_payroll,
     period_turnover_pct,
 )
+from app.modules.platform.services.metric_store import metric_rules
 
 
 def _months(last: str, n: int) -> list[str]:
@@ -50,13 +51,14 @@ async def compute_hr(db: AsyncSession, as_of: date) -> list[MetricReading]:
     below = None if per_head is None else round((plan - per_head) / plan * 100, 1)
 
     late = await HiringPlanRepository(db).late_days(as_of)
+    delay_crit = (await metric_rules(db)).bounds("METRIC-HR-04")[1]
     return [
         MetricReading("METRIC-HR-01", None if per_head is None else round(per_head), last,
                       period_type="ROLLING_12M",
                       threshold_input=below if below is not None else None),
         MetricReading("METRIC-HR-02", turnover, last, period_type="ROLLING_12M"),
         MetricReading("METRIC-HR-04", float(len(late)), month_key(as_of),
-                      status=delay_status(late)),
+                      status=delay_status(late, delay_crit)),
     ]  # fmt: skip
 
 
