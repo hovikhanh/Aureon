@@ -185,6 +185,7 @@ test.describe("M7 · records CRUD", () => {
     await re.getByTestId("records-risks-editor-category").selectOption("operational");
     await re.getByTestId("records-risks-editor-likelihood").fill("3");
     await re.getByTestId("records-risks-editor-impact").fill("4");
+    await re.getByTestId("records-risks-editor-owner_id").selectOption({ index: 1 });
     await re.getByTestId("records-risks-editor-submit").click();
     const rr = row(page, "risks", `Rủi ro E2E ${tag}`);
     await expect(rr).toBeVisible();

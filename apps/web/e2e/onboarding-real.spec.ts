@@ -62,7 +62,9 @@ async function ask(page: Page, text: string): Promise<void> {
   await page.goto("/ask");
   await page.getByTestId("chat-input").fill(text);
   await page.getByTestId("chat-send").click();
-  await expect(page.getByTestId("assistant-message").last().getByTestId("answer")).not.toBeEmpty({ timeout: 30_000 });
+  // The stack runs the local model live (D-19, R-DEC-200): 13–67 s per turn measured on this
+  // 4-CPU host under load, so 150 s (as meetings.spec) rather than the fixture-era 30 s.
+  await expect(page.getByTestId("assistant-message").last().getByTestId("answer")).not.toBeEmpty({ timeout: 150_000 });
 }
 
 test.describe("M1.6 UC-07 onboarding on the real stack (TC-M16-23)", { tag: "@real-only" }, () => {

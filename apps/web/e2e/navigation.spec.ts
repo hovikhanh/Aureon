@@ -11,7 +11,7 @@ const EXEC = ["home", "ask", "goals", "work", "meetings", "data", "business", "k
 const REVIEWER = ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"];
 
 const SIDEBAR: readonly (readonly [string, readonly string[]])[] = [
-  ["ceo@abc.demo", ALL],
+  ["ceo@abc.demo", [...REVIEWER, "admin"]], // D-21: the CEO holds idp:approve → review entry
   ["cfo@abc.demo", REVIEWER],
   ["hr@abc.demo", [...REVIEWER, "admin"]], // DIR khối O → Quản trị (cơ cấu, R-DEC-30; T-617F)
   ["manager@abc.demo", REVIEWER],
