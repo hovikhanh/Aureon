@@ -1,14 +1,15 @@
 /**
  * Business-record resources editable from `/business/<domain>/records` (M7). Every path, field and
  * enum mirrors the existing API (10 EP-FIN-02..07, EP-SAL-01..04, EP-HR-02..05/08..10) — no new
- * endpoint. Level-4 fields (salary, date of birth, CCCD, bank account — 02 §6.2) are never edited
+ * endpoint (product EP-PRD-*, risk EP-RSK-*: D-21 gives the CEO record management of the frozen
+ * modules, R-DEC-16 keeps them out of the sidebar). Level-4 fields (salary, date of birth, CCCD, bank account — 02 §6.2) are never edited
  * here. People fields (`owner_id`, `account_owner_id`, `hiring_manager_id`) are user ids, HR
  * `manager_id` is an employee id.
  */
 import type { FieldSpec } from "./record-form";
 
-export type Domain = "finance" | "sales" | "hr";
-export type ColumnType = "text" | "money" | "pct" | "date" | "enum" | "ref" | "bool";
+export type Domain = "finance" | "sales" | "hr" | "product" | "risk" | "execution";
+export type ColumnType = "text" | "money" | "pct" | "date" | "datetime" | "enum" | "list" | "ref" | "bool";
 export interface ColumnSpec { name: string; type: ColumnType; ref?: FieldSpec["ref"] }
 
 export interface ActionSpec {
@@ -41,11 +42,22 @@ export interface ResourceSpec {
   /** Detail page of a row (first column becomes a link) — M8 CRM views. */
   detailHref?: (row: Record<string, unknown>) => string;
   actions?: readonly ActionSpec[];
+  /** Row-level edit/archive gate (e.g. a converted lead is read-only — R-DEC-176); default all rows. */
+  editable?: (row: Record<string, unknown>) => boolean;
 }
 
 const REVENUE_CATEGORIES = ["product_sales", "service", "consulting", "other"] as const;
 const EXPENSE_CATEGORIES = ["cogs", "salary", "infrastructure", "marketing", "office", "travel", "other"] as const;
 const DEAL_STAGES = ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
+// CRM (R-DEC-176, D-08 defaults; EP-SAL-10..13) — `converted` is set only by the convert action
+const LEAD_STATUSES = ["new", "contacted", "engaged", "qualified", "nurturing", "disqualified"] as const;
+const LEAD_SOURCES = ["website", "referral", "event", "cold_call", "partner", "social", "advertising", "other"] as const;
+const CONTACT_ROLES = ["decision_maker", "economic_buyer", "influencer", "user", "champion", "other"] as const;
+const ACTIVITY_TYPES = ["call", "email", "meeting", "demo", "workshop", "poc", "proposal", "follow_up", "other"] as const;
+const PRODUCT_STATUSES = ["active", "paused", "retired"] as const;
+const LIFECYCLE_STAGES = ["idea", "development", "launched", "growth", "mature", "sunset"] as const;
+const RISK_CATEGORIES = ["financial", "operational", "strategic", "people", "business", "customer", "product",
+  "technology", "security", "compliance", "legal", "partner_supplier", "ai"] as const;
 
 export const RESOURCES: readonly ResourceSpec[] = [
   // ---------------------------------------------------------------- finance (EP-FIN-02..07)
@@ -198,6 +210,83 @@ export const RESOURCES: readonly ResourceSpec[] = [
       { name: "target_amount", type: "money", required: true },
     ],
   },
+  // ------------------------------------------------- sales CRM (EP-SAL-10..13, R-DEC-176 / D-08)
+  {
+    key: "leads", domain: "sales", path: "/sales/leads", sortBy: "updated_at", archivable: true, searchable: true,
+    sortable: ["code", "full_name", "company_name", "status", "score", "next_action_date"],
+    editable: (r) => r.status !== "converted",
+    columns: [{ name: "code", type: "text" }, { name: "full_name", type: "text" }, { name: "company_name", type: "text" }, { name: "status", type: "enum" },
+      { name: "score", type: "text" }, { name: "next_action_date", type: "date" }],
+    fields: [
+      { name: "full_name", type: "text", required: true },
+      { name: "company_name", type: "text", max: 300 },
+      { name: "job_title", type: "text" },
+      { name: "email", type: "text", max: 320 },
+      { name: "phone", type: "text", max: 30 },
+      { name: "industry", type: "text" },
+      { name: "lead_source", type: "select", options: LEAD_SOURCES },
+      { name: "status", type: "select", options: LEAD_STATUSES },
+      { name: "score", type: "number" },
+      { name: "budget", type: "money" },
+      { name: "owner_id", type: "ref", ref: "user" },
+      { name: "next_action", type: "text", max: 500 },
+      { name: "next_action_date", type: "date" },
+      { name: "need", type: "textarea" },
+    ],
+    actions: [{
+      // Lead → Client (new, or `client_id` to link one) + Contact (+ Deal) in one transaction
+      key: "convert", suffix: "convert", visible: (r) => !["converted", "disqualified"].includes(String(r.status)),
+      fields: [
+        { name: "client_id", type: "ref", ref: "client" },
+        { name: "create_deal", type: "boolean" },
+        { name: "deal_name", type: "text", max: 300 },
+        { name: "deal_value", type: "money" },
+        { name: "probability_pct", type: "pct" },
+        { name: "expected_close_date", type: "date" },
+      ],
+    }],
+  },
+  {
+    key: "contacts", domain: "sales", path: "/sales/contacts", sortBy: "updated_at", archivable: true, searchable: true,
+    sortable: ["code"],
+    columns: [{ name: "code", type: "text" }, { name: "full_name", type: "text" }, { name: "client_id", type: "ref", ref: "client" }, { name: "job_title", type: "text" },
+      { name: "email", type: "text" }, { name: "roles", type: "list" }],
+    fields: [
+      { name: "client_id", type: "ref", ref: "client", required: true },
+      { name: "last_name", type: "text", max: 100 },
+      { name: "first_name", type: "text", required: true, max: 100 },
+      { name: "job_title", type: "text" },
+      { name: "department", type: "text" },
+      { name: "email", type: "text", max: 320 },
+      { name: "phone", type: "text", max: 30 },
+      { name: "roles", type: "multi", options: CONTACT_ROLES },
+      { name: "influence_level", type: "select", options: ["low", "medium", "high"] },
+      { name: "decision_authority", type: "text", max: 500 },
+      { name: "owner_id", type: "ref", ref: "user" },
+      { name: "notes", type: "textarea" },
+    ],
+  },
+  {
+    key: "activities", domain: "sales", path: "/sales/activities", sortBy: "start_at", archivable: true, searchable: true,
+    sortable: ["code", "type", "start_at", "status"],
+    columns: [{ name: "code", type: "text" }, { name: "type", type: "enum" }, { name: "subject", type: "text" }, { name: "start_at", type: "datetime" },
+      { name: "client_id", type: "ref", ref: "client" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "type", type: "select", required: true, options: ACTIVITY_TYPES },
+      { name: "subject", type: "text", required: true, max: 300 },
+      { name: "start_at", type: "datetime", required: true },
+      { name: "end_at", type: "datetime" },
+      { name: "status", type: "select", options: ["planned", "completed", "cancelled"] },
+      { name: "lead_id", type: "ref", ref: "lead" },
+      { name: "client_id", type: "ref", ref: "client" },
+      { name: "contact_id", type: "ref", ref: "contact" },
+      { name: "deal_id", type: "ref", ref: "deal" },
+      { name: "owner_id", type: "ref", ref: "user" },
+      { name: "outcome", type: "textarea" },
+      { name: "next_action", type: "text", max: 500 },
+      { name: "description", type: "textarea", max: 4000 },
+    ],
+  },
   // --------------------------------------------------------------------- hr (EP-HR-02..10)
   {
     key: "employees", domain: "hr", path: "/hr/employees", sortBy: "full_name", order: "asc", archivable: true, searchable: true,
@@ -246,6 +335,151 @@ export const RESOURCES: readonly ResourceSpec[] = [
       },
     ],
   },
+  // ---------------------------------------------------- product (frozen module R-DEC-16; D-21)
+  {
+    key: "products", domain: "product", path: "/product/products", sortBy: "name", order: "asc", archivable: true,
+    sortable: ["code", "name"],
+    columns: [{ name: "code", type: "text" }, { name: "name", type: "text" }, { name: "status", type: "enum" }, { name: "lifecycle_stage", type: "enum" },
+      { name: "target_launch_date", type: "date" }, { name: "owner_id", type: "ref", ref: "user" }],
+    fields: [
+      { name: "code", type: "text", required: true, max: 50 },
+      { name: "name", type: "text", required: true, max: 300 },
+      { name: "status", type: "select", options: PRODUCT_STATUSES },
+      { name: "lifecycle_stage", type: "select", options: LIFECYCLE_STAGES },
+      { name: "target_launch_date", type: "date" },
+      { name: "owner_id", type: "ref", ref: "user", required: true },
+      { name: "description", type: "textarea", max: 4000 },
+    ],
+  },
+  {
+    key: "features", domain: "product", path: "/product/features", sortBy: "name", order: "asc", archivable: true,
+    sortable: ["name"],
+    columns: [{ name: "name", type: "text" }, { name: "product_id", type: "ref", ref: "product" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "product_id", type: "ref", ref: "product", required: true, createOnly: true },
+      { name: "name", type: "text", required: true, max: 300 },
+      { name: "status", type: "select", options: ["planned", "in_progress", "released", "deprecated"] },
+    ],
+  },
+  {
+    key: "roadmapItems", domain: "product", path: "/product/roadmap-items", sortBy: "quarter", archivable: true,
+    sortable: ["quarter", "target_date"],
+    columns: [{ name: "title", type: "text" }, { name: "product_id", type: "ref", ref: "product" }, { name: "quarter", type: "text" },
+      { name: "target_date", type: "date" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "product_id", type: "ref", ref: "product", required: true, createOnly: true },
+      { name: "title", type: "text", required: true, max: 300 },
+      { name: "quarter", type: "text", required: true, max: 7 },
+      { name: "target_date", type: "date" },
+      { name: "status", type: "select", options: ["planned", "in_progress", "done", "delayed", "dropped"] },
+    ],
+  },
+  {
+    key: "releases", domain: "product", path: "/product/releases", sortBy: "release_version", archivable: false, // no DELETE: a release is history
+    sortable: ["release_version"],
+    columns: [{ name: "release_version", type: "text" }, { name: "product_id", type: "ref", ref: "product" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "product_id", type: "ref", ref: "product", required: true, createOnly: true },
+      { name: "release_version", type: "text", required: true, max: 50 },
+      { name: "status", type: "select", options: ["planned", "in_progress", "released", "rolled_back"] },
+      { name: "release_notes", type: "textarea", max: 8000 },
+    ],
+  },
+  // ------------------------------------------------------- risk (frozen module R-DEC-16; D-21)
+  {
+    // No DELETE: a risk leaves the register through its lifecycle (`closed` / `rejected`) — audit trail kept.
+    key: "risks", domain: "risk", path: "/risk/risks", sortBy: "code", order: "asc", archivable: false,
+    sortable: ["code", "risk_score"],
+    columns: [{ name: "code", type: "text" }, { name: "title", type: "text" }, { name: "category", type: "enum" }, { name: "risk_score", type: "text" },
+      { name: "status", type: "enum" }, { name: "review_date", type: "date" }],
+    fields: [
+      { name: "title", type: "text", required: true, max: 300 },
+      { name: "category", type: "select", required: true, options: RISK_CATEGORIES },
+      { name: "likelihood", type: "number", required: true, createOnly: true },
+      { name: "impact", type: "number", required: true, createOnly: true },
+      { name: "owner_id", type: "ref", ref: "user" },
+      { name: "department_id", type: "ref", ref: "department" },
+      { name: "review_date", type: "date" },
+      { name: "description", type: "textarea", max: 4000 },
+    ],
+    actions: [
+      { key: "assess", suffix: "assessments", visible: (r) => !["closed", "rejected"].includes(String(r.status)),
+        fields: [{ name: "likelihood", type: "number", required: true }, { name: "impact", type: "number", required: true }, { name: "note", type: "textarea", max: 2000 }] },
+      { key: "status", suffix: "status", visible: (r) => !["closed", "rejected"].includes(String(r.status)),
+        fields: [{ name: "to_status", type: "select", required: true, options: ["identified", "assessed", "mitigating", "monitoring", "closed", "rejected"] },
+          { name: "reason", type: "textarea", max: 2000 }] },
+      { key: "accept", suffix: "accept", permission: "risk:approve", visible: (r) => !["accepted", "closed", "rejected"].includes(String(r.status)),
+        fields: [{ name: "reason", type: "textarea", required: true, max: 2000 }] },
+    ],
+  },
+  {
+    // No DELETE: a mitigation is cancelled (status) so the risk keeps its history.
+    key: "mitigations", domain: "risk", path: "/risk/mitigations", sortBy: "due_date", archivable: false,
+    sortable: ["due_date", "progress_pct"],
+    columns: [{ name: "title", type: "text" }, { name: "risk_id", type: "ref", ref: "risk" }, { name: "due_date", type: "date" },
+      { name: "progress_pct", type: "pct" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "risk_id", type: "ref", ref: "risk", required: true, createOnly: true },
+      { name: "title", type: "text", required: true, max: 300 },
+      { name: "owner_id", type: "ref", ref: "user", required: true },
+      { name: "due_date", type: "date", required: true },
+      { name: "progress_pct", type: "pct" },
+      { name: "status", type: "select", options: ["planned", "in_progress", "done", "cancelled"] },
+    ],
+  },
+  // ------------------------------------------------- execution (D-21: meetings, decisions, projects)
+  {
+    key: "meetings", domain: "execution", path: "/execution/meetings", sortBy: "held_at", archivable: true,
+    sortable: ["held_at", "title"],
+    columns: [{ name: "held_at", type: "date" }, { name: "title", type: "text" }, { name: "chair_id", type: "ref", ref: "user" }, { name: "department_id", type: "ref", ref: "department" }],
+    fields: [
+      { name: "title", type: "text", required: true, max: 500 },
+      { name: "held_at", type: "date", required: true },
+      { name: "chair_id", type: "ref", ref: "user" },
+      { name: "department_id", type: "ref", ref: "department" },
+      { name: "summary", type: "textarea", max: 20000 },
+    ],
+  },
+  {
+    // No DELETE (EP-DEC): a decision is closed by status `cancelled` so its 30/60/90 review history stays.
+    key: "decisions", domain: "execution", path: "/execution/decisions", sortBy: "decided_at", archivable: false,
+    sortable: ["decided_at", "due_date"],
+    columns: [{ name: "decided_at", type: "date" }, { name: "content", type: "text" }, { name: "owner_id", type: "ref", ref: "user" },
+      { name: "due_date", type: "date" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "content", type: "textarea", required: true, max: 10000 },
+      { name: "decided_at", type: "date", required: true, createOnly: true },
+      { name: "owner_id", type: "ref", ref: "user" },
+      { name: "due_date", type: "date" },
+      { name: "status", type: "select", options: ["open", "in_progress", "done", "cancelled"] },
+      { name: "rationale", type: "textarea", max: 10000 },
+      { name: "expected_outcome", type: "textarea", max: 10000 },
+      { name: "actual_outcome", type: "textarea", max: 10000 },
+    ],
+  },
+  {
+    key: "projects", domain: "execution", path: "/work/projects", sortBy: "name", order: "asc", archivable: true,
+    sortable: ["name", "start_date"],
+    detailHref: (r) => `/work/projects/${String(r.id)}`,
+    columns: [{ name: "name", type: "text" }, { name: "code", type: "text" }, { name: "owner_id", type: "ref", ref: "user" }, { name: "start_date", type: "date" },
+      { name: "due_date", type: "date" }, { name: "status", type: "enum" }],
+    fields: [
+      { name: "code", type: "text", required: true, max: 50 },
+      { name: "name", type: "text", required: true, max: 500 },
+      { name: "owner_id", type: "ref", ref: "user", required: true },
+      { name: "department_id", type: "ref", ref: "department" },
+      { name: "start_date", type: "date" },
+      { name: "due_date", type: "date" },
+      { name: "status", type: "select", options: ["planned", "active", "on_hold", "done", "cancelled"] },
+      { name: "budget_amount", type: "money" },
+    ],
+  },
 ];
 
 export const resourcesOf = (d: Domain) => RESOURCES.filter((r) => r.domain === d);
+
+/** Reference kinds a resource uses (its form, row actions and columns) — only those lists are fetched. */
+export function refKindsOf(r: ResourceSpec): ReadonlySet<NonNullable<FieldSpec["ref"]>> {
+  const refs = [...r.fields, ...(r.actions ?? []).flatMap((a) => a.fields), ...r.columns].map((f) => f.ref);
+  return new Set(refs.filter((k): k is NonNullable<FieldSpec["ref"]> => k !== undefined));
+}

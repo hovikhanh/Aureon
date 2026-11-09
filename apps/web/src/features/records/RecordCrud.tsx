@@ -22,11 +22,11 @@ import { SortHeader } from "@/components/SortHeader";
 import { Field } from "@/features/admin/common";
 import { ApiError, apiRequest } from "@/lib/api-client";
 import { errorText } from "@/lib/error-text";
-import { formatDate, formatMoney, formatNumber, type AppLocale } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, formatNumber, type AppLocale } from "@/lib/format";
 import { canAccess } from "@/lib/permissions";
 import { nextSort, type SortState } from "@/lib/sort";
-import { createBody, emptyLine, initialValues, recordSchema, updateBody, VAT_RATES, type FieldSpec, type FormValues, type RefKind } from "./record-form";
-import type { ActionSpec, ColumnSpec, ResourceSpec } from "./specs";
+import { createBody, emptyLine, initialValues, recordSchema, similarOf, updateBody, VAT_RATES, type FieldSpec, type FormValues, type RefKind, type Similar } from "./record-form";
+import { RESOURCES, refKindsOf, type ActionSpec, type ColumnSpec, type ResourceSpec } from "./specs";
 
 type Row = Record<string, unknown> & { id: string; version: number };
 type Option = { id: string; label: string };
@@ -50,16 +50,22 @@ export interface RecordCaps {
 const PAGE = 50;
 
 /** Options of a reference picker from the existing list endpoints; `null` = not readable here. */
-function useRefOptions(kind: RefKind, caps: RecordCaps, t: (k: string) => string): Option[] | null {
+function useRefOptions(kind: RefKind, caps: RecordCaps, t: (k: string) => string, need = true): Option[] | null {
   const spec = {
     department: { on: caps.canReadDepartments, path: "/hr/departments", query: { limit: 100 }, label: (r: Row) => String(r.name) },
     client: { on: caps.canReadClients, path: "/sales/clients", query: { limit: 100, sort_by: "name", order: "asc" }, label: (r: Row) => String(r.name) },
     employee: { on: caps.canReadEmployees, path: "/hr/employees", query: { limit: 100, sort_by: "full_name", order: "asc" }, label: (r: Row) => `${r.full_name} · ${r.employee_code}` },
     user: { on: caps.canPickUser, path: "/platform/users", query: { limit: 100 }, label: (r: Row) => `${r.full_name} · ${r.email}` },
+    product: { on: caps.permissions.includes("product:read"), path: "/product/products", query: { limit: 100, sort_by: "name", order: "asc" }, label: (r: Row) => `${r.code} · ${r.name}` },
+    risk: { on: caps.permissions.includes("risk:read"), path: "/risk/risks", query: { limit: 100, sort_by: "code", order: "asc" }, label: (r: Row) => `${r.code} · ${r.title}` },
+    // CRM (R-DEC-176): fetched only by the resources that reference them (`need`)
+    lead: { on: caps.canReadClients, path: "/sales/leads", query: { limit: 100, sort_by: "updated_at" }, label: (r: Row) => `${r.code} · ${r.full_name}` },
+    contact: { on: caps.canReadClients, path: "/sales/contacts", query: { limit: 100, sort_by: "updated_at" }, label: (r: Row) => `${r.full_name} · ${r.code}` },
+    deal: { on: caps.canReadClients, path: "/sales/deals", query: { limit: 100, sort_by: "updated_at" }, label: (r: Row) => String(r.name) },
   }[kind];
   const q = useQuery({
     queryKey: ["records", "ref", kind],
-    enabled: spec.on,
+    enabled: spec.on && need,
     staleTime: 300_000,
     queryFn: ({ signal }) => apiRequest<Row[]>(spec.path, { query: spec.query, signal }).then((r) => r.data),
   });
@@ -69,12 +75,18 @@ function useRefOptions(kind: RefKind, caps: RecordCaps, t: (k: string) => string
   return null;
 }
 
-function useRefs(caps: RecordCaps, t: (k: string) => string): Record<RefKind, Option[] | null> {
+function useRefs(caps: RecordCaps, t: (k: string) => string, needed?: ReadonlySet<RefKind>): Record<RefKind, Option[] | null> {
+  const need = (k: RefKind) => !needed || needed.has(k);
   return {
+    lead: useRefOptions("lead", caps, t, need("lead")),
+    contact: useRefOptions("contact", caps, t, need("contact")),
+    deal: useRefOptions("deal", caps, t, need("deal")),
     department: useRefOptions("department", caps, t),
     client: useRefOptions("client", caps, t),
     employee: useRefOptions("employee", caps, t),
     user: useRefOptions("user", caps, t),
+    product: useRefOptions("product", caps, t),
+    risk: useRefOptions("risk", caps, t),
   };
 }
 
@@ -92,6 +104,8 @@ function Cell({ col, row, refs }: { col: ColumnSpec; row: Row; refs: Record<RefK
     case "pct": return <>{formatNumber(Number(v), locale, 0)}%</>;
     case "date": return <>{formatDate(String(v), locale)}</>;
     case "bool": return <>{v ? "✓" : "—"}</>;
+    case "datetime": return <>{formatDateTime(String(v), locale)}</>;
+    case "list": return <>{Array.isArray(v) && v.length ? v.map((x) => (t.has(`enum.${col.name}.${x}`) ? t(`enum.${col.name}.${x}` as "me") : String(x))).join(", ") : "—"}</>;
     case "enum": return <>{t.has(`enum.${col.name}.${v}`) ? t(`enum.${col.name}.${v}` as "me") : String(v)}</>;
     case "ref": return <>{refs[col.ref!]?.find((o) => o.id === v)?.label ?? t(`other.${col.ref!}` as "me")}</>;
     default: return <>{String(v)}</>;
@@ -104,6 +118,7 @@ function FieldInput({ f, form, refs, disabled, prefix }: { f: FieldSpec; form: U
   const err = form.formState.errors[f.name]?.message as string | undefined;
   const label = `${t(`field.${f.name}` as "me")}${f.required ? " *" : ""}`;
   if (f.type === "lines") return <LinesInput form={form} name={f.name} label={label} disabled={disabled} error={err} />;
+  if (f.type === "multi") return <MultiInput f={f} form={form} label={label} disabled={disabled} prefix={id} />;
   if (f.type === "boolean") {
     return (
       <label className="flex items-center gap-2 text-sm" htmlFor={id}>
@@ -125,12 +140,30 @@ function FieldInput({ f, form, refs, disabled, prefix }: { f: FieldSpec; form: U
   } else if (f.type === "textarea") {
     control = <textarea id={id} disabled={disabled} className="min-h-20 w-full rounded border bg-card p-2 text-sm" {...form.register(f.name)} data-testid={id} />;
   } else {
-    const type = f.type === "date" ? "date" : "text";
+    const type = f.type === "date" ? "date" : f.type === "datetime" ? "datetime-local" : "text";
     const inputMode = ["money", "number", "pct"].includes(f.type) ? "decimal" : undefined;
     const placeholder = f.type === "month" ? "2026-11" : undefined;
     control = <Input id={id} type={type} inputMode={inputMode} placeholder={placeholder} disabled={disabled} {...form.register(f.name)} data-testid={id} />;
   }
   return <Field id={id} label={t(`field.${f.name}` as "me")} error={err} required={f.required}>{control}</Field>;
+}
+
+/** Checkbox group over `options` → string[] (e.g. contact roles, R-DEC-176). */
+function MultiInput({ f, form, label, disabled, prefix }: { f: FieldSpec; form: UseFormReturn<FormValues>; label: string; disabled: boolean; prefix: string }) {
+  const t = useTranslations("records");
+  return (
+    <fieldset className="flex flex-col gap-1" data-testid={prefix}>
+      <legend className="text-sm font-medium">{label}</legend>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {(f.options ?? []).map((o) => (
+          <label key={o} className="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" className="h-4 w-4" value={o} disabled={disabled} {...form.register(f.name)} data-testid={`${prefix}-${o}`} />
+            {t.has(`enum.${f.name}.${o}`) ? t(`enum.${f.name}.${o}` as "me") : o}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
 }
 
 function LinesInput({ form, name, label, disabled, error }: { form: UseFormReturn<FormValues>; name: string; label: string; disabled: boolean; error?: string }) {
@@ -169,7 +202,7 @@ function useMessages() {
 /** One dialog for create, edit and row actions — all are "a form over a field list, then a request". */
 function FormDialog({ open, onClose, title, testId, fields, row, defaults, submit, refs }: {
   open: boolean; onClose: () => void; title: string; testId: string; fields: readonly FieldSpec[]; row?: Row;
-  defaults?: Record<string, string | boolean>; submit: (v: FormValues) => Promise<unknown>; refs: Record<RefKind, Option[] | null>;
+  defaults?: Record<string, string | boolean>; submit: (v: FormValues, extra?: Record<string, unknown>) => Promise<unknown>; refs: Record<RefKind, Option[] | null>;
 }) {
   const tAll = useTranslations();
   const t = useTranslations("records");
@@ -178,16 +211,22 @@ function FormDialog({ open, onClose, title, testId, fields, row, defaults, submi
   const init = React.useMemo(() => initialValues(fields, row, defaults), [fields, row, defaults]);
   const form = useForm<FormValues>({ resolver: zodResolver(schema) as never, defaultValues: init });
   const [error, setError] = React.useState<string | null>(null);
+  // R-DEC-176 d: a possible duplicate (same e-mail / phone) is a warning — the user may save anyway
+  const [similar, setSimilar] = React.useState<{ list: Similar[]; values: FormValues } | null>(null);
+  const [confirming, setConfirming] = React.useState(false);
   // Reset when the dialog opens or the initial values change in CONTENT — not on every new object:
   // the parent re-renders when a background query settles, and resetting then wiped what the user
   // had already typed (seen live on the invoice form).
   const initRef = React.useRef(init);
   initRef.current = init;
   const initKey = JSON.stringify(init);
-  React.useEffect(() => { if (open) { form.reset(initRef.current); setError(null); } }, [open, initKey, form]);
-  const onSubmit = form.handleSubmit(async (v) => {
+  React.useEffect(() => { if (open) { form.reset(initRef.current); setError(null); setSimilar(null); } }, [open, initKey, form]);
+  const run = async (v: FormValues, extra?: Record<string, unknown>) => {
     setError(null);
-    try { await submit(v); onClose(); } catch (e) {
+    setSimilar(null);
+    try { await submit(v, extra); onClose(); } catch (e) {
+      const sim = e instanceof ApiError && e.code === "DUPLICATE_RESOURCE" && !extra ? similarOf(e.details) : null;
+      if (sim) return setSimilar({ list: sim, values: v });
       // a rule / duplicate / validation answer that names a field is shown on that field (10 §1.4 `details.field`)
       const field = e instanceof ApiError && typeof e.details.field === "string" ? e.details.field : null;
       const known = field && fields.some((f) => f.name === field);
@@ -196,7 +235,8 @@ function FormDialog({ open, onClose, title, testId, fields, row, defaults, submi
       else setError(errorText(tAll, e));
       if (known) form.setError(field, { message: e instanceof ApiError && e.code === "DUPLICATE_RESOURCE" ? t("msg.duplicate") : t("msg.ruleField") });
     }
-  });
+  };
+  const onSubmit = form.handleSubmit((v) => run(v));
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl" data-testid={testId}>
@@ -205,12 +245,22 @@ function FormDialog({ open, onClose, title, testId, fields, row, defaults, submi
         <form onSubmit={(e) => void onSubmit(e)} className="mt-4 flex flex-col gap-3" noValidate>
           <div className="grid gap-3 sm:grid-cols-2">
             {fields.map((f) => (
-              <div key={f.name} className={f.type === "lines" || f.type === "textarea" ? "sm:col-span-2" : undefined}>
+              <div key={f.name} className={f.type === "lines" || f.type === "textarea" || f.type === "multi" ? "sm:col-span-2" : undefined}>
                 <FieldInput f={f} form={form} refs={refs} disabled={Boolean(row && f.createOnly)} prefix={testId} />
               </div>
             ))}
           </div>
           {error && <p role="alert" className="text-sm text-danger" data-testid={`${testId}-error`}>{error}</p>}
+          {similar && (
+            <div role="alert" className="rounded border border-warning bg-warning-subtle p-3 text-sm" data-testid={`${testId}-similar`}>
+              <p className="font-medium">{t("similar.title")}</p>
+              <ul className="mt-1 list-disc pl-5">
+                {similar.list.map((x) => <li key={x.id}>{x.code} · {x.name} ({x.match.map((m) => t(`similar.match.${m}` as "me")).join(", ")})</li>)}
+              </ul>
+              <Button type="button" size="sm" variant="outline" className="mt-2" disabled={confirming}
+                onClick={() => { setConfirming(true); void run(similar.values, { confirm_duplicate: true }).finally(() => setConfirming(false)); }} data-testid={`${testId}-confirm-duplicate`}>{t("similar.saveAnyway")}</Button>
+            </div>
+          )}
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="ghost">{t("cancel")}</Button></DialogClose>
             <Button type="submit" disabled={form.formState.isSubmitting} data-testid={`${testId}-submit`}>{t("save")}</Button>
@@ -226,7 +276,7 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
   const tAll = useTranslations();
   const toast = useToast();
   const client = useQueryClient();
-  const refs = useRefs(caps, (k) => t(k as "me"));
+  const refs = useRefs(caps, (k) => t(k as "me"), React.useMemo(() => refKindsOf(spec), [spec]));
   const [offset, setOffset] = React.useState(0);
   const [q, setQ] = React.useState("");
   const [editing, setEditing] = React.useState<Row | "new" | null>(null);
@@ -240,7 +290,8 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
     queryFn: ({ signal }) => apiRequest<Row[]>(spec.path, { query: params, signal }),
     placeholderData: keepPreviousData,
   });
-  const refresh = () => client.invalidateQueries({ queryKey: ["records", spec.path] });
+  // reference pickers too: a converted lead adds a client, a new lead / contact is pickable at once
+  const refresh = () => Promise.all([client.invalidateQueries({ queryKey: ["records", spec.path] }), client.invalidateQueries({ queryKey: ["records", "ref"] })]);
   const fields = usable(spec.fields, refs);
   const defaults = React.useMemo(() => {
     const d: Record<string, string> = {};
@@ -302,8 +353,8 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
                     {(spec.actions ?? []).filter((a) => allowed(a) && a.visible(row)).map((a) => (
                       <Button key={a.key} size="sm" variant="outline" className="mr-1" onClick={() => setActing({ action: a, row })} data-testid={`record-action-${a.key}`}>{t(`action.${spec.key}.${a.key}` as "me")}</Button>
                     ))}
-                    {caps.canWrite && <Button size="sm" variant="ghost" onClick={() => setEditing(row)} data-testid="record-edit">{t("edit")}</Button>}
-                    {caps.canWrite && spec.archivable && <Button size="sm" variant="ghost" className="text-danger" onClick={() => setArchiving(row)} data-testid="record-archive">{t("archive")}</Button>}
+                    {caps.canWrite && (spec.editable?.(row) ?? true) && <Button size="sm" variant="ghost" onClick={() => setEditing(row)} data-testid="record-edit">{t("edit")}</Button>}
+                    {caps.canWrite && spec.archivable && (spec.editable?.(row) ?? true) && <Button size="sm" variant="ghost" className="text-danger" onClick={() => setArchiving(row)} data-testid="record-archive">{t("archive")}</Button>}
                   </td>
                 </tr>
               ))}
@@ -328,8 +379,8 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
         row={editing && editing !== "new" ? editing : undefined}
         defaults={defaults}
         refs={refs}
-        submit={async (v) => {
-          if (editing === "new") await apiRequest(spec.path, { method: "POST", body: createBody(fields, v), idempotent: true });
+        submit={async (v, extra) => {
+          if (editing === "new") await apiRequest(spec.path, { method: "POST", body: { ...createBody(fields, v), ...extra }, idempotent: true });
           else if (editing) await apiRequest(`${spec.path}/${editing.id}`, { method: "PATCH", body: updateBody(fields, v, editing), idempotent: true });
           toast.push(t(editing === "new" ? "created" : "updated"));
           void refresh();
@@ -361,5 +412,40 @@ export function RecordCrud({ spec, caps }: { spec: ResourceSpec; caps: RecordCap
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+/** "Add" button + create dialog for one resource with preset values (CRM detail views, R-DEC-176). */
+export function QuickCreate({ resource, caps, defaults, onCreated, testId }: {
+  resource: string; caps: RecordCaps; defaults: Record<string, string>; onCreated?: () => void; testId: string;
+}) {
+  const t = useTranslations("records");
+  const toast = useToast();
+  const client = useQueryClient();
+  const spec = RESOURCES.find((r) => r.key === resource)!;
+  const refs = useRefs(caps, (k) => t(k as "me"), React.useMemo(() => refKindsOf(spec), [spec]));
+  const [open, setOpen] = React.useState(false);
+  if (!caps.canWrite) return null;
+  const fields = usable(spec.fields, refs);
+  const title = t("create", { resource: t(`resource.${spec.key}` as "me") });
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)} data-testid={testId}>{title}</Button>
+      <FormDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={title}
+        testId={`${testId}-editor`}
+        fields={fields}
+        defaults={defaults}
+        refs={refs}
+        submit={async (v, extra) => {
+          await apiRequest(spec.path, { method: "POST", body: { ...createBody(fields, v), ...extra }, idempotent: true });
+          toast.push(t("created"));
+          void client.invalidateQueries({ queryKey: ["records"] });
+          onCreated?.();
+        }}
+      />
+    </>
   );
 }

@@ -2,22 +2,26 @@
 /**
  * `/business/sales/deals/[id]` — Opportunity detail (BRD §2.5 CRM-OPP-04 / OPP-13 history, UX-005)
  * on EP-SAL-02/03: deal info, stage progress, stage history with days spent per stage, and the
- * stage move (forward only, lost needs a reason — the API enforces and audits).
+ * stage move (forward only, lost needs a reason — the API enforces and audits), and the deal's
+ * activity timeline with an "add" button (EP-SAL-12, R-DEC-176).
  */
+import * as React from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { QueryError } from "@/components/QueryError";
+import type { RecordCaps } from "@/features/records/RecordCrud";
 import { formatDate, formatDateTime, formatMoney, type AppLocale } from "@/lib/format";
+import { ActivityTimeline } from "./ActivityTimeline";
 import { dealRisk } from "./crm";
 import { stageProgress } from "./stage-progress";
 import { LostReasonDialog, StageSelect, useStageMove } from "./StageMove";
 import { business_today } from "./today";
 import { useClient, useDeal, useOwnerLabel, useStageHistory } from "./use-crm";
 
-export function DealDetailView({ id, canMove, userId, canReadUsers }: { id: string; canMove: boolean; userId: string; canReadUsers: boolean }) {
+export function DealDetailView({ id, canMove, userId, canReadUsers, caps }: { id: string; canMove: boolean; userId: string; canReadUsers: boolean; caps: RecordCaps }) {
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
   const deal = useDeal(id);
@@ -26,6 +30,8 @@ export function DealDetailView({ id, canMove, userId, canReadUsers }: { id: stri
   const client = useClient(d?.client_id ?? "");
   const mover = useStageMove();
   const ownerLabel = useOwnerLabel(userId, canReadUsers);
+  const query = React.useMemo(() => ({ deal_id: id }), [id]);
+  const preset = React.useMemo(() => ({ deal_id: id, client_id: d?.client_id ?? "" }), [id, d?.client_id]);
   if (deal.isPending) return <div className="h-40 animate-pulse rounded-lg bg-muted" />;
   if (deal.isError || !d) return <QueryError error={deal.error} onRetry={() => void deal.refetch()} testId="deal-error" />;
   const risk = dealRisk(d, business_today());
@@ -81,6 +87,7 @@ export function DealDetailView({ id, canMove, userId, canReadUsers }: { id: stri
           </ol>
         </Card>
       </div>
+      <ActivityTimeline query={query} caps={caps} defaults={preset} testId="deal-activities" />
       <LostReasonDialog open={mover.pending !== null} onCancel={mover.cancel} onConfirm={mover.confirmLost} />
     </div>
   );

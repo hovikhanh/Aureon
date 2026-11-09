@@ -7,9 +7,9 @@
 import { z } from "zod";
 
 export type FieldType =
-  | "text" | "textarea" | "number" | "money" | "pct" | "date" | "month" | "select" | "boolean" | "ref" | "lines";
+  | "text" | "textarea" | "number" | "money" | "pct" | "date" | "datetime" | "month" | "select" | "multi" | "boolean" | "ref" | "lines";
 /** Reference pickers resolved by the UI from the existing list endpoints (no new API). */
-export type RefKind = "client" | "department" | "user" | "employee";
+export type RefKind = "client" | "department" | "user" | "employee" | "product" | "risk" | "lead" | "contact" | "deal";
 
 export interface FieldSpec {
   name: string;
@@ -23,11 +23,33 @@ export interface FieldSpec {
 }
 
 export interface LineValues { description: string; quantity: string; unit_price: string; vat_pct: string }
-export type FormValues = Record<string, string | boolean | LineValues[]>;
+export type FormValues = Record<string, string | boolean | string[] | LineValues[]>;
 export interface FormMessages { required: string; number: string; tooLong: string; range: string; period: string; lines: string }
 
 export const VAT_RATES = ["0", "5", "8", "10"] as const;
 export const emptyLine = (): LineValues => ({ description: "", quantity: "1", unit_price: "", vat_pct: "10" });
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** ISO instant → `<input type="datetime-local">` value in the browser's time zone. */
+export function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** `datetime-local` value (local wall time) → ISO 8601 UTC with `Z` (CLAUDE.md §5.2). */
+export function fromLocalInput(v: string): string | null {
+  const d = new Date(v.trim()); // a date-time without offset is parsed as local time
+  return v.trim() && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
+}
+
+/** Possible duplicates of a `409 DUPLICATE_RESOURCE` warning (R-DEC-176 d) — `null` for a hard duplicate. */
+export interface Similar { id: string; code: string; name: string; match: string[] }
+export function similarOf(details: Record<string, unknown>): Similar[] | null {
+  const s = details.similar;
+  return details.confirm_with === "confirm_duplicate" && Array.isArray(s) && s.length > 0 ? (s as Similar[]) : null;
+}
 
 const num = (v: string) => Number(v.trim().replace(/\s/g, "").replace(",", "."));
 const isNum = (v: string) => v.trim() !== "" && Number.isFinite(num(v));
@@ -37,6 +59,10 @@ function scalar(f: FieldSpec, m: FormMessages): z.ZodType<unknown> {
   switch (f.type) {
     case "boolean":
       return z.boolean();
+    case "multi":
+      return z.array(z.string()).refine((v) => !f.required || v.length > 0, m.required);
+    case "datetime":
+      return opt(z.string()).refine((v) => !v.trim() || fromLocalInput(v) !== null, m.number);
     case "number":
     case "money":
     case "pct":
@@ -78,6 +104,7 @@ export function recordSchema(fields: readonly FieldSpec[], m: FormMessages) {
 /** Form value → API value (`null` for an empty optional field). */
 export function toApi(f: FieldSpec, raw: FormValues[string]): unknown {
   if (f.type === "boolean") return Boolean(raw);
+  if (f.type === "multi") return Array.isArray(raw) ? [...(raw as string[])] : [];
   if (f.type === "lines") {
     return (raw as LineValues[]).map((l) => ({
       description: l.description.trim(), quantity: num(l.quantity), unit_price: Math.round(num(l.unit_price)), vat_pct: Number(l.vat_pct),
@@ -85,6 +112,7 @@ export function toApi(f: FieldSpec, raw: FormValues[string]): unknown {
   }
   const v = String(raw ?? "").trim();
   if (!v) return null;
+  if (f.type === "datetime") return fromLocalInput(v);
   if (f.type === "money") return Math.round(num(v));
   if (f.type === "number" || f.type === "pct") return num(v);
   return v;
@@ -93,6 +121,7 @@ export function toApi(f: FieldSpec, raw: FormValues[string]): unknown {
 /** API value → form value. */
 export function fromApi(f: FieldSpec, value: unknown): FormValues[string] {
   if (f.type === "boolean") return Boolean(value);
+  if (f.type === "multi") return Array.isArray(value) ? value.map(String) : [];
   if (f.type === "lines") {
     return Array.isArray(value) && value.length
       ? value.map((l: Record<string, unknown>) => ({
@@ -103,13 +132,14 @@ export function fromApi(f: FieldSpec, value: unknown): FormValues[string] {
   }
   if (value === null || value === undefined) return "";
   if (f.type === "date" && typeof value === "string") return value.slice(0, 10);
+  if (f.type === "datetime" && typeof value === "string") return toLocalInput(value);
   return String(value);
 }
 
 export function initialValues(fields: readonly FieldSpec[], row?: Record<string, unknown>, defaults: Record<string, string | boolean> = {}): FormValues {
   const out: FormValues = {};
   for (const f of fields) {
-    out[f.name] = row ? fromApi(f, row[f.name]) : f.name in defaults ? defaults[f.name]! : f.type === "boolean" ? false : f.type === "lines" ? [emptyLine()] : "";
+    out[f.name] = row ? fromApi(f, row[f.name]) : f.name in defaults ? defaults[f.name]! : f.type === "boolean" ? false : f.type === "multi" ? [] : f.type === "lines" ? [emptyLine()] : "";
   }
   return out;
 }

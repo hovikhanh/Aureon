@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { executivePillars, P1_FROZEN_PILLARS, visiblePillars, worstStatus } from "./pillars";
+import { P1_FROZEN_PILLARS, visiblePillars, worstStatus } from "./pillars";
 
 describe("pillars", () => {
   it("worst status wins", () => {
@@ -26,12 +26,10 @@ describe("pillars", () => {
   });
 });
 
-describe("executivePillars (R-DEC-16)", () => {
-  it("drops the frozen U/S pillars from the Executive default; visiblePillars keeps all five", () => {
+describe("visiblePillars (R-DEC-16)", () => {
+  it("keeps all five pillars; U/S stay flagged as frozen", () => {
     const all = ["finance:query", "hr:query", "execution:query", "sales:query", "product:query", "risk:query"];
-    expect(executivePillars("CEO", all).map((p) => p.code)).toEqual(["F", "O", "C"]);
     expect(visiblePillars("CEO", all).map((p) => p.code)).toEqual(["F", "O", "C", "U", "S"]);
-    expect(executivePillars("DIR", all, ["F"]).map((p) => p.code)).toEqual(["F"]);
     expect(P1_FROZEN_PILLARS).toEqual(["U", "S"]);
   });
 });

@@ -11,7 +11,7 @@ const nav = (r: RoleCode) => visibleNav(r, perms(r)).map((i) => i.key);
 
 describe("sidebar per role (06 §3.2/§3.4, default deny)", () => {
   it.each([
-    ["CEO", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge", "admin"]],
+    ["CEO", ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge", "admin"]], // review: idp:approve (D-21)
     ["DIR", ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"]],
     ["MGR", ["home", "ask", "goals", "work", "meetings", "data", "review", "business", "knowledge"]],
     ["EMP", ["home", "ask", "goals", "work", "meetings", "data", "business", "knowledge"]],
@@ -22,9 +22,9 @@ describe("sidebar per role (06 §3.2/§3.4, default deny)", () => {
     expect(nav(role)).toEqual(keys);
   });
 
-  it("has 8 main items + Quản trị and no product/risk entry (R-DEC-16)", () => {
+  it("has the main items (8 IA items + the review shortcut) + Quản trị and no product/risk entry (R-DEC-16)", () => {
     const all = visibleNav("CEO", perms("CEO"));
-    expect(all.filter((i) => i.group === "main")).toHaveLength(8);
+    expect(all.filter((i) => i.group === "main")).toHaveLength(9);
     expect(all.filter((i) => i.group === "admin").map((i) => i.href)).toEqual(["/admin"]);
     expect(all.some((i) => /product|risk/.test(i.href))).toBe(false);
   });

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoadError } from "./common";
 import { TaskInfoForm } from "./TaskInfoForm";
+import { TaskDelete } from "./TaskDelete";
 import { TaskDeps, TaskHistory, TaskSubtasks } from "./TaskRelations";
 import { useTask } from "./use-work";
 
@@ -51,6 +52,7 @@ export function TaskDetail({ id, caps, onClose, onOpen }: { id: string; caps: De
             ))}
           </div>
           {tab === "info" && <TaskInfoForm key={`${task.id}:${task.version}`} task={task} caps={caps} />}
+          {tab === "info" && !caps.isEmployee && <div className="flex justify-end"><TaskDelete task={task} onDeleted={onClose} /></div>}
           {tab === "subtasks" && <TaskSubtasks task={task} onOpen={onOpen} />}
           {tab === "deps" && <TaskDeps task={task} />}
           {tab === "history" && <TaskHistory id={task.id} enabled={caps.canReadAudit} />}

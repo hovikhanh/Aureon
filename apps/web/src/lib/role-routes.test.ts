@@ -16,7 +16,7 @@ const pillarRead = (domain: string) => (c: Caller) => canDomain(c.perms, c.pilla
 const hrRecords = (c: Caller) => pillarRead("hr")(c) && c.role !== "REV" && c.role !== "ADM";
 /** The CRM detail views: sales records in khối C, without REV's review-scoped read. */
 const crmDetail = (c: Caller) => pillarRead("sales")(c) && c.role !== "REV";
-/** D-07 (R-DEC-183): REV `◑r` has no general finance / sales read; MGR `◑d` has no company invoice. */
+/** D-07 (R-DEC-183): REV `◑r` has no general finance / sales read. */
 const noReviewScoped = (domain: string) => (c: Caller) => pillarRead(domain)(c) && c.role !== "REV";
 const dashboard = (c: Caller) => has(c, "dashboard:read");
 
@@ -24,7 +24,11 @@ const dashboard = (c: Caller) => has(c, "dashboard:read");
 const API: Readonly<Record<string, (c: Caller) => boolean>> = {
   "/business/finance": query("finance"), // EP-60 /finance/dashboard, /budgets/status, /what-if/runway
   "/business/sales": query("sales"), // EP /sales/pipeline, /sales/dashboard
-  "/business/finance/invoices": (c: Caller) => noReviewScoped("finance")(c) && c.role !== "MGR",
+  "/business/finance/invoices": noReviewScoped("finance"), // D-20: MGR lists the invoices they created
+  // D-21: product / risk record management (frozen modules, R-DEC-16: CEO + DIR of the khối only)
+  "/business/product/records": (c: Caller) => pillarRead("product")(c) && ["CEO", "DIR"].includes(c.role),
+  "/business/risk/records": (c: Caller) => pillarRead("risk")(c) && ["CEO", "DIR"].includes(c.role),
+  "/business/execution/records": (c: Caller) => has(c, "execution:write") && ["CEO", "DIR", "MGR"].includes(c.role),
   "/business/finance/records": noReviewScoped("finance"),
   "/business/sales/records": noReviewScoped("sales"),
   "/business/hr/employees": hrRecords,
@@ -63,13 +67,15 @@ describe("role × route (no dead end)", () => {
 
   it.each([
     ["CEO", [], HUB_CARDS.map((c) => c.key)],
-    ["MGR", [], HUB_CARDS.map((c) => c.key).filter((k) => k !== "invoices")], // no company invoice (D-07)
+    ["MGR", [], HUB_CARDS.map((c) => c.key).filter((k) => k !== "productRecords" && k !== "riskRecords")], // D-20: own invoices; product / risk: CEO + DIR
     ["REV", [], []], // D-07: finance / sales only inside an assigned review; no HR records
     ["EMP", [], ["employees"]], // own profile only
     ["ADM", [], []],
-    ["DIR", ["F"], ["finance", "sales", "invoices", "financeRecords"]],
-    ["DIR", ["C"], ["finance", "sales", "salesRecords"]],
-    ["DIR", ["O"], ["finance", "sales", "employees", "hrRecords"]],
+    ["DIR", ["F"], ["finance", "sales", "invoices", "financeRecords", "executionRecords"]],
+    ["DIR", ["C"], ["finance", "sales", "salesRecords", "executionRecords"]],
+    ["DIR", ["O"], ["finance", "sales", "employees", "hrRecords", "executionRecords"]],
+    ["DIR", ["U"], ["finance", "sales", "productRecords", "executionRecords"]],
+    ["DIR", ["S"], ["finance", "sales", "riskRecords", "executionRecords"]],
   ] as const)("hub cards of %s %j", (role, pillars, keys) => {
     expect(visibleHubCards(role, SNAPSHOT.role_permissions[role], pillars).map((c) => c.key)).toEqual(keys);
   });
@@ -84,8 +90,8 @@ describe("review queue entry (U-01)", () => {
   const nav = (r: RoleCode) => visibleNav(r, SNAPSHOT.role_permissions[r]);
 
   it("appears for review duty only", () => {
-    for (const r of ["REV", "MGR", "DIR"] as const) expect(nav(r).map((i) => i.key)).toContain("review");
-    for (const r of ["CEO", "EMP", "ADM"] as const) expect(nav(r).map((i) => i.key)).not.toContain("review"); // no idp:approve
+    for (const r of ["REV", "MGR", "DIR", "CEO"] as const) expect(nav(r).map((i) => i.key)).toContain("review"); // CEO: idp:approve since D-21
+    for (const r of ["EMP", "ADM"] as const) expect(nav(r).map((i) => i.key)).not.toContain("review"); // no idp:approve
   });
 
   it("only the most specific item is current", () => {

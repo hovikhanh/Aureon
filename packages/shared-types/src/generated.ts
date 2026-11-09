@@ -99,6 +99,63 @@ export type ActionRefOut = {
   table: string;
 };
 
+export type ActivityCreate = {
+  type: "call" | "email" | "meeting" | "demo" | "workshop" | "poc" | "proposal" | "follow_up" | "other";
+  subject: string;
+  description?: string | null;
+  lead_id?: string | null;
+  client_id?: string | null;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  start_at: string;
+  end_at?: string | null;
+  status?: "planned" | "completed" | "cancelled";
+  outcome?: string | null;
+  next_action?: string | null;
+};
+
+export type ActivityOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  type: string;
+  subject: string;
+  description: string | null;
+  lead_id: string | null;
+  client_id: string | null;
+  contact_id: string | null;
+  deal_id: string | null;
+  owner_id: string;
+  department_id: string | null;
+  start_at: string;
+  end_at: string | null;
+  status: string;
+  outcome: string | null;
+  next_action: string | null;
+};
+
+export type ActivityUpdate = {
+  version?: number | null;
+  type?: ("call" | "email" | "meeting" | "demo" | "workshop" | "poc" | "proposal" | "follow_up" | "other") | null;
+  subject?: string | null;
+  description?: string | null;
+  lead_id?: string | null;
+  client_id?: string | null;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  status?: ("planned" | "completed" | "cancelled") | null;
+  outcome?: string | null;
+  next_action?: string | null;
+};
+
 export type AgentPatchIn = {
   is_enabled?: boolean | null;
   max_autonomy_level?: ("L0" | "L1" | "L2" | "L3") | null;
@@ -633,6 +690,59 @@ export type Contact = {
   phone?: string | null;
 };
 
+export type ContactCreate = {
+  client_id: string;
+  first_name: string;
+  last_name?: string | null;
+  job_title?: string | null;
+  department?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  roles?: ("decision_maker" | "economic_buyer" | "influencer" | "user" | "champion" | "other")[];
+  decision_authority?: string | null;
+  influence_level?: ("low" | "medium" | "high") | null;
+  owner_id?: string | null;
+  notes?: string | null;
+  confirm_duplicate?: boolean;
+};
+
+export type ContactOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  client_id: string;
+  first_name: string;
+  last_name: string | null;
+  full_name: string;
+  job_title: string | null;
+  department: string | null;
+  email: string | null;
+  phone: string | null;
+  roles: string[];
+  decision_authority: string | null;
+  influence_level: string | null;
+  owner_id: string | null;
+  notes: string | null;
+};
+
+export type ContactUpdate = {
+  version?: number | null;
+  client_id?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  job_title?: string | null;
+  department?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  roles?: (("decision_maker" | "economic_buyer" | "influencer" | "user" | "champion" | "other")[]) | null;
+  decision_authority?: string | null;
+  influence_level?: ("low" | "medium" | "high") | null;
+  owner_id?: string | null;
+  notes?: string | null;
+};
+
 export type ContractCreate = {
   contract_number: string;
   client_id: string;
@@ -1095,6 +1205,11 @@ export type Envelope_AcceptanceSnapshotOut_ = {
   meta?: Meta | null;
 };
 
+export type Envelope_ActivityOut_ = {
+  data: ActivityOut;
+  meta?: Meta | null;
+};
+
 export type Envelope_AlertOut_ = {
   data: AlertOut;
   meta?: Meta | null;
@@ -1167,6 +1282,11 @@ export type Envelope_ClientOut_ = {
 
 export type Envelope_ConnectOut_ = {
   data: ConnectOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_ContactOut_ = {
+  data: ContactOut;
   meta?: Meta | null;
 };
 
@@ -1357,6 +1477,16 @@ export type Envelope_KpiOut_ = {
 
 export type Envelope_KpiTargetOut_ = {
   data: KpiTargetOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_LeadConvertOut_ = {
+  data: LeadConvertOut;
+  meta?: Meta | null;
+};
+
+export type Envelope_LeadOut_ = {
+  data: LeadOut;
   meta?: Meta | null;
 };
 
@@ -1625,6 +1755,11 @@ export type Envelope_list_AIEvaluationOut__ = {
   meta?: Meta | null;
 };
 
+export type Envelope_list_ActivityOut__ = {
+  data: ActivityOut[];
+  meta?: Meta | null;
+};
+
 export type Envelope_list_AlertOut__ = {
   data: AlertOut[];
   meta?: Meta | null;
@@ -1687,6 +1822,11 @@ export type Envelope_list_CheckInOut__ = {
 
 export type Envelope_list_ClientOut__ = {
   data: ClientOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_ContactOut__ = {
+  data: ContactOut[];
   meta?: Meta | null;
 };
 
@@ -1832,6 +1972,11 @@ export type Envelope_list_KpiTargetOut__ = {
 
 export type Envelope_list_KrMeasurementOut__ = {
   data: KrMeasurementOut[];
+  meta?: Meta | null;
+};
+
+export type Envelope_list_LeadOut__ = {
+  data: LeadOut[];
   meta?: Meta | null;
 };
 
@@ -2975,6 +3120,91 @@ export type KrNode = {
   at_risk: boolean;
   last_checked_in_at: string | null;
   owner_id: string;
+};
+
+export type LeadConvert = {
+  client_id?: string | null;
+  create_deal?: boolean;
+  deal_name?: string | null;
+  deal_value?: number | null;
+  probability_pct?: number;
+  expected_close_date?: string | null;
+};
+
+export type LeadConvertOut = {
+  lead: LeadOut;
+  client: ClientOut;
+  client_created: boolean;
+  contact: ContactOut;
+  deal: DealOut | null;
+};
+
+export type LeadCreate = {
+  full_name: string;
+  company_name?: string | null;
+  job_title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  industry?: string | null;
+  lead_source?: ("website" | "referral" | "event" | "cold_call" | "partner" | "social" | "advertising" | "other") | null;
+  need?: string | null;
+  budget?: number | null;
+  currency?: string;
+  score?: number;
+  status?: "new" | "contacted" | "engaged" | "qualified" | "nurturing" | "disqualified";
+  owner_id?: string | null;
+  department_id?: string | null;
+  next_action?: string | null;
+  next_action_date?: string | null;
+  confirm_duplicate?: boolean;
+};
+
+export type LeadOut = {
+  id: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  code: string;
+  full_name: string;
+  company_name: string | null;
+  job_title: string | null;
+  email: string | null;
+  phone: string | null;
+  industry: string | null;
+  lead_source: string | null;
+  need: string | null;
+  budget: number | null;
+  currency: string;
+  score: number;
+  status: string;
+  owner_id: string;
+  department_id: string | null;
+  next_action: string | null;
+  next_action_date: string | null;
+  converted_client_id: string | null;
+  converted_contact_id: string | null;
+  converted_deal_id: string | null;
+  converted_at: string | null;
+};
+
+export type LeadUpdate = {
+  version?: number | null;
+  full_name?: string | null;
+  company_name?: string | null;
+  job_title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  industry?: string | null;
+  lead_source?: ("website" | "referral" | "event" | "cold_call" | "partner" | "social" | "advertising" | "other") | null;
+  need?: string | null;
+  budget?: number | null;
+  currency?: string | null;
+  score?: number | null;
+  status?: ("new" | "contacted" | "engaged" | "qualified" | "nurturing" | "disqualified") | null;
+  owner_id?: string | null;
+  department_id?: string | null;
+  next_action?: string | null;
+  next_action_date?: string | null;
 };
 
 export type LineageLinkOut = {
@@ -5986,6 +6216,26 @@ export interface ApiOperations {
     request: ScenarioIn;
     response: Envelope_ScenarioOut_;
   };
+  "GET /api/v1/sales/activities": {
+    request: void;
+    response: Envelope_list_ActivityOut__;
+  };
+  "POST /api/v1/sales/activities": {
+    request: ActivityCreate;
+    response: Envelope_ActivityOut_;
+  };
+  "DELETE /api/v1/sales/activities/{activity_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/sales/activities/{activity_id}": {
+    request: void;
+    response: Envelope_ActivityOut_;
+  };
+  "PATCH /api/v1/sales/activities/{activity_id}": {
+    request: ActivityUpdate;
+    response: Envelope_ActivityOut_;
+  };
   "GET /api/v1/sales/clients": {
     request: void;
     response: Envelope_list_ClientOut__;
@@ -6005,6 +6255,26 @@ export interface ApiOperations {
   "PATCH /api/v1/sales/clients/{client_id}": {
     request: ClientUpdate;
     response: Envelope_ClientOut_;
+  };
+  "GET /api/v1/sales/contacts": {
+    request: void;
+    response: Envelope_list_ContactOut__;
+  };
+  "POST /api/v1/sales/contacts": {
+    request: ContactCreate;
+    response: Envelope_ContactOut_;
+  };
+  "DELETE /api/v1/sales/contacts/{contact_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/sales/contacts/{contact_id}": {
+    request: void;
+    response: Envelope_ContactOut_;
+  };
+  "PATCH /api/v1/sales/contacts/{contact_id}": {
+    request: ContactUpdate;
+    response: Envelope_ContactOut_;
   };
   "GET /api/v1/sales/contracts": {
     request: void;
@@ -6061,6 +6331,30 @@ export interface ApiOperations {
   "GET /api/v1/sales/funnel": {
     request: void;
     response: Envelope_FunnelOut_;
+  };
+  "GET /api/v1/sales/leads": {
+    request: void;
+    response: Envelope_list_LeadOut__;
+  };
+  "POST /api/v1/sales/leads": {
+    request: LeadCreate;
+    response: Envelope_LeadOut_;
+  };
+  "DELETE /api/v1/sales/leads/{lead_id}": {
+    request: void;
+    response: void;
+  };
+  "GET /api/v1/sales/leads/{lead_id}": {
+    request: void;
+    response: Envelope_LeadOut_;
+  };
+  "PATCH /api/v1/sales/leads/{lead_id}": {
+    request: LeadUpdate;
+    response: Envelope_LeadOut_;
+  };
+  "POST /api/v1/sales/leads/{lead_id}/convert": {
+    request: LeadConvert;
+    response: Envelope_LeadConvertOut_;
   };
   "GET /api/v1/sales/performance": {
     request: void;

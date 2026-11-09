@@ -73,7 +73,8 @@ const SUB_ROUTES: readonly RouteRule[] = [
   // company invoices (no `department_id`) — the API answers 403 FORBIDDEN_SCOPE, so no route leads there.
   { prefix: "/business/finance", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:query"] },
   { prefix: "/business/sales", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["sales:query"] },
-  { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "EMP"], anyOf: ["finance:read"], dirPillars: ["F"] },
+  // D-20: MGR lists the invoices they created (incl. through an IDP review); company invoices of others stay 403
+  { prefix: "/business/finance/invoices", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:read"], dirPillars: ["F"] },
   // REV: `hr:read ◑r` covers an assigned review only — every employee / hiring-plan list is 403 (scope.py)
   { prefix: "/business/hr", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["hr:read"], dirPillars: ["O"] },
   // EMP reads the own profile on `/business/hr/employees`; the records editor is for HR managers
@@ -81,6 +82,11 @@ const SUB_ROUTES: readonly RouteRule[] = [
   // M7 record editors: the list endpoints are khối-isolated (`require_pillar_permission`)
   { prefix: "/business/finance/records", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["finance:read"], dirPillars: ["F"] },
   { prefix: "/business/sales/records", roles: ["CEO", "DIR", "MGR", "EMP"], anyOf: ["sales:read"], dirPillars: ["C"] },
+  // D-21: record management of the frozen product / risk modules (R-DEC-16 keeps them off the sidebar)
+  { prefix: "/business/product", roles: ["CEO", "DIR"], anyOf: ["product:read"], dirPillars: ["U"] },
+  { prefix: "/business/risk", roles: ["CEO", "DIR"], anyOf: ["risk:read"], dirPillars: ["S"] },
+  // D-21: meetings / decisions / projects editor (the API scopes DIR / MGR to their unit)
+  { prefix: "/business/execution", roles: ["CEO", "DIR", "MGR"], anyOf: ["execution:write"] },
   // M8 CRM views (R-DEC-175): deal / client records in khối C; REV's sales:read is review-scoped
   { prefix: "/business/sales/pipeline", roles: ["CEO", "DIR", "MGR"], anyOf: ["sales:read"], dirPillars: ["C"] },
   { prefix: "/business/sales/deals", roles: ["CEO", "DIR", "MGR"], anyOf: ["sales:read"], dirPillars: ["C"] },
@@ -187,6 +193,10 @@ export const HUB_CARDS = [
   { href: "/business/finance/records", key: "financeRecords" },
   { href: "/business/sales/records", key: "salesRecords" },
   { href: "/business/hr/records", key: "hrRecords" },
+  // D-21
+  { href: "/business/product/records", key: "productRecords" },
+  { href: "/business/risk/records", key: "riskRecords" },
+  { href: "/business/execution/records", key: "executionRecords" },
 ] as const;
 
 export function visibleHubCards(role: string, perms: readonly string[], pillars: readonly string[] = []) {

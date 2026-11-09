@@ -2,24 +2,32 @@
 /**
  * `/business/sales/clients/[id]` — Account 360 (BRD §2.3 CRM-ACC-07/08, US-ACC-002, UX-004) on
  * EP-SAL-01/02/08: profile + contact person, the account's opportunities (open pipeline, won) and
- * contracts. Activities and a contact list need entities the model does not have yet (R-DEC-176).
+ * contracts; contacts (EP-SAL-11) and the activity timeline (EP-SAL-12) of R-DEC-176, each with an
+ * "add" button (shown when the role has `sales:write` — the API enforces scope).
  */
+import * as React from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { QueryError } from "@/components/QueryError";
+import { QuickCreate, type RecordCaps } from "@/features/records/RecordCrud";
 import { formatDate, formatMoney, type AppLocale } from "@/lib/format";
+import { ActivityTimeline } from "./ActivityTimeline";
 import { isClosed } from "./crm";
-import { useClient, useContracts, useDeals } from "./use-crm";
+import { crmKeys, useClient, useContacts, useContracts, useDeals } from "./use-crm";
 
-export function ClientDetailView({ id }: { id: string }) {
+export function ClientDetailView({ id, caps }: { id: string; caps: RecordCaps }) {
   const t = useTranslations();
   const locale = useLocale() as AppLocale;
   const client = useClient(id);
   const deals = useDeals({ client_id: id, sort_by: "expected_close_date", order: "desc" });
   const contracts = useContracts({ client_id: id });
+  const contacts = useContacts(id);
+  const qc = useQueryClient();
+  const preset = React.useMemo(() => ({ client_id: id }), [id]);
   if (client.isPending) return <div className="h-40 animate-pulse rounded-lg bg-muted" />;
   if (client.isError || !client.data) return <QueryError error={client.error} onRetry={() => void client.refetch()} testId="client-error" />;
   const c = client.data;
@@ -53,6 +61,26 @@ export function ClientDetailView({ id }: { id: string }) {
           </dl>
           <h3 className="mt-3 font-semibold">{t("crm.contactPerson")}</h3>
           <p className="text-muted-foreground" data-testid="client-contact">{contact?.name ? `${contact.name}${contact.email ? ` · ${contact.email}` : ""}${contact.phone ? ` · ${contact.phone}` : ""}` : "—"}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-semibold">{t("crm.contacts")}</h3>
+            <QuickCreate resource="contacts" caps={caps} defaults={preset} testId="client-contact-add"
+              onCreated={() => void qc.invalidateQueries({ queryKey: crmKeys.all })} />
+          </div>
+          {contacts.isError && <QueryError error={contacts.error} />}
+          {contacts.isSuccess && contacts.data.length === 0 && <p className="mt-1 text-muted-foreground">{t("crm.noContacts")}</p>}
+          <ul className="mt-1 divide-y" data-testid="client-contacts">
+            {(contacts.data ?? []).map((p) => (
+              <li key={p.id} className="py-1.5">
+                <div className="font-medium">{p.full_name}{p.job_title ? <span className="font-normal text-muted-foreground"> · {p.job_title}</span> : null}</div>
+                <div className="text-xs text-muted-foreground">{[p.email, p.phone].filter(Boolean).join(" · ") || "—"}</div>
+                {p.roles.length > 0 && (
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {p.roles.map((r) => <Badge key={r} variant="outline">{t.has(`records.enum.roles.${r}`) ? t(`records.enum.roles.${r}` as "crm.me") : r}</Badge>)}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
         </Card>
         <Card className="p-4 md:col-span-2">
           <h2 className="text-sm font-semibold">{t("crm.opportunities")}</h2>
@@ -82,6 +110,7 @@ export function ClientDetailView({ id }: { id: string }) {
           </ul>
         </Card>
       </div>
+      <ActivityTimeline query={preset} caps={caps} defaults={preset} testId="client-activities" />
     </div>
   );
 }

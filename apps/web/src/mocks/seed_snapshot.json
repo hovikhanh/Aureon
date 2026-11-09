@@ -3694,9 +3694,13 @@
    "execution:write",
    "finance:query",
    "finance:read",
+   "finance:write",
    "hr:admin",
+   "hr:approve",
    "hr:query",
    "hr:read",
+   "hr:write",
+   "idp:approve",
    "idp:read",
    "idp:write",
    "platform:admin",
@@ -3704,9 +3708,11 @@
    "platform:read",
    "product:query",
    "product:read",
+   "product:write",
    "risk:approve",
    "risk:query",
    "risk:read",
+   "risk:write",
    "sales:query",
    "sales:read",
    "sales:write"
@@ -3802,8 +3808,7 @@
    "role_ref": "ROLE-CEO",
    "scope_rules": {
     "ai:admin": "k",
-    "platform:admin": "u",
-    "sales:write": "t"
+    "platform:admin": "u"
    }
   },
   {

@@ -20,6 +20,14 @@ export interface ContractOut {
 }
 export interface StageCount { stage: string; count: number; value: number; weighted_value: number; avg_days_in_stage: number | null }
 export interface PerformanceRow { owner_ref: string; closed_value: number; quota: number | null; attainment_pct: number | null; win_rate_pct: number | null }
+export interface ContactOut {
+  id: string; code: string; client_id: string; full_name: string; job_title: string | null; email: string | null; phone: string | null;
+  roles: string[]; influence_level: string | null;
+}
+export interface ActivityOut {
+  id: string; code: string; type: string; subject: string; status: string; start_at: string; end_at: string | null;
+  outcome: string | null; next_action: string | null; lead_id: string | null; client_id: string | null; contact_id: string | null; deal_id: string | null;
+}
 export interface StageHistory { from_stage: string | null; to_stage: string; changed_by: string | null; changed_at: string }
 
 const get = <T,>(path: string, query?: Record<string, string | number | undefined>) =>
@@ -44,6 +52,14 @@ export function useClient(id: string) {
 }
 export function useContracts(query: Record<string, string | number | undefined>) {
   return useQuery({ queryKey: [...crmKeys.all, "contracts", query], queryFn: get<ContractOut[]>("/sales/contracts", { limit: 100, ...query }) });
+}
+/** EP-SAL-11 contacts of a client (R-DEC-176). */
+export function useContacts(clientId: string) {
+  return useQuery({ queryKey: [...crmKeys.all, "contacts", clientId], queryFn: get<ContactOut[]>("/sales/contacts", { client_id: clientId, limit: 100, sort_by: "code", order: "asc" }) });
+}
+/** EP-SAL-12 activity timeline (newest first) filtered by `client_id` / `deal_id` / `lead_id`. */
+export function useActivities(query: Record<string, string>) {
+  return useQuery({ queryKey: [...crmKeys.all, "activities", query], queryFn: get<ActivityOut[]>("/sales/activities", { limit: 100, sort_by: "start_at", order: "desc", ...query }) });
 }
 export function usePipeline(period?: string) {
   return useQuery({ queryKey: [...crmKeys.all, "pipeline", period ?? ""], queryFn: get<{ stages: StageCount[]; coverage_ratio: number | null }>("/sales/pipeline", { period }) });

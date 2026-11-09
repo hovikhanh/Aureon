@@ -94,6 +94,16 @@ function PositionDialog({ editing, onClose, departments, positions }: { editing:
       ? apiRequest(`/org/positions/${current.id}`, { method: "PATCH", body: { ...common, version: current.version } })
       : apiRequest("/org/positions", { method: "POST", idempotent: true, body: { ...common, department_id: v.department_id, code: v.code } });
   });
+  // D-21: DELETE /org/positions/{id} (soft; the API refuses a position still held by an assignment)
+  const archive = useOrgMutation((id: string) => apiRequest(`/org/positions/${id}`, { method: "DELETE" }));
+  const [confirming, setConfirming] = React.useState(false);
+  React.useEffect(() => setConfirming(false), [editing]);
+  const doArchive = async () => {
+    if (!current) return;
+    await archive.mutateAsync(current.id);
+    toast.push(t("positionsAdmin.archived", { title: current.title }));
+    onClose();
+  };
   const submit = form.handleSubmit(async (v) => {
     await save.mutateAsync(v);
     toast.push(t(current ? "positionsAdmin.updated" : "positionsAdmin.created", { title: v.title }));
@@ -125,7 +135,12 @@ function PositionDialog({ editing, onClose, departments, positions }: { editing:
             </NativeSelect>
           </Field>
           {save.isError && <p role="alert" className="text-sm text-danger" data-testid="position-form-error">{errText(save.error)}</p>}
+          {archive.isError && <p role="alert" className="text-sm text-danger" data-testid="position-archive-error">{errText(archive.error)}</p>}
+          {current && confirming && <p className="text-sm" data-testid="position-archive-confirm-text">{t("positionsAdmin.archiveConfirm", { title: current.title })}</p>}
           <DialogFooter>
+            {current && (confirming
+              ? <Button type="button" variant="danger" disabled={archive.isPending} onClick={() => void doArchive()} data-testid="position-archive-confirm">{t("positionsAdmin.archive")}</Button>
+              : <Button type="button" variant="outline" onClick={() => setConfirming(true)} data-testid="position-archive">{t("positionsAdmin.archive")}</Button>)}
             <DialogClose asChild><Button type="button" variant="ghost">{t("buttons.cancel")}</Button></DialogClose>
             <Button type="submit" disabled={save.isPending} data-testid="position-form-submit">{t("buttons.save")}</Button>
           </DialogFooter>
