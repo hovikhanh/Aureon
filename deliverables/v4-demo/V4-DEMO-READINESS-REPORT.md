@@ -1,162 +1,130 @@
 # Aureon v4 Demo — Báo cáo sẵn sàng demo
 
-> Ngày 2026-11-08. Nhánh `v3/m8-crm` @ `9cad717` + thay đổi **chưa commit** (180 file sửa, 35 file mới).
-> Kiểm chứng trên project Docker `aureon-verify` dựng từ trạng thái sạch; stack `aureon` không bị đụng (0 request trong mọi lần E2E cuối).
-> Báo cáo kèm: `06-AI-INTEGRATION-REPORT.md`, `10-PRODUCTION-BACKLOG.md`, `docs/3.EXECUTION/16-OPERATIONS.md` (hướng dẫn Docker).
+> Ngày 2026-11-09. Nhánh `v4/demo-readiness` (tách từ `v3/m8-crm` @ `9cad717`), chưa push.
+> Stack chính `aureon` đã chạy bản v4: `http://localhost:3000` (API `:4000`).
+> Kèm: `06-AI-INTEGRATION-REPORT.md` (AI, D-19), `10-PRODUCTION-BACKLOG.md` (Phase 8), `docs/3.EXECUTION/16-OPERATIONS.md` (vận hành, triển khai, hoàn tác).
 
-## 11. Đánh giá cuối (đọc trước)
+## 1. Đánh giá cuối
 
-**Sẵn sàng demo cho các luồng nghiệp vụ; chưa sẵn sàng demo AI trực tiếp.**
+**Sẵn sàng demo, kể cả AI thật chạy local.** Môi trường là demo nội bộ (D-01); hardening production là backlog Phase 8, không chặn demo.
 
-| Hạng mục | Đánh giá |
+| Hạng mục | Kết quả |
 |---|---|
-| Khởi chạy từ trạng thái sạch | Đạt: build, migrate, seed, 7 service healthy trong ~40 giây |
-| Đăng nhập 10 tài khoản, phân quyền | Đạt |
-| Số liệu tài chính, bán hàng, Home | Đạt: FIN-01 khớp Metric Store, funnel hợp lệ, Home dùng số thật |
-| Workflow (IDP review → ghi, phê duyệt tuyển dụng, giao việc, OKR) | Đạt |
-| AI chat, trích xuất trực tiếp | **Chưa**: model local trên CPU quá chậm (D-19) |
-| Hardening production | Ngoài phạm vi (Phase 8) |
+| Dựng từ trạng thái sạch | Build, migrate tới `0028`, seed, 7 service healthy trong ~35 giây |
+| Triển khai stack chính | Backup trước; migrate `0027 → 0028`; dữ liệu cũ giữ nguyên; smoke 16/16 |
+| CEO toàn quyền dữ liệu nghiệp vụ (D-21) | Đạt ở backend và giao diện |
+| Phân quyền các role khác | Không hồi quy; REV, MGR đúng D-07, D-20 |
+| AI | Model local thật `qwen2.5:3b-instruct`; 13–67 giây/lượt khi máy tải, ~2–3 giây khi lặp lại câu hỏi |
 
-## 1. Phase Completion Matrix
+## 2. Chức năng đã triển khai trong đợt này
 
-| Phase | Trạng thái | Ghi chú |
+| Nhóm | Nội dung | Quyết định |
 |---|---|---|
-| 1. Audit & baseline | Xong | `deliverables/v4-audit/` |
-| 2. Product decisions | Một phần | R-DEC-177..197 ở PROPOSED trong `13` §2ter; còn mở D-17, D-18, D-19, D-20 |
-| 3. Documentation | Một phần | Đã cập nhật: 00, 07, 08, 10, 12, 13, 14, README; mới: 16-OPERATIONS, DEC-REGISTRY. Chưa: 01, 02, 03, 05, 06, 09, 11; `CLAUDE.md` chỉ có bản đề xuất |
-| 4. Codebase cleanup | Ít | Chỉ dọn phần liên quan sửa lỗi; chưa xóa code chết, `public`, MinIO (R-DEC-189) |
-| 5. Implementation | Xong cho phạm vi đã chọn | §4 |
-| 6. Functional testing | Xong, có ngoại lệ | §7 |
-| 7. Demo readiness | Đạt trừ AI | §11 |
-| 8. Production readiness | Chưa bắt đầu | `10-PRODUCTION-BACKLOG.md` |
+| Quyền CEO | Thêm `finance:write`, `hr:write`, `hr:approve`, `product:write`, `risk:write`, `idp:approve`; bỏ giới hạn "Sales chỉ ghi chỉ tiêu"; CEO xóa được deal | D-21, R-DEC-198 |
+| Giao diện quản lý dữ liệu | Trang Product, Risk, Điều hành (họp, quyết định, dự án); xóa task; lưu trữ vị trí; CEO chuyển giai đoạn deal; mục Review cho CEO | R-DEC-201 |
+| CRM | Lead, Contact, Activity (migration `0028`), chuyển lead thành khách hàng + liên hệ + deal; cảnh báo trùng; hoạt động của lead đi theo khách hàng | R-DEC-176 (tập con), D-08 |
+| Hóa đơn của Manager | MGR xem danh sách và chi tiết hóa đơn do mình tạo (kể cả ghi qua review IDP); không sửa, xóa hóa đơn công ty; áp cả cho tool AI | D-20, R-DEC-199 |
+| AI demo | Adapter Ollama gốc (giữ model trong RAM, stream token và tool call), chọn tool theo ý định trong quyền người hỏi, stream từng câu đã kiểm số, timeout theo tác vụ, nạp sẵn model | D-19, R-DEC-200 |
+| Tool AI theo scope | Tool hóa đơn, chi phí, ngân sách, deal áp đúng quy tắc REST (REV không đọc; MGR theo phòng/người tạo) | D-07, D-20 |
+| Toàn vẹn dữ liệu | Không xóa khách hàng còn deal, hợp đồng, liên hệ, hoạt động; rủi ro, quyết định, phát hành, số dư tiền kết thúc bằng trạng thái thay vì xóa | — |
+| Sửa lỗi giao diện | Ô chọn không còn tràn màn hình điện thoại; người phụ trách rủi ro bắt buộc ngay trên form (BR-RSK-02) | — |
+| Dọn code | Gỡ `DashboardView`, `PillarCard`, `executivePillars` (lưới 5 trụ v2.1 không còn dùng) | — |
 
-## 2. Requirement – Implementation Traceability
+Đợt trước (đã commit `15f4139..432126f`): một ngày nghiệp vụ, số liệu Finance/Sales nhất quán, RBAC D-07, AI trung thực, Deep Navy, trang chiến lược.
 
-| Yêu cầu / quyết định | Thực hiện | Test |
+## 3. Ma trận CRUD của CEO
+
+Kiểm bằng `apps/api/tests/integration/test_ceo_full_crud_d21.py` (backend) và `e2e/m7-records.spec.ts` "CEO (D-21)" (giao diện). "Xóa" là xóa mềm (`deleted_at`, có audit).
+
+| Module | Bản ghi | Tạo | Xem | Sửa | Xóa / kết thúc |
+|---|---|---|---|---|---|
+| Tổ chức | Tổ chức, phòng ban, team, vị trí | ✓ | ✓ | ✓ | ✓ khi không còn người/đơn vị con (phòng ban còn nhân viên → 422) |
+| Tổ chức | Gán nhân sự | ✓ | ✓ | ✓ | Đóng bằng `valid_to` (lịch sử theo ngày hiệu lực) |
+| Nhân sự | Nhân viên | ✓ | ✓ (cả dữ liệu mức 4) | ✓ | ✓ |
+| Nhân sự | Lịch sử lương | ✓ | ✓ | — | — (chỉ thêm, theo ngày hiệu lực) |
+| Nhân sự | Kế hoạch tuyển dụng | ✓ | ✓ | ✓ | ✓; gửi, duyệt qua engine |
+| Người dùng | Tài khoản, vai trò | ✓ | ✓ | ✓ (gán vai trò) | Vô hiệu hóa / kích hoạt lại (không xóa cứng) |
+| Tài chính | Doanh thu, chi phí, ngân sách | ✓ | ✓ | ✓ | ✓ |
+| Tài chính | Hóa đơn | ✓ | ✓ | ✓ + ghi thanh toán | ✓ nếu chưa thanh toán (đã trả → 409) |
+| Tài chính | Số dư tiền, dự báo | ✓ | ✓ | ✓ | — (không có DELETE) |
+| Kinh doanh | Khách hàng | ✓ | ✓ | ✓ | ✓ nếu không còn deal, hợp đồng, liên hệ, hoạt động (409) |
+| Kinh doanh | Deal, hợp đồng, chỉ tiêu | ✓ | ✓ | ✓ (+ chuyển giai đoạn) | ✓ |
+| CRM | Lead, liên hệ, hoạt động | ✓ | ✓ | ✓ (lead đã chuyển thì chỉ đọc) | ✓; chuyển lead |
+| Sản phẩm | Sản phẩm, tính năng, lộ trình | ✓ | ✓ | ✓ | ✓ (sản phẩm còn phát hành mở → 422) |
+| Sản phẩm | Phát hành; chỉ số | ✓ | ✓ | ✓ / — | — |
+| Rủi ro | Rủi ro, biện pháp | ✓ | ✓ | ✓ (+ đánh giá, chấp nhận) | Đóng / hủy qua trạng thái |
+| Điều hành | Chiến lược, mục tiêu, OKR, KR, KPI, task, dự án, lịch | ✓ | ✓ | ✓ | ✓ (mục tiêu còn KR, task còn việc con → từ chối) |
+| Điều hành | Cuộc họp | ✓ | ✓ | ✓ | ✓ nếu chưa có quyết định |
+| Điều hành | Quyết định | ✓ | ✓ | ✓ | Đóng bằng `cancelled` (giữ Decision Log) |
+| Tài liệu | Tài liệu IDP | ✓ | ✓ | Duyệt, sửa trường | Hoàn tác trong 7 ngày |
+
+Thay đổi của CEO đi qua cùng service, audit và outbox như mọi role. Test xác nhận một doanh thu CEO tạo làm `METRIC-FIN-01` đổi trên dashboard tài chính và Metric Store.
+
+## 4. Kết quả kiểm thử
+
+| Bộ | Trước đợt (2026-11-08) | Sau đợt (2026-11-09) |
 |---|---|---|
-| D-15 / R-DEC-192: một ngày nghiệp vụ | `BUSINESS_DATE_OVERRIDE`; mọi module dùng `business_today()`; FE tổ chức dùng `businessToday()` | TC-V4-01, TC-V4-08 |
-| D-09 / R-DEC-186: Finance là nguồn doanh thu; funnel tích lũy; Q4 = 20 tỷ | FIN-01 một công thức; `quota_attainment_pct` từ Finance; `closed_bookings`; `/sales/funnel` | TC-V4-02, TC-V4-03 |
-| D-07 / R-DEC-183: RBAC đúng spec cho REV, MGR | Scope Finance + Sales; FE ẩn route 403 | TC-V4-04, TC-V4-05, TC-V4-14 |
-| F6: Home số thật | Department, Employee tính từ dữ liệu | TC-V4-07 |
-| TD-03: thanh toán đồng thời | Khóa dòng | TC-V4-06 |
-| D-11 / R-DEC-188: dữ liệu nhạy cảm | Mức 3 mặc định, chỉ nâng; roster không tới model; demo chỉ local | TC-V4-09 |
-| P05: không bịa số | Grounding siết lại | TC-V4-10 |
-| F-C2: replay trung thực | `mode: "replay"` + nhãn UI | TC-V4-13 |
-| D-13 / R-DEC-190: Deep Navy, UI | Token màu; ID thô, nhãn, enum, định dạng, dialog, sort, Reviewer nav | TC-V4-14 |
-| F12: Strategy UI | `/goals/strategies` | TC-V4-15 |
+| Backend pytest (DB tạm) | 1656 passed | **1703 passed, 0 failed** |
+| Contract | 44 | 44 |
+| ruff, format, mypy | Sạch (394 file) | Sạch (399 file) |
+| ESLint, tsc | Sạch | Sạch |
+| Vitest | 566 | **590** |
+| E2E `real` (136 test) | 128 pass, 8 fail | Lượt đầy đủ cuối **135 pass**; test còn lại đã sửa, pass 2 lượt riêng |
+| Request lọt vào stack chính trong lúc E2E | 0 | 0 |
+| Smoke stack chính sau triển khai | — | **16/16** |
 
-Chi tiết: `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` §1.26.
+8 test fail trước đây (7 AI, 1 onboarding) đều pass, không nới assertion:
+- **AI:** chạy model thật; riêng `meetings` và UC-07 chờ tối đa 150 giây theo số đo.
+- **Onboarding L2/L3:** test viết khi trần autonomy là L2; nay test tự cấu hình policy L2 thật.
+- **"demo mode":** chạy trên cặp replay riêng có nhãn.
 
-## 3. Document-Code Conformance
+Các lỗi E2E phát sinh trong đợt này và cách xử lý:
 
-| Tài liệu | Trạng thái |
+| Lỗi | Nguyên nhân | Xử lý |
+|---|---|---|
+| Tạo rủi ro bị 422 | Form để trống người phụ trách, quy tắc BR-RSK-02 bắt buộc | Form bắt buộc trường này |
+| Bảng Kanban tràn 17 px trên điện thoại | Ô chọn rộng theo lựa chọn dài nhất | Giới hạn chiều rộng ô chọn |
+| `ERR_ABORTED` khi đổi tài khoản | Ứng dụng tự chuyển trang chồng lệnh của test | Fixture thử lại một lần |
+| Duyệt tuyển dụng chờ trạng thái | Khung chi tiết đóng sau khi duyệt (theo thiết kế) | Test kiểm toast và hàng chờ |
+
+## 5. Docker
+
+| Mục | Giá trị |
 |---|---|
-| `10` API | Khớp: EP-SAL-09, thay đổi EP-FIN-08, EP-SAL-07 (breaking), EP-RPT-01, EP-AI-02, scope Finance/Sales; contract 44 pass |
-| `07`, `08` | Có cấu hình demo v4, ngày nghiệp vụ |
-| `12` | Cột version khớp file (sửa 8 dòng) |
-| `13` | DEC-* có nơi định nghĩa (DEC-REGISTRY, 219 mã, 96/96 mã đang dùng); R-DEC v4 ở PROPOSED |
-| `00`, README | Cập nhật trạng thái, vai trò, số test |
-| `CLAUDE.md` | **Chưa sửa**; bản đề xuất `var/v4-audit/proposals/CLAUDE-md-R-DEC-188.diff`. Còn khẳng định cũ (A-05..A-09 trong `deliverables/v4-audit/`) |
-| `01`, `02`, `03`, `05`, `06`, `09`, `11` | Chưa cập nhật theo v4 |
+| Demo | `http://localhost:3000` (API `http://localhost:4000`) |
+| Revision DB | `0028_crm_leads_contacts_activity` |
+| Image | `aureon-api:local`, `aureon-web:local` (bản v4); bản cũ gắn tag `pre-v4-20261109-160626` |
+| Backup | `var/backup/v4-20261109-160626/` (dump DB, file IDP, `.env`, số dòng trước triển khai) |
+| Hoàn tác | `var/v4-audit/deploy/deploy_main.sh rollback 20261109-160626` + `pg_restore` (16-OPERATIONS §6.1) |
+| Cấu hình AI | `MODEL_PROVIDER_PRIMARY=ollama`, không fallback, `AI_DEMO_REPLAY=false`, `LOCAL_CHAT_MODEL=qwen2.5:3b-instruct`, `BUSINESS_DATE_OVERRIDE=2026-10-20` |
+| Stack kiểm chứng `aureon-verify` | Đã dừng (giữ volume) để nhường CPU cho demo |
 
-## 4. Module Functional Status
+Người đang đăng nhập cần đăng nhập lại để nhận quyền mới (quyền nằm trong JWT).
 
-| Module | Trạng thái | Ghi chú |
+## 6. Lỗi và hạn chế còn tồn tại
+
+| # | Vấn đề | Mức | Ghi chú |
+|---|---|---|---|
+| 1 | Chat AI 13–67 giây khi máy đang tải; không đảm bảo dưới 30 giây | Trung bình (demo) | Không chạy việc nặng trong lúc demo; hỏi một câu khởi động trước. GPU sẽ cho phép dùng `7b` |
+| 2 | Trích xuất IDP không hiện tiến độ từng bước | Thấp | Cần commit giữa pipeline hoặc field API mới |
+| 3 | MGR tải hóa đơn lên nhưng REV commit thì MGR không thấy (theo người tạo) | Thấp | Muốn mở rộng cần truy vấn lineage IDP |
+| 4 | Pipeline cấu hình, snapshot dự báo, deal nhiều sản phẩm, duyệt chỉ tiêu (phần còn lại R-DEC-176) | Theo lộ trình | Chưa làm |
+| 5 | 3 dòng chỉ tiêu tháng + KR 85 tỷ mâu thuẫn Q4 = 20 tỷ | Trung bình | Cần PO chỉ định cách xử lý dữ liệu |
+| 6 | `ENT-SalesActivity` là ID mới, đang ở mức đề xuất | Thấp | Cần cấp trong registry |
+| 7 | `CLAUDE.md` chưa cập nhật (agent không được tự sửa) | Trung bình | Bản đề xuất: `var/v4-audit/proposals/CLAUDE-md-R-DEC-188.diff` |
+| 8 | Chưa xóa schema `public`, chưa gỡ MinIO (R-DEC-189 chờ đánh giá) | Thấp | Giữ theo D-12 |
+| 9 | Key provider cloud vẫn còn trong `.env` chính, nhưng chuỗi provider không có cloud | Thấp (demo) | PO xóa key khi xoay secret; chốt egress trong code thuộc Phase 8 |
+
+## 7. Quyết định
+
+| ID | Nội dung | Trạng thái |
 |---|---|---|
-| Auth, phân quyền | Hoạt động | Đăng nhập demo giữ nguyên (R-DEC-28) |
-| Tổ chức, HR | Hoạt động | Cây tổ chức theo ngày nghiệp vụ; tuyển dụng duyệt qua engine |
-| Finance | Hoạt động | Số liệu khớp store; MGR không xem hóa đơn cấp công ty (D-20) |
-| Sales/CRM | Hoạt động (giai đoạn 1) | Funnel tích lũy; Lead/Contact/Activity chờ R-DEC-176 |
-| Product, Risk | Đóng băng | R-DEC-16 |
-| Workflow, phê duyệt | Hoạt động | 3 loại yêu cầu |
-| Dashboard, KPI, Home | Hoạt động | |
-| Mục tiêu, chiến lược | Hoạt động | Thêm UI chiến lược |
-| IDP | Hoạt động | Review, ghi, undo; trích xuất live chậm |
-| AI chat | Logic đúng, **không kịp thời gian** trên máy này | `06-AI-INTEGRATION-REPORT.md` |
-| Reporting | Hoạt động | |
+| D-21 / R-DEC-198 | CEO toàn quyền CRUD dữ liệu nghiệp vụ | APPROVED bởi PO 2026-11-09; IMPLEMENTED |
+| D-20 / R-DEC-199 | MGR xem hóa đơn do mình tạo | Agent quyết theo ủy quyền PO; IMPLEMENTED |
+| D-19 / R-DEC-200 | AI local `qwen2.5:3b-instruct` + intent routing + streaming | Agent quyết theo ủy quyền PO; IMPLEMENTED |
+| R-DEC-201 | Trang quản lý Product, Risk, Điều hành (thay một phần R-DEC-16) | Agent quyết theo ủy quyền PO; IMPLEMENTED |
+| R-DEC-177..197 | Các quyết định v4 trước đó | Vẫn PROPOSED, chờ PO duyệt |
 
-## 5. Database and API Consistency
+## 8. Tài liệu đã cập nhật
 
-| Mục | Kết quả |
-|---|---|
-| Migration | Không có migration mới; DB sạch lên `0027_external_event_link_c19` |
-| Schema | Không đổi |
-| API mới | `GET /sales/funnel` |
-| API breaking | `/sales/dashboard`: `closed_revenue` → `closed_bookings` (FE, mock đã cập nhật) |
-| Shared types | Sinh lại (564 type), test khớp OpenAPI |
-| Contract test | 44/44 |
-
-## 6. AI Integration
-
-Xem `06-AI-INTEGRATION-REPORT.md`. Tóm tắt: trích xuất hóa đơn bằng model local là thật; roster bị chặn đúng; chat live hết giờ sau 90 giây do phần cứng (4 CPU, không GPU, ~2 token/giây).
-
-## 7. Test Results and E2E Evidence
-
-| Bộ | Kết quả |
-|---|---|
-| ruff, format, mypy (394 file) | Sạch |
-| pytest (DB cô lập) | **1656 passed, 0 failed** |
-| Contract | 44 passed |
-| ESLint, tsc | Sạch |
-| Vitest | 566 passed |
-| E2E `real`, stack sạch, một lần chạy | 125 / 136 pass |
-| Sau khi sửa 3 spec, chạy lại riêng | m7-records, goals, m8-crm: 12/12 pass |
-| **Tổng E2E** | **128 pass, 8 fail có nguyên nhân** |
-
-8 test fail còn lại:
-
-| Test | Nguyên nhân | Loại |
-|---|---|---|
-| `ceo-7steps` (2), `uc03` | Chat live hết giờ: phần cứng | AI |
-| `chat` "demo mode" | Stack kiểm chứng tắt replay; test cần replay bật | Cấu hình |
-| `meetings` (2) | Cần model trả lời nhanh | AI |
-| `m5-ai-telemetry` | Không có lượt gọi model nào trên DB sạch | Dữ liệu |
-| `onboarding` L2/L3 | Image chưa vá cũng fail y hệt; chưa truy nguyên nhân | Có sẵn từ trước |
-
-Các test được sửa theo quyết định (không nới assertion): reviewer không còn liệt kê hóa đơn công ty (D-07); kiểm tra hóa đơn do CFO; "hôm qua" theo ngày nghiệp vụ (D-15); helper đăng nhập chờ hydrate (flaky dưới tải).
-
-**Hai hồi quy do chính đợt này gây ra, đã sửa:** đóng phòng ban khi undo không hiện đúng (TC-V4-08); gán nhân viên vào phòng ban mới bị 422 do frontend dùng ngày thật.
-
-## 8. Docker Demo Deployment Guide
-
-Xem `docs/3.EXECUTION/16-OPERATIONS.md`. Lệnh kiểm chứng đã chạy thành công:
-
-```bash
-V=var/v4-audit/verify
-C="docker compose -p aureon-verify --env-file $V/.env.verify -f docker-compose.full.yml -f $V/docker-compose.verify.yml"
-$C build api web
-$C up -d postgres redis mailpit api celery-worker celery-beat web
-python3 -I var/v4-audit/tools/verify_login.py http://127.0.0.1:4700 $V/.env.verify
-```
-
-Web: `http://127.0.0.1:3700`. Stack kiểm chứng đang chạy; dừng bằng `$C down -v` (chỉ xóa dữ liệu của project này).
-
-**Stack chính `aureon` vẫn chạy image cũ** (`aureon-*:local`). Đưa v4 lên stack chính cần build lại và tạo lại container, khi bạn duyệt.
-
-## 9. Known Issues and Technical Debt
-
-| # | Vấn đề | Mức |
-|---|---|---|
-| 1 | AI live quá chậm trên máy demo | High (demo) |
-| 2 | MGR ghi được hóa đơn qua IDP nhưng không xem được hóa đơn cấp công ty (D-20) | Medium (nghiệp vụ) |
-| 3 | `onboarding` L2/L3 sai so với kỳ vọng test | Medium |
-| 4 | 3 dòng chỉ tiêu tháng + KR tổng 85 tỷ mâu thuẫn Q4 = 20 tỷ | Medium |
-| 5 | Win rate kỳ có thể 100% với mẫu 2 deal, không cảnh báo cỡ mẫu | Low |
-| 6 | `PerformanceRow.attainment_pct` theo deal, chưa đổi tên thành bookings | Low |
-| 7 | Tài liệu 01, 02, 03, 05, 06, 09, 11 và `CLAUDE.md` chưa cập nhật | Medium |
-| 8 | Chưa xóa code chết, chưa dọn `public`, MinIO | Low |
-| 9 | 180 file thay đổi chưa commit trên nhánh `v3/m8-crm` | **Cần quyết định** |
-
-## 10. Production Readiness Backlog
-
-Xem `10-PRODUCTION-BACKLOG.md`. P0 trước người dùng thật: repo private, đổi mật khẩu demo, xoay khóa + secret + thu hồi phiên, đóng cổng hạ tầng, chốt egress AI trong code, khôi phục CI.
-
-## Quyết định cần bạn
-
-| ID | Câu hỏi | Đề xuất |
-|---|---|---|
-| D-19 | AI thật cho demo: GPU, model nhỏ, xử lý trước, hay đổi D-11 cho dữ liệu demo giả? | Xử lý trước cho buổi demo gần; GPU hoặc model nhỏ lâu dài |
-| D-20 | MGR có được xem hóa đơn cấp công ty mà mình đã ghi qua IDP? | Cho xem hóa đơn do chính MGR ghi (theo lineage) |
-| — | Commit 180 file trên nhánh nào? | Nhánh mới `v4/demo-readiness`, chia commit theo nhóm: số liệu, quyền, AI, UI, tài liệu |
-| — | Đưa v4 lên stack chính? | Sau khi commit; backup trước |
-| — | Duyệt R-DEC-177..197 và bản `CLAUDE.md` 3.1.0 | Duyệt theo `13` §2ter |
+`01`, `02`, `03`, `05`, `06`, `09`, `10`, `11`, `13`, `14`, `16-OPERATIONS`, `DEC-REGISTRY`, `README.md`, `06-AI-INTEGRATION-REPORT.md`, báo cáo này. Mọi thay đổi version tài liệu ở mức đề xuất; human promote ở `12`.

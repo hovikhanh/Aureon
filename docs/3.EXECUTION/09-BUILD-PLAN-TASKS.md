@@ -609,9 +609,9 @@ Thứ tự theo R-DEC-196: hoàn thiện demo trước, hardening production th�
 | T-1505 | UI: Deep Navy, không ID thô, nhãn, sắp xếp, trang chiến lược | R-DEC-190 | TC-V4-14, 15 | ☑ |
 | T-1506 | CEO toàn quyền CRUD dữ liệu nghiệp vụ (BE + FE: trang Product/Risk/Điều hành, xóa task, lưu trữ vị trí) | R-DEC-198, R-DEC-201 | TC-V4-17 | ☑ |
 | T-1507 | CRM Lead, Contact, Activity + convert (migration `0028`) | R-DEC-176 (tập con) | TC-V4-CRM-01..13 | ☑ |
-| T-1508 | MGR đọc hóa đơn do mình tạo (REST + tool AI) | R-DEC-199 | TC-V4-18 | ◐ tool AI đang sửa |
-| T-1509 | AI demo trên máy CPU: độ trễ, model local, E2E AI | R-DEC-200 (D-19) | xem 14 | ◐ |
-| T-1510 | Commit theo nhóm, backup, triển khai stack chính `aureon` | 16-OPERATIONS | — | ☐ |
+| T-1508 | MGR đọc hóa đơn do mình tạo (REST + tool AI) | R-DEC-199 | TC-V4-18 | ☑ (REST + tool AI) |
+| T-1509 | AI demo trên máy CPU: độ trễ, model local, E2E AI | R-DEC-200 (D-19) | TC-V4-21..25 | ☑ (13–67 s/lượt khi máy tải) |
+| T-1510 | Commit theo nhóm, backup, triển khai stack chính `aureon` | 16-OPERATIONS §6.1 | smoke 16/16 | ☑ 2026-11-09 |
 
 ## 7. Open questions
 

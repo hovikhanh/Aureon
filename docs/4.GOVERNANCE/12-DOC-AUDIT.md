@@ -34,8 +34,8 @@ Cột **last_reviewed** = ngày rà soát/mở rộng gần nhất. Cột **Gate
 | 12 | DOC-AUDIT (file này) | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | — |
 | 13 | DECISION-LOG | 1.2.0 | ✅ current | R3 | 2026-11-02 | ✅ | §21.1 |
 | 14 | TEST-TRACEABILITY | 1.1.0 | ✅ current | R3 | 2026-11-02 | ✅ | §14,§15 |
-| 16 | OPERATIONS | 0.1.0 | đề xuất | v4 | 2026-11-08 | ✅ | — |
-| — | DEC-REGISTRY | 0.1.0 | đề xuất | v4 | 2026-11-08 | ✅ | — |
+| 16 | OPERATIONS | 0.2.0 | đề xuất | v4 | 2026-11-09 | ✅ | — |
+| — | DEC-REGISTRY | 0.1.0 | đề xuất | v4 | 2026-11-09 | ✅ | — |
 
 **Tiến độ:** 00–14 đã có bản AI-EOS (15/15) + 2 file khung. Q1–Q6 **đã chốt** (13 §1, R-DEC-05..10) — không đảo quyết định. Vòng spec-level P0 **mở rộng spec-level** cho các file domain/sản phẩm (01–12, 14): bổ sung chiều SẢN PHẨM (FR/UC/flow/rule/trạng thái/màn hình), giữ nguyên các ghi chú "chi tiết hóa ở đợt code (R-DEC-09)". Toàn bộ đã được human promote **✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC**.
 
@@ -53,6 +53,7 @@ Chuẩn Gate A mỗi file spec: **đúng 1 H1** (`# …`), heading `##` phân m�
 
 ## Version
 - **Version:** 1.1.0 (current)
+- **Change (đề xuất, 2026-11-09):** 16-OPERATIONS 0.2.0; DEC-REGISTRY thêm §3 (DEC bị R-DEC thay một phần). Các file 01, 02, 03, 05, 06, 09, 10, 11, 13, 14 có dòng Change đề xuất v4 (D-19, D-20, D-21, CRM); version tự khai giữ nguyên tới khi human promote.
 - **Change (đề xuất, 2026-11-08):** cột Version khớp version tự khai của từng file (8 dòng lệch: 00, 01, 02, 03, 04, 07, 11, REBUILD-PLAN ghi 0.2–0.3 trong khi file ghi 1.0.0); thêm 16-OPERATIONS, DEC-REGISTRY ở trạng thái đề xuất. Không đổi status; promote do human.
 - **Last updated:** 2026-10-23
 - **Maintainer:** @CyEyes

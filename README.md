@@ -73,6 +73,7 @@ cho đủ 10 tài khoản demo (08 §2) ánh xạ vào 7 role v3.
 | **Capture & IDP (D03)** | **Kênh C1–C5** + **C2 nhập bằng lời (STT)** + **C4 ảnh/OCR** + **PWA** (M2.3), quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry. **Họp `/meetings`**: transcript → action item → task (M2.3). **Knowledge / RAG**: embedding bge-m3 → pgvector → `TOOL-search_documents` có nguồn tới trang (EP-24 `/idp/documents/search`, `/knowledge`), keyword fallback khi `MODEL_EMBED` trống (M3.4) |
 | **Calendar & Decision Log** | **Calendar Google/Outlook 2 chiều** (OAuth theo từng user, polling ở dev), `/settings/integrations`, deadline task → sự kiện lịch (M3.1). **Decision Log 30/60/90** + nhắc review + verify (`/knowledge/decisions`), export báo cáo CSV/XLSX (M3.3) |
 | **Nghiệm thu MVP** | Trang đo G1–G4 `/admin/acceptance` + `GET /reporting/acceptance` (EP-RPT-08, CEO/DIR, `dashboard:read`): G1 áp dụng Briefing · G2 METRIC-STR-01 · G3 METRIC-DQ-02 · G4 sự cố trường trọng yếu lọt lưới (M3.5) |
+| **v4 demo (2026-11-09)** | **CEO toàn quyền thêm, sửa, xóa dữ liệu nghiệp vụ** ở mọi module (D-21); trang quản lý dữ liệu Tài chính, Kinh doanh, Nhân sự, Sản phẩm, Rủi ro, Điều hành; **CRM Lead, Contact, Activity** + chuyển lead thành khách hàng; Manager xem hóa đơn do mình tạo (D-20); một ngày nghiệp vụ; AI chỉ chạy model local (D-11, D-19) |
 | **Governance** | RBAC 7 role (`<domain>:<action>`) + ABAC pillar-scope + field-level (mức 4), JWT RS256, `tenant_id` mọi entity, audit log append-only, Transactional Outbox + Celery |
 
 ## Kiến trúc
@@ -137,11 +138,13 @@ Test gọi provider thật chỉ chạy khi cho phép: `RUN_LIVE_TESTS=true uv r
 
 | Bộ | Số lượng |
 |---|---|
-| Backend pytest | **1656 passed** (v4, 2026-11-08, DB tạm), contract **44** |
-| Frontend Vitest | **566** |
-| E2E Playwright | **136** test project `real`: 128 pass; 8 fail có nguyên nhân (7 AI do phần cứng, 1 có sẵn) |
+| Backend pytest | **1703 passed, 0 failed** (v4, 2026-11-09, DB tạm), contract **44** |
+| Frontend Vitest | **590** |
+| E2E Playwright | **136** test project `real` trên stack dựng từ đầu: lượt đầy đủ cuối 135 pass; test còn lại (`m8-crm` duyệt tuyển dụng) đã sửa và pass 2 lượt chạy riêng |
 
-Chi tiết và bằng chứng: `deliverables/v4-demo/`, `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` §1.26.
+AI chạy model local thật (`qwen2.5:3b-instruct`, D-19): 13–67 giây mỗi lượt chat trên máy 4 CPU khi máy đang tải. Không chạy test song song trong lúc demo.
+
+Chi tiết và bằng chứng: `deliverables/v4-demo/`, `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` §1.26–§1.27.
 
 ## Tài liệu
 
