@@ -87,10 +87,10 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 | SCR-43 | `/work/approvals` | Công việc — hộp chờ duyệt | CEO, DIR, MGR | M1.3 | `/approvals` |
 | SCR-44 | `/meetings` | Họp & lịch | CEO, DIR, MGR, EMP | M2.3 / M3.1 | — |
 | SCR-45 | `/data` | Dữ liệu — Hộp thư dữ liệu (**sửa**: từ khung `ComingSoon` → đầy đủ) | CEO, DIR, MGR, EMP, REV (ADM: chỉ link schema) | M1.5 | — |
-| SCR-18a | `/data/review` | Dữ liệu — hàng chờ review (**giữ**, thêm lọc `APPROVED`) | REV, DIR, MGR (CEO không có `idp:approve` → ẩn mục) | có sẵn | `/idp/review` |
+| SCR-18a | `/data/review` | Dữ liệu — hàng chờ review (**giữ**, thêm lọc `APPROVED`) | REV, DIR, MGR, CEO (CEO có `idp:approve` từ D-21, v4) | có sẵn | `/idp/review` |
 | SCR-18b | `/data/review/[documentId]` | Dữ liệu — review chi tiết (**sửa**: lưới dòng + `planned_actions`) | REV, DIR, MGR | có sẵn | `/idp/review/[documentId]` |
 | SCR-46 | `/business` | Kinh doanh (Finance/Sales/HR Lite) | theo quyền domain | M2.2 | — |
-| SCR-47 | `/business/finance/invoices` | Kinh doanh — hóa đơn | quyền `finance:read` | có sẵn (lite) | `/finance/invoices` |
+| SCR-47 | `/business/finance/invoices` | Kinh doanh — hóa đơn | quyền `finance:read`; MGR chỉ thấy hóa đơn mình tạo (D-20, v4); REV không (D-07) | có sẵn (lite) | `/finance/invoices` |
 | SCR-48 | `/business/hr/employees` | Kinh doanh — nhân sự | quyền `hr:read` | có sẵn (lite) | `/hr/employees` |
 | SCR-49 | `/knowledge` | Tri thức / báo cáo | mọi role (Admin: audit) | M3.3 / M3.4 | — |
 | SCR-12 (trang) | `/home/metrics/[code]` | Chi tiết chỉ số (bản toàn trang của Panel P01) — đích của thông báo cảnh báo metric (R-DEC-88/156); link v2.1 `/dashboard/metrics/<code>` 308 tới đây | `dashboard:read` (API kiểm phạm vi khối) | M5 | — |
@@ -169,6 +169,28 @@ Năm persona (UIUX §2.1), xây từ BRD 7 vai trò (ROLE-*, skeleton §5). Cả
 - **Spec lock M2.1 (human duyệt bước S, 2026-10-31):**
   - **SCR-40 `/home` — đầy đủ 3 cấp (thay khung v2.1 tạm):** server chọn bố cục theo role JWT. **Executive (CEO/DIR):** (1) **dòng tóm tắt một câu** (U1, EP-RPT-01 `summary_line` — "2 việc cần anh quyết, 1 rủi ro mới, doanh thu đạt 82%"); (2) **4 ô chỉ số** (`tiles`, mỗi ô `MetricValueOut`: giá trị định dạng P04, chip trạng thái màu theo `status`, freshness badge "cập nhật dd/MM HH:mm", nhãn "dữ liệu đã cũ" khi `freshness.is_stale`; bấm ô → drawer P01 nguồn+công thức, EP-12) + **nút "Tùy chỉnh ô"** (dialog chọn ≤ 4 mã trong scope — EP-RPT-04/05, lưu version); (3) **widget Strategy Execution Index** (`METRIC-STR-02`) + link cây initiative `/goals`; (4) khối **"Cần anh quyết"** (`decisions_waiting`, mỗi dòng `title_key`+`params`, nút tới `/work/approvals`); (5) khối **"Rủi ro"** (`open_risks` = `AlertOut[]` xếp mức, nền cảnh báo); (6) khối **"AI đã làm"** (`ai_done`, nền token `ai`, link undo còn hạn). Mỗi widget 1 query (TanStack), lỗi báo tại chỗ (FR-DSH-07). Panel AI phải (M2.4 nối; M2.1 là khung). **Department (DIR/DIR-khối/MGR):** thẻ KPI/OKR đơn vị (% đạt, cờ at-risk), **heatmap workload** (nhúng `/work/workload` ref hoặc link), dự án trễ, task đến hạn/quá hạn; bộ chọn phòng ban (trong subtree). **Employee (EMP):** "Task của tôi" (nhóm hạn), mục tiêu & KPI/OKR cá nhân, thẻ **check-in** (link `/goals/check-ins`), workload tuần, lịch (khung M3.1). **Reviewer → redirect `/data`; Admin → redirect `/admin`** (dashboard không áp dụng). Route v2.1 `/dashboard` giữ redirect 308 → `/home` (đã có M1.1).
   - Mọi chuỗi qua `next-intl` (nhóm khóa `home.*`, `metric.*`, `reporting.*`); định dạng số/tiền/% theo P04; token màu `ai` chỉ cho khối "AI đã làm"; mọi con số click được tới lineage/nguồn (P01).
+
+### 3.5. Bổ sung v4 demo (2026-11-09) — đề xuất, chờ human duyệt
+
+Trang con theo tiền lệ M7 (không cấp `SCR-*` mới; trang quản lý dữ liệu dùng chung bộ CRUD `features/records`: danh sách có sắp xếp, tìm kiếm khi API hỗ trợ, phân trang 50, thêm/sửa bằng form rhf + zod, lưu trữ có hộp xác nhận, hành động theo trạng thái):
+
+| Route | Nội dung | Ai thấy | Nguồn |
+|---|---|---|---|
+| `/business/finance/records` | Doanh thu, chi phí, hóa đơn (+ thanh toán), ngân sách, số dư tiền | CEO, DIR khối F, MGR (phòng mình) | M7 |
+| `/business/sales/records` | Khách hàng, cơ hội (+ chuyển giai đoạn), hợp đồng, chỉ tiêu; Lead, Contact, Activity (v4, R-DEC-176 tập con) | CEO, DIR khối C, MGR | M7, M8, v4 |
+| `/business/sales/pipeline`, `/business/sales/clients/[id]`, `/business/sales/deals/[id]` | CRM: bảng pipeline, chi tiết khách hàng, chi tiết cơ hội | CEO, DIR khối C, MGR | M8 |
+| `/business/hr/records` | Nhân viên, kế hoạch tuyển dụng (+ gửi, duyệt) | CEO, DIR khối O, MGR | M7 |
+| `/business/product/records` | Sản phẩm, tính năng, lộ trình, phát hành | CEO, DIR khối U | v4, D-21 |
+| `/business/risk/records` | Rủi ro (+ đánh giá lại, đổi trạng thái, chấp nhận), biện pháp giảm thiểu | CEO, DIR khối S | v4, D-21 |
+| `/business/execution/records` | Cuộc họp, quyết định, dự án | CEO, DIR, MGR (API giới hạn theo đơn vị) | v4, D-21 |
+| `/goals/strategies` | Chiến lược, mục tiêu chiến lược | CEO, DIR, MGR (EMP giữ cây của mình) | v4 |
+
+Hành vi mới:
+- **D-21 (CEO toàn quyền dữ liệu nghiệp vụ):** mọi trang trên hiện nút thêm, sửa, lưu trữ cho CEO. Product và Risk vẫn **không** có mục ở Sidebar (R-DEC-16), chỉ vào từ thẻ ở `/business`.
+- Xóa task từ panel chi tiết SCR-42 (`task-delete`, có xác nhận; task còn việc con bị từ chối, R-DEC-42). Lưu trữ vị trí ở SCR-52 (vị trí còn người giữ bị từ chối).
+- Bản ghi không có `DELETE` ở API (số dư tiền, phát hành, rủi ro, biện pháp, quyết định) không có nút lưu trữ; rủi ro và biện pháp kết thúc bằng trạng thái (`closed`, `rejected`, `cancelled`) để giữ lịch sử.
+- Mục **Review** (SCR-18a) hiện cho CEO vì CEO có `idp:approve` (D-21).
+- Trả lời AI dạng kịch bản demo mang nhãn "Kịch bản demo" (`mode: "replay"`), khác nhãn AI thật (R-DEC-188, F-C2).
 
 ## 4. Luồng người dùng chính (UIUX §5)
 
@@ -291,7 +313,7 @@ Mô tả mức mid-fi (bố cục + thứ tự ưu tiên thông tin + hành đ�
 
 ## 7. Design system (UIUX §8)
 
-Xây theo **token** từ đầu để hỗ trợ hai mật độ (Thoáng/Gọn), sáng/tối và đổi thương hiệu. Màu `primary` cụ thể chờ quyết (OQ-06-01).
+Xây theo **token** từ đầu để hỗ trợ hai mật độ (Thoáng/Gọn), sáng/tối và đổi thương hiệu. Màu `primary` = **Deep Navy `#0B2545`** (D-13, R-DEC-190 đề xuất; token `oklch(0.264 0.068 255.3)`, tương phản 15,4:1 trên nền trắng; chế độ tối dùng bản sáng `oklch(0.72 0.1 255.3)`).
 
 ### 7.1. Token nền tảng
 
@@ -306,7 +328,7 @@ Xây theo **token** từ đầu để hỗ trợ hai mật độ (Thoáng/Gọn)
 
 | Token | Ý nghĩa | Dùng cho |
 |---|---|---|
-| `primary` | Màu thương hiệu (chờ OQ-06-01) | Nút chính, liên kết, mục đang chọn |
+| `primary` | Màu thương hiệu Deep Navy (D-13) | Nút chính, liên kết, mục đang chọn |
 | **`ai`** | **Nội dung do AI tạo** | Viền action card, nhãn "AI soạn", panel AI — **khác hẳn `primary`** để không nhầm AI với nút thường |
 | `success`/`warning`/`danger` | Đúng kế hoạch / nguy cơ / lệch | Trạng thái KPI, OKR, task, độ tin cậy Cao/TB/Thấp |
 | `info` | Trung tính | Thông báo hệ thống |
@@ -384,7 +406,7 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 > **Khác `main`:** `main` có SCR-01..28 cụ thể cho 5 trụ F.O.C.U.S. AI-EOS dùng IA 8 mục theo vai trò. Theo R-DEC-10 (ID theo BRD + bảng ánh xạ sang SCR-* của `main`); mã `SCR-*` cho AI-EOS gán khi chi tiết hóa ở đợt code (R-DEC-09).
 
 ## 9. Open questions
-- OQ-06-01: Màu thương hiệu `primary` cụ thể (UIUX §10.3 câu 1) — chờ human/design.
+- OQ-06-01: Màu thương hiệu `primary` cụ thể (UIUX §10.3 câu 1) — **đã trả lời bởi D-13** (Deep Navy); R-DEC-190 chờ human duyệt chính thức.
 - OQ-06-02: ⌘K + Panel + Chat SSE của `main` làm hiện thực cho "Thanh AI toàn cục" — ĐÃ CHỐT: giữ làm chuẩn hiện thực; chi tiết UI gán khi chi tiết hóa ở đợt code (R-DEC-09).
 - OQ-06-03: SCR numbering — ĐÃ CHỐT: R-DEC-10 + R-DEC-25 — giữ `SCR-*` v2.1 cho màn hình dùng tiếp, màn hình mới từ `SCR-40`; bảng ở §3.4, bổ sung theo phase.
 - OQ-06-04: Nền tảng MVP — web + PWA như đề xuất, hay cần app native ngay (sinh trắc học/ngoại tuyến sâu)? (UIUX §10.3 câu 2) — chờ human.
@@ -396,8 +418,9 @@ Hai chỉ số L2/L3 cũng là căn cứ nâng/hạ mức tự chủ của từn
 
 ## Version
 - **Version:** 1.1.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-09
 - **Maintainer:** @CyEyes
+- **Change 1.6.0 (đề xuất v4 demo, 2026-11-09 — chờ human duyệt):** §3.4 SCR-18a có CEO (D-21), SCR-47 thêm quy tắc MGR (D-20); thêm §3.5 trang quản lý dữ liệu M7/M8/v4 (Product, Risk, Execution, Lead/Contact/Activity, Strategies), xóa task, lưu trữ vị trí; §7 `primary` Deep Navy (D-13), OQ-06-01 đã trả lời.
 - **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** §3.4 — SCR-40 `/home` chuyển từ "khung + dashboard v2.1 tạm" sang **đầy đủ 3 cấp** (Executive/Department/Employee + Reviewer/Admin redirect): dòng tóm tắt U1, 4 ô chỉ số + tùy chỉnh (EP-RPT-04/05), SEI `METRIC-STR-02`, khối "Cần anh quyết"/"Rủi ro"/"AI đã làm", freshness badge (R-DEC-86), scope theo role (R-DEC-85); nhóm khóa i18n `home.*`/`metric.*`/`reporting.*`.
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §3.4 sửa SCR-41/42/43/45/18a/18b; thêm SCR-55 `/work/projects`, SCR-56 `/work/projects/[id]`, SCR-57 `/work/workload` (M1.3, R-DEC-48), SCR-58 `/goals/kpis/[id]`, SCR-59 `/goals/objectives/[id]`, SCR-60 `/goals/check-ins` (M1.4), SCR-61 `/data/new/[documentType]`, SCR-62 `/data/imports/[batchId]`, SCR-63 `/admin/data-capture` (M1.5), SCR-64 `/admin/ai`, SCR-65 `/admin/ai/logs`, SCR-66 `/admin/onboarding` (M1.6, R-DEC-79) + bullet hành vi từng phase. Open questions: thêm OQ-06-07..09.
 - **Change 1.3.0 (đề xuất — Spec lock M1.2, R-DEC-37, chờ human duyệt bước S):** §3.4 thêm SCR-51 `/admin/org`, SCR-52 `/admin/positions`, SCR-53 `/admin/users`, SCR-54 `/admin/roles` (trang con Quản trị = SCR riêng theo tiền lệ SCR-14/SCR-43); SCR-14 thêm lọc `from`/`to`/`actor_type`; mô tả hành vi từng màn hình + chuông thông báo ở Header (component, không phải SCR).

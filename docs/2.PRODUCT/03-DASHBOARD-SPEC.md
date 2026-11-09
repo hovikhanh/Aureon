@@ -215,6 +215,14 @@ Catalog `platform/services/catalog.py` giữ **34 mã `METRIC-*`** (không đổ
 
 <!-- total 34 metrics, 10 p1_frozen -->
 
+### 4.3. Ghi chú v4 demo (2026-11-09, đề xuất)
+
+- **Một nguồn số:** `/finance/dashboard` đọc đúng giá trị `METRIC-FIN-*` trong Metric Store (cùng giá trị, trạng thái, kỳ), không tự tính lại lúc request (TC-V4-02).
+- **Doanh thu thực tế chỉ từ Finance** (D-09, R-DEC-186): `METRIC-FIN-01` = doanh thu ghi nhận ÷ chỉ tiêu kỳ; chỉ tiêu chính thức Q4/2026 = 20 tỷ VNĐ (dòng `QUARTER 2026-Q4`). Giá trị cơ hội thắng ở Sales là **bookings** (`closed_bookings`), không phải doanh thu.
+- **Funnel tích lũy** (`GET /sales/funnel`): mỗi bậc = số cơ hội đã đi tới bậc đó ÷ bậc trước, luôn 0–100%.
+- **Một ngày nghiệp vụ** cho mọi chỉ số và mọi "hôm nay" (`BUSINESS_DATE_OVERRIDE`, R-DEC-192).
+- Thay đổi dữ liệu của CEO (D-21) đi qua cùng service, audit và outbox như mọi role, nên chỉ số được tính lại theo đường event/job thông thường ở trên.
+
 ## 5. Insight & khuyến nghị — cấu trúc 9 phần (BRD §11.8)
 
 Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuyến nghị) theo đúng cấu trúc 9 phần; thiếu phần nào thì nêu rõ thiếu, không bịa:
@@ -277,8 +285,9 @@ Mọi insight của AI (Briefing khối RECOMMENDATIONS, panel phân tích, khuy
 
 ## Version
 - **Version:** 1.0.0 (current)
-- **Last updated:** 2026-11-02
+- **Last updated:** 2026-11-09
 - **Maintainer:** @CyEyes
+- **Change 1.3.0 (đề xuất v4 demo, 2026-11-09 — chờ human duyệt):** §4.3 ghi chú v4: dashboard tài chính đọc Metric Store, doanh thu chỉ từ Finance, Q4 = 20 tỷ, bookings ≠ doanh thu, funnel tích lũy, một ngày nghiệp vụ, thay đổi của CEO đi qua đường tính lại thông thường.
 - **Change 1.2.0 (đề xuất — M4 doc↔code conformance, R-DEC-149, 2026-11-02):** §4.2 mới — bảng gương đầy đủ **34 `METRIC-*`** (group, pillar, đơn vị, hướng, ngưỡng warn/crit, module nguồn, event recompute) sinh từ `platform/services/catalog.py`; §4.1 trước đó chỉ ánh xạ nhóm mà không liệt kê mã (GAP-05). Giữ đồng bộ 2 chiều bằng `TC-M4-04b`.
 - **Change 1.1.0 (human duyệt bước S M2.1, 2026-10-31):** §1.1 ghi 4 ô Executive mặc định + cơ chế preference (R-DEC-87); §4 đổi SEI → `METRIC-STR-02` (R-DEC-83) + ghi chú freshness `SLA_FRESHNESS_*` (R-DEC-86); §4.1 mới — bảng ánh xạ nhóm v3 (FIN/CUS/OPS/PPL/STR/DQ) ↔ catalog (R-DEC-82), Risk nghiệp vụ + Product giữ `p1_frozen`.
 - **Change 1.0.1 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §4 thêm dòng `METRIC-STR-01` (G2, R-DEC-54) và `METRIC-DQ-02` (G3, R-DEC-68) + ghi chú mã đã cấp (SEI giữ `METRIC-RSK-06`, DQ theo domain = breakdown `METRIC-DQ-01`).

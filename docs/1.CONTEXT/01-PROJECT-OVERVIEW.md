@@ -171,7 +171,7 @@ Nền dữ liệu cắt ngang mọi domain, là điều kiện để AI tin cậ
 
 7 vai trò chuẩn + **AI Agent là actor độc lập** (có Identity/Role/Permission/Scope/Tools/Policies/Budget/Audit); doanh nghiệp tạo thêm vai trò tùy biến:
 
-ROLE-CEO · ROLE-DIR (Executive/Director) · ROLE-MGR · ROLE-EMP · ROLE-REV (Reviewer) · ROLE-ADM · **ROLE-AI**. RACI 7 quy trình cốt lõi ở BRD §3.3 (AI Agent không bao giờ là A). Chi tiết quyền/scope: 02.
+ROLE-CEO · ROLE-DIR (Executive/Director) · ROLE-MGR · ROLE-EMP · ROLE-REV (Reviewer) · ROLE-ADM · **ROLE-AI**. RACI 7 quy trình cốt lõi ở BRD §3.3 (AI Agent không bao giờ là A). Chi tiết quyền/scope: 02. Từ v4 (D-21), ROLE-CEO có quyền quản trị dữ liệu nghiệp vụ cao nhất: thêm, sửa, xóa ở mọi module, không bị giới hạn theo người tạo hay phòng ban.
 
 ---
 
@@ -237,6 +237,21 @@ Lời hứa MVP: *"CEO biết công ty đang đạt mục tiêu đến đâu, v�
 - Model AI thương mại đủ chất lượng tiếng Việt cho hội thoại + trích xuất; có phương án model chạy tại Việt Nam cho dữ liệu Mật.
 - DN thí điểm cam kết cử AI champion + reviewer dữ liệu.
 - Phần mềm kế toán của khách hàng cho phép xuất/tích hợp dữ liệu.
+
+### 7.6. Trạng thái Aureon v4 demo (2026-11-09)
+
+v4 = v3 + CRM (D-02), chạy demo nội bộ trên Docker một máy (D-01: môi trường DEMO/STAGING, không phải production). Hardening production là backlog Phase 8, không chặn demo (R-DEC-196).
+
+| Mục | Trạng thái v4 | Quyết định |
+|---|---|---|
+| Ngày nghiệp vụ | Một ngày duy nhất cho mọi module (`BUSINESS_DATE_OVERRIDE`, mặc định demo 2026-10-20) | D-15, R-DEC-192 |
+| Doanh thu thực tế | Chỉ lấy từ Finance; funnel tích lũy; chỉ tiêu Q4 = 20 tỷ VNĐ | D-09, R-DEC-186 |
+| CEO | **Toàn quyền thêm, sửa, xóa dữ liệu nghiệp vụ** ở mọi module; ràng buộc nghiệp vụ (xóa mềm, vòng đời, không để dữ liệu mồ côi) vẫn giữ | D-21, R-DEC-198 |
+| Manager | Phạm vi phòng mình; xem hóa đơn do chính mình tạo | D-07, D-20 |
+| CRM | Client, Deal, Contract, Target + Lead, Contact, Activity (tập con R-DEC-176) | D-08 |
+| AI | Chỉ model local (Ollama); không provider nào nhận dữ liệu INTERNAL trở lên; tài liệu mặc định CONFIDENTIAL | D-11, D-19, R-DEC-188 |
+
+Chi tiết vận hành: `docs/3.EXECUTION/16-OPERATIONS.md`. Kế hoạch production: `deliverables/v4-demo/10-PRODUCTION-BACKLOG.md`.
 
 ---
 
@@ -322,14 +337,15 @@ Bộ chỉ số điều hành chuẩn, nhóm theo 6 trụ dữ liệu; P0 chốt
 
 ## Open questions
 
-- **OQ-01:** BRD-OQ B1–B7 (BRD §21.1) chờ CEO chốt — không blocking docs P0 nhưng ảnh hưởng P1+: mô hình sản phẩm (SaaS đa tenant vs nội bộ), khách hàng mục tiêu đầu, chính sách AI cloud cho dữ liệu tài chính/nhân sự, vai trò với phần mềm kế toán, **ngưỡng giá trị tối đa AI được tự thực hiện ở L3** (cần trước khi bật L3 thật ở M3/đợt code), kênh chat chính (Zalo/Slack/Teams), mô hình giá. Theo dõi ở 13-DECISION-LOG §3.
+- **OQ-01:** BRD-OQ B1–B7 (BRD §21.1) chờ CEO chốt — không blocking docs P0 nhưng ảnh hưởng P1+: mô hình sản phẩm (SaaS đa tenant vs nội bộ), khách hàng mục tiêu đầu, chính sách AI cloud cho dữ liệu tài chính/nhân sự (**v4: D-11 — không provider cloud nào nhận dữ liệu INTERNAL trở lên**), vai trò với phần mềm kế toán, **ngưỡng giá trị tối đa AI được tự thực hiện ở L3** (cần trước khi bật L3 thật ở M3/đợt code), kênh chat chính (Zalo/Slack/Teams), mô hình giá. Theo dõi ở 13-DECISION-LOG §3.
 - **OQ-02:** Mã `METRIC-*` cụ thể + công thức cho bộ chỉ số sức khỏe P0 (§9) sẽ cấp ở 03; 01 mới chốt danh sách chỉ số nguồn + ngưỡng gợi ý từ BRD §12.4.
 - **OQ-03:** Mã `AIC-*` (13 thành phần AI Platform) và `AGT-*` (agent) là đề xuất trong skeleton §9; chốt chính thức ở 07 — nếu cần thêm, cập nhật `TRACEABILITY-SKELETON.md` trước.
 
 ## Version
 - **Version:** 1.0.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-09
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (đề xuất v4 demo, 2026-11-09 — chờ human duyệt):** thêm §7.6 trạng thái v4 (ngày nghiệp vụ, nguồn doanh thu, CEO toàn quyền dữ liệu D-21, MGR D-20, CRM, AI local D-11/D-19); §5 ghi quyền CEO; OQ-01 ghi D-11.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng lên **spec-level P0 đầy đủ** (giữ 🟡 draft, bám canonical BRD §0–§2/§4/§18/§19/§20): §1.4 bảng 12 vấn đề ↔ năng lực P0; §2 ghi chú chỉ số BO + chỉ số hỗ trợ North Star; §3 bảng P01–P11 (ý nghĩa 1 câu) + §3.1 bảng AI-R01–R12; §4 bảng 28 domain đủ cột lớp+ưu tiên+vai trò P0 + §4.1 Data Foundation FR-DATA; §6 kiến trúc mục tiêu 3 lớp + lớp kiểm soát AI (R-DEC-06); §7 lộ trình 3 mốc M1/M2/M3 (domain+năng lực+UC) + bảng 5 phase + kịch bản CEO + change mgmt + giả định; §8 bảng UC-01..08 (giá trị+ưu tiên+mốc); §9 bộ chỉ số sức khỏe P0; §10 khung AI Platform/Autonomy P0; §12 bảng 7 rủi ro dự án + giảm thiểu; thêm **## Open questions** (OQ-01..03). Giữ nguyên ngữ nghĩa Q1–Q6/R-DEC, không promote current.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

@@ -305,6 +305,12 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 
 ---
 
+## 3. DEC đã bị R-DEC thay thế một phần (ngoài bảng nguyên văn)
+
+| DEC | Phần bị thay | R-DEC | Ngày |
+|---|---|---|---|
+| DEC-193 | CEO `sales:write ◑t` (chỉ ghi chỉ tiêu) → CEO ghi, sửa, xóa mọi bản ghi Sales | R-DEC-198 (D-21) | 2026-11-09 |
+
 ## Open questions
 
 - OQ-DEC-01: Một số dòng DEC ghi "open" ở nền v2.1 đã được R-DEC thay thế; chưa rà từng dòng.
@@ -312,4 +318,4 @@ Mọi mục "Open questions" của 02–08, 10, 11 đều có DEC ở đây. C�
 ## Version
 
 - **Version:** 0.1.0 (đề xuất)
-- **Last updated:** 2026-11-05
+- **Last updated:** 2026-11-09

@@ -105,6 +105,13 @@ OBSERVE → UNDERSTAND → REASON → RECOMMEND → APPROVE → ACT → VERIFY �
 - **Đợt code (R-DEC-09, sau):** lệnh lint/typecheck/test/mypy/pytest/contract exit 0 trước commit; không skip test; test AI `MODEL_GATEWAY_MODE=fixture` (không gọi provider thật trừ khi human cho phép `live`); số liệu (tổng, tỷ lệ, seed) tính bằng script, không tính nhẩm.
 - **Đợt docs-first (nay):** verify định dạng tài liệu — **đúng 1 dòng `# ` (H1)**, số `` ``` `` chẵn (fence cân bằng), có `## Open questions` và `## Version`, mọi ID viện dẫn tồn tại trong TRACEABILITY-SKELETON, ngữ nghĩa Q1–Q6/R-DEC không bị đảo.
 
+### 6.1. Cô lập môi trường test (v4, bài học 2026-11-05)
+
+- `pytest` đọc `.env`, và `.env` trỏ DB của stack đang chạy: **không bao giờ** chạy pytest khi chưa trỏ sang DB tạm. Dùng Postgres + Redis tạm (tmpfs) như `docs/3.EXECUTION/16-OPERATIONS.md` §4, mỗi người/agent một slot cổng riêng khi chạy song song.
+- E2E Playwright phải đặt **đủ** biến đích (`E2E_BASE_URL`, `E2E_API_URL`, `E2E_MAILPIT_URL`, `E2E_NO_SERVER`, `E2E_ENV_FILE`): vài spec có mặc định `localhost:4000`/`:8025` và sẽ gọi nhầm stack chính nếu thiếu (sự cố 2026-11-05, 5 lần đăng nhập lỗi trên stack chính).
+- Dữ liệu bằng chứng không chứa giá trị secret: `docker inspect` chỉ dùng `--format` với danh sách trường cho phép; quét file bằng chứng trước khi lưu.
+- Thay đổi ma trận quyền (`auth/permission_matrix.py`) phải xuất lại `apps/web/src/mocks/seed_snapshot.json` (`python -m app.seed.snapshot` trên DB tạm) để test vai trò phía web dùng đúng quyền.
+
 ## 7. Escalation / BLOCKED
 
 Theo CLAUDE.md §6.7/§6.8. Số DEC/R-DEC do human cấp; agent chỉ **đề xuất** nội dung. Spec mâu thuẫn `docs/` ↔ `_reference/` → ưu tiên `_reference/`, ghi gap vào 13.
@@ -146,8 +153,9 @@ Giống khung CLAUDE.md §2.1 — **chỉ cho việc build**, không liên quan 
 
 ## Version
 - **Version:** 1.0.0 (current)
-- **Last updated:** 2026-10-23
+- **Last updated:** 2026-11-09
 - **Maintainer:** @CyEyes
+- **Change 1.1.0 (đề xuất v4 demo, 2026-11-09 — chờ human duyệt):** thêm §6.1 cô lập môi trường test: DB tạm cho pytest, đủ biến đích cho E2E, bằng chứng không chứa secret, xuất lại snapshot quyền khi đổi ma trận.
 - **Change 1.0.0 (promote):** Promote tài liệu AI-EOS lên CHÍNH THỨC Aureon v3; di chuyển vào vị trí docs chuẩn; v2.1 archived (docs/_archive/v2.1/).
 - **Change 0.3.0:** Mở rộng spec-level P0 — EPCC 7 bước chi tiết + ghi chú tách đợt docs/code (R-DEC-09); loading matrix §4 map rõ 28 domain → file + canonical `_reference/` theo loại task; 3 gate A/B/C diễn giải nội dung AI-EOS (đọc 12/13/14 trong `docs/4.GOVERNANCE/`, gate C đợt docs = traceability-ID); bảng tách bạch build-agent vs agent sản phẩm (D26, ROLE-AI, Autonomy L0–L4, Approval Matrix, Operating Loop BRD §11/§17); định dạng BLOCKED thích ứng AI-EOS; routing build-agent P1–P3; branch-aware (CLAUDE.md §0). Thêm OQ-11-02.
 - **Change 0.2.0:** Chốt Q1–Q6 (R-DEC-05..10) — cập nhật trạng thái quyết định, đóng OQ liên quan; phạm vi docs-first P0.

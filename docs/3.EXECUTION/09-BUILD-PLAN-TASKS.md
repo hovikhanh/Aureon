@@ -594,7 +594,24 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 | T-1402 | Duyệt kế hoạch tuyển dụng qua engine (rule, hook từ chối, EP-HR-09/10, hộp phê duyệt FE) | R-DEC-173 | TC-M8-02/04 | ☑ |
 | T-1403 | Ma trận vai trò dễ hiểu + liên kết gán vai trò | R-DEC-174 | TC-M8-04 | ☑ |
 | T-1404 | CRM: Kanban, chi tiết cơ hội, Account 360, phễu, dự báo, xếp hạng | R-DEC-175 | TC-M8-03/04 | ☑ |
-| T-1405 | Thực thể CRM mới (Lead, Contact, Activity, cấu hình pipeline, snapshot dự báo, trạng thái chỉ tiêu) | R-DEC-176 | — | ☐ chờ duyệt |
+| T-1405 | Thực thể CRM mới (Lead, Contact, Activity, cấu hình pipeline, snapshot dự báo, trạng thái chỉ tiêu) | R-DEC-176 | TC-V4-CRM-* | ◐ tập con Lead/Contact/Activity xong ở T-1507; pipeline, snapshot, trạng thái chỉ tiêu chưa làm |
+
+### 6.24. v4 demo — hoàn thiện demo (nhánh `v4/demo-readiness`, 2026-11-05..09)
+
+Thứ tự theo R-DEC-196: hoàn thiện demo trước, hardening production thành backlog Phase 8 (`deliverables/v4-demo/10-PRODUCTION-BACKLOG.md`).
+
+| T | Việc | Spec | TC | Trạng thái |
+|---|---|---|---|---|
+| T-1501 | Một ngày nghiệp vụ `BUSINESS_DATE_OVERRIDE` cho mọi module + FE tổ chức | R-DEC-192 | TC-V4-01, TC-V4-08 | ☑ |
+| T-1502 | Số liệu: FIN-01 một công thức, doanh thu chỉ từ Finance, funnel tích lũy, Home số thật, khóa dòng khi thanh toán | R-DEC-186 | TC-V4-02, 03, 06, 07 | ☑ |
+| T-1503 | RBAC D-07: REV, MGR đúng scope Finance/Sales; FE ẩn route 403 | R-DEC-183 | TC-V4-04, 05, 14 | ☑ |
+| T-1504 | AI trung thực: mức nhạy cảm mặc định 3, grounding, replay có nhãn, OCR, knowledge fallback | R-DEC-188 | TC-V4-09..13 | ☑ |
+| T-1505 | UI: Deep Navy, không ID thô, nhãn, sắp xếp, trang chiến lược | R-DEC-190 | TC-V4-14, 15 | ☑ |
+| T-1506 | CEO toàn quyền CRUD dữ liệu nghiệp vụ (BE + FE: trang Product/Risk/Điều hành, xóa task, lưu trữ vị trí) | R-DEC-198, R-DEC-201 | TC-V4-17 | ☑ |
+| T-1507 | CRM Lead, Contact, Activity + convert (migration `0028`) | R-DEC-176 (tập con) | TC-V4-CRM-01..13 | ☑ |
+| T-1508 | MGR đọc hóa đơn do mình tạo (REST + tool AI) | R-DEC-199 | TC-V4-18 | ◐ tool AI đang sửa |
+| T-1509 | AI demo trên máy CPU: độ trễ, model local, E2E AI | R-DEC-200 (D-19) | xem 14 | ◐ |
+| T-1510 | Commit theo nhóm, backup, triển khai stack chính `aureon` | 16-OPERATIONS | — | ☐ |
 
 ## 7. Open questions
 
@@ -608,8 +625,9 @@ Mục tiêu: đóng khoảng trống giữa doc set 00–14 và code đang chạ
 
 ## Version
 - **Version:** 1.1.0 (current)
-- **Last updated:** 2026-11-02
+- **Last updated:** 2026-11-09
 - **Maintainer:** @CyEyes
+- **Change 1.3.0 (đề xuất v4 demo, 2026-11-09 — chờ human duyệt):** §6.24 đợt v4 demo T-1501..T-1510; T-1405 cập nhật một phần.
 - **Change 1.2.0 (đề xuất — M4, 2026-11-02):** doc-sync trạng thái: 82 ô `☐` của M2.1–M3.5 (T-701..T-906) → `☑` theo bằng chứng gate ở `STATE.md`; T-907..T-910 → `☑` (merge fast-forward + tag `v3.0.0-mvp`). §6.19 mới — mốc **M4 Doc ↔ code conformance & hardening** (T-1001..T-1030).
 - **Change 1.5.0 (human duyệt bước S M2.1, 2026-10-31):** §6.8 M2.1 mở rộng bảng task sang `T | Việc | File chính | Spec | TC | Trạng thái` (T-701..T-709) + khối Spec lock (R-DEC-82..88) + dòng **Thứ tự** (S→C→B‖F→N→R) và **Exit**; đổi SEI → `METRIC-STR-02`, EP-RPT-01..05, `MetricValueOut` thêm `group`/`freshness`, 4 ô preference ở `platform.user_preferences`, alert→Notification, migration `0022`.
 - **Change 1.4.0 (đề xuất — Spec lock M1.3–M1.6, chờ human duyệt):** §6.0bis quy trình chuỗi auto (R-DEC-38); §6.4–§6.7 thay bảng task bằng bảng mở rộng `T | Việc | File chính | Spec | TC | Trạng thái` (T-619S..T-625 M1.3, T-626S..T-633 M1.4, T-634S..T-643 M1.5, T-644S..T-652 M1.6) + dòng **Thứ tự** và **Exit** chi tiết; phụ thuộc liên phase chốt khi gộp (`projects.initiative_id` ở T-619, service public M1.4 cho undo ở T-627, subtree qua `core/org_scope.py` ở T-632, `ACT-update_task`/`ACT-assign_task` ở T-645). Open questions: thêm OQ-09-06/07.

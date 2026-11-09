@@ -540,6 +540,67 @@ Migration `0026_ai_evaluation_m34` (down_revision `0025_briefing_m33`; reversibl
 
 - Phân loại: `cases` chỉ chứa id/kind/pass + detail ngắn (không prompt thô — §5.5, không PII). Index `suite`, `finished_at`. Endpoint đọc EP-AI-27/28; chạy bằng CLI `run_eval` (10 §7.2.11). Không enum mới.
 
+### §2.13 — Field-level v4 CRM: Lead · Contact · Activity (R-DEC-176, mặc định a–j theo D-08; D-21)
+
+Migration `0028_crm_leads_contacts_activities.py` (revision id `0028_crm_leads_contacts_activity` — `alembic_version.version_num` tối đa 32 ký tự; down_revision `0027_external_event_link_c19`; **chỉ thêm**, reversible: `downgrade` drop 3 bảng + 3 sequence + 4 enum). Schema `sales`. `clients`/`deals` giữ vai trò Account/Opportunity (R-DEC-90); cột liên hệ phẳng của `clients` **giữ nguyên** (R-DEC-176 g). Mọi bảng là `BusinessModel` (id UUID, `tenant_id`, `created_at/updated_at`, `deleted_at`, `created_by/updated_by`, `version`, `data_classification`, `source`). FK chỉ trong `sales` (C7), mọi FK có index (C6). Mã tự sinh từ sequence riêng theo loại, unique: `LD-000001`, `CT-000001`, `SA-000001` (không dùng `ACT-` — trùng Action Registry, R-DEC-176 e). Endpoint EP-SAL-10..13 (10 §7.2.7). Không event mới (10 §9.2 không có event phù hợp).
+
+**ENT-Lead — `sales.leads`** (mới; ID registry: `Lead` có trong skeleton §11 nhóm Kinh doanh)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `code` | text NOT NULL, **unique**, default `'LD-' ‖ lpad(nextval('sales.lead_code_seq'), 6, '0')` | Mã lead |
+| `company_name` | text NULL | Công ty của lead (tên Client khi chuyển đổi; trống → `full_name`) |
+| `full_name` | text NOT NULL | Người liên hệ |
+| `job_title` | text NULL | |
+| `email`, `phone` | text NULL — **CK `email IS NOT NULL OR phone IS NOT NULL`** | Mức 3 (PII liên hệ, `core.field_policy`): che trong audit, không vào event/LLM thô |
+| `industry` | text NULL | |
+| `lead_source` | text NULL | API: `website/referral/event/cold_call/partner/social/advertising/other` |
+| `need` | text NULL | Nhu cầu |
+| `budget` | bigint NULL (CK ≥ 0) + `currency` char(3) default `VND` | C8 — giá trị gốc + mã tiền tệ (R-DEC-176 f) |
+| `score` | smallint NOT NULL default 0, CK 0–100 | |
+| `status` | `sales.lead_status` NOT NULL default `new` | `new/contacted/engaged/qualified/nurturing/converted/disqualified`; `converted` chỉ qua EP-SAL-13 |
+| `owner_id` | UUID NOT NULL (soft ref `auth.users`), index | Mặc định người tạo |
+| `department_id` | UUID NULL (soft ref `hr.departments`), index | MGR: ghim phòng mình (như deals, 02 §6.2 `◑d`) |
+| `next_action`, `next_action_date` | text NULL, date NULL | Index `(status, next_action_date)` |
+| `converted_client_id` / `converted_contact_id` / `converted_deal_id` | UUID NULL FK `sales.clients` / `sales.contacts` / `sales.deals` (RESTRICT), index | Kết quả chuyển đổi |
+| `converted_at` | timestamptz NULL | |
+
+**ENT-Contact — `sales.contacts`** (mới; ID registry: `Contact` có trong skeleton §11)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `code` | text NOT NULL, unique, default `CT-` + `sales.contact_code_seq` | |
+| `client_id` | UUID NOT NULL FK `sales.clients.id` (RESTRICT), index | Không có `department_id` → theo khách hàng (MGR đọc + tạo, không sửa/xóa — DEC-193) |
+| `first_name` | text NOT NULL | Tên |
+| `last_name` | text NULL | Họ + tên đệm; API trả thêm `full_name` = `last_name first_name` |
+| `job_title`, `department` | text NULL | `department` = bộ phận phía khách hàng (text, không phải `hr`) |
+| `email`, `phone` | text NULL | Mức 3 (`sales.contacts` đã khai ở `core.field_policy`) |
+| `roles` | text[] NOT NULL default `{}` | ⊂ `decision_maker, economic_buyer, influencer, user, champion, other` (API kiểm) |
+| `decision_authority` | text NULL | Mô tả thẩm quyền |
+| `influence_level` | `sales.influence_level` NULL | `low/medium/high` |
+| `owner_id` | UUID NULL (soft ref), index | |
+| `notes` | text NULL | |
+
+**ENT-SalesActivity — `sales.activities`** (mới; **ID PROPOSED** — skeleton §11 không có entity "Activity" bán hàng; cần human thêm vào registry)
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `code` | text NOT NULL, unique, default `SA-` + `sales.activity_code_seq` | |
+| `type` | `sales.activity_type` NOT NULL | `call/email/meeting/demo/workshop/poc/proposal/follow_up/other` |
+| `subject` | text NOT NULL | |
+| `description` | text NULL | |
+| `lead_id` / `client_id` / `contact_id` / `deal_id` | UUID NULL FK `sales.leads/clients/contacts/deals` (RESTRICT), index — **CK ít nhất một khác NULL** | `client_id` tự điền từ deal/contact (timeline Account 360) |
+| `owner_id` | UUID NOT NULL (soft ref), index | Mặc định người tạo |
+| `department_id` | UUID NULL (soft ref), index | Kế thừa deal/lead; MGR ghim phòng mình |
+| `start_at` | timestamptz NOT NULL | |
+| `end_at` | timestamptz NULL, CK `end_at IS NULL OR end_at >= start_at` | |
+| `status` | `sales.activity_status` NOT NULL default `planned` | `planned/completed/cancelled`; index `(status, start_at)` |
+| `outcome`, `next_action` | text NULL | |
+
+- Enum mới (schema `sales`): `lead_status`, `influence_level`, `activity_type`, `activity_status`. Sequence mới: `sales.lead_code_seq`, `contact_code_seq`, `activity_code_seq`.
+- Nghi trùng (R-DEC-176 d): e-mail trùng (không phân biệt hoa thường) hoặc điện thoại trùng theo chữ số, trên bản ghi còn sống cùng loại (lead ↔ lead, contact ↔ contact); cảnh báo, không chặn (`confirm_duplicate`). Client giữ quy tắc chặn trùng tên/MST.
+- Phân loại: mức 2 Nội bộ, trừ `email`/`phone` mức 3. Seed demo (`app/seed/crm_seed.py`): 8 lead, 1 contact / khách hàng (sao từ cột phẳng nếu có, khách hàng seed không có → contact giả), 12 activity — id tất định, idempotent.
+
 ## 3. 13 nhóm entity (BRD §13.2)
 
 Mỗi nhóm nêu **vai trò nghiệp vụ**, **entity P0 chính** (tập con phục vụ domain P0 trong `TRACEABILITY-SKELETON.md` §12bis), và **liên kết lineage/event** chính. Tham chiếu `ENT-<Name>`. Field/kiểu/ràng buộc chi tiết chốt khi chi tiết hóa per-domain (R-DEC-09; giữ nguyên tắc: UUID id, created_at/updated_at, soft delete nghiệp vụ, index mọi FK — nhất quán `main` §5.7).
@@ -660,6 +721,7 @@ Danh mục event đầy đủ (mã `EVT-*`) + cặp publish/consume chốt ở *
 - **Version:** 1.2.0 (current)
 - **Last updated:** 2026-11-02
 - **Maintainer:** @CyEyes
+- **Change (đề xuất, 2026-11-09, v4 CRM — R-DEC-176 / D-08 / D-21):** §2.13 field-level `sales.leads` (ENT-Lead), `sales.contacts` (ENT-Contact), `sales.activities` (ENT-SalesActivity — ID PROPOSED); migration `0028` chỉ thêm. Version/status do human chốt.
 - **Change 1.3.0 (đề xuất — M4, R-DEC-152, 2026-11-02):** đóng **OQ-05-11** — retention `idp.import_rows` đã triển khai (job beat `idp.purge_import_rows` 02:00 + `idp.sweep_orphan_storage` 02:30, idempotent, audit, giữ `extracted_fields`); ghi chú Retention ở §2.7 cập nhật theo code (`idp/services/retention_service.py`, TC-M4-05..09).
 - **Change 1.6.0 (Spec lock M3.1, 2026-11-01 — agent tự chốt, R-DEC-117; chi tiết hóa per-domain R-DEC-09):** §2.10 field-level M3.1 — **ENT-CalendarEvent** (`execution.calendar_events`: owner_id/title/starts_at/ends_at/`event_source` enum/visibility/classification `confidential`/task_id) + **ENT-CalendarAccount** (`platform.calendar_accounts`: user_id/provider enum/access_token+refresh_token `EncryptedText`/scope/expires_at/status) + **ENT-SyncState** (`platform.calendar_sync_states`: account_id/sync_token/delta_link/last_synced_at) + **ENT-ExternalEventLink** (`execution.external_event_links`: calendar_event_id/account_id/external_id/etag, unique (account_id, external_id)); migration `0024_calendar_m31` (down_revision `0023_meeting_m23`); enum mới `execution.calendar_source`, `platform.calendar_provider`, `platform.calendar_account_status`; lịch mức 3 CONFIDENTIAL (không gửi LLM cloud, R-DEC-123), token mã hóa cột; `event_source` không dùng `source` trần (DEC-154).
 - **Change 1.5.0 (Spec lock M2.3, 2026-10-31 — agent tự chốt, R-DEC-100):** §2.9 field-level M2.3 — **ENT-MeetingSummary** (`execution.meeting_summaries`, 1-1 Meeting, summary_text/key_points/generated_by/model_call_id/status) + **ENT-ActionItem** (`execution.action_items`, meeting_id/decision_id/title/owner_id(fuzzy)/owner_name_raw/due_date/confidence/match_status/task_id(chỉ set sau duyệt)/source_document_id/status); migration `0023_meeting_m23` (down_revision `0022`); enum mới `summary_origin`, `name_match_status` (schema `execution`); mức 2 Nội bộ, `owner_name_raw` không vào payload event (R-DEC-102).
