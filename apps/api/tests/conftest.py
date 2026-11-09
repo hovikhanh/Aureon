@@ -52,6 +52,16 @@ def _fresh_keys() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _no_host_business_date(_fresh_keys: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The host `.env` of the running demo pins `BUSINESS_DATE_OVERRIDE` (R-DEC-192), and it wins
+    over `DEMO_REFERENCE_DATE`, which many tests set to their own date. Tests start without the
+    host's override; a test that needs one sets it itself (after this fixture)."""
+    from app.core.config import get_config
+
+    monkeypatch.setattr(get_config(), "business_date_override", None)
+
+
+@pytest.fixture(autouse=True)
 def default_tenant() -> Iterator[Any]:
     """R-DEC-21: repositories fail closed without a tenant context — tests run as the MVP
     system tenant unless they open another `tenant_scope` (see test_tenant_isolation)."""

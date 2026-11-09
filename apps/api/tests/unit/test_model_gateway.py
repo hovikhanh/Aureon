@@ -45,6 +45,8 @@ def cfg(**kw: Any) -> ConfigService:
         "ai_monthly_budget_usd": 50,
         "chat_model_primary": "",  # dev .env may set the T-509 chain; tests opt in explicitly
         "chat_model_fallback": "",
+        # the host .env may pick another local model (D-19 demo: 3b); these tests pin the default
+        "local_chat_model": "qwen2.5:7b-instruct",
         **{f"{p}_api_key": SecretStr(f"k-{p}") for p in KEYS},
         **{f"{p}_base_url": f"https://{p}.test/v1" for p in KEYS if p != "anthropic"},
         "anthropic_base_url": "https://anthropic.test",
