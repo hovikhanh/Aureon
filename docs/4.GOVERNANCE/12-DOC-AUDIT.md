@@ -34,7 +34,7 @@ Cột **last_reviewed** = ngày rà soát/mở rộng gần nhất. Cột **Gate
 | 12 | DOC-AUDIT (file này) | 1.1.0 | ✅ current | R3 | 2026-10-23 | ✅ | — |
 | 13 | DECISION-LOG | 1.2.0 | ✅ current | R3 | 2026-11-02 | ✅ | §21.1 |
 | 14 | TEST-TRACEABILITY | 1.1.0 | ✅ current | R3 | 2026-11-02 | ✅ | §14,§15 |
-| 16 | OPERATIONS | 0.2.0 | đề xuất | v4 | 2026-11-09 | ✅ | — |
+| 16 | OPERATIONS | 0.3.0 | đề xuất | v4 | 2026-11-09 | ✅ | — |
 | — | DEC-REGISTRY | 0.1.0 | đề xuất | v4 | 2026-11-09 | ✅ | — |
 
 **Tiến độ:** 00–14 đã có bản AI-EOS (15/15) + 2 file khung. Q1–Q6 **đã chốt** (13 §1, R-DEC-05..10) — không đảo quyết định. Vòng spec-level P0 **mở rộng spec-level** cho các file domain/sản phẩm (01–12, 14): bổ sung chiều SẢN PHẨM (FR/UC/flow/rule/trạng thái/màn hình), giữ nguyên các ghi chú "chi tiết hóa ở đợt code (R-DEC-09)". Toàn bộ đã được human promote **✅ current — Aureon v3 (AI-EOS) CHÍNH THỨC**.

@@ -1,156 +1,310 @@
-# Aureon v3 — AI-EOS (AI-First Enterprise Operating System)
+# Aureon v4 — AI-EOS (AI-First Enterprise Operating System)
 
 > **"One Enterprise. One Source of Truth. One AI Operating Layer."**
 > *CEO biết công ty đang đạt mục tiêu đến đâu, vì sao, và giao việc được ngay — với dữ liệu nhập vào dễ như gửi một file.*
 
-Aureon v3 là **hệ điều hành doanh nghiệp lấy AI làm trung tâm**, nối liền một vòng lặp:
-**Capture → Data → Intelligence → Decision → Action → Measurement → Feedback**. AI đóng vai
-Assistant/Analyst/Advisor/Planner/Orchestrator/Agent tùy mức tự chủ (**Autonomy L0–L3**, L4 khóa)
-doanh nghiệp cho phép. Mọi con số truy ngược được tới bản ghi và tài liệu gốc (grounding — không bịa số).
+**Phiên bản:** Aureon **v4 demo** = v3 AI-EOS + CRM (D-02). Môi trường: **demo nội bộ trên Docker một máy** (D-01), không phải production. Nhánh `v4/demo-readiness`. Số phiên bản API vẫn tự báo `3.0.0` (`GET /health`).
 
-Nền code tái dùng từ Aureon v2.1 (Modular Monolith FastAPI + Next.js), đang refactor dần sang
-model v3 theo từng phase có kiểm chứng FE→BE. Dữ liệu demo: công ty giả định **TNHH TM&DV ABC**
-(~150 NV, 7 phòng ban, kỳ Q3/2026).
-
-> Dòng sản phẩm chính thức **duy nhất** là Aureon v3 — AI-EOS. Aureon v2.1 đã **archived**
-> (`docs/_archive/v2.1/`), chỉ tra cứu lịch sử. Canonical: `_reference/SOURCE-BRD-v1.1.md` (+ Bổ sung) + `SOURCE-UIUX.md`.
+Mục lục: [Tổng quan](#1-tổng-quan) · [Kiến trúc](#2-kiến-trúc) · [Yêu cầu hệ thống](#3-yêu-cầu-hệ-thống) · [Cài đặt lần đầu](#4-cài-đặt-lần-đầu) · [**Khởi động hằng ngày / sau khi bật máy**](#5-khởi-động-hằng-ngày--sau-khi-bật-máy) · [Truy cập](#6-truy-cập) · [Database](#7-quản-lý-database) · [Xử lý sự cố](#8-xử-lý-sự-cố) · [Phát triển & test](#9-phát-triển--kiểm-thử) · [Phiên bản & thay đổi](#10-phiên-bản--lịch-sử-thay-đổi)
 
 ---
 
-## Quick start
+## 1. Tổng quan
 
-```bash
-git clone https://github.com/hovikhanh/Aureon.git && cd Aureon
-cp .env.example .env                    # điền giá trị dev (mật khẩu demo, NEXTAUTH_SECRET, ...)
-./scripts/generate_keys.sh keys         # cặp khóa RS256 cho JWT (gitignored)
-docker compose -f docker-compose.full.yml up -d --build
-open http://localhost:3000              # Web · API: http://localhost:4000/health
-```
+Aureon là hệ điều hành doanh nghiệp lấy AI làm trung tâm, nối vòng lặp **Capture → Data → Intelligence → Decision → Action → Measurement → Feedback**. Mọi con số truy ngược được tới bản ghi và tài liệu gốc; AI không được bịa số (grounding). Dữ liệu demo là công ty giả định **TNHH TM&DV ABC** (~150 nhân sự, 7 phòng ban), ngày nghiệp vụ cố định **20/10/2026**.
 
-Service `api` tự chạy `alembic upgrade head` + seed (idempotent) khi khởi động. 9 service
-(`postgres, redis, minio, ollama, clamav, api, celery-worker, celery-beat, web`) healthy trong
-~2 phút (ClamAV lần đầu tải signature lâu hơn). Reset dữ liệu demo: `./scripts/demo_reset.sh -y`.
-Kịch bản trình diễn theo vai trò (9 chặng, ~55 phút): [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
+### Module nghiệp vụ
 
-## Vai trò (R-DEC-08) — 7 role BRD + AI Agent
-
-| ID | Vai trò | Phạm vi | ID | Vai trò | Phạm vi |
-|---|---|---|---|---|---|
-| ROLE-CEO | CEO | Toàn doanh nghiệp | ROLE-REV | Reviewer | Hàng chờ review |
-| ROLE-DIR | Director/Executive | Khối/phòng ban | ROLE-ADM | Admin | Cấu hình nền tảng |
-| ROLE-MGR | Manager | Team | ROLE-AI | AI Agent (actor) | Quyền agent ∩ người được phục vụ |
-| ROLE-EMP | Employee | Cá nhân & việc được giao | | | |
-
-**ROLE-DIR gộp 5 giám đốc khối** (R-DEC-12); khối phụ trách phân biệt bằng `scope_pillars`
-(⊆ F.O.C.U.S), enforce ở server mỗi request (R-DEC-12a). Mọi business entity mang `tenant_id`
-(single-tenant ở MVP, sẵn sàng đa tenant — R-DEC-07/13).
-
-## Demo accounts
-
-Mật khẩu lấy từ `.env` (`DEMO_<ROLE>_PASSWORD`) — không commit, không đặt vào `NEXT_PUBLIC_*`.
-Ở `DEMO_MODE=true` màn hình login có dropdown chọn nhanh tài khoản (mật khẩu điền phía server).
-
-| Email | Role v3 | Khối (scope_pillars) | Thấy gì |
-|---|---|---|---|
-| `ceo@abc.demo` | CEO | — (toàn bộ) | Cả 5 trụ F.O.C.U.S, 13 alert, AI Chat, phê duyệt |
-| `cfo@abc.demo` | DIR | **F** (Finance) | Trụ F, Finance drill-down, hóa đơn (gồm hóa đơn OUT theo MST, R-DEC-172) |
-| `sales@abc.demo` | DIR | **C** (Customer) | Trụ C (Customer & Growth) |
-| `hr@abc.demo` | DIR | **O** (Operations) | Trụ O (Operations & People), quỹ lương; duyệt kế hoạch tuyển dụng cùng CEO (R-DEC-173) |
-| `reviewer@abc.demo` | REV | — | Hàng chờ review IDP |
-
-Seed còn 5 tài khoản (`cpo@`→DIR{U}, `risk@`→DIR{S}, `manager@`→MGR, `employee@`→EMP, `admin@abc.demo`→ADM)
-cho đủ 10 tài khoản demo (08 §2) ánh xạ vào 7 role v3.
-
-## Tính năng
-
-> **Tiến độ build:** **MVP 3 mốc (M1 · M2 · M3.1–M3.5) DONE** — đã merge `main` + tag `v3.0.0-mvp`. Nghiệm thu M3.5 chạy trên stack thật (9 service compose): E2E CEO 7 bước 5/5, NFR (security/responsive/a11y/PWA/perf) xanh, full test backend 1368 pass (cov 94%) + contract 34 + Vitest 424. Còn **ngoài codebase** (cần human/DEC): OAuth Calendar live (callback URL công khai), OCR provider thật (`OCR_PROVIDER=paddle`), chọn DN thí điểm; đo coverage FE + a11y axe-core chờ DEC dependency. Pilot checklist: [deliverables/T-906-PILOT-CHECKLIST.md](deliverables/T-906-PILOT-CHECKLIST.md). Chi tiết: [docs/DEMO-SCRIPT.md §8](docs/DEMO-SCRIPT.md).
-
-| Khối | Nội dung |
+| Module | Chức năng chính (đã triển khai) |
 |---|---|
-| **Dashboard 3 cấp** | Executive / Department / Employee (M2.1): dòng tóm tắt 1 câu, 4 ô CEO tự chọn, "Cần anh quyết", "Rủi ro", "AI đã làm", Strategy Execution Index. Reporting v3 `GET /reporting/dashboards/{executive·department·employee}` (EP-RPT-01..05), metric có `group` + `freshness`, ngưỡng là cấu hình |
-| **Dashboard F.O.C.U.S** | 5 trụ: **F** Finance · **O** Operations & People · **C** Customer & Growth · **U** Product & Innovation · **S** Strategy & Risk. Metric tính sẵn (metric store). Pillar card thu hẹp theo khối của DIR. Finance drill-down: sparkline 12 tháng, lineage 3 cấp metric → bản ghi → tài liệu gốc. Trang nghiệp vụ `/business` Finance Lite / Sales pipeline / HR (M2.2) |
-| **CEO Assistant & AI** | Chat SSE, **43 tool** lọc theo quyền người hỏi, citation `[n]` → nguồn, không bịa số (P05, grounding validator), PII filter. **Insight 9 phần** + panel **⌘K** toàn app (M2.4). **Autonomy L0–L3**: L3 AI tự thực thi (task + owner + deadline + lịch + thông báo trong 1 transaction) qua Action Registry, feed "AI đã làm", undo 24h, Approval Matrix cấu hình (M3.2); kill switch (L4 khóa). **CEO Daily Briefing** 7 khối gửi e-mail + tracking G1 (EP-AI-24/25/26, M3.3). **Evaluation Engine** chấm điểm theo phiên bản prompt/model, CLI `python -m app.scripts.run_eval`, `/admin/ai/evaluation` (EP-AI-27/28, M3.4) |
-| **Capture & IDP (D03)** | **Kênh C1–C5** + **C2 nhập bằng lời (STT)** + **C4 ảnh/OCR** + **PWA** (M2.3), quét malware (ClamAV), text-layer/OCR, trích xuất + confidence band, validation, review song song → commit qua Action Registry. **Họp `/meetings`**: transcript → action item → task (M2.3). **Knowledge / RAG**: embedding bge-m3 → pgvector → `TOOL-search_documents` có nguồn tới trang (EP-24 `/idp/documents/search`, `/knowledge`), keyword fallback khi `MODEL_EMBED` trống (M3.4) |
-| **Calendar & Decision Log** | **Calendar Google/Outlook 2 chiều** (OAuth theo từng user, polling ở dev), `/settings/integrations`, deadline task → sự kiện lịch (M3.1). **Decision Log 30/60/90** + nhắc review + verify (`/knowledge/decisions`), export báo cáo CSV/XLSX (M3.3) |
-| **Nghiệm thu MVP** | Trang đo G1–G4 `/admin/acceptance` + `GET /reporting/acceptance` (EP-RPT-08, CEO/DIR, `dashboard:read`): G1 áp dụng Briefing · G2 METRIC-STR-01 · G3 METRIC-DQ-02 · G4 sự cố trường trọng yếu lọt lưới (M3.5) |
-| **v4 demo (2026-11-09)** | **CEO toàn quyền thêm, sửa, xóa dữ liệu nghiệp vụ** ở mọi module (D-21); trang quản lý dữ liệu Tài chính, Kinh doanh, Nhân sự, Sản phẩm, Rủi ro, Điều hành; **CRM Lead, Contact, Activity** + chuyển lead thành khách hàng; Manager xem hóa đơn do mình tạo (D-20); một ngày nghiệp vụ; AI chỉ chạy model local (D-11, D-19) |
-| **Governance** | RBAC 7 role (`<domain>:<action>`) + ABAC pillar-scope + field-level (mức 4), JWT RS256, `tenant_id` mọi entity, audit log append-only, Transactional Outbox + Celery |
+| Trang chủ & báo cáo | Dashboard Executive / Department / Employee, chỉ số sức khỏe (Metric Store), cảnh báo, drill-down tới bản ghi và tài liệu gốc, Daily Briefing, Decision Log |
+| Tài chính | Doanh thu, chi phí, hóa đơn + thanh toán, ngân sách, số dư tiền, dự báo dòng tiền, runway |
+| Kinh doanh & CRM | Khách hàng, deal + pipeline Kanban, hợp đồng, chỉ tiêu, funnel; **Lead, Contact, Activity**, chuyển lead thành khách hàng (v4) |
+| Nhân sự & tổ chức | Cây tổ chức theo ngày hiệu lực, phòng ban, team, vị trí, nhân viên, kế hoạch tuyển dụng có phê duyệt |
+| Mục tiêu & công việc | Chiến lược, OKR, KPI, check-in, task, dự án, workload, họp, lịch, phê duyệt |
+| Sản phẩm, Rủi ro | Đóng băng phát triển (R-DEC-16); quản lý bản ghi qua trang dữ liệu (v4) |
+| Thu thập dữ liệu (IDP) | Tải tài liệu, quét malware, OCR, trích xuất bằng AI, review song song, ghi qua Action Registry, hoàn tác 7 ngày |
+| AI Assistant | Chat có trích dẫn nguồn, tool lọc theo quyền người hỏi, Autonomy L0–L3 + kill switch, chạy **model local** |
+| Quản trị | Người dùng, vai trò, audit log, cấu hình AI, onboarding |
 
-## Kiến trúc
+**Quyền CEO (D-21):** CEO thêm, sửa, xóa được dữ liệu nghiệp vụ ở mọi module. Ràng buộc toàn vẹn vẫn giữ (ví dụ không xóa khách hàng còn deal; rủi ro, quyết định kết thúc bằng trạng thái). Ma trận đầy đủ: [deliverables/v4-demo/V4-DEMO-READINESS-REPORT.md](deliverables/v4-demo/V4-DEMO-READINESS-REPORT.md).
+
+### Công nghệ
+
+| Lớp | Công nghệ |
+|---|---|
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind + shadcn/ui, TanStack Query, next-intl (VI/EN), NextAuth (BFF `/api/backend/*`) |
+| Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 async + psycopg 3, Alembic; JWT RS256 |
+| Dữ liệu | PostgreSQL 16 + pgvector, Redis 7, MinIO (có trong stack, code lưu file ở `var/idp-storage`) |
+| Nền | Celery worker + Celery Beat (outbox relay, job định kỳ), ClamAV, Mailpit (hộp thư dev) |
+| AI | ModelGateway nội bộ → **Ollama local** `qwen2.5:3b-instruct` (chat, trích xuất), `bge-m3` (embedding) |
+| Triển khai | Docker Compose (project `aureon`) |
+
+## 2. Kiến trúc
+
+Modular Monolith: một ứng dụng FastAPI chia module theo schema PostgreSQL; liên module qua service public hoặc event (Transactional Outbox → Celery).
 
 ```mermaid
 flowchart LR
-  B[Browser] --> W[Next.js 15 web :3000<br/>NextAuth + BFF /api/backend]
-  W --> A[FastAPI :4000<br/>11 module · Modular Monolith]
-  A --> P[(PostgreSQL 16 + pgvector<br/>10 schema)]
-  A --> R[(Redis)]
-  R --> C[Celery worker + beat<br/>outbox relay · jobs]
-  C --> P
+  B[Trình duyệt] -->|:3000| W[web<br/>Next.js + NextAuth<br/>BFF /api/backend]
+  W -->|http://api:4000| A[api<br/>FastAPI · migrate + seed khi khởi động]
+  A --> P[(postgres<br/>pgvector · volume pg_data)]
+  A --> R[(redis<br/>volume redis_data)]
   A --> G[ModelGateway]
-  G --> O[Ollama local<br/>CONFIDENTIAL]
-  G --> X[OmniRoute / cloud LLM]
-  A --> V[ClamAV malware scan]
-  A --> S[(MinIO / object store)]
+  G --> O[ollama<br/>qwen2.5:3b · bge-m3]
+  A --> V[clamav]
+  A --> F[[./var/idp-storage<br/>bind mount]]
+  K[[./keys<br/>khóa JWT, bind mount]] --> A
+  R --> CW[celery-worker<br/>IDP pipeline · outbox · email]
+  R --> CB[celery-beat<br/>đúng 1 instance]
+  CW --> P
+  CW --> F
+  CW --> M[mailpit]
 ```
 
-Health: `GET /health` (tổng + dependency), `/health/ready` (DB + Redis), `/health/live`, `/metrics` (Prometheus).
+| Service | Container | Port host | Phụ thuộc khi khởi động |
+|---|---|---|---|
+| `web` | `aureon-web-1` | 3000 | `api` healthy |
+| `api` | `aureon-api-1` | 4000 | `postgres`, `redis` healthy; preflight (khóa, kho file, DB) |
+| `celery-worker` | `aureon-celery-worker-1` | — | `api` healthy; preflight |
+| `celery-beat` | `aureon-celery-beat-1` | — | `api` healthy; preflight |
+| `postgres` | `aureon-postgres-1` | 5432 | — |
+| `redis` | `aureon-redis-1` | 6379 | — |
+| `ollama` | `ollama` | 11434 | — |
+| `clamav` | `clamav` | 3310 | — (lần đầu tải signature vài phút) |
+| `minio` | `aureon-minio-1` | 9000, 9001 | — |
+| `mailpit` | `aureon-mailpit-1` | 1025 (SMTP), 8025 (UI) | — |
 
-## Phát triển (app chạy trên host)
+Mọi service có `restart: unless-stopped` và healthcheck, cùng mạng `aureon-net`.
+
+**AI (D-11, D-19):** không provider cloud nào nhận dữ liệu nội bộ; chuỗi provider của demo chỉ có Ollama local (`MODEL_PROVIDER_PRIMARY=ollama`, không fallback). Câu trả lời kịch bản chỉ xuất hiện khi bật `AI_DEMO_REPLAY=true` và luôn mang nhãn "Kịch bản demo".
+
+## 3. Yêu cầu hệ thống
+
+Cấu hình đã kiểm chứng (máy demo hiện tại):
+
+| Mục | Giá trị |
+|---|---|
+| Hệ điều hành | Windows + WSL2 (Ubuntu 22.04), repo nằm trong ổ WSL (`/home/...`) |
+| Docker | Docker Desktop (engine 29.8), Docker Compose v2.29 trở lên (cần hỗ trợ `include`) |
+| CPU, RAM | 4 CPU, 12 GB RAM cấp cho Docker; không GPU |
+| Ổ đĩa | ~20 GB cho image (api 5,3 GB, ollama 8,4 GB, web 1,7 GB) + model Ollama (~4 GB) |
+| Port trống | 3000, 4000, 5432, 6379, 9000, 9001, 11434, 3310, 1025, 8025 |
+
+Với máy chỉ có CPU như trên, một lượt chat AI mất khoảng 13–67 giây (nhanh hơn khi câu hỏi lặp lại và máy rảnh). Có GPU thì có thể dùng `qwen2.5:7b-instruct`.
+
+## 4. Cài đặt lần đầu
+
+Chỉ làm một lần trên máy mới. Những lần sau xem [mục 5](#5-khởi-động-hằng-ngày--sau-khi-bật-máy).
+
+```bash
+# 1. Mã nguồn (trong ổ WSL, không đặt dưới /mnt/c)
+git clone https://github.com/hovikhanh/Aureon.git && cd Aureon
+git checkout v4/demo-readiness
+
+# 2. Cấu hình: điền giá trị dev (mật khẩu demo DEMO_*_PASSWORD, NEXTAUTH_SECRET, POSTGRES_*, ...)
+cp .env.example .env
+#    Không đặt DEMO_VP_SALES_PASSWORD / DEMO_HR_MANAGER_PASSWORD (alias cũ, được ưu tiên hơn
+#    DEMO_SALES_PASSWORD / DEMO_HR_PASSWORD). Cấu hình demo v4 khuyến nghị: docs/3.EXECUTION/16-OPERATIONS.md §2
+
+# 3. Cặp khóa RS256 cho JWT → ./keys (gitignored, mount vào container)
+./scripts/generate_keys.sh keys
+
+# 4. Build và chạy toàn bộ stack
+docker compose up -d --build
+
+# 5. Model AI local (một lần; lưu trong volume ollama_data)
+docker exec ollama ollama pull qwen2.5:3b-instruct
+docker exec ollama ollama pull bge-m3
+
+# 6. Kiểm tra
+docker compose ps                       # chờ mọi service "healthy" (lần đầu ClamAV có thể mất vài phút)
+curl -s localhost:4000/health/ready     # {"status":"ready", ... "signing_keys":"ok"}
+```
+
+`api` tự chạy `alembic upgrade head` rồi seed dữ liệu demo (idempotent: chạy lại không nhân đôi dữ liệu) mỗi lần khởi động; không cần chạy migration hay seed bằng tay.
+
+## 5. Khởi động hằng ngày / sau khi bật máy
+
+**Quy trình chuẩn (đã kiểm chứng 2026-11-09):**
+
+1. Mở **Docker Desktop**, chờ biểu tượng báo "Engine running".
+2. Các container Aureon **tự khởi động lại** (`restart: unless-stopped`). Chờ 1–2 phút.
+3. Kiểm tra từ terminal WSL:
+
+```bash
+cd ~/Aureon
+docker compose ps                        # 10 service "healthy"
+curl -s localhost:4000/health/ready      # "status":"ready", db/redis/signing_keys "ok"
+```
+
+4. Mở `http://localhost:3000` và đăng nhập.
+
+Mọi lệnh `docker compose ...` chạy **từ thư mục gốc repo**. `docker-compose.yml` include `docker-compose.full.yml`, nên `docker compose ...` và `docker compose -f docker-compose.full.yml ...` là một.
+
+| Tình huống | Lệnh |
+|---|---|
+| Container đã dừng (`docker compose stop`, Docker Desktop đóng lâu) | `docker compose up -d` |
+| Một service lỗi hoặc unhealthy | `docker compose restart <service>` (vd `api`) rồi `docker compose ps` |
+| Mất kết nối giữa các service | `docker compose up -d` (tạo lại container lệch cấu hình, giữ nguyên dữ liệu) |
+| Xem log | `docker compose logs -f api` (hoặc `web`, `celery-worker`, `postgres`) |
+| Dừng toàn bộ (giữ dữ liệu) | `docker compose stop` |
+
+**Về lần khởi động sau khi bật máy:** Docker Desktop có thể khởi động container trước khi ổ WSL sẵn sàng, khiến `./keys` và `./var/idp-storage` được gắn vào dưới dạng thư mục rỗng. Từ bản sửa ngày 2026-11-09, `api`, worker và beat chạy `python -m app.preflight` trước. Nếu khóa hoặc kho file chưa có, container thoát và Docker tự khởi động lại cho tới khi đủ. Nếu sau 3 phút vẫn lỗi, xem [Xử lý sự cố](#8-xử-lý-sự-cố).
+
+**Không dùng** `docker compose down -v` (xóa volume, mất toàn bộ dữ liệu). Không cần `down` cho việc khởi động lại.
+
+## 6. Truy cập
+
+| Thành phần | URL |
+|---|---|
+| Ứng dụng web | `http://localhost:3000` |
+| API | `http://localhost:4000/api/v1` |
+| Tài liệu API (Swagger, OpenAPI) | `http://localhost:4000/docs`, `http://localhost:4000/openapi.json` |
+| Health | `/health` (tổng), `/health/ready` (DB, Redis, khóa JWT), `/health/live`, `/metrics` |
+| Hộp thư dev (Mailpit) | `http://localhost:8025` |
+| MinIO console | `http://localhost:9001` |
+
+### Tài khoản demo
+
+Mật khẩu nằm trong `.env` (`DEMO_<ROLE>_PASSWORD`), **không** ghi ở đây. Khi `DEMO_MODE=true` và `DEMO_LOGIN_AUTOFILL=true`, trang đăng nhập có danh sách chọn nhanh tài khoản (mật khẩu được điền phía server).
+
+| Email | Role | Khối | Trang đầu sau đăng nhập |
+|---|---|---|---|
+| `ceo@abc.demo` | CEO | toàn công ty | `/home` |
+| `cfo@abc.demo` | DIR | F — Tài chính | `/home` |
+| `sales@abc.demo` | DIR | C — Kinh doanh | `/home` |
+| `hr@abc.demo` | DIR | O — Nhân sự | `/home` |
+| `cpo@abc.demo` | DIR | U — Sản phẩm | `/home` |
+| `manager@abc.demo` | MGR | phòng Dịch vụ | `/home` |
+| `office@abc.demo` | MGR | phòng Hành chính | `/home` |
+| `employee@abc.demo` | EMP | cá nhân | `/home` |
+| `reviewer@abc.demo` | REV | hàng chờ review | `/data` |
+| `admin@abc.demo` | ADM | cấu hình nền tảng | `/admin` |
+
+Đăng nhập lại sau khi quyền thay đổi (quyền nằm trong token).
+
+## 7. Quản lý database
+
+| Việc | Lệnh / ghi chú |
+|---|---|
+| Dữ liệu lưu ở đâu | Volume Docker `aureon_pg_data` (Postgres), `aureon_redis_data`, `aureon_ollama_data`, `aureon_minio_data`, `aureon_clamav_data`; file tài liệu ở `./var/idp-storage` |
+| Kiểm tra kết nối | `docker compose exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` |
+| Revision migration | `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select version_num from platform.alembic_version"'` (hiện tại `0028_crm_leads_contacts_activity`) |
+| Migration | Tự chạy khi `api` khởi động. Chạy tay: `docker compose exec api alembic upgrade head` |
+| Seed dữ liệu demo | Tự chạy khi `api` khởi động, idempotent. Chạy tay: `docker compose exec api python -m app.seed` |
+| Backup | `mkdir -p var/backup && docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > var/backup/aureon-$(date +%Y%m%d-%H%M).dump` (thư mục `var/` đã gitignore) |
+| Restore | `docker compose stop api celery-worker celery-beat web`, rồi `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < var/backup/<file>.dump`, rồi `docker compose up -d`. Restore vào một Postgres mới tinh sẽ báo 2 lỗi GRANT cho role `app_audit_writer` (role chưa tồn tại); dữ liệu vẫn được khôi phục đủ |
+
+Lệnh **xóa dữ liệu**, chỉ dùng khi chủ động muốn:
+
+- `docker compose down -v`: xóa mọi volume.
+- `./scripts/demo_reset.sh -y`: xóa sạch dữ liệu các schema (TRUNCATE) rồi seed lại từ đầu, kể cả dữ liệu người dùng đã nhập. Hãy backup trước.
+
+## 8. Xử lý sự cố
+
+Luôn bắt đầu bằng: `docker compose ps` và `curl -s localhost:4000/health/ready`.
+
+| Hiện tượng | Kiểm tra | Xử lý |
+|---|---|---|
+| `docker: command not found` / `Cannot connect to the Docker daemon` | Docker Desktop đã mở chưa | Mở Docker Desktop, chờ "Engine running"; container tự lên |
+| Container `Exited` hoặc `Restarting` | `docker compose ps -a`; `docker compose logs --tail 100 <service>` | Sửa theo log, rồi `docker compose up -d` |
+| Log có `PREFLIGHT FAILED: JWT signing keys unreadable` hoặc `IDP storage directory not writable` | `ls keys/`; `docker compose exec api ls /app/keys` | Thường gặp ngay sau khi bật máy (ổ WSL chưa sẵn sàng): container tự thử lại. Nếu `keys/` trên host trống: `./scripts/generate_keys.sh keys` (mọi phiên đăng nhập cũ hết hiệu lực). Nếu host có khóa mà container không thấy: `docker compose up -d --force-recreate api celery-worker celery-beat` |
+| Web `localhost:3000` không mở | `docker compose ps web`; `docker compose logs --tail 50 web` | `docker compose up -d web`; web chỉ chạy khi `api` healthy |
+| API không phản hồi | `curl -s localhost:4000/health/live`; `docker compose logs --tail 100 api` | `docker compose restart api` |
+| Không đăng nhập được (lỗi 500 / "Không kết nối được") | `curl -s localhost:4000/health/ready`: `signing_keys` phải `ok`, `db` phải `ok` | `signing_keys` lỗi: xem dòng PREFLIGHT ở trên. `db` lỗi: xem dòng database bên dưới |
+| Sai mật khẩu demo (401) | Mật khẩu trong `.env` có khớp tài khoản không; tài khoản bị khóa sau nhiều lần sai | Sửa `.env` (bỏ alias `DEMO_VP_SALES_PASSWORD`, `DEMO_HR_MANAGER_PASSWORD`), rồi `docker compose restart api` (seed ghi lại mật khẩu demo) |
+| `db: unavailable` / lỗi kết nối database | `docker compose ps postgres`; `docker network inspect aureon-net` (mọi container Aureon phải nằm trong đó) | `docker compose up -d` (tạo lại container nằm sai mạng, giữ dữ liệu) |
+| Lỗi migration | `docker compose logs api \| grep -i alembic`; xem revision ở mục 7 | Sửa nguyên nhân trong log, rồi `docker compose restart api`. Không xóa bảng bằng tay |
+| AI trả lời chậm hoặc lỗi `AI_PROVIDER_TIMEOUT` | `curl -s localhost:11434/api/tags` (model `qwen2.5:3b-instruct` có trong danh sách); `uptime` (máy có đang tải nặng) | `docker exec ollama ollama pull qwen2.5:3b-instruct` nếu thiếu; tránh chạy test hay build trong lúc demo; hỏi một câu khởi động trước buổi demo |
+| `port is already allocated` | `docker ps --format '{{.Names}} {{.Ports}}'`; trên Windows: `netstat -ano \| findstr :3000` | Dừng container hoặc tiến trình đang chiếm port (stack kiểm chứng `aureon-verify` dùng port khác: 3700, 4700) |
+| Tài liệu tải lên đứng ở `UPLOADED`, email không gửi | `docker compose exec celery-worker celery -A app.worker inspect ping`; `docker compose logs --tail 100 celery-worker` | `docker compose restart celery-worker celery-beat` |
+
+## 9. Phát triển & kiểm thử
+
+### Chạy ứng dụng trên host (phát triển)
 
 ```bash
 pnpm install && uv sync
-docker compose up -d postgres redis minio ollama clamav
-uv run alembic upgrade head && uv run python -m app.seed
-uv run uvicorn app.main:app --reload --port 4000   # API
-pnpm dev:web                                        # Web :3000
+docker compose up -d postgres redis minio ollama clamav mailpit   # chỉ hạ tầng, cùng định nghĩa với stack demo
+uv run uvicorn app.main:app --reload --port 4000                  # API (dừng container api trước: docker compose stop api web)
+pnpm dev:web                                                      # Web :3000
 ```
 
-Gate: `pnpm lint && pnpm typecheck && pnpm test && uv run ruff check . && uv run mypy && uv run pytest && pnpm contract:validate`.
+### Test
 
-> **Cảnh báo:** `uv run pytest` đọc `DATABASE_URL` từ `.env`. Nếu `.env` trỏ DB của stack đang chạy, test sẽ chạy trên DB đó. Chạy test trên DB tạm: xem `docs/3.EXECUTION/16-OPERATIONS.md` §4.
-
-Reset dữ liệu demo (không xoá volume/schema): `./scripts/demo_reset.sh -y`.
-
-## Chế độ AI (ModelGateway)
-
-Mọi lời gọi LLM đi qua một điểm duy nhất là `ModelGateway`. Biến `MODEL_GATEWAY_MODE` trong `.env` quyết định nguồn:
-
-| `MODEL_GATEWAY_MODE` | Hành vi | Cần key? |
-|---|---|---|
-| `fixture` (mặc định dev/CI) | Phát lại kết quả đã ghi sẵn; không có mạng, không gọi AI thật. Thiếu fixture → lỗi rõ ràng. | ❌ Không |
-| `live` | Gọi LLM thật qua endpoint tương thích OpenAI tại `OMNIROUTE_BASE_URL`. | ✅ Có |
-
-**v4 (D-11, R-DEC-188 đề xuất):** không provider cloud nào được nhận dữ liệu INTERNAL; stack demo chạy model local (`MODEL_PROVIDER_PRIMARY=ollama`, không fallback, không key cloud). Câu trả lời kịch bản (`AI_DEMO_REPLAY=true`) luôn mang nhãn "Kịch bản demo" (`mode: "replay"`).
-
-Chat demo (`DEMO_MODE=true`) phát lại các câu hỏi kịch bản trong ~1,2–1,3 s — **số liệu luôn lấy từ tool thật**, không bịa. Bật AI/chat thật:
+**Cảnh báo:** `pytest` đọc `DATABASE_URL` từ `.env`, tức DB demo đang chạy. Luôn chạy trên DB tạm: `docs/3.EXECUTION/16-OPERATIONS.md` §4.
 
 ```bash
-# .env
-MODEL_GATEWAY_MODE=live
-OMNIROUTE_BASE_URL=<url-gateway>/v1       # vd http://localhost:20128/v1
-OMNIROUTE_API_KEY=<key>                   # gửi dạng Authorization: Bearer <key>
-CHAT_MODEL_PRIMARY=cc/claude-sonnet-5     # model chat chính (xem DEC-241)
+# Frontend
+pnpm lint && pnpm typecheck && pnpm test
+# Backend (trên DB tạm)
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+uv run pytest && uv run pytest -m contract
+# E2E (stack kiểm chứng riêng, port 3700/4700): docs/3.EXECUTION/16-OPERATIONS.md §3.2, §4
 ```
 
-Test gọi provider thật chỉ chạy khi cho phép: `RUN_LIVE_TESTS=true uv run pytest -m live`. Không commit key (`.env` đã gitignore).
-
-## Test
-
-| Bộ | Số lượng |
+| Bộ | Kết quả gần nhất |
 |---|---|
-| Backend pytest | **1703 passed, 0 failed** (v4, 2026-11-09, DB tạm), contract **44** |
-| Frontend Vitest | **590** |
-| E2E Playwright | **136** test project `real` trên stack dựng từ đầu: lượt đầy đủ cuối 135 pass; test còn lại (`m8-crm` duyệt tuyển dụng) đã sửa và pass 2 lượt chạy riêng |
+| Backend pytest | 1709 passed, 0 failed (2026-11-09, sau bản khôi phục); contract 44 |
+| Frontend Vitest | 590 passed |
+| E2E Playwright (`real`, 136 test) | Lượt đầy đủ cuối 135 pass; test còn lại đã sửa, pass 2 lượt chạy riêng |
 
-AI chạy model local thật (`qwen2.5:3b-instruct`, D-19): 13–67 giây mỗi lượt chat trên máy 4 CPU khi máy đang tải. Không chạy test song song trong lúc demo.
+### Build và cập nhật stack
 
-Chi tiết và bằng chứng: `deliverables/v4-demo/`, `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md` §1.26–§1.27.
+```bash
+docker compose build api web
+docker compose up -d --no-deps --force-recreate api celery-worker celery-beat web
+```
+
+Trước khi đưa bản mới lên stack có dữ liệu: backup (mục 7). Quy trình có hoàn tác: `docs/3.EXECUTION/16-OPERATIONS.md` §6.1.
+
+### Kiểm tra API nhanh
+
+```bash
+curl -s localhost:4000/health
+# đăng nhập → access token (thay <password> bằng mật khẩu trong .env)
+curl -s -X POST localhost:4000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"ceo@abc.demo","password":"<password>"}'
+```
+
+### Git
+
+Làm việc trên nhánh tính năng, Conventional Commits (`feat(scope): ...`), không commit `.env`, `keys/`, `var/`. Quy tắc đầy đủ: `CLAUDE.md` §5.10, §11.
+
+## 10. Phiên bản & lịch sử thay đổi
+
+| Mục | Giá trị |
+|---|---|
+| Phiên bản | Aureon v4 demo (API tự báo `3.0.0`) |
+| Nhánh | `v4/demo-readiness` (chưa push) |
+| DB | Alembic `0028_crm_leads_contacts_activity` |
+| Commit | Xem `git log --oneline -1`; mốc các đợt ghi ở bảng dưới |
+
+| Ngày | Thay đổi | Commit |
+|---|---|---|
+| 2026-11-09 | **Khôi phục sau khi bật máy:** preflight khóa JWT, kho file, DB trước khi `api`, worker, beat chạy; `/health/ready` báo `signing_keys`; `docker-compose.yml` include stack đầy đủ (hết tình trạng tách hai mạng); test không phụ thuộc `.env` của host; README viết lại | `595e613`, `67c7218` + commit README |
+| 2026-11-09 | CEO toàn quyền CRUD (D-21), MGR xem hóa đơn mình tạo (D-20), CRM Lead/Contact/Activity, AI local `qwen2.5:3b-instruct` (D-19), trang quản lý Sản phẩm, Rủi ro, Điều hành | `8f7ec68..cdc794a` |
+| 2026-11-08 | Một ngày nghiệp vụ, số liệu Finance/Sales nhất quán, RBAC D-07, AI trung thực, Deep Navy | `15f4139..432126f` |
+| 2026-11-04 | M8: CRM giai đoạn 1 | `9cad717` |
+
+### Lỗi đã khắc phục ở bản khôi phục 2026-11-09
+
+| Lỗi | Nguyên nhân | Sửa |
+|---|---|---|
+| Không đăng nhập được sau khi bật máy (HTTP 500 "JWT public key missing") | Docker Desktop khởi động container trước khi ổ WSL sẵn sàng: `./keys` gắn vào rỗng; healthcheck không kiểm khóa nên container vẫn báo healthy | `app.preflight` + kiểm `signing_keys` trong `/health/ready` |
+| API mất database sau `docker compose up -d` | `docker-compose.yml` cũ định nghĩa riêng postgres/redis... cùng project `aureon` nhưng khác mạng | `docker-compose.yml` chỉ include `docker-compose.full.yml` |
+
+### Giới hạn còn tồn tại
+
+- Chat AI trên máy chỉ có CPU: 13–67 giây mỗi lượt khi máy đang tải.
+- Trích xuất tài liệu không hiện tiến độ từng bước.
+- CRM chưa có pipeline cấu hình, snapshot dự báo, deal nhiều sản phẩm.
+- Hardening production (TLS, mạng, xoay secret, MFA, CI security) thuộc backlog Phase 8: [deliverables/v4-demo/10-PRODUCTION-BACKLOG.md](deliverables/v4-demo/10-PRODUCTION-BACKLOG.md).
 
 ## Tài liệu
 
-Spec sống ở `docs/` (00–14, bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`); hợp đồng vận hành agent ở
-`CLAUDE.md`; trạng thái build ở `STATE.md`; quyết định ở `docs/4.GOVERNANCE/13-DECISION-LOG.md`;
-truy nguyên test ở `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md`.
+Spec ở `docs/` (bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`). Vận hành chi tiết: [docs/3.EXECUTION/16-OPERATIONS.md](docs/3.EXECUTION/16-OPERATIONS.md). Quyết định: `docs/4.GOVERNANCE/13-DECISION-LOG.md`. Truy nguyên test: `docs/4.GOVERNANCE/14-TEST-TRACEABILITY.md`. Báo cáo v4: `deliverables/v4-demo/`. Hợp đồng vận hành agent: `CLAUDE.md`.
 
 ## License
 

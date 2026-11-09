@@ -49,8 +49,8 @@ Trong `.env` (không commit):
 ```bash
 cp .env.example .env                 # điền giá trị dev, theo §2
 ./scripts/generate_keys.sh keys      # cặp khóa RS256 (R-DEC-81: thư mục keys/)
-docker compose -f docker-compose.full.yml up -d --build
-curl -s localhost:4000/health        # {"status":"ok", ...}
+docker compose up -d --build          # docker-compose.yml include docker-compose.full.yml
+curl -s localhost:4000/health/ready  # {"status":"ready", ... "signing_keys":"ok"}
 ```
 
 Không bao giờ dùng `down -v` trên stack có dữ liệu demo. Reset dữ liệu: §6.
@@ -138,6 +138,8 @@ Người dùng đang đăng nhập phải đăng nhập lại để nhận quy�
 | Hiện tượng | Nguyên nhân | Xử lý |
 |---|---|---|
 | `docker: command not found` trong WSL | Docker Desktop đã dừng | Mở Docker Desktop; stack `aureon` tự chạy lại do `restart: unless-stopped` |
+| Sau khi bật máy: đăng nhập lỗi 500 "JWT public key missing", `/health` vẫn ổn | Docker Desktop khởi động container trước khi ổ WSL sẵn sàng → `./keys`, `./var/idp-storage` gắn vào rỗng | Từ 2026-11-09: `python -m app.preflight` chặn khởi động và Docker tự thử lại; `/health/ready` báo `signing_keys`. Còn lỗi: `docker compose up -d --force-recreate api celery-worker celery-beat` |
+| API mất DB sau `docker compose up -d` | (trước 2026-11-09) `docker-compose.yml` định nghĩa riêng hạ tầng trên mạng khác cùng project `aureon` | `docker-compose.yml` nay chỉ include `docker-compose.full.yml`; chạy `docker compose up -d` để đưa mọi container về `aureon-net` |
 | 2/10 tài khoản demo 401 sau đổi mật khẩu | Còn alias `DEMO_VP_SALES_PASSWORD`, `DEMO_HR_MANAGER_PASSWORD` | Xóa alias, khởi động lại `api` (seed ghi hash mới) |
 | `/health` 200 nhưng đăng nhập 500 | Khóa RS256 nạp lười, file khóa thiếu hoặc sai quyền | Kiểm tra `keys/` và mount; luôn thử đăng nhập thật |
 | Chat AI chậm (> 30 giây) | Máy đang tải (test chạy song song) hoặc model chưa nạp | Không chạy test trong lúc demo; hỏi một câu khởi động trước buổi demo; xem `06-AI-INTEGRATION-REPORT.md` |
@@ -150,6 +152,7 @@ Người dùng đang đăng nhập phải đăng nhập lại để nhận quy�
 
 ## Version
 
-- **Version:** 0.2.0 (đề xuất)
+- **Version:** 0.3.0 (đề xuất)
 - **Last updated:** 2026-11-09
+- **Change 0.3.0 (2026-11-09):** khôi phục sau khi bật máy: preflight, `signing_keys` trong readiness, `docker-compose.yml` include stack đầy đủ.
 - **Change 0.2.0:** cấu hình AI D-19, quy trình triển khai stack chính có backup và hoàn tác (§6.1), sự cố chat chậm
