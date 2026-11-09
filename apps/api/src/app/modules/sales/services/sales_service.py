@@ -265,7 +265,8 @@ class SalesService:
         obj = await self.get_client(id_)
         if await self.clients.has_live_children(obj.id):
             raise ConflictStateError(
-                "client still has deals or contracts", details={"client_id": str(obj.id)}
+                "client still has deals, contracts, contacts or activities",
+                details={"client_id": str(obj.id)},
             )
         before = client_out(obj)
         obj.updated_by = user.user_id

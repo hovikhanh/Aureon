@@ -1,6 +1,7 @@
-"""Schema `sales` — 5 tables (05 §4.3). Column groups follow 05 §2.1.
+"""Schema `sales` — 8 tables (05 §4.3, §2.13). Column groups follow 05 §2.1.
 
-Business entities → `BusinessModel`: clients, deals, sales_targets, contracts.
+Business entities → `BusinessModel`: clients, deals, sales_targets, contracts, and the CRM
+entities of R-DEC-176 (D-08 defaults): leads, contacts, activities.
 Append-only → `LogModel`: deal_stage_history (05 §1 C5, §2.1 group 3).
 """
 
@@ -41,7 +42,27 @@ DEAL_STAGE = pg_enum(
 TARGET_SCOPE = pg_enum(S, "target_scope", "team", "individual")
 CONTRACT_STATUS = pg_enum(S, "contract_status", "draft", "active", "expired", "terminated")
 
-MODULE_ENUMS = (COMPANY_SIZE, CLIENT_STATUS, DEAL_STAGE, TARGET_SCOPE, CONTRACT_STATUS)
+# R-DEC-176 CRM (migration 0028)
+LEAD_STATUS = pg_enum(
+    S, "lead_status",
+    "new", "contacted", "engaged", "qualified", "nurturing", "converted", "disqualified",
+)  # fmt: skip
+INFLUENCE_LEVEL = pg_enum(S, "influence_level", "low", "medium", "high")
+ACTIVITY_TYPE = pg_enum(
+    S, "activity_type",
+    "call", "email", "meeting", "demo", "workshop", "poc", "proposal", "follow_up", "other",
+)  # fmt: skip
+ACTIVITY_STATUS = pg_enum(S, "activity_status", "planned", "completed", "cancelled")
+
+MODULE_ENUMS = (
+    COMPANY_SIZE, CLIENT_STATUS, DEAL_STAGE, TARGET_SCOPE, CONTRACT_STATUS,
+    LEAD_STATUS, INFLUENCE_LEVEL, ACTIVITY_TYPE, ACTIVITY_STATUS,
+)  # fmt: skip
+
+
+def code_default(prefix: str, sequence: str) -> Any:
+    """Auto code `<prefix>-000001` from a per-type sequence (R-DEC-176 e); unique column."""
+    return text(f"'{prefix}-' || lpad(nextval('{S}.{sequence}')::text, 6, '0')")
 
 
 class Client(BusinessModel):
@@ -184,3 +205,110 @@ class Contract(BusinessModel):
     status: Mapped[str] = mapped_column(CONTRACT_STATUS, nullable=False)
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False)
     source_document_id: Mapped[uuid.UUID | None] = sr()
+
+
+# ---------- R-DEC-176 CRM entities (D-08 defaults, migration 0028) ----------
+class Lead(BusinessModel):
+    """ENT-Lead — a prospect before it becomes Client + Contact (+ Deal) via convert.
+
+    `email` / `phone` are PII level 3 (`core.field_policy`) — masked in audit, never in events.
+    `department_id` is pinned to a MANAGER's department like deals (02 §6.2 `◑d`).
+    """
+
+    __tablename__ = "leads"
+    __table_args__ = (
+        CheckConstraint("email IS NOT NULL OR phone IS NOT NULL", name="contact_channel_required"),
+        CheckConstraint("score >= 0 AND score <= 100", name="score_range"),
+        CheckConstraint("budget IS NULL OR budget >= 0", name="budget_non_negative"),
+        Index("ix_leads_status_next_action_date", "status", "next_action_date"),
+        {"schema": S},
+    )
+
+    code: Mapped[str] = mapped_column(
+        Text, nullable=False, unique=True, server_default=code_default("LD", "lead_code_seq")
+    )
+    company_name: Mapped[str | None] = txt(nullable=True)
+    full_name: Mapped[str] = txt()
+    job_title: Mapped[str | None] = txt(nullable=True)
+    email: Mapped[str | None] = txt(nullable=True)  # level 3
+    phone: Mapped[str | None] = txt(nullable=True)  # level 3
+    industry: Mapped[str | None] = txt(nullable=True)
+    lead_source: Mapped[str | None] = txt(nullable=True)
+    need: Mapped[str | None] = txt(nullable=True)
+    budget: Mapped[int | None] = money(nullable=True)
+    currency: Mapped[str] = currency()
+    score: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"))
+    status: Mapped[str] = mapped_column(LEAD_STATUS, nullable=False, server_default=text("'new'"))
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    department_id: Mapped[uuid.UUID | None] = sr()
+    next_action: Mapped[str | None] = txt(nullable=True)
+    next_action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    converted_client_id: Mapped[uuid.UUID | None] = fk(f"{S}.clients.id", nullable=True)
+    converted_contact_id: Mapped[uuid.UUID | None] = fk(f"{S}.contacts.id", nullable=True)
+    converted_deal_id: Mapped[uuid.UUID | None] = fk(f"{S}.deals.id", nullable=True)
+    converted_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+
+
+class SalesContact(BusinessModel):
+    """ENT-Contact — a person at a client (buying committee); replaces the flat client contact
+    columns going forward (those stay, R-DEC-176 g). No `department_id`: follows the client."""
+
+    __tablename__ = "contacts"
+    __table_args__ = schema_args(S)
+
+    code: Mapped[str] = mapped_column(
+        Text, nullable=False, unique=True, server_default=code_default("CT", "contact_code_seq")
+    )
+    client_id: Mapped[uuid.UUID] = fk(f"{S}.clients.id")
+    first_name: Mapped[str] = txt()
+    last_name: Mapped[str | None] = txt(nullable=True)
+    job_title: Mapped[str | None] = txt(nullable=True)
+    department: Mapped[str | None] = txt(nullable=True)  # free text at the client, not hr
+    email: Mapped[str | None] = txt(nullable=True)  # level 3
+    phone: Mapped[str | None] = txt(nullable=True)  # level 3
+    roles: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'")
+    )
+    decision_authority: Mapped[str | None] = txt(nullable=True)
+    influence_level: Mapped[str | None] = mapped_column(INFLUENCE_LEVEL, nullable=True)
+    owner_id: Mapped[uuid.UUID | None] = sr()
+    notes: Mapped[str | None] = txt(nullable=True)
+
+
+class SalesActivity(BusinessModel):
+    """ENT-SalesActivity — call / meeting / demo … on a lead, client, contact or deal.
+
+    Code prefix `SA-` (not `ACT-`: that is the Action Registry, R-DEC-176 e).
+    """
+
+    __tablename__ = "activities"
+    __table_args__ = (
+        CheckConstraint(
+            "lead_id IS NOT NULL OR client_id IS NOT NULL OR contact_id IS NOT NULL "
+            "OR deal_id IS NOT NULL",
+            name="link_required",
+        ),
+        CheckConstraint("end_at IS NULL OR end_at >= start_at", name="end_after_start"),
+        Index("ix_activities_status_start_at", "status", "start_at"),
+        {"schema": S},
+    )
+
+    code: Mapped[str] = mapped_column(
+        Text, nullable=False, unique=True, server_default=code_default("SA", "activity_code_seq")
+    )
+    type: Mapped[str] = mapped_column(ACTIVITY_TYPE, nullable=False)
+    subject: Mapped[str] = txt()
+    description: Mapped[str | None] = txt(nullable=True)
+    lead_id: Mapped[uuid.UUID | None] = fk(f"{S}.leads.id", nullable=True)
+    client_id: Mapped[uuid.UUID | None] = fk(f"{S}.clients.id", nullable=True)
+    contact_id: Mapped[uuid.UUID | None] = fk(f"{S}.contacts.id", nullable=True)
+    deal_id: Mapped[uuid.UUID | None] = fk(f"{S}.deals.id", nullable=True)
+    owner_id: Mapped[uuid.UUID] = sr(nullable=False)
+    department_id: Mapped[uuid.UUID | None] = sr()
+    start_at: Mapped[datetime] = mapped_column(TS, nullable=False)
+    end_at: Mapped[datetime | None] = mapped_column(TS, nullable=True)
+    status: Mapped[str] = mapped_column(
+        ACTIVITY_STATUS, nullable=False, server_default=text("'planned'")
+    )
+    outcome: Mapped[str | None] = txt(nullable=True)
+    next_action: Mapped[str | None] = txt(nullable=True)

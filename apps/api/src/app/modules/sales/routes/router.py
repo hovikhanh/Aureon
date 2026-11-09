@@ -18,6 +18,7 @@ from app.core.errors import BadRequestError
 from app.core.idempotency import Idem
 from app.core.pagination import PageParams, page_params
 from app.core.routing import EnvelopeRouter
+from app.modules.sales.routes.crm import router as crm_router
 from app.modules.sales.schemas import (
     ClientCreate,
     ClientOut,
@@ -325,3 +326,7 @@ async def delete_contract(contract_id: uuid.UUID, db: Db, user: Writer) -> Respo
     await SalesService(db).delete_contract(user, contract_id)
     await db.commit()
     return Response(status_code=204)
+
+
+# R-DEC-176 (D-08, D-21): EP-SAL-10..13 Lead / Contact / Activity + convert (`routes/crm.py`).
+router.include_router(crm_router)

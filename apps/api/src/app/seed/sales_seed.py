@@ -1,5 +1,7 @@
 """Sales seed (T-236, DEC-208) — 20 clients, 30 deals, Q4 + monthly team targets. Idempotent.
 
+CRM (R-DEC-176, D-08): 8 leads, 1 contact per client, 12 activities — `crm_seed.py`.
+
 Clients: the 14 DOC-02 customers + prospect Hoàng Gia (08 §3 DOC-03) + 5 historical ones.
 Deals: 10 won · 5 lost · 5 negotiation · 10 open (lead/qualified/proposal), open ones closing
 in Q4/2026. Targets: team 2026-09 = 28,8 tỷ (DOC-03 → METRIC-FIN-01), 2026-10..12 + Q4/2026.
@@ -16,6 +18,7 @@ from app.modules.finance.models import Revenue
 from app.modules.finance.repositories import RevenueRepository
 from app.modules.sales.models import Client, Deal, SalesTarget
 from app.modules.sales.services.sales_service import normalize_name
+from app.seed.crm_seed import seed_crm
 from app.seed.ids import seed_uuid
 
 SEED: dict[str, Any] = {"source": "SEED"}
@@ -177,6 +180,8 @@ async def seed_sales(db: AsyncSession, owner: uuid.UUID) -> dict[str, int]:
     await db.flush()
     out["deals"] = await seed_deals(db, owner)
     out["targets"] = await seed_targets(db)
+    await db.flush()
+    out.update(await seed_crm(db, owner, [client_id(i) for i in range(len(CLIENTS))]))
     out["revenue_clients"] = await attribute_revenue(db)
     await db.flush()
     return out
