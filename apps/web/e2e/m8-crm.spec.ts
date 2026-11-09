@@ -126,7 +126,10 @@ test.describe("M8 · CRM, approvals, OUT invoice", () => {
     await expect(ceo.getByTestId("approval-title")).toContainText(`Kế toán M8 ${tag}`);
     await ceo.getByTestId("approval-approve").click();
     await ceo.getByTestId("approve-dialog-confirm").click(); // approve: reason optional (reject requires one)
-    await expect(ceo.getByTestId("approval-status")).toContainText(/Đã duyệt|Approved/);
+    // by design the decision closes the detail panel and confirms with a toast; the request then
+    // leaves the pending list (the HR side below checks the plan itself is approved)
+    await expect(ceo.getByRole("status").filter({ hasText: /Đã duyệt yêu cầu|approved/i })).toBeVisible();
+    await expect(item).toHaveCount(0);
 
     await hr.reload();
     await expect(hr.getByTestId("records-hiringPlans-table").getByTestId("record-row").filter({ hasText: `Kế toán M8 ${tag}` })).toContainText("Đã duyệt");
