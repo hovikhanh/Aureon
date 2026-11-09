@@ -189,7 +189,9 @@ async def test_overdue_filter_and_daily_job(api: ApiClient, db_session: AsyncSes
 
 async def test_invoice_permissions_and_404(api: ApiClient) -> None:
     assert (await api.call("GET", f"/finance/invoices/{uuid.uuid4()}")).status_code == 404
-    assert (await api.call("POST", "/finance/invoices", "CEO", json=_inv())).status_code == 403
+    # D-21: the CEO now writes invoices (was 403); a DIR outside khối F still cannot
+    assert (await api.call("POST", "/finance/invoices", "CEO", json=_inv())).status_code == 201
+    assert (await api.call("POST", "/finance/invoices", "VP_SALES", json=_inv())).status_code == 403
     assert (await api.call("GET", "/finance/invoices", "VP_SALES")).status_code == 403
 
 

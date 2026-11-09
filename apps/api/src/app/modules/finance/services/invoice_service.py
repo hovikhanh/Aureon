@@ -120,8 +120,11 @@ class InvoiceService:
     async def list_invoices(
         self, page: PageParams, *, status: str | None, client_id: uuid.UUID | None,
         overdue: bool | None, period: str | None, direction: str | None,
+        created_by: uuid.UUID | None = None,
     ) -> tuple[list[InvoiceOut], int]:  # fmt: skip
         filters: dict[str, Any] = {}
+        if created_by is not None:  # D-20: a MGR's own invoices (manual or IDP commit)
+            filters["created_by"] = created_by
         where = []
         if status:
             filters["status"] = status

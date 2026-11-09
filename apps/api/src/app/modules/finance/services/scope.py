@@ -6,6 +6,10 @@
   `department_id`; revenues, invoices, cash positions and forecasts are company records with no
   department, so nothing there is in a manager's scope (default deny, as DEC-212 for writes).
 - Everyone else holding the permission: whole company (DIR already isolated by khối at the route).
+- D-20 / R-DEC-199: invoices are company records, but a MGR reads (list + detail) the invoices
+  they created themselves — `Invoice.created_by`, which is also the committer of an invoice
+  written through the IDP review (the Action Registry runs `InvoiceService.create` as the
+  reviewer). Invoices created by others stay `FORBIDDEN_SCOPE`; MGR writes stay denied.
 
 Enforced where the REST caller is known. The IDP Action Registry calls the record services with
 the reviewer as actor, under its own `idp:approve` scope, so those services stay scope-free.
@@ -37,6 +41,17 @@ def require_company_reader(user: Principal) -> None:
     require_reader(user)
     if user.role in DEPARTMENT_SCOPED_ROLES:
         raise deny("company finance records", role=user.role)
+
+
+def invoice_creator_filter(user: Principal) -> uuid.UUID | None:
+    """D-20: `created_by` filter of the invoice list — a MGR sees only their own invoices."""
+    return user.user_id if user.role in DEPARTMENT_SCOPED_ROLES else None
+
+
+def check_invoice_reader(user: Principal, created_by: uuid.UUID | None) -> None:
+    """D-20: one invoice — a MGR reads it only when they created it."""
+    if user.role in DEPARTMENT_SCOPED_ROLES and (created_by is None or created_by != user.user_id):
+        raise deny("company invoice", role=user.role)
 
 
 def require_company_writer(user: Principal) -> None:

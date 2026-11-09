@@ -131,7 +131,10 @@ async def test_no_cash_position_and_permissions(
     assert r.json()["error"]["details"]["status_reason"] == "NO_CASH_POSITION"
     rc = await api.call("POST", "/finance/cash-flow-forecast/recompute", json={})
     assert rc.status_code == 404
-    deny = await api.call("POST", "/finance/cash-flow-forecast/recompute", "CEO", json={})
+    # D-21: the CEO holds finance:write now — same business answer as the CFO (was 403)
+    ceo = await api.call("POST", "/finance/cash-flow-forecast/recompute", "CEO", json={})
+    assert ceo.status_code == 404
+    deny = await api.call("POST", "/finance/cash-flow-forecast/recompute", "VP_SALES", json={})
     assert deny.status_code == 403
     bad = await api.call("POST", "/finance/cash-flow-forecast/recompute",
                          json={"assumptions": {"collection_on_time_pct": 120}})  # fmt: skip

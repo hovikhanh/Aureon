@@ -34,18 +34,25 @@ LEGACY_ROLE_MAP: dict[str, str] = {
 }
 
 ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
+    # D-21 / R-DEC-198 (PO 2026-11-09): CEO quản trị toàn bộ dữ liệu nghiệp vụ — thêm, sửa,
+    # xóa ở mọi module (`<domain>:write`, `hr:approve`, `idp:approve`).
     "CEO": (
         "finance:read",
+        "finance:write",
         "finance:query",
         "sales:read",
         "sales:write",
         "sales:query",
         "hr:read",
+        "hr:write",
         "hr:query",
+        "hr:approve",
         "hr:admin",
         "product:read",
+        "product:write",
         "product:query",
         "risk:read",
+        "risk:write",
         "risk:query",
         "risk:approve",
         "execution:read",
@@ -53,6 +60,7 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "execution:query",
         "idp:read",
         "idp:write",
+        "idp:approve",
         "ai:query",
         "ai:write",
         "ai:admin",
@@ -159,7 +167,6 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
 
 ROLE_SCOPES: dict[str, dict[str, str]] = {
     "CEO": {
-        "sales:write": "t",
         "ai:admin": "k",
         "platform:admin": "u",
     },

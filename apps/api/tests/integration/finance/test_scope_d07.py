@@ -69,7 +69,9 @@ async def test_reviewer_has_no_funnel_or_aggregate(api: ApiClient) -> None:
 
 
 # ---------- MGR ◑d: company records ----------
-@pytest.mark.parametrize("url", COMPANY_READS)
+# D-20: `/finance/invoices` left this list — the MGR now lists the invoices they created (only
+# those); detail of someone else's invoice stays FORBIDDEN_SCOPE (below + TC-V4-18).
+@pytest.mark.parametrize("url", [u for u in COMPANY_READS if u != "/finance/invoices"])
 async def test_manager_has_no_company_records(api: ApiClient, url: str) -> None:
     assert _denied(await api.call("GET", url, "MANAGER", department_id=MINE))
 
@@ -100,6 +102,9 @@ async def test_manager_cannot_pay_or_read_an_invoice(api: ApiClient) -> None:
     assert inv.status_code == 201, inv.text
     url = f"/finance/invoices/{inv.json()['data']['id']}"
     assert _denied(await api.call("GET", url, "MANAGER", department_id=MINE))
+    # D-20: the list answers, but holds no invoice the manager did not create
+    listed = await api.call("GET", "/finance/invoices", "MANAGER", department_id=MINE)
+    assert listed.status_code == 200 and listed.json()["data"] == []
     pay = {"amount_paid": 10, "paid_at": "2043-01-20T00:00:00Z", "method": "bank_transfer"}
     assert _denied(await api.call("POST", f"{url}/pay", "MANAGER", department_id=MINE, json=pay))
 

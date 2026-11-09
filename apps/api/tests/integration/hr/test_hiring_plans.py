@@ -105,10 +105,10 @@ async def test_submit_approve_reject_state_machine(
     blank = await api.call("POST", f"{url}/approve", "HR_MANAGER",
                            json={"decision": "reject", "reason": "   "})  # fmt: skip
     assert blank.status_code == 422
-    # CEO / MGR lack hr:approve on EP-86 (the CEO decides in /work/approvals); the CFO has it
-    # through the DIR union but is outside the rule's khối O (R-DEC-173)
-    for role, code in (("CEO", "FORBIDDEN_ROLE"), ("MANAGER", "FORBIDDEN_ROLE"),
-                       ("CFO", "FORBIDDEN_SCOPE")):  # fmt: skip
+    # MGR lacks hr:approve on EP-86; the CFO has it through the DIR union but is outside the
+    # rule's khối O (R-DEC-173). D-21: the CEO now holds hr:approve and decides here too (was
+    # FORBIDDEN_ROLE) — covered by test_ceo_full_crud_d21::test_ceo_hiring_plan_lifecycle.
+    for role, code in (("MANAGER", "FORBIDDEN_ROLE"), ("CFO", "FORBIDDEN_SCOPE")):
         r = await api.call("POST", f"{url}/approve", role,
                            json={"decision": "approve", "reason": "x"})  # fmt: skip
         assert r.status_code == 403 and r.json()["error"]["code"] == code, role

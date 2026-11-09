@@ -85,7 +85,9 @@ async def _company_writer(user: Writer) -> Principal:
 
 
 # Scope marks of 02 §5.3 (D-07): Reader = department-scoped records, Company* = no department.
+# InvoiceReader (D-20): REV out; MGR narrowed to the invoices they created by the service call.
 Reader = Annotated[Principal, Depends(_reader)]
+InvoiceReader = Reader
 CompanyReader = Annotated[Principal, Depends(_company_reader)]
 CompanyWriter = Annotated[Principal, Depends(_company_writer)]
 
@@ -354,7 +356,7 @@ async def update_forecast(
 # ---------- EP-67 invoices (+ lines) / EP-68 pay ----------
 @router.get("/finance/invoices", response_model=list[InvoiceOut])
 async def list_invoices(
-    db: Db, _: CompanyReader,
+    db: Db, user: InvoiceReader,
     page: Annotated[PageParams, Depends(page_params("issued_on", "due_date", "total_amount"))],
     status: InvoiceStatus | None = None, client_id: uuid.UUID | None = None,
     overdue: bool | None = None, period: Period = None,
@@ -362,7 +364,7 @@ async def list_invoices(
 ) -> Any:  # fmt: skip
     items, total = await InvoiceService(db).list_invoices(
         page, status=status, client_id=client_id, overdue=overdue, period=period,
-        direction=direction,
+        direction=direction, created_by=scope.invoice_creator_filter(user),
     )  # fmt: skip
     return Page(items=items, total=total, limit=page.limit, offset=page.offset)
 
@@ -378,9 +380,11 @@ async def create_invoice(body: InvoiceCreate, db: Db, user: CompanyWriter, idem:
 
 
 @router.get("/finance/invoices/{invoice_id}", response_model=InvoiceOut)
-async def get_invoice(invoice_id: uuid.UUID, db: Db, _: CompanyReader) -> Any:
+async def get_invoice(invoice_id: uuid.UUID, db: Db, user: InvoiceReader) -> Any:
     svc = InvoiceService(db)
-    return await svc.out(await svc.get(invoice_id))
+    inv = await svc.get(invoice_id)
+    scope.check_invoice_reader(user, inv.created_by)
+    return await svc.out(inv)
 
 
 @router.patch("/finance/invoices/{invoice_id}", response_model=InvoiceOut)

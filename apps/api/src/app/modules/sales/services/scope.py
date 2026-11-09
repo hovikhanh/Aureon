@@ -6,8 +6,10 @@
   denied (DEC-193).
 - REV (`◑r`): only inside an assigned review session; every general sales read →
   `FORBIDDEN_SCOPE` (D-07, same pattern as hr / product / risk).
-- CEO `sales:write ◑t`: writes **targets only** — any other sales write → `FORBIDDEN_SCOPE`.
-- Deal delete: Sales-DIR only (ex VP_SALES, FR-SAL-01) → `FORBIDDEN_ROLE` for everyone else.
+- CEO: full create / update / delete on every sales record (D-21, R-DEC-198 — replaces the
+  former `◑t` "targets only" mark).
+- Deal delete: Sales-DIR or CEO (ex VP_SALES, FR-SAL-01; D-21) → `FORBIDDEN_ROLE` for everyone
+  else.
 - `sales:query` without `sales:read` (`○`, non-Sales DIR): aggregates only — per-owner
   breakdowns are refused (02 §6.1 #5).
 
@@ -21,7 +23,6 @@ from app.core.errors import PermissionDeniedError, ScopeDeniedError
 
 DEPARTMENT_SCOPED_ROLES = frozenset({"MGR"})
 REVIEW_SCOPED_ROLES = frozenset({"REV"})
-TARGET_ONLY_WRITERS = frozenset({"CEO"})
 
 
 def is_department_scoped(user: Principal) -> bool:
@@ -46,9 +47,11 @@ def require_record_reader(user: Principal) -> None:
 
 
 def require_record_writer(user: Principal) -> None:
-    """Writes on clients / deals / stage / contracts (everything except targets)."""
-    if user.role in TARGET_ONLY_WRITERS:
-        raise ScopeDeniedError("sales:write is limited to revenue targets for this role")
+    """Writes on clients / deals / stage / contracts (everything except targets).
+
+    Kept as the single hook for record-level write rules; every `sales:write` holder passes
+    today (CEO included since D-21).
+    """
 
 
 def require_full_writer(user: Principal) -> None:
@@ -59,8 +62,8 @@ def require_full_writer(user: Principal) -> None:
 
 
 def require_deal_deleter(user: Principal) -> None:
-    if not _is_sales_dir(user):
-        raise PermissionDeniedError("only the sales director may delete deals (FR-SAL-01)")
+    if not (_is_sales_dir(user) or user.role == "CEO"):
+        raise PermissionDeniedError("only the sales director or the CEO may delete deals")
 
 
 def require_target_writer(user: Principal) -> None:

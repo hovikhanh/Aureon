@@ -113,7 +113,10 @@ async def test_forecast_validation(api: ApiClient, patch: dict[str, Any], code: 
 
 async def test_forecast_not_found_and_permissions(api: ApiClient) -> None:
     assert (await api.call("GET", f"/finance/forecasts/{uuid.uuid4()}")).status_code == 404
-    assert (await api.call("POST", "/finance/forecasts", "CEO", json=_body())).status_code == 403
+    # D-21: the CEO now writes forecasts (was 403); a DIR outside khối F still cannot
+    assert (await api.call("POST", "/finance/forecasts", "CEO", json=_body())).status_code == 201
+    vp = await api.call("POST", "/finance/forecasts", "VP_SALES", json=_body())
+    assert vp.status_code == 403
     bad = await api.call("GET", "/finance/forecasts", params={"horizon": "1m"})
     assert bad.status_code == 422
 

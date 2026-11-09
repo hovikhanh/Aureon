@@ -81,7 +81,9 @@ async def test_revenue_list_filters_and_pagination(api: ApiClient) -> None:
 
 
 async def test_revenue_permissions(api: ApiClient) -> None:
-    assert (await api.call("POST", "/finance/revenues", "CEO", json=REV)).status_code == 403
+    # D-21: the CEO now writes finance records (was 403); a DIR outside khối F still cannot
+    assert (await api.call("POST", "/finance/revenues", "CEO", json=REV)).status_code == 201
+    assert (await api.call("POST", "/finance/revenues", "VP_SALES", json=REV)).status_code == 403
     assert (await api.call("GET", "/finance/revenues", "VP_SALES")).status_code == 403
     assert (await api.call("GET", "/finance/revenues", "CEO")).status_code == 200
 

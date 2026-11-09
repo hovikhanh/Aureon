@@ -62,7 +62,8 @@ async def test_contract_crud(api: ApiClient, db_session: AsyncSession) -> None:
     )  # fmt: skip
     assert bad_exp.status_code == 422
     assert (await api.call("GET", f"/sales/contracts/{kid}", "CEO")).status_code == 200
-    assert (await api.call("DELETE", f"/sales/contracts/{kid}", "CEO")).status_code == 403
+    # D-21: the CEO may delete contracts too (test_ceo_full_crud_d21); a non-sales DIR may not
+    assert (await api.call("DELETE", f"/sales/contracts/{kid}", "CFO")).status_code == 403
     assert (await api.call("DELETE", f"/sales/contracts/{kid}", "VP_SALES")).status_code == 204
     assert (await api.call("GET", f"/sales/contracts/{kid}", "VP_SALES")).status_code == 404
     assert await audit_actions(db_session, kid) == [
@@ -132,5 +133,6 @@ async def test_contract_manager_scope(api: ApiClient) -> None:
         json={"deal_id": other_deal["id"], "version": 1},
     )  # fmt: skip
     assert move.status_code == 403
+    # D-21: the CEO now writes contracts (was 403 under the former `sales:write ◑t`)
     ceo = await api.call("POST", "/sales/contracts", "CEO", json=body(c["id"]))
-    assert ceo.status_code == 403
+    assert ceo.status_code == 201

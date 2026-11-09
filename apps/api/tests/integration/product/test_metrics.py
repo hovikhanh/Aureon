@@ -59,8 +59,10 @@ async def test_snapshot_append_and_supersede(api: ApiClient, db_session: AsyncSe
 
 async def test_metric_rbac(api: ApiClient) -> None:
     p = await make_product(api)
-    for role in ("CEO", "CFO", "VP_SALES", "RISK_MANAGER"):
-        r = await post(api, p["id"], snap("2037-02", 1), role=role)
+    # D-21: the CEO now records product metrics (was 403); DIRs outside khối U still cannot
+    assert (await post(api, p["id"], snap("2037-02", 1), role="CEO")).status_code == 201
+    for role in ("CFO", "VP_SALES", "RISK_MANAGER"):
+        r = await post(api, p["id"], snap("2037-03", 1), role=role)
         assert r.status_code == 403, role
     mgr = await api.call(
         "POST",

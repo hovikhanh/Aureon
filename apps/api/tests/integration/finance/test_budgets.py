@@ -131,6 +131,10 @@ async def test_budget_status_period_param_and_permissions(api: ApiClient) -> Non
     bad = await api.call("GET", "/finance/budgets/status", params={"period": "Q3-2031"})
     assert bad.status_code == 400
     assert (await api.call("GET", "/finance/budgets", "HR_MANAGER")).status_code == 403
+    # D-21: the CEO now writes budgets (was 403); a DIR outside khối F still cannot
     assert (
-        await api.call("POST", "/finance/budgets", "CEO", json=_budget(dept))
+        await api.call("POST", "/finance/budgets", "CEO", json=_budget(dept, quarter="Q4"))
+    ).status_code == 201
+    assert (
+        await api.call("POST", "/finance/budgets", "HR_MANAGER", json=_budget(dept))
     ).status_code == 403

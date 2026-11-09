@@ -84,8 +84,9 @@ async def test_client_list_search_and_scope(api: ApiClient) -> None:
     assert r2.json()["meta"]["pagination"]["total"] == 1
     assert (await api.call("GET", "/sales/clients", "CFO")).status_code == 403
     assert normalize_name("  Công-ty  ĐẠI phát ") == "cong ty dai phat"
+    # D-21: the CEO now creates clients (was 403 FORBIDDEN_SCOPE under `sales:write ◑t`)
     ceo = await api.call("POST", "/sales/clients", "CEO", json={"name": uniq()})
-    assert ceo.status_code == 403 and ceo.json()["error"]["code"] == "FORBIDDEN_SCOPE"
+    assert ceo.status_code == 201
     mgr_ok = await api.call("POST", "/sales/clients", "MANAGER", json={"name": uniq()})
     assert mgr_ok.status_code == 201
     mgr_edit = await api.call(
@@ -124,8 +125,8 @@ async def test_deal_crud_rules(api: ApiClient, db_session: AsyncSession) -> None
         json={"client_id": str(uuid.uuid4()), "version": 2},
     )  # fmt: skip
     assert bad_client.status_code == 422
-    for role in ("MANAGER", "CEO"):
-        assert (await api.call("DELETE", f"/sales/deals/{did}", role)).status_code == 403
+    # D-21: the CEO may delete deals too (test_ceo_full_crud_d21); the MGR still may not
+    assert (await api.call("DELETE", f"/sales/deals/{did}", "MANAGER")).status_code == 403
     assert (await api.call("DELETE", f"/sales/deals/{did}", "VP_SALES")).status_code == 204
     assert (await api.call("GET", f"/sales/deals/{did}", "VP_SALES")).status_code == 404
     assert await audit_actions(db_session, did) == [
@@ -183,8 +184,9 @@ async def test_manager_department_scope(api: ApiClient) -> None:
         json={"department_id": str(other), "version": 1},
     )  # fmt: skip
     assert move.status_code == 403
+    # D-21: the CEO now creates deals in any department (was 403 under `sales:write ◑t`)
     ceo = await api.call("POST", "/sales/deals", "CEO", json=deal_body(c["id"]))
-    assert ceo.status_code == 403
+    assert ceo.status_code == 201
 
 
 # ---------- stage transitions + events ----------
@@ -252,7 +254,8 @@ async def test_stage_lost_requires_reason_and_publishes(
 async def test_stage_permissions_and_idempotency(api: ApiClient) -> None:
     c = await make_client(api)
     d = await make_deal(api, c["id"])
-    assert (await stage(api, d["id"], "qualified", "CEO")).status_code == 403
+    # D-21: the CEO now moves deal stages (was 403 under the former `sales:write ◑t`)
+    assert (await stage(api, d["id"], "qualified", "CEO")).status_code == 200
     assert (await stage(api, d["id"], "qualified", "CFO")).status_code == 403
     h = api.headers("VP_SALES", idem=True)
     url = f"/api/v1/sales/deals/{d['id']}/stage"

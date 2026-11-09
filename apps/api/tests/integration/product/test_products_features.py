@@ -66,9 +66,12 @@ async def test_product_crud(api: ApiClient, db_session: AsyncSession) -> None:
 
 async def test_product_rbac_and_scope(api: ApiClient) -> None:
     body = {"code": code(), "name": "x", "owner_id": str(uuid.uuid4())}
-    for role in ("CEO", "CFO", "VP_SALES", "EMPLOYEE", "ADMIN"):
+    for role in ("CFO", "VP_SALES", "EMPLOYEE", "ADMIN"):
         r = await api.call("POST", "/product/products", role, json=body)
         assert r.status_code == 403 and r.json()["error"]["code"] == "FORBIDDEN_ROLE", role
+    # D-21: the CEO now creates products (was 403 FORBIDDEN_ROLE)
+    ceo = await api.call("POST", "/product/products", "CEO", json={**body, "code": code()})
+    assert ceo.status_code == 201, ceo.text
     mgr = await api.call(
         "POST", "/product/products", "MANAGER", json=body, department_id=uuid.uuid4()
     )
