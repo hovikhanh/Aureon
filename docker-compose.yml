@@ -1,156 +1,17 @@
-# Aureon v2.1 — local stack (07 §8.1).
-# Infra only:  docker compose up -d postgres redis minio ollama clamav
-# Full:        docker compose up -d --build
-# Credentials come from .env (copy from .env.example). Never commit .env.
-# WARNING: do not run `docker compose down -v` on a seeded demo — it deletes the named volumes.
+# Aureon v4 — default Compose file. It includes the ONE stack definition, `docker-compose.full.yml`,
+# so these are the same thing and manage the same containers, network and volumes:
+#   docker compose up -d            ==  docker compose -f docker-compose.full.yml up -d
+#   docker compose ps / logs / ...
+# Infra only (host-side development, `pnpm dev`): docker compose up -d postgres redis minio ollama clamav mailpit
+#
+# Why (2026-11-09): this file used to define its own postgres/redis/... on the default network
+# with the same project name `aureon`. A plain `docker compose up -d` then re-created those
+# containers on `aureon_default` while api/web stayed on `aureon-net` → the API lost its database
+# and every login failed. One definition removes that trap.
+#
+# WARNING: never `docker compose down -v` on the demo — it deletes the named volumes (all data).
 
 name: aureon
 
-x-app: &app
-  build:
-    context: .
-    dockerfile: apps/api/Dockerfile
-  image: aureon-api:local
-  restart: unless-stopped
-  env_file: .env
-  environment:
-    # In-network hostnames override the localhost values used by host-side dev.
-    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/1
-    CELERY_RESULT_BACKEND: redis://redis:6379/2
-    OLLAMA_BASE_URL: http://ollama:11434
-    CLAMAV_HOST: clamav
-  volumes:
-    - ./secrets:/app/secrets:ro
-  depends_on:
-    postgres:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
-
-services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  minio:
-    # Upstream minio/minio images are no longer published on Docker Hub;
-    # Chainguard ships the same MinIO server binary (see DEC-114).
-    image: cgr.dev/chainguard/minio:latest
-    restart: unless-stopped
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  # Local LLM runtime (DEC-142 bge-m3 embedding, DEC-157 qwen2.5:7b-instruct chat for CONFIDENTIAL).
-  # Models: docker exec ollama ollama pull bge-m3 && docker exec ollama ollama pull qwen2.5:7b-instruct
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      # Image ships no curl; `ollama list` calls GET /api/tags on the local server.
-      test: ["CMD", "ollama", "list"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
-
-  # Malware scan (DEC-138, FR-DC-02). First start downloads signatures (~300 MB, a few minutes).
-  clamav:
-    image: clamav/clamav:latest
-    container_name: clamav
-    restart: unless-stopped
-    ports:
-      - "${CLAMAV_PORT:-3310}:3310"
-    volumes:
-      - clamav_data:/var/lib/clamav
-    healthcheck:
-      test: ["CMD", "clamdscan", "--ping", "3"]
-      interval: 30s
-      timeout: 15s
-      retries: 10
-      start_period: 300s
-
-  # Dev SMTP sink for notification e-mails (R-DEC-20). UI: http://localhost:8025
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: mailpit
-    restart: unless-stopped
-    ports:
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-      - "${MAILPIT_UI_PORT:-8025}:8025"
-
-  celery-worker:
-    <<: *app
-    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info", "-Q", "default,idp,events"]
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A app.worker inspect ping -d celery@$$HOSTNAME --timeout 5"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 30s
-
-  celery-beat:
-    <<: *app
-    # Exactly ONE beat instance (CLAUDE.md §6.5) — never scale this service.
-    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "-s", "/tmp/celerybeat-schedule"]
-    deploy:
-      replicas: 1
-    healthcheck:
-      # Beat touches its schedule DB on every tick.
-      test: ["CMD-SHELL", "test -n \"$$(find /tmp -maxdepth 1 -name 'celerybeat-schedule*' -mmin -5)\""]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-volumes:
-  pg_data:
-  redis_data:
-  minio_data:
-  ollama_data:
-  clamav_data:
+include:
+  - docker-compose.full.yml

@@ -1,11 +1,13 @@
 """T-515 — health / readiness / liveness / metrics probes (TC-OPS-HEALTH-01..05)."""
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core import health
+from app.core.config import get_config
 from app.main import create_app
 
 
@@ -57,9 +59,31 @@ def test_required_dependency_down(client: TestClient, monkeypatch: pytest.Monkey
     assert client.get("/health").status_code == 503
     ready = client.get("/health/ready")
     assert ready.status_code == 503
-    expected = {"db": "unavailable", "redis": "ok"}
+    expected = {"db": "unavailable", "redis": "ok", "signing_keys": "ok"}
     assert ready.json() == {"status": "not_ready", "dependencies": expected}
     assert client.get("/health/live").status_code == 200  # liveness ignores dependencies
+
+
+def test_ready_reports_unreadable_signing_keys(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Docker Desktop + WSL2 reboot: `./keys` mounted empty → logins 500 while DB/Redis are fine;
+    readiness must fail so the container is unhealthy (README Troubleshooting)."""
+    _patch(monkeypatch)
+    assert client.get("/health/ready").json()["dependencies"]["signing_keys"] == "ok"
+    cfg = get_config()
+    monkeypatch.setattr(cfg, "jwt_public_key", None)
+    monkeypatch.setattr(cfg, "jwt_private_key", None)
+    monkeypatch.setattr(cfg, "jwt_public_key_path", tmp_path / "jwt_public.pem")
+    monkeypatch.setattr(cfg, "jwt_private_key_path", tmp_path / "jwt_private.pem")
+    ready = client.get("/health/ready")
+    assert ready.status_code == 503
+    assert ready.json()["dependencies"] == {
+        "db": "ok",
+        "redis": "ok",
+        "signing_keys": "unavailable",
+    }
+    assert client.get("/health").status_code == 200  # EP-01 shape unchanged; DB/Redis still up
 
 
 def test_ep01_enveloped_public(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

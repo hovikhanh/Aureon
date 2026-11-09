@@ -1,10 +1,10 @@
-# Aureon v2.1 — FULL demo stack (T-513): 9 services, production-like.
+# Aureon v4 — FULL demo stack (T-513): the single stack definition (`docker-compose.yml` includes it).
 #   cp .env.example .env   # fill dev values; never commit .env
 #   ./scripts/generate_keys.sh   # RS256 pair → ./keys (gitignored)
 #   docker compose -f docker-compose.full.yml up -d --build
 #   open http://localhost:3000
-# API: http://localhost:4000/health · Same project name as docker-compose.yml → shares the
-# seeded volumes. WARNING: never `down -v` on a seeded demo; use scripts/demo_reset.sh.
+# API: http://localhost:4000/health · `docker-compose.yml` includes this file, so plain
+# `docker compose ...` manages the same project `aureon` and its volumes. WARNING: never `down -v` on a seeded demo; use scripts/demo_reset.sh.
 
 name: aureon
 
@@ -121,7 +121,9 @@ services:
   api:
     <<: *backend
     # Migrate + idempotent seed (DEC-062) then serve. Safe on every restart.
-    command: ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 4000 --proxy-headers"]
+    # `app.preflight` first: keys + IDP storage mounted and DB reachable, else exit so Docker restarts
+    # the container (Docker Desktop + WSL2 reboot mounts `./keys` empty — README Troubleshooting).
+    command: ["sh", "-c", "python -m app.preflight && alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 4000 --proxy-headers"]
     ports: ["${API_PORT:-4000}:4000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(urllib.request.urlopen('http://127.0.0.1:4000/health/ready', timeout=4).status != 200)"]
@@ -132,7 +134,7 @@ services:
 
   celery-worker:
     <<: *backend
-    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info", "-Q", "default,idp,events"]
+    command: ["sh", "-c", "python -m app.preflight && exec celery -A app.worker worker --loglevel=info -Q default,idp,events"]
     depends_on:
       <<: *backend-deps
       api:
@@ -147,7 +149,7 @@ services:
   celery-beat:
     <<: *backend
     # Exactly ONE beat instance (CLAUDE.md §6.5) — never scale this service.
-    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "-s", "/tmp/celerybeat-schedule"]
+    command: ["sh", "-c", "python -m app.preflight && exec celery -A app.worker beat --loglevel=info -s /tmp/celerybeat-schedule"]
     deploy:
       replicas: 1
     depends_on:

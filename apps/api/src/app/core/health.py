@@ -55,6 +55,19 @@ async def check_clamav() -> None:
     await asyncio.to_thread(_clamd_ping)
 
 
+def _load_signing_keys() -> None:
+    from app.core.security import load_keys  # uncached read: a restart may remount the files
+
+    load_keys(get_config(), need_private=True)
+
+
+async def check_signing_keys() -> DepStatus:
+    """Readiness only: the JWT key pair is readable. On Docker Desktop + WSL2 a container started
+    before the distro's filesystem is up gets an empty bind mount (`./keys`), and every login then
+    fails with 500 while DB/Redis look fine — so `/health/ready` must report it."""
+    return await _probe(lambda: asyncio.to_thread(_load_signing_keys))
+
+
 CHECKS: dict[str, Callable[[], Awaitable[None]]] = {
     "db": check_db,
     "redis": check_redis,

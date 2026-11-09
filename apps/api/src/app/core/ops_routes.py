@@ -2,7 +2,7 @@
 
 Plain Starlette routes (not `APIRoute`, no envelope) for Docker / k8s:
 - `GET /health`       → 200 `{status, version, uptime, dependencies}`; 503 only when DB/Redis down.
-- `GET /health/ready` → readiness: DB + Redis only.
+- `GET /health/ready` → readiness: DB + Redis + readable JWT signing keys.
 - `GET /health/live`  → liveness: 200 while the process serves requests.
 - `GET /metrics`      → Prometheus text exposition (no client library; DEC: no new deps).
 EP-01 (`/api/v1/health`, enveloped) lives in `app.modules.platform.routes.health`.
@@ -16,7 +16,13 @@ from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app import __version__
-from app.core.health import REQUIRED, health_payload, run_checks, uptime_seconds
+from app.core.health import (
+    REQUIRED,
+    check_signing_keys,
+    health_payload,
+    run_checks,
+    uptime_seconds,
+)
 
 NO_STORE = {"Cache-Control": "no-store"}
 _requests: Counter[tuple[str, int]] = Counter()
@@ -49,6 +55,7 @@ async def health(_: Request) -> Response:
 
 async def ready(_: Request) -> Response:
     deps = await run_checks(REQUIRED)
+    deps["signing_keys"] = await check_signing_keys()
     ok = all(v == "ok" for v in deps.values())
     body = {"status": "ready" if ok else "not_ready", "dependencies": deps}
     return JSONResponse(body, status_code=200 if ok else 503, headers=NO_STORE)
