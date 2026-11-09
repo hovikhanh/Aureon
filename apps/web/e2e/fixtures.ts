@@ -5,6 +5,7 @@ import { test as base, expect, request, type Page } from "@playwright/test";
  *  - every `mock` test starts from a fresh in-memory mock store (`POST /api/backend/__mock/reset`,
  *    mock mode only) — the store lives as long as the dev server, so state from an earlier spec
  *    (decided approvals, imports, time-relative seeds like `due_at = now + 6h`) must not leak;
+ *  - a `goto` superseded by an in-app redirect (`net::ERR_ABORTED`) is retried once;
  *  - every full page load (`goto` / `reload`) waits until React has hydrated (`<html data-hydrated>`
  *    set by `app/providers.tsx`) — under an on-demand compile the SSR HTML is visible before the
  *    client bundle attaches handlers, and a click on a `<Link>` then is lost.
@@ -22,8 +23,17 @@ export const test = base.extend({
     const goto = page.goto.bind(page);
     const reload = page.reload.bind(page);
     page.goto = async (url, options) => {
-      const res = await goto(url, options);
-      await waitForHydration(page);
+      let res;
+      try {
+        res = await goto(url, options);
+      } catch (e) {
+        // the app's own redirect (e.g. to /login after the session cookie was cleared) superseded
+        // this navigation: let it settle, then navigate once more — the target is unchanged
+        if (!String(e).includes("net::ERR_ABORTED")) throw e;
+        await page.waitForLoadState("load").catch(() => undefined);
+        res = await goto(url, options);
+      }
+      if (!url.startsWith("about:")) await waitForHydration(page);
       return res;
     };
     page.reload = async (options) => {

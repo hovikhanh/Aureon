@@ -28,7 +28,12 @@ function support(...args: string[]): string {
   return runSupport("onboarding_e2e.py", args, { timeout: 180_000, env: ENV });
 }
 const lastJson = <T,>(out: string): T => JSON.parse(out.trim().split("\n").pop() ?? "{}") as T;
-const logout = (page: Page) => page.context().clearCookies();
+/** Drop the session and leave the app first: the open page notices the lost session and
+ *  redirects to /login on its own, which would race (ERR_ABORTED) with the next `goto("/login")`. */
+const logout = async (page: Page) => {
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+};
 const idem = () => ({ "Idempotency-Key": randomUUID() });
 
 async function upload(page: Page, name: string): Promise<void> {
