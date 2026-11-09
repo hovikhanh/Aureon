@@ -9,8 +9,11 @@ import asyncio
 import importlib
 import uuid
 
+from celery.signals import worker_ready
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_config
+from app.core.model_gateway import ModelGateway
 from app.core.tenant import TenantContextMissingError, tenant_scope
 from app.modules.idp.services.gateway import pipeline_gateway
 from app.modules.idp.services.pipeline import Pipeline
@@ -38,3 +41,11 @@ def process_document(document_id: str, tenant_id: str | None = None) -> str:
     if not tenant_id:
         raise TenantContextMissingError("process_document without tenant_id (R-DEC-21)")
     return asyncio.run(_run(document_id, tenant_id))
+
+
+@worker_ready.connect  # type: ignore[untyped-decorator]
+def warm_local_model(**_: object) -> None:
+    """D-19: load the local extraction model when the worker starts, so the first uploaded
+    document does not also pay the model load. Best effort; a no-op in fixture mode."""
+    if get_config().ai_warmup_on_start:
+        asyncio.run(ModelGateway().warm("extract"))

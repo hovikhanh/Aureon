@@ -87,6 +87,9 @@ class ChatResponse:
     finish_reason: str = "stop"
     fallback_from: str | None = None
     data: Any = None  # parsed JSON when `json_schema` was requested
+    # D-19: provider-reported timings in ms (Ollama: prompt_eval / eval / load) — logged, never
+    # part of the fixture or the cost; `None` when the provider does not report them.
+    timings: dict[str, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -96,3 +99,6 @@ class ChatChunk:
     usage: Usage | None = None
     provider: str = ""
     model: str = ""
+    # D-19: a streamed turn may end in tool calls instead of text (sent with the `done` chunk)
+    tool_calls: tuple[ToolCall, ...] = ()
+    timings: dict[str, int] | None = None

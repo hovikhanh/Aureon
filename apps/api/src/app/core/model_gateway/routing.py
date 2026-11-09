@@ -121,6 +121,15 @@ def models_for(cfg: "ConfigService", task: TaskKind, provider: str) -> list[str]
     return list(dict.fromkeys(chain)) or [base]
 
 
+EXTRACT_TASKS: frozenset[str] = frozenset({"extract", "classify", "mapping"})
+
+
 def timeout_for(cfg: "ConfigService", task: TaskKind) -> float:
-    """Per-call timeout: chat uses `CHAT_TIMEOUT_SECONDS` (T-509), others `AI_TURN_TIMEOUT_SEC`."""
-    return cfg.chat_timeout_seconds if task == "chat" else cfg.ai_turn_timeout_sec
+    """Per-call deadline: chat `CHAT_TIMEOUT_SECONDS` (T-509); document work (extract / classify
+    / mapping) `EXTRACT_TIMEOUT_SECONDS` (D-19: minutes on a CPU host, in the worker); the rest
+    `AI_TURN_TIMEOUT_SEC`."""
+    if task == "chat":
+        return cfg.chat_timeout_seconds
+    if task in EXTRACT_TASKS:
+        return cfg.extract_timeout_seconds
+    return cfg.ai_turn_timeout_sec

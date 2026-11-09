@@ -3,7 +3,9 @@
 Live paths use `respx` (DEC-139) — no real network. Fixture mode asserts no HTTP at all.
 """
 
+import asyncio
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +30,7 @@ from app.core.model_gateway.cost import estimate_cost_micro_usd
 from app.core.model_gateway.fixtures import FixtureStore
 from app.core.model_gateway.gateway import CircuitBreaker
 from app.core.model_gateway.routing import model_for, route
-from app.core.model_gateway.types import ChatResponse, Usage
+from app.core.model_gateway.types import ChatResponse, ToolCall, Usage
 
 KEYS = ("omniroute", "openrouter", "ninerouter", "deepseek", "openai", "anthropic")
 
@@ -68,6 +70,17 @@ def ok_body(content: str = "Doanh thu 27,5 tỷ", model: str = "auto/coding") ->
         "choices": [{"message": {"content": content}, "finish_reason": "stop"}],
         "usage": {"prompt_tokens": 1000, "completion_tokens": 200},
     }
+
+
+def ollama_body(content: str = "Doanh thu 27,5 tỷ", model: str = "qwen2.5:3b-instruct",
+                tool_calls: list[dict[str, Any]] | None = None) -> dict[str, Any]:  # fmt: skip
+    """Ollama native `/api/chat` answer (D-19): durations in ns, token counts per phase."""
+    msg: dict[str, Any] = {"role": "assistant", "content": content}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return {"model": model, "message": msg, "done": True, "done_reason": "stop",
+            "prompt_eval_count": 120, "prompt_eval_duration": 4_000_000_000,
+            "eval_count": 30, "eval_duration": 6_000_000_000, "load_duration": 0}  # fmt: skip
 
 
 async def _no_sleep(_: float) -> None:
@@ -237,8 +250,8 @@ async def test_circuit_breaker_skips_provider() -> None:
 @respx.mock
 async def test_confidential_uses_ollama_never_cloud() -> None:
     cloud = respx.post(url__regex=r"https://.*\.test/v1/chat/completions")
-    local = respx.post("http://ollama.test:11434/v1/chat/completions").mock(
-        return_value=httpx.Response(200, json=ok_body(model="qwen2.5:7b-instruct"))
+    local = respx.post("http://ollama.test:11434/api/chat").mock(  # native API (D-19)
+        return_value=httpx.Response(200, json=ollama_body(model="qwen2.5:7b-instruct"))
     )
     sink = NullSink()
     resp = await gw(cfg(), sink).chat(req("CONFIDENTIAL"))
@@ -246,6 +259,7 @@ async def test_confidential_uses_ollama_never_cloud() -> None:
     assert local.calls.last.request.headers.get("authorization") is None  # no key to local
     sent = json.loads(local.calls.last.request.content)
     assert sent["model"] == "qwen2.5:7b-instruct"
+    assert sent["keep_alive"] == "30m" and sent["options"]["num_ctx"] == 4096
     assert cloud.call_count == 0
     assert sink.records[-1].route_reason == "confidential: local"
 
@@ -253,9 +267,7 @@ async def test_confidential_uses_ollama_never_cloud() -> None:
 @respx.mock
 async def test_confidential_local_down_goes_template_not_cloud() -> None:
     cloud = respx.post(url__regex=r"https://.*\.test/v1/chat/completions")
-    respx.post("http://ollama.test:11434/v1/chat/completions").mock(
-        side_effect=httpx.ConnectError("down")
-    )
+    respx.post("http://ollama.test:11434/api/chat").mock(side_effect=httpx.ConnectError("down"))
     sink = NullSink()
     with pytest.raises(TemplateRequired) as exc:
         await gw(cfg(), sink).chat(req("CONFIDENTIAL"))
@@ -486,9 +498,7 @@ async def test_stream_fixture_mode(tmp_path: Path) -> None:
 
 @respx.mock
 async def test_stream_secret_and_confidential_template() -> None:
-    respx.post("http://ollama.test:11434/v1/chat/completions").mock(
-        return_value=httpx.Response(503)
-    )
+    respx.post("http://ollama.test:11434/api/chat").mock(return_value=httpx.Response(503))
     with pytest.raises(SecretDataBlockedError):
         [c async for c in gw(cfg()).stream(req("SECRET"))]
     with pytest.raises(TemplateRequired):
@@ -530,7 +540,9 @@ def test_chat_model_chain_and_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MODEL_CHAT__OMNIROUTE", "pinned")
     assert models_for(c, "chat", "omniroute") == ["pinned"]  # explicit override wins
     assert timeout_for(cfg(chat_timeout_seconds=90), "chat") == 90
-    assert timeout_for(cfg(ai_turn_timeout_sec=30), "extract") == 30
+    assert timeout_for(cfg(ai_turn_timeout_sec=30), "insight") == 30
+    # D-19: document work has its own deadline (minutes on a CPU host, in the worker)
+    assert timeout_for(cfg(extract_timeout_seconds=180), "extract") == 180
 
 
 @respx.mock
@@ -592,3 +604,99 @@ async def test_stt_live_not_configured(tmp_path: Path) -> None:
         await gw(cfg(model_gateway_mode="live"), fixtures=FixtureStore(tmp_path)).transcribe(
             audio_ref="AUDIO-REF-1", caller_module="idp"
         )
+
+
+# --- D-19: Ollama native adapter (keep_alive, num_ctx, timings, streaming tools) ---------
+
+
+@respx.mock
+async def test_ollama_native_chat_maps_tools_usage_and_timings() -> None:
+    route = respx.post("http://ollama.test:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=ollama_body(content="", tool_calls=[
+            {"function": {"name": "TOOL-get_finance_dashboard", "arguments": {"period": "2026-Q3"}}}
+        ]))
+    )  # fmt: skip
+    c = cfg(ollama_keep_alive="45m", ollama_num_ctx=2048)
+    tool = ToolSpec("TOOL-get_finance_dashboard", "Finance card", {"type": "object"})
+    r = replace(req("CONFIDENTIAL"), tools=(tool,), json_schema=None, max_output_tokens=64)
+    resp = await gw(c).chat(r)
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["keep_alive"] == "45m" and sent["stream"] is False
+    assert sent["options"] == {"temperature": 0.2, "num_predict": 64, "num_ctx": 2048}
+    assert sent["tools"][0]["function"]["name"] == "TOOL-get_finance_dashboard"
+    assert resp.tool_calls == (
+        ToolCall("call_1", "TOOL-get_finance_dashboard", {"period": "2026-Q3"}),
+    )
+    assert resp.usage == Usage(120, 30)
+    assert resp.timings == {"prompt_eval_ms": 4000, "eval_ms": 6000, "load_ms": 0,
+                            "prompt_tokens": 120, "gen_tokens": 30}  # fmt: skip
+
+
+@respx.mock
+async def test_ollama_native_structured_output_uses_format() -> None:
+    route = respx.post("http://ollama.test:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=ollama_body(content='{"total": {"value": 5}}'))
+    )
+    schema = {"type": "object", "properties": {"total": {"type": "object"}}}
+    r = replace(req("CONFIDENTIAL"), task="extract", json_schema=schema)
+    resp = await gw(cfg()).extract(r)
+    assert json.loads(route.calls.last.request.content)["format"] == schema
+    assert resp.data == {"total": {"value": 5}}
+
+
+@respx.mock
+async def test_ollama_native_stream_yields_tokens_then_tool_calls() -> None:
+    lines = [
+        {"message": {"content": "Doanh "}, "done": False},
+        {"message": {"content": "thu"}, "done": False},
+        {"message": {"content": "", "tool_calls": [
+            {"function": {"name": "TOOL-get_metric", "arguments": {"metric_code": "M"}}}]},
+         "done": False},
+        {"message": {"content": ""}, "done": True, "prompt_eval_count": 9, "eval_count": 2,
+         "prompt_eval_duration": 1_000_000, "eval_duration": 2_000_000},
+    ]  # fmt: skip
+    body = "\n".join(json.dumps(x) for x in lines) + "\n"
+    respx.post("http://ollama.test:11434/api/chat").mock(
+        return_value=httpx.Response(200, text=body)
+    )
+    sink = NullSink()
+    chunks = [c async for c in gw(cfg(), sink).stream(req("CONFIDENTIAL"))]
+    assert "".join(c.delta for c in chunks) == "Doanh thu"
+    assert chunks[-1].done and chunks[-1].usage == Usage(9, 2)
+    assert chunks[-1].tool_calls == (ToolCall("call_1", "TOOL-get_metric", {"metric_code": "M"}),)
+    assert sink.records[-1].status == "ok" and sink.records[-1].provider == "ollama"
+
+
+@respx.mock
+async def test_ollama_whole_call_deadline_is_a_timeout() -> None:
+    async def slow(_: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(1)
+        return httpx.Response(200, json=ollama_body())
+
+    respx.post("http://ollama.test:11434/api/chat").mock(side_effect=slow)
+    sink = NullSink()
+    c = cfg(chat_timeout_seconds=0.05)
+    with pytest.raises(TemplateRequired):  # CONFIDENTIAL: local timed out → template, not cloud
+        await gw(c, sink).chat(replace(req("CONFIDENTIAL"), task="chat"))
+    assert sink.records[0].status == "timeout"
+    assert sink.records[0].error_code == "AI_PROVIDER_TIMEOUT"
+
+
+def test_task_timeouts_d19() -> None:
+    from app.core.model_gateway.routing import timeout_for
+
+    c = cfg(chat_timeout_seconds=90, extract_timeout_seconds=180, ai_turn_timeout_sec=30)
+    assert [timeout_for(c, t) for t in ("chat", "extract", "classify", "mapping", "insight")] == [
+        90, 180, 180, 180, 30]  # fmt: skip
+
+
+@respx.mock
+async def test_warm_loads_the_local_model_with_keep_alive() -> None:
+    route = respx.post("http://ollama.test:11434/api/generate").mock(
+        return_value=httpx.Response(200, json={"done": True})
+    )
+    model = await gw(cfg(local_chat_model="qwen2.5:3b-instruct")).warm("chat")
+    assert model == "qwen2.5:3b-instruct"
+    assert json.loads(route.calls.last.request.content) == {
+        "model": "qwen2.5:3b-instruct", "keep_alive": "30m"}  # fmt: skip
+    assert await gw(cfg(model_gateway_mode="fixture")).warm("chat") is None

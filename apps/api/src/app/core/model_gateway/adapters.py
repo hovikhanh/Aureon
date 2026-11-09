@@ -6,6 +6,7 @@ tools ↔ `tool_use` / `tool_result`. Errors become `ProviderCallError` (status 
 response body is never logged or raised, it may echo the prompt).
 """
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
@@ -212,6 +213,7 @@ class OpenAICompatAdapter:
                     timeout=False,
                 )  # fmt: skip
             usage: Usage | None = None
+            parts: dict[int, dict[str, str]] = {}  # streamed tool calls arrive in fragments
             async for line in r.aiter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -223,10 +225,23 @@ class OpenAICompatAdapter:
                     u = event["usage"]
                     usage = openai_usage(u)
                 for ch in event.get("choices") or ():
-                    delta = (ch.get("delta") or {}).get("content")
-                    if delta:
-                        yield ChatChunk(delta=delta, provider=self.name, model=model)
-            yield ChatChunk(done=True, usage=usage, provider=self.name, model=model)
+                    d = ch.get("delta") or {}
+                    for tc in d.get("tool_calls") or ():
+                        acc = parts.setdefault(
+                            int(tc.get("index", 0)), {"id": "", "name": "", "args": ""}
+                        )
+                        fn = tc.get("function") or {}
+                        acc["id"] = tc.get("id") or acc["id"]
+                        acc["name"] += fn.get("name") or ""
+                        acc["args"] += fn.get("arguments") or ""
+                    if d.get("content"):
+                        yield ChatChunk(delta=d["content"], provider=self.name, model=model)
+            calls = tuple(
+                ToolCall(id=p["id"], name=p["name"], arguments=_tool_args(self.name, p["args"]))
+                for _, p in sorted(parts.items())
+            )
+            yield ChatChunk(done=True, usage=usage, provider=self.name, model=model,
+                            tool_calls=calls)  # fmt: skip
 
 
 class AnthropicAdapter:
@@ -301,4 +316,139 @@ class AnthropicAdapter:
         resp = await self.chat(req, model=model, timeout_s=timeout_s)
         if resp.content:
             yield ChatChunk(delta=resp.content, provider=self.name, model=resp.model)
-        yield ChatChunk(done=True, usage=resp.usage, provider=self.name, model=resp.model)
+        yield ChatChunk(done=True, usage=resp.usage, provider=self.name, model=resp.model,
+                        tool_calls=resp.tool_calls)  # fmt: skip
+
+
+def _ollama_timings(event: dict[str, Any]) -> dict[str, int]:
+    """Ollama reports durations in ns; keep ms + the token counts behind them (D-19 evidence)."""
+    ms = {k: int((event.get(f"{k}_duration") or 0) / 1e6) for k in ("prompt_eval", "eval", "load")}
+    return {**{f"{k}_ms": v for k, v in ms.items()},
+            "prompt_tokens": int(event.get("prompt_eval_count") or 0),
+            "gen_tokens": int(event.get("eval_count") or 0)}  # fmt: skip
+
+
+def _ollama_calls(msg: dict[str, Any], offset: int = 0) -> tuple[ToolCall, ...]:
+    """Native tool calls carry no id: number them so `tool` replies can be paired."""
+    return tuple(
+        ToolCall(
+            id=str(c.get("id") or f"call_{offset + i + 1}"),
+            name=str((c.get("function") or {}).get("name") or ""),
+            arguments=_tool_args("ollama", (c.get("function") or {}).get("arguments")),
+        )
+        for i, c in enumerate(msg.get("tool_calls") or ())
+    )
+
+
+class OllamaAdapter(OpenAICompatAdapter):
+    """Ollama native `POST {root}/api/chat` (D-19). The OpenAI-compatible route ignores
+    `keep_alive` and `num_ctx`: on a CPU host the model then unloads after 5 minutes idle and the
+    next demo turn pays the reload. The native route also reports prompt-eval / generation time.
+    Embeddings stay on the OpenAI-compatible `/v1/embeddings` (inherited)."""
+
+    def __init__(
+        self, root_url: str, *, temperature: float, max_tokens: int, keep_alive: str,
+        num_ctx: int,
+    ) -> None:  # fmt: skip
+        self.root = root_url.rstrip("/")
+        super().__init__("ollama", self.root + "/v1", None, temperature=temperature,
+                         max_tokens=max_tokens)  # fmt: skip
+        self.keep_alive, self.num_ctx = keep_alive, num_ctx
+
+    @staticmethod
+    def _native_message(m: Message) -> dict[str, Any]:
+        out: dict[str, Any] = {"role": m.role, "content": m.content}
+        if m.tool_calls:
+            out["tool_calls"] = [
+                {"function": {"name": c.name, "arguments": c.arguments}} for c in m.tool_calls
+            ]
+        return out
+
+    def native_body(self, req: ChatRequest, model: str, *, stream: bool) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": [self._native_message(m) for m in req.messages],
+            "stream": stream,
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": self.temperature if req.temperature is None else req.temperature,
+                "num_predict": req.max_output_tokens or self.max_tokens,
+                "num_ctx": self.num_ctx,
+            },
+        }
+        if req.tools:
+            body["tools"] = self._body(req, model, stream=False)["tools"]
+        if req.json_schema is not None:
+            body["format"] = req.json_schema
+        return body
+
+    async def chat(self, req: ChatRequest, *, model: str, timeout_s: float) -> ChatResponse:
+        try:
+            async with (
+                asyncio.timeout(timeout_s),
+                httpx.AsyncClient(timeout=_timeout(timeout_s)) as client,
+            ):
+                data = await _post(client, self.name, f"{self.root}/api/chat",
+                                   self.native_body(req, model, stream=False), {})  # fmt: skip
+        except TimeoutError as exc:
+            raise ProviderCallError(self.name, retryable=True, status=None, timeout=True) from exc
+        msg = data.get("message") or {}
+        timings = _ollama_timings(data)
+        return ChatResponse(
+            content=msg.get("content") or "",
+            provider=self.name,
+            model=data.get("model") or model,
+            usage=Usage(timings["prompt_tokens"], timings["gen_tokens"]),
+            tool_calls=_ollama_calls(msg),
+            finish_reason=data.get("done_reason") or "stop",
+            timings=timings,
+        )
+
+    async def stream(
+        self, req: ChatRequest, *, model: str, timeout_s: float
+    ) -> AsyncIterator[ChatChunk]:
+        """NDJSON token stream. `timeout_s` bounds the whole call: the socket idle timeout covers
+        the prompt evaluation, the deadline is re-checked on every line."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_s
+        calls: tuple[ToolCall, ...] = ()
+        try:
+            async with (
+                httpx.AsyncClient(timeout=_timeout(timeout_s)) as client,
+                client.stream("POST", f"{self.root}/api/chat",
+                              json=self.native_body(req, model, stream=True)) as r,
+            ):  # fmt: skip
+                if r.status_code >= 400:
+                    raise ProviderCallError(
+                        self.name, retryable=_retryable(r.status_code), status=r.status_code,
+                        timeout=False,
+                    )  # fmt: skip
+                async for line in r.aiter_lines():
+                    if loop.time() > deadline:
+                        raise ProviderCallError(self.name, retryable=True, status=None,
+                                                timeout=True)  # fmt: skip
+                    if not line.strip():
+                        continue
+                    event = json.loads(line)
+                    msg = event.get("message") or {}
+                    calls += _ollama_calls(msg, len(calls))
+                    if msg.get("content"):
+                        yield ChatChunk(delta=msg["content"], provider=self.name, model=model)
+                    if event.get("done"):
+                        t = _ollama_timings(event)
+                        yield ChatChunk(
+                            done=True, usage=Usage(t["prompt_tokens"], t["gen_tokens"]),
+                            provider=self.name, model=model, tool_calls=calls, timings=t,
+                        )  # fmt: skip
+                        return
+        except httpx.TimeoutException as exc:
+            raise ProviderCallError(self.name, retryable=True, status=None, timeout=True) from exc
+        except httpx.TransportError as exc:
+            raise ProviderCallError(self.name, retryable=True, status=None, timeout=False) from exc
+        yield ChatChunk(done=True, provider=self.name, model=model, tool_calls=calls)
+
+    async def warm(self, model: str, *, timeout_s: float = 120.0) -> None:
+        """Load `model` into RAM with this adapter's `keep_alive` (no prompt, no generation)."""
+        async with httpx.AsyncClient(timeout=_timeout(timeout_s)) as client:
+            await _post(client, self.name, f"{self.root}/api/generate",
+                        {"model": model, "keep_alive": self.keep_alive}, {})  # fmt: skip

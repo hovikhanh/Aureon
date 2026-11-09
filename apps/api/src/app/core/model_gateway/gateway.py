@@ -23,7 +23,12 @@ from typing import Literal, Protocol
 
 from app.core.config import ConfigService, get_config
 from app.core.errors import ai_error
-from app.core.model_gateway.adapters import Adapter, AnthropicAdapter, OpenAICompatAdapter
+from app.core.model_gateway.adapters import (
+    Adapter,
+    AnthropicAdapter,
+    OllamaAdapter,
+    OpenAICompatAdapter,
+)
 from app.core.model_gateway.cost import estimate_cost_micro_usd
 from app.core.model_gateway.errors import (
     ProviderCallError,
@@ -47,6 +52,7 @@ from app.core.model_gateway.types import (
     ChatResponse,
     Classification,
     Message,
+    TaskKind,
     Usage,
 )
 from app.core.request_context import current_request_id
@@ -152,13 +158,26 @@ def build_adapter(cfg: ConfigService, provider: str) -> Adapter:
     if provider == "anthropic":
         key = cfg.anthropic_api_key.get_secret_value() if cfg.anthropic_api_key else None
         return AnthropicAdapter(cfg.anthropic_base_url, key, temperature=temp, max_tokens=max_tok)
-    if provider == "ollama":
-        base = cfg.ollama_base_url.rstrip("/") + "/v1"
-        return OpenAICompatAdapter("ollama", base, None, temperature=temp, max_tokens=max_tok)
+    if provider == "ollama":  # native API: keep_alive + num_ctx + timings (D-19)
+        return OllamaAdapter(
+            cfg.ollama_base_url, temperature=temp, max_tokens=max_tok,
+            keep_alive=cfg.ollama_keep_alive, num_ctx=cfg.ollama_num_ctx,
+        )  # fmt: skip
     secret = getattr(cfg, f"{provider}_api_key")
     base_url: str = getattr(cfg, f"{provider}_base_url")
     key = secret.get_secret_value() if secret else None
     return OpenAICompatAdapter(provider, base_url, key, temperature=temp, max_tokens=max_tok)
+
+
+def _log_timings(req: ChatRequest, provider: str, model: str, t: dict[str, int] | None) -> None:
+    """Prompt-evaluation vs generation time of a local call (D-19 evidence). Counts only."""
+    if t:
+        log.info(
+            "model_timing provider=%s model=%s task=%s prompt_tokens=%d prompt_ms=%d "
+            "gen_tokens=%d gen_ms=%d load_ms=%d", provider, model, req.task,
+            t.get("prompt_tokens", 0), t.get("prompt_eval_ms", 0), t.get("gen_tokens", 0),
+            t.get("eval_ms", 0), t.get("load_ms", 0),
+        )  # fmt: skip
 
 
 def _unfence(text: str) -> str:
@@ -374,6 +393,7 @@ class ModelGateway:
                             await self._sleep(RETRY_BACKOFF_S[attempt])
                         continue
                     self.breaker.success(provider)
+                    _log_timings(req, provider, resp.model, resp.timings)
                     resp = replace(resp, fallback_from=failed_from)
                     await self.sink.record(self._rec(
                         req, rt, provider, resp.model, "ok", started,
@@ -389,9 +409,11 @@ class ModelGateway:
         await self._check_budget()
         if self.cfg.model_gateway_mode == "fixture":
             resp = await self._fixture(req, rt)
-            for word in resp.content.split(" "):
-                yield ChatChunk(delta=word + " ", provider="fixture", model=resp.model)
-            yield ChatChunk(done=True, usage=resp.usage, provider="fixture", model=resp.model)
+            if resp.content:
+                for word in resp.content.split(" "):
+                    yield ChatChunk(delta=word + " ", provider="fixture", model=resp.model)
+            yield ChatChunk(done=True, usage=resp.usage, provider="fixture", model=resp.model,
+                            tool_calls=resp.tool_calls)  # fmt: skip
             return
         last_err: ProviderCallError | None = None
         failed_from: str | None = None
@@ -408,6 +430,7 @@ class ModelGateway:
                     async for chunk in adapter.stream(req, model=model, timeout_s=timeout_s):
                         emitted = True
                         if chunk.done:
+                            _log_timings(req, provider, model, chunk.timings)
                             await self.sink.record(self._rec(
                                 req, rt, provider, model, "ok", started,
                                 usage=chunk.usage, fallback_from=failed_from,
@@ -427,3 +450,28 @@ class ModelGateway:
                         raise provider_error(err) from err
                     failed_from = provider
         raise provider_error(last_err)
+
+    async def warm(self, task: TaskKind = "chat") -> str | None:
+        """Load the local model that serves `task` (D-19), so the first demo turn is not cold.
+
+        Live mode only, local providers only, never raises: a warm-up that fails changes nothing
+        (the turn then loads the model itself). Returns the model loaded, or `None`.
+        """
+        if self.cfg.model_gateway_mode == "fixture":
+            return None
+        provider = LOCAL_PROVIDERS[0]
+        if provider not in route(self.cfg, "CONFIDENTIAL").providers:
+            return None
+        model = model_for(self.cfg, task, provider)
+        adapter = self._adapter(self.cfg, provider)
+        warm = getattr(adapter, "warm", None)
+        if not callable(warm):
+            return None
+        try:
+            await warm(model)
+        except (ProviderCallError, OSError) as exc:  # pragma: no cover - best effort
+            log.warning("model_gateway: warm-up of %s failed: %s", model, exc)
+            return None
+        log.info("model_gateway: warmed %s:%s (keep_alive=%s)", provider, model,
+                 self.cfg.ollama_keep_alive)  # fmt: skip
+        return model

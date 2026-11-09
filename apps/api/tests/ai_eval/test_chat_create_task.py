@@ -14,6 +14,7 @@ sees carries no id. The L3 auto-execute path is covered by `test_execute_recomme
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,8 @@ class SpyGateway:
 
 async def test_create_task_prompt_drafts_l2_card(db_session, monkeypatch) -> None:
     monkeypatch.setattr(chat_service, "replay_enabled", lambda _cfg: False)
+    # D-19: the system prompt carries the business date — pin it so the fixture key is stable
+    monkeypatch.setattr(chat_service, "business_today", lambda: date(2026, 10, 20))
     # R-DEC-126: pin L2 so this keeps covering the draft-card path (ceo now seeds at L3)
     await db_session.execute(update(AgentProfile).where(AgentProfile.code == "ceo")
                              .values(allowed_tools=TOOLS, is_enabled=True,

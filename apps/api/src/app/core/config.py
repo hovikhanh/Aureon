@@ -97,6 +97,19 @@ class ConfigService(BaseSettings):
     chat_model_primary: str = ""
     chat_model_fallback: str = ""
     chat_timeout_seconds: float = Field(default=90, gt=0)
+    # D-19 (CPU-only demo host): local inference over the Ollama native API. `keep_alive` keeps
+    # the model in RAM between turns (a reload costs 6–10 s); `num_ctx` bounds the KV cache.
+    # Extraction gets its own deadline (a long document on CPU needs minutes, chat must not).
+    # Each value is a whole-call deadline, not an idle-socket timeout.
+    ollama_keep_alive: str = "30m"
+    ollama_num_ctx: int = Field(default=4096, ge=1024, le=32768)
+    extract_timeout_seconds: float = Field(default=180, gt=0)
+    chat_max_output_tokens: int = Field(default=512, gt=0, le=2048)
+    # D-19: send the model only the tools the question needs (within the asker's permitted set)
+    # and run the obvious READ tools before the first model round.
+    chat_intent_routing: bool = True
+    # D-19: load the local chat model when the API / worker starts (first demo turn is not cold).
+    ai_warmup_on_start: bool = True
     # Demo replay of recorded answers (DEC-241). Unset → follows DEMO_MODE.
     ai_demo_replay: bool | None = None
     ai_demo_token_delay_sec: float = Field(default=0.03, ge=0, le=1)

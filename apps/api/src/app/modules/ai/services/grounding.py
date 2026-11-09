@@ -310,3 +310,67 @@ def enforce_grounding(
     if data_requested and not saw_number and not grounded:
         warnings.append(NO_DATA_WARNING)
     return clean, warnings
+
+
+_CITE_RE = re.compile(r"\s?\[\d{1,3}\]")
+
+
+def _source_value(s: Any) -> float | None:
+    v = s.get("value") if isinstance(s, dict) else getattr(s, "value", None)
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def attach_citations(answer: str, sources: list[Any]) -> str:
+    """Link every number to the source it came from: `86,4%` → `86,4% [1]` (P05/P07, D-19).
+
+    Runs on a grounded answer. A model-written `[n]` is dropped first — small local models number
+    sources at random, and a chip that opens the wrong metric is worse than none. The citation is
+    the first source (1-based, the order the client renders) whose value the token rounds to,
+    with the same rounding rule as `enforce_grounding`. A number grounded only by a tool-result
+    leaf with no `SourceRef` value stays uncited. Codes, dates and labels are never cited.
+    """
+    values: list[tuple[int, float]] = []
+    for i, s in enumerate(sources, start=1):
+        v = _source_value(s)
+        if v is not None:
+            values.append((i, v))
+    text = _CITE_RE.sub("", answer)
+    if not values:
+        return text
+
+    def cite_for(raw: str, unit: str) -> int | None:
+        is_pct = "%" in unit or "phần" in unit.lower()
+        mult = 1.0 if is_pct else _unit_multiplier(unit)
+        scales = (mult,) if (unit.strip() or is_pct) else _SCALES
+        for value, decimals in _vi_numbers(raw):
+            for m in scales:
+                half = _half_unit(value, decimals, m)
+                for i, v in values:
+                    if _hit(value * m, half, {abs(v)}):
+                        return i
+        return None
+
+    def repl(m: re.Match[str]) -> str:
+        unit = m.group("unit") or ""
+        raw = m.group("num")
+        if not unit.strip():
+            bare = raw.rstrip(".,")
+            low, high = _LABEL_RANGE.get((m.group("label") or "").lower(), (0, -1))
+            if (bare.isdigit() and low <= int(bare) <= high) or _YEAR_RE.match(bare):
+                return m.group(0)
+        n = cite_for(raw, unit)
+        if n is None:
+            return m.group(0)
+        token = m.group(0)
+        core = token.rstrip()
+        body = core.rstrip(".,")  # a sentence-final "." stays after the chip
+        return f"{body} [{n}]{core[len(body) :]}{token[len(core) :]}"
+
+    parts: list[str] = []
+    last = 0
+    for pm in _PROTECTED_RE.finditer(text):
+        parts.append(_NUM_RE.sub(repl, text[last : pm.start()]))
+        parts.append(pm.group(0))
+        last = pm.end()
+    parts.append(_NUM_RE.sub(repl, text[last:]))
+    return "".join(parts)

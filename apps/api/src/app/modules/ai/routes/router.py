@@ -8,8 +8,10 @@ never as an unhandled 500 (F-M2).
 
 The SSE endpoint emits the canonical event order
 `start → (tool_call → tool_result)* → token* → done | error` (10 §6) with `X-Accel-Buffering: no`.
-All events are sent after the turn has finished: `token` events slice the finished answer (no
-`thinking`, no time to first token worth the name). It is a delivery format, not model streaming.
+D-19: on a live turn the events are sent as they happen — `start` first, each tool as it runs,
+then the answer text sentence by sentence, each sentence grounded before it is sent (never a
+number the final grounding would remove). `done.answer` is the authoritative grounded text. A
+replay turn or a gateway without `stream` is still delivered after the turn has finished.
 """
 
 from __future__ import annotations
@@ -63,6 +65,22 @@ from app.modules.ai.services.insight_service import InsightService
 from app.modules.ai.services.kill_switch_service import KillSwitchService
 
 router = EnvelopeRouter(prefix="/ai", tags=["ai"])
+_warmups: set[asyncio.Task[Any]] = set()
+
+
+async def _warm_local_model() -> None:
+    """D-19: load the local chat model in the background when the API starts (`keep_alive`
+    then keeps it in RAM). Never blocks or fails startup; a no-op in fixture mode."""
+    if not get_config().ai_warmup_on_start:
+        return
+    from app.core.model_gateway import ModelGateway
+
+    task = asyncio.ensure_future(ModelGateway().warm("chat"))
+    _warmups.add(task)
+    task.add_done_callback(_warmups.discard)
+
+
+router.add_event_handler("startup", _warm_local_model)
 
 AiUser = Annotated[Principal, Depends(require_permission("ai", "query"))]
 AiWriter = Annotated[Principal, Depends(require_permission("ai", "write"))]
@@ -126,30 +144,52 @@ async def chat_stream(
 
     async def gen() -> AsyncIterator[bytes]:
         eid = 0
+        started = False
 
         def ev(event: str, data: dict[str, Any]) -> bytes:
-            nonlocal eid
+            nonlocal eid, started
             eid += 1
+            started = started or event == "start"
             return (
                 f"id: {eid}\nevent: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
             ).encode()
 
+        def fail(code: str, message: str, details: Any = None) -> list[bytes]:
+            out = [] if started else [ev("start", {"conversation_id": None, "message_id": None})]
+            data: dict[str, Any] = {"code": code, "message": message}
+            if details is not None:
+                data["details"] = details
+            return [*out, ev("error", data)]
+
+        # D-19: the turn runs as a task and reports `start`, each tool and the grounded answer
+        # text as they happen — the UI shows progress while a CPU-bound local model works.
+        queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+
+        async def on_event(event: str, data: dict[str, Any]) -> None:
+            await queue.put((event, data))
+
+        task = asyncio.ensure_future(svc.chat(
+            user, body.message, conversation_id=body.conversation_id, locale=body.locale,
+            on_event=on_event,
+        ))  # fmt: skip
         try:
-            turn = await svc.chat(
-                user, body.message, conversation_id=body.conversation_id, locale=body.locale
-            )
+            while not task.done() or not queue.empty():
+                getter = asyncio.ensure_future(queue.get())
+                await asyncio.wait({getter, task}, return_when=asyncio.FIRST_COMPLETED)
+                if getter.done():
+                    yield ev(*getter.result())
+                else:
+                    getter.cancel()
+            turn = task.result()
         except SecretDataBlockedError:
-            yield ev("start", {"conversation_id": None, "message_id": None})
-            yield ev("error", {
-                "code": "AI_DISABLED",
-                "message": "Yêu cầu chứa dữ liệu nhạy cảm (lương) — không xử lý.",
-            })  # fmt: skip
+            for b in fail("AI_DISABLED", "Yêu cầu chứa dữ liệu nhạy cảm (lương) — không xử lý."):
+                yield b
             return
         except TemplateRequired as exc:
             await db.rollback()
             err = _no_local_model(exc)
-            yield ev("start", {"conversation_id": None, "message_id": None})
-            yield ev("error", {"code": err.code, "message": str(err), "details": err.details})
+            for b in fail(err.code, str(err), err.details):
+                yield b
             return
         except AppError as exc:
             # The 200 + headers are already on the wire, so an error raised by the turn (provider
@@ -157,33 +197,37 @@ async def chat_stream(
             # event of 10 §6 — re-raising here cut the stream mid-flight ("response already
             # started") and the client saw a dropped connection instead of the reason.
             await db.rollback()
-            yield ev("start", {"conversation_id": None, "message_id": None})
-            yield ev("error", {"code": exc.code, "message": str(exc)})
+            for b in fail(exc.code, str(exc)):
+                yield b
             return
+        finally:
+            if not task.done():  # client went away: stop the turn (no half-written answer)
+                task.cancel()
         await db.commit()
-        yield ev("start", {
-            "conversation_id": str(turn.conversation_id),
-            "message_id": str(turn.message_id),
-            "model_route": {"task": "chat"},
-            "mode": turn.mode,
-        })  # fmt: skip
-        for fc in turn.function_calls:
-            yield ev("tool_call", {"call_id": fc["tool"], "tool": fc["tool"]})
-            yield ev("tool_result", {
-                "call_id": fc["tool"], "tool": fc["tool"],
-                "status": fc["status"], "latency_ms": fc["latency_ms"],
-                "sources": [s.as_dict() for s in turn.sources],
+        if not turn.streamed:  # replay / a gateway without `stream`: deliver the finished turn
+            yield ev("start", {
+                "conversation_id": str(turn.conversation_id),
+                "message_id": str(turn.message_id),
+                "model_route": {"task": "chat"},
+                "mode": turn.mode,
             })  # fmt: skip
-        if turn.replayed:
-            # demo replay (DEC-241): word-sized tokens at a fixed pace; `mode: "replay"` says so
-            delay = get_config().ai_demo_token_delay_sec
-            for word in _words(turn.answer):
-                yield ev("token", {"delta": word})
-                if delay:
-                    await asyncio.sleep(delay)
-        else:
-            for chunk in _chunks(turn.answer):
-                yield ev("token", {"delta": chunk})
+            for fc in turn.function_calls:
+                yield ev("tool_call", {"call_id": fc["tool"], "tool": fc["tool"]})
+                yield ev("tool_result", {
+                    "call_id": fc["tool"], "tool": fc["tool"],
+                    "status": fc["status"], "latency_ms": fc["latency_ms"],
+                    "sources": [s.as_dict() for s in turn.sources],
+                })  # fmt: skip
+            if turn.replayed:
+                # demo replay (DEC-241): word-sized tokens at a fixed pace; `mode: "replay"`
+                delay = get_config().ai_demo_token_delay_sec
+                for word in _words(turn.answer):
+                    yield ev("token", {"delta": word})
+                    if delay:
+                        await asyncio.sleep(delay)
+            else:
+                for chunk in _chunks(turn.answer):
+                    yield ev("token", {"delta": chunk})
         yield ev("done", {
             "message_id": str(turn.message_id),
             "answer": turn.answer,

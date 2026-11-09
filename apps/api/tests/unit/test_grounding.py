@@ -99,3 +99,23 @@ def test_entity_codes_and_dates_are_preserved() -> None:
     clean, warns = enforce_grounding(ans, [], [])
     assert "NV-0001" in clean and "06/11/2026" in clean
     assert warns == []
+
+
+# --- D-19: the server links each grounded number to its source --------------------------
+
+
+def test_attach_citations_links_numbers_and_drops_model_numbering() -> None:
+    from app.modules.ai.services.grounding import attach_citations
+
+    src = [{"value": 86.4}, {"value": 18.4}, {"value": 5.3}, {"value": 1.2e9}]
+    out = attach_citations("Doanh thu đạt 86,4% [3]. Runway 5,3 tháng, doanh thu 1,2 tỷ đồng.", src)
+    assert out == "Doanh thu đạt 86,4% [1]. Runway 5,3 [3] tháng, doanh thu 1,2 tỷ đồng [4]."
+
+
+def test_attach_citations_leaves_labels_codes_dates_and_unknowns() -> None:
+    from app.modules.ai.services.grounding import attach_citations
+
+    src = [{"value": 3}, {"value": 2026}, {"value": 12.0}]
+    text = "Quý 3 năm 2026, NV-0012 hạn 12/10/2026; còn 7 việc."
+    assert attach_citations(text, src) == text
+    assert attach_citations("Đạt 86,4%.", []) == "Đạt 86,4%."

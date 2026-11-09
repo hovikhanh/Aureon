@@ -39,7 +39,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import Principal
-from app.core.errors import NotFoundError, PermissionDeniedError
+from app.core.errors import NotFoundError, PermissionDeniedError, ScopeDeniedError
 from app.core.pagination import PageParams
 from app.modules.ai.services.action_registry import get_action
 from app.modules.ai.tools import get_tool
@@ -58,6 +58,8 @@ from app.modules.hr.services.hiring_service import HiringPlanService
 from app.modules.hr.services.structure_service import StructureService, today
 from app.modules.idp.services.inbox_service import InboxService
 from app.modules.idp.services.lineage import read_lineage
+from app.modules.platform.services.catalog import BY_CODE as METRIC_CATALOG
+from app.modules.sales.services import scope as sales_scope
 from app.modules.sales.services.analytics import SalesAnalytics
 from app.modules.sales.services.sales_service import SalesService
 
@@ -140,6 +142,8 @@ class ToolExecutor:
             if isinstance(exc.orig, QueryCanceled):
                 return self._fail(tool_name, "timeout", "AI_PROVIDER_TIMEOUT", started)
             raise
+        except ScopeDeniedError:  # data scope (02 §5.3) — refused like REST, nothing returned
+            return self._fail(tool_name, "forbidden", "FORBIDDEN_SCOPE", started)
         except PermissionDeniedError:
             return self._fail(tool_name, "forbidden", "FORBIDDEN_ROLE", started)
         except NotFoundError:
@@ -178,11 +182,13 @@ class ToolExecutor:
                       m.value, m.lineage_url)
             for m in rows
         ]  # fmt: skip
+        # `name`: a small local model cannot tell what METRIC-FIN-01 measures from the code alone
+        # (D-19); the name is catalog text, not data, so grounding is unaffected.
         data = {
             "pillar": pillar,
             "metrics": [
-                {"code": m.metric_code, "value": m.value, "unit": m.unit, "status": m.status,
-                 "period": m.period_key}
+                {"code": m.metric_code, "name": _metric_name(m.metric_code), "value": m.value,
+                 "unit": m.unit, "status": m.status, "period": m.period_key}
                 for m in rows
             ],
         }  # fmt: skip
@@ -323,9 +329,12 @@ class ToolExecutor:
 
     # ---------- F-H8 record READ tools: real rows through the owning service ----------
     async def _invoices(self, args: dict[str, Any]) -> tuple[dict[str, Any], list[SourceRef]]:
+        # same scope as REST EP-67 (D-07 R-DEC-183, D-20): REV refused, MGR only own invoices
+        finance_scope.require_reader(self.user)
         items, total = await InvoiceService(self.db).list_invoices(
             _page(args, "issued_on"), status=None, client_id=None, overdue=None,
             period=args.get("period") or None, direction=None,
+            created_by=finance_scope.invoice_creator_filter(self.user),
         )  # fmt: skip
         rows = [{"number": i.number, "direction": i.direction,
                  "counterparty": i.client_name or i.counterparty_name,
@@ -337,6 +346,7 @@ class ToolExecutor:
         return {"total": total, "invoices": rows}, sources
 
     async def _expenses(self, args: dict[str, Any]) -> tuple[dict[str, Any], list[SourceRef]]:
+        finance_scope.require_reader(self.user)  # REV refused; MGR pinned by the service
         items, total = await FinanceService(self.db).list_expenses(
             self.user, _page(args, "spent_on"), period=args.get("period") or None,
             department_id=None, category=None,
@@ -349,6 +359,7 @@ class ToolExecutor:
         return {"total": total, "expenses": rows}, sources
 
     async def _deals(self, args: dict[str, Any]) -> tuple[dict[str, Any], list[SourceRef]]:
+        sales_scope.require_record_reader(self.user)  # REV refused; MGR pinned by the service
         items, total = await SalesService(self.db).list_deals(
             self.user, _page(args, "created_at"), stage=None, owner_id=None, client_id=None,
             close_from=None, close_to=None,
@@ -406,6 +417,7 @@ class ToolExecutor:
         return {"total": len(rows) if code else total, "kpis": rows}, sources
 
     async def _budget_status(self, args: dict[str, Any]) -> tuple[dict[str, Any], list[SourceRef]]:
+        finance_scope.require_reader(self.user)
         department = finance_scope.department_filter(self.user, None)
         items = await BudgetService(self.db).statuses(
             period=args.get("period") or None, department_id=department
@@ -504,6 +516,11 @@ _RECORD_TOOLS = {
 }
 _BOUND = frozenset({*PILLAR_TOOLS, *_RECORD_TOOLS, "TOOL-get_metric", "TOOL-list_alerts",
                     "TOOL-search_documents"}) - REPLAY_ONLY  # fmt: skip
+
+
+def _metric_name(code: str) -> str | None:
+    metric = METRIC_CATALOG.get(code)
+    return metric.name_vi if metric is not None else None
 
 
 def model_ready(tool: ToolDef) -> bool:
