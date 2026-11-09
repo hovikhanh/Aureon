@@ -62,21 +62,21 @@ export function BoardView({ pinned, canReadOrg, onOpen }: { pinned: boolean; can
         <Button onClick={() => setCreating(true)} data-testid="board-assign">{t("board.assign")}</Button>
       </div>
       <Card className="flex flex-wrap items-end gap-3 p-3">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 max-w-full flex-col gap-1">
           <Label htmlFor="bf-dept" className="text-xs">{t("board.department")}</Label>
           <NativeSelect id="bf-dept" value={dept} disabled={Boolean(pinnedDepartment)} onChange={(e) => { setDept(e.target.value); setAssignee(""); }} data-testid="board-dept">
             {!pinnedDepartment && <option value="">{t("board.allDepartments")}</option>}
             {departments.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </NativeSelect>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 max-w-full flex-col gap-1">
           <Label htmlFor="bf-assignee" className="text-xs">{t("board.assignee")}</Label>
           <NativeSelect id="bf-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} data-testid="board-assignee">
             <option value="">{t("board.allAssignees")}</option>
             {people.map((m) => <option key={m.employee_id} value={m.employee_id}>{m.employee_code} · {m.full_name}</option>)}
           </NativeSelect>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 max-w-full flex-col gap-1">
           <Label htmlFor="bf-project" className="text-xs">{t("board.project")}</Label>
           <NativeSelect id="bf-project" value={project} onChange={(e) => setProject(e.target.value)} data-testid="board-project">
             <option value="">{t("board.allProjects")}</option>

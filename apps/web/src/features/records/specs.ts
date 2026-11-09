@@ -397,7 +397,8 @@ export const RESOURCES: readonly ResourceSpec[] = [
       { name: "category", type: "select", required: true, options: RISK_CATEGORIES },
       { name: "likelihood", type: "number", required: true, createOnly: true },
       { name: "impact", type: "number", required: true, createOnly: true },
-      { name: "owner_id", type: "ref", ref: "user" },
+      // BR-RSK-02: a risk with score ≥ 5 (nearly all) needs an owner — asked up front
+      { name: "owner_id", type: "ref", ref: "user", required: true },
       { name: "department_id", type: "ref", ref: "department" },
       { name: "review_date", type: "date" },
       { name: "description", type: "textarea", max: 4000 },
