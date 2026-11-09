@@ -9,10 +9,11 @@ Sub-commands (dev DB only, fake demo data — CLAUDE §6.6 #8/#9; audit log / ou
                fixture keys are the exact `prompt_sha256` the API will compute. Files are marked
                `model = "e2e-onboarding"` under the runtime fixture dir (removed by --cleanup).
   --report     print the payload of the latest `platform.onboarding_completed` outbox event.
-  --cleanup    kill switch off; E2E users (`@abc-e2e.demo`) deleted; E2E tasks retired; UC-07 /
-               DOC-07 C5 imports undone (UndoService as the seeded CEO) then retired; e-mails of
-               the undone employees cleared (global unique index); org `ABC-E2E` retired;
-               `onboarding.state` restored to the seed `completed` state; fixtures removed.
+  --cleanup    kill switch off; E2E autonomy policy ("E2E UC-07 L2 card") retired; E2E users
+               (`@abc-e2e.demo`) deleted; E2E tasks retired; UC-07 / DOC-07 C5 imports undone
+               (UndoService as the seeded CEO) then retired; e-mails of the undone employees
+               cleared (global unique index); org `ABC-E2E` retired; `onboarding.state`
+               restored to the seed `completed` state; fixtures removed.
                Idempotent; prints counts.
 
 Run: PYTHONPATH=apps/api/src:apps/api .venv/bin/python \
@@ -69,6 +70,9 @@ EMAILS = text("""
 ORG = text("""
     UPDATE hr.organizations SET deleted_at = now()
     WHERE deleted_at IS NULL AND code = 'ABC-E2E'""")
+POLICY = text("""
+    UPDATE ai.autonomy_policies SET deleted_at = now()
+    WHERE deleted_at IS NULL AND reason = 'E2E UC-07 L2 card'""")
 ADMIN = text("SELECT id FROM auth.users WHERE email = 'admin@abc.demo'")
 COMPLETED = text("""
     SELECT payload FROM platform.outbox_events WHERE event_type = 'platform.onboarding_completed'
@@ -128,6 +132,7 @@ async def cleanup() -> dict[str, int]:
         out |= {"undone": undone, "retired": len(rows)}
         out["emails"] = (await db.execute(EMAILS)).rowcount  # type: ignore[attr-defined]
         out["orgs"] = (await db.execute(ORG)).rowcount  # type: ignore[attr-defined]
+        out["policies"] = (await db.execute(POLICY)).rowcount  # type: ignore[attr-defined]
         await settings.set("onboarding.state", completed_state(str(admin)), reason="E2E cleanup",
                            updated_by=admin)  # fmt: skip
         await db.commit()

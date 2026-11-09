@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { loginAs } from "./helpers";
 
@@ -55,10 +56,21 @@ test("shows API error from the stream", { tag: "@mock" }, async ({ page }) => {
 });
 
 /**
- * T-509 demo replay through the real stack (BFF → API, DEMO_MODE=true): no model call, the
- * recorded intent replays with live tool numbers. Requires the dev API with DEMO_MODE=true.
+ * T-509 demo replay through the real stack (BFF → API): no model call, the recorded intent replays
+ * with live tool numbers, labelled "Kịch bản demo" (F-C2). Replay is OFF by default (D-19, the
+ * live stack answers with the local model), so this test targets a replay-enabled deployment:
+ * `E2E_REPLAY_BASE_URL` (verify stack: the `replay` profile pair, web :3701 → api AI_DEMO_REPLAY=true,
+ * same DB). Without it the test fails on purpose — it never fakes the replay path.
  */
-test("demo mode: recorded question answers fast with citation [1]", async ({ page }) => {
+test.describe("demo replay deployment", () => {
+  test.use({ baseURL: process.env.E2E_REPLAY_BASE_URL });
+  test("demo mode: recorded question answers fast with citation [1]", async ({ page }) => {
+    expect(process.env.E2E_REPLAY_BASE_URL, "set E2E_REPLAY_BASE_URL to a web whose API has AI_DEMO_REPLAY=true").toBeTruthy();
+    await demoReplay(page);
+  });
+});
+
+async function demoReplay(page: Page) {
   await loginAs(page, "ceo@abc.demo");
   await page.goto("/ask");
   await page.getByTestId("chat-input").fill("Doanh thu Q3?");
@@ -68,9 +80,11 @@ test("demo mode: recorded question answers fast with citation [1]", async ({ pag
   expect(Date.now() - started).toBeLessThan(5_000);
   const answer = page.getByTestId("answer");
   await expect(answer).toContainText("86,4%"); // METRIC-FIN-01 T9/2026, v3 seed
+  // the replay is never presented as a live answer (F-C2)
+  await expect(page.getByTestId("chat-warning")).toContainText("Kịch bản demo");
   await answer.getByTestId("citation").first().click();
   await expect(page.getByTestId("source-popover")).toContainText("METRIC-FIN-01");
-});
+}
 
 test("long wait shows progressive hints", { tag: "@mock" }, async ({ page }) => {
   await page.clock.install();

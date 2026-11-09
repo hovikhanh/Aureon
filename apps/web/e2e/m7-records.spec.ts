@@ -6,7 +6,7 @@ import { loginSettled } from "./helpers";
  * TC-M7-02 (e2e, real API) — business-record CRUD per role over the existing endpoints
  * (EP-FIN-02..07, EP-SAL-01..04, EP-HR-02..10). Writes go to the stack under test only
  * (run with E2E_BASE_URL / E2E_API_URL / DATABASE_URL of an isolated stack). RBAC is the
- * existing matrix: DIR writes inside the khối, CEO writes sales only, REV reads.
+ * existing matrix: DIR writes inside the khối, CEO writes everything (D-21), REV reads.
  */
 const uniq = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`.toUpperCase();
 
@@ -142,14 +142,74 @@ test.describe("M7 · records CRUD", () => {
     await expect(hr.getByTestId("record-action-approve")).toHaveCount(1);
   });
 
-  test("CEO: finance + HR read only (no write permission), sales writable", async ({ page }) => {
+  test("CEO (D-21): full CRUD — revenue, product, risk, meeting; HR and sales writable", async ({ page }) => {
+    const tag = uniq();
     await loginSettled(page, "ceo@abc.demo");
-    for (const [domain, tab] of [["finance", "revenues"], ["hr", "employees"]] as const) {
-      await openTab(page, domain, tab);
-      await expect(page.getByTestId("records-readonly")).toBeVisible();
-      await expect(page.getByTestId(`records-${tab}-create`)).toHaveCount(0);
-      await expect(page.getByTestId("record-edit")).toHaveCount(0);
-    }
+    // finance: create → edit → archive (was read-only before D-21)
+    await openTab(page, "finance", "revenues");
+    await expect(page.getByTestId("records-readonly")).toHaveCount(0);
+    await page.getByTestId("records-revenues-create").click();
+    const ed = editor(page, "revenues");
+    await ed.getByTestId("records-revenues-editor-amount").fill("77000000");
+    await ed.getByTestId("records-revenues-editor-category").selectOption("consulting");
+    await ed.getByTestId("records-revenues-editor-recognized_on").fill("2026-10-15");
+    await ed.getByTestId("records-revenues-editor-description").fill(`E2E CEO doanh thu ${tag}`);
+    await ed.getByTestId("records-revenues-editor-submit").click();
+    const r = row(page, "revenues", `E2E CEO doanh thu ${tag}`);
+    await expect(r).toBeVisible();
+    await r.getByTestId("record-edit").click();
+    await editor(page, "revenues").getByTestId("records-revenues-editor-amount").fill("78000000");
+    await editor(page, "revenues").getByTestId("records-revenues-editor-submit").click();
+    await expect(r).toContainText("78.000.000");
+    await r.getByTestId("record-archive").click();
+    await page.getByTestId("record-archive-confirm").click();
+    await expect(row(page, "revenues", `E2E CEO doanh thu ${tag}`)).toHaveCount(0);
+    // product (frozen module, reachable from /business only — R-DEC-16)
+    await openTab(page, "product", "products");
+    await page.getByTestId("records-products-create").click();
+    const pe = editor(page, "products");
+    await pe.getByTestId("records-products-editor-code").fill(`E2E-${tag}`);
+    await pe.getByTestId("records-products-editor-name").fill(`Sản phẩm E2E ${tag}`);
+    await pe.getByTestId("records-products-editor-owner_id").selectOption({ index: 1 });
+    await pe.getByTestId("records-products-editor-submit").click();
+    const pr = row(page, "products", `Sản phẩm E2E ${tag}`);
+    await expect(pr).toBeVisible();
+    await pr.getByTestId("record-archive").click();
+    await page.getByTestId("record-archive-confirm").click();
+    await expect(row(page, "products", `Sản phẩm E2E ${tag}`)).toHaveCount(0);
+    // risk: create → close through its lifecycle (no DELETE by design)
+    await openTab(page, "risk", "risks");
+    await page.getByTestId("records-risks-create").click();
+    const re = editor(page, "risks");
+    await re.getByTestId("records-risks-editor-title").fill(`Rủi ro E2E ${tag}`);
+    await re.getByTestId("records-risks-editor-category").selectOption("operational");
+    await re.getByTestId("records-risks-editor-likelihood").fill("3");
+    await re.getByTestId("records-risks-editor-impact").fill("4");
+    await re.getByTestId("records-risks-editor-submit").click();
+    const rr = row(page, "risks", `Rủi ro E2E ${tag}`);
+    await expect(rr).toBeVisible();
+    await expect(rr.getByTestId("record-archive")).toHaveCount(0);
+    await rr.getByTestId("record-action-status").click();
+    const st = page.getByTestId("records-risks-action");
+    await st.getByTestId("records-risks-action-to_status").selectOption("closed");
+    await st.getByTestId("records-risks-action-reason").fill("E2E đóng rủi ro");
+    await st.getByTestId("records-risks-action-submit").click();
+    await expect(rr.getByTestId("record-action-status")).toHaveCount(0); // closed → lifecycle ends
+    // execution: meeting create → delete
+    await openTab(page, "execution", "meetings");
+    await page.getByTestId("records-meetings-create").click();
+    const me = editor(page, "meetings");
+    await me.getByTestId("records-meetings-editor-title").fill(`Họp E2E ${tag}`);
+    await me.getByTestId("records-meetings-editor-held_at").fill("2026-10-21");
+    await me.getByTestId("records-meetings-editor-submit").click();
+    const mr = row(page, "meetings", `Họp E2E ${tag}`);
+    await expect(mr).toBeVisible();
+    await mr.getByTestId("record-archive").click();
+    await page.getByTestId("record-archive-confirm").click();
+    await expect(row(page, "meetings", `Họp E2E ${tag}`)).toHaveCount(0);
+    // HR + sales: the editors are offered
+    await openTab(page, "hr", "employees");
+    await expect(page.getByTestId("records-employees-create")).toBeVisible();
     await openTab(page, "sales", "clients");
     await expect(page.getByTestId("records-clients-create")).toBeVisible();
   });

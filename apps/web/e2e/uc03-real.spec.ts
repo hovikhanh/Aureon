@@ -3,9 +3,9 @@ import { login } from "./helpers";
 
 /**
  * UC-03 CEO Assistant on the real stack (M2.4 exit, TC-M24-11). `@real-only`: runs against the
- * compose `web → api` with the gateway in demo-replay — the CEO's canonical question answers from
- * the recorded intents, grounded in live tools (every number carries a `SourceChip` → lineage).
- * No model-gateway fixture file is needed; the backend replays deterministically (DEC-241).
+ * compose `web → api` with replay OFF (D-19): the answer is written live by the local model
+ * (Ollama, D-11), from the finance card the intent router fetched as the CEO; grounding removes
+ * any number without a source and links each remaining number to it (`SourceChip` → lineage).
  */
 test.describe("UC-03 CEO Assistant (real)", { tag: "@real-only" }, () => {
   test("CEO asks a revenue question → grounded, cited answer with a lineage chip", async ({ page }) => {

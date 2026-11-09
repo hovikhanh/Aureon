@@ -3,7 +3,8 @@ import { devPassword, login } from "./helpers";
 
 /**
  * T-901 — CEO closed-loop 7-step acceptance scenario on the REAL stack (09 §2.2, BRD §20.2).
- * `@real-only`: runs against the compose `web → api` (demo-replay gateway, DEC-241). Each test maps
+ * `@real-only`: runs against the compose `web → api` with replay OFF — steps 1–3 are answered live
+ * by the local model (D-19: intent routing + prefetched pillar card + grounded streaming). Each test maps
  * one step of the AI Operating Loop OBSERVE→UNDERSTAND→REASON→RECOMMEND→APPROVE→ACT→VERIFY→LEARN.
  *
  *   1 Ask        CEO asks "Tình hình công ty?" via the chat (D27)                       → UC-01
@@ -15,7 +16,7 @@ import { devPassword, login } from "./helpers";
  *   7 Verify     undo window honoured (≥24h) + Decision Log reachable (D28)              → UC-01/04
  *
  * Steps 1–4 and 7 are UI-verifiable against the seeded live stack. Step 5–6 drive the genuine
- * AI-action HTTP surface (EP-AI-07/09/11) — the demo-replay chat does not emit write tool-calls,
+ * AI-action HTTP surface (EP-AI-07/09/11) — a read question does not emit write tool-calls,
  * so the L3 loop is exercised through the same endpoints the UI action-card uses (propose is a
  * backend/consumer concern; the acceptance is: an L3 action can be confirmed, executes through the
  * Action Registry, and is undoable within the window).
@@ -27,7 +28,7 @@ test.describe("T-901 CEO closed-loop 7 steps (real)", { tag: "@real-only" }, () 
   test("step 1–2 Ask + Understand: grounded, cited company overview", async ({ page }) => {
     await login(page, CEO);
     await page.goto("/ask");
-    // a canonical replay question → deterministic grounded synthesis (same family as uc03-real)
+    // the canonical revenue question (same as uc03-real): live local model, grounded + cited
     await page.getByTestId("chat-input").fill("Doanh thu Q3?");
     await page.getByTestId("chat-send").click();
 

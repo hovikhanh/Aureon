@@ -46,6 +46,9 @@ async function submitImport(page: Page): Promise<string> {
   return ((await res.json()) as { data: { document: { id: string } } }).data.document.id;
 }
 
+/** Marker of the E2E autonomy policy (removed by `onboarding_e2e.py --cleanup`). */
+const POLICY_REASON = "E2E UC-07 L2 card";
+
 async function setKillSwitch(page: Page, on: boolean): Promise<void> {
   await page.goto("/admin/ai");
   await page.getByTestId(on ? "kill-on" : "kill-off").click();
@@ -82,6 +85,12 @@ test.describe("M1.6 UC-07 onboarding on the real stack (TC-M16-23)", { tag: "@re
       expect(reset.status(), await reset.text()).toBe(200);
       const org = await page.request.post("/api/backend/org/organizations", { headers: idem(), data: { code: "ABC-E2E", name: "ABC E2E" } });
       expect(org.status(), await org.text()).toBe(201);
+      // Since M3.2 (R-DEC-126) `ACT-create_task` defaults to L3 (auto-execute). UC-07 checks the L2
+      // confirm → undo card for a new employee, so the admin configures that real policy (EP-AI-19);
+      // `--cleanup` removes it by its reason.
+      const policy = await page.request.post("/api/backend/ai/autonomy-policies", { headers: idem(), data: {
+        tool_name: "TOOL-create_task", role_code: "EMP", level: "L2", max_level: "L2", reason: POLICY_REASON } });
+      expect(policy.status(), await policy.text()).toBe(201);
       await page.goto("/admin/onboarding");
       await page.getByTestId("onboarding-start").click();
       await expect(wizard).toHaveAttribute("data-step", "company");

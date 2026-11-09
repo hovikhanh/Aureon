@@ -1,5 +1,16 @@
 import { expect, test } from "./fixtures";
-import { loginAs } from "./helpers";
+import { isMockProject, loginAs } from "./helpers";
+
+/**
+ * D-19: on the `real` project the preview is a real local-model extraction (Ollama, CPU only).
+ * Measured on the demo host (4 CPU, no GPU, 2026-11-09): this 3-field transcript takes 15–60 s
+ * (prompt ~210 tokens + ~100 generated JSON tokens at 2–7 tok/s, plus the model load when cold) —
+ * the default 15 s expect timeout cannot hold. Same assertions, a measured wait; mock stays 15 s.
+ */
+const PREVIEW_WAIT = () => (isMockProject() ? 15_000 : 150_000);
+function realBudget(): void {
+  if (!isMockProject()) test.setTimeout(240_000);
+}
 
 /**
  * M2.3 `/meetings` (SCR-44, UC-02/UC-06). The chair pastes a transcript → EP-DC-38 returns a
@@ -11,6 +22,7 @@ import { loginAs } from "./helpers";
  */
 test.describe("Meetings — UC-02 transcript → action items", { tag: "@mock" }, () => {
   test("CEO pastes transcript → MEETING_MINUTES preview + L2 action cards", async ({ page }) => {
+    realBudget();
     await loginAs(page, "ceo@abc.demo");
     await page.goto("/meetings");
     await expect(page.getByTestId("meetings-view")).toBeVisible();
@@ -21,7 +33,7 @@ test.describe("Meetings — UC-02 transcript → action items", { tag: "@mock" }
     );
     await page.getByTestId("transcript-submit").click();
 
-    await expect(page.getByTestId("meetings-preview")).toBeVisible();
+    await expect(page.getByTestId("meetings-preview")).toBeVisible({ timeout: PREVIEW_WAIT() });
     await expect(page.getByTestId("preview-doctype")).toHaveText("MEETING_MINUTES");
     await expect(page.getByTestId("predicted-actions")).toBeVisible();
     // L2 autonomy label (AI soạn) + at least one predicted action item.
@@ -30,6 +42,7 @@ test.describe("Meetings — UC-02 transcript → action items", { tag: "@mock" }
   });
 
   test("predicted action items render as L2 cards with owner-match gating", async ({ page }) => {
+    realBudget();
     await loginAs(page, "ceo@abc.demo");
     await page.goto("/meetings");
     await page.getByTestId("transcript-input").fill(
@@ -37,7 +50,7 @@ test.describe("Meetings — UC-02 transcript → action items", { tag: "@mock" }
         "người phụ trách Nguyễn Văn An — hạn 06/11/2026.",
     );
     await page.getByTestId("transcript-submit").click();
-    await expect(page.getByTestId("meetings-preview")).toBeVisible();
+    await expect(page.getByTestId("meetings-preview")).toBeVisible({ timeout: PREVIEW_WAIT() });
     await expect(page.getByTestId("predicted-actions")).toBeVisible();
 
     // Each item carries an owner-match status; a matched owner enables approve (chair → task),
