@@ -225,7 +225,7 @@ Luôn bắt đầu bằng: `docker compose ps` và `curl -s localhost:4000/healt
 ### Chạy ứng dụng trên host (phát triển)
 
 ```bash
-pnpm install && uv sync
+pnpm install && uv sync --extra ocr    # Python 3.12 (ghim bởi .python-version); --extra ocr cần cho mypy (numpy) và OCR paddle
 docker compose up -d postgres redis minio ollama clamav mailpit   # chỉ hạ tầng, cùng định nghĩa với stack demo
 uv run uvicorn app.main:app --reload --port 4000                  # API (dừng container api trước: docker compose stop api web)
 pnpm dev:web                                                      # Web :3000
