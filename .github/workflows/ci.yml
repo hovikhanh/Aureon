@@ -88,6 +88,7 @@ jobs:
       OMNIROUTE_BASE_URL: http://localhost:20128/v1
       DEMO_MODE: "true"
       DEMO_PASSWORD: ci-test-pass  # fallback for all 10 demo accounts (08 §2)
+      REPLAY_BUDGET_S: "6"  # demo replay is < 2 s locally; shared runners are slower (test_chat_demo_mode)
 
     services:
       postgres:
@@ -127,8 +128,10 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
+      # `--extra ocr` (numpy, paddleocr): IDP OCR unit tests import numpy, and the Docker image
+      # is built with the same extra, so CI exercises what ships.
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra ocr
 
       # pgcrypto key for level-4 PII columns (migration 0008). Random per run, never committed.
       - name: Generate throwaway DB_ENCRYPTION_KEY

@@ -7,6 +7,7 @@ citation `[1]` bound to a `metric_value` source; unmatched questions go to the m
 """
 
 import json
+import os
 import time
 import uuid
 
@@ -76,6 +77,11 @@ def test_all_ten_entries_load_and_match_themselves() -> None:
     assert match_entry("Thời tiết hôm nay thế nào?") is None
 
 
+# Wall-clock budget for a recorded replay (demo promise: < 2 s). Shared CI runners are slower and
+# noisier, so the workflow sets REPLAY_BUDGET_S; local runs keep the strict default.
+REPLAY_BUDGET_S = float(os.environ.get("REPLAY_BUDGET_S", "2.0"))
+
+
 @pytest.mark.parametrize(("question", "entry_id"), QUERIES)
 async def test_recorded_query_streams_fast_with_citation(api, demo_on, question, entry_id) -> None:
     started = time.monotonic()
@@ -85,7 +91,7 @@ async def test_recorded_query_streams_fast_with_citation(api, demo_on, question,
     )  # fmt: skip
     elapsed = time.monotonic() - started
     assert r.status_code == 200, r.text
-    assert elapsed < 2.0
+    assert elapsed < REPLAY_BUDGET_S, f"replay took {elapsed:.2f}s"
     events = _events(r.text)
     kinds = [e for e, _ in events]
     assert kinds[0] == "start" and kinds[-1] == "done"

@@ -349,7 +349,7 @@ Workflow `.github/workflows/ci.yml` chạy khi push lên `main` hoặc `v4/**`, 
 |---|---|---|
 | `secrets (gitleaks)` | quét toàn bộ lịch sử Git bằng gitleaks v8.24.3 | — |
 | `web` | `pnpm lint`, `typecheck`, `test` (Vitest), `build:web` | Node 22, pnpm 12.6.0 (từ `packageManager`) |
-| `api` | ruff, ruff format, mypy, migrate + seed (2 lần), pytest + coverage ≥ 75%, contract (Postgres `pgvector/pgvector:pg16` + Redis service) | Python 3.12 (`.python-version`) |
+| `api` | `uv sync --extra ocr`, ruff, ruff format, mypy, migrate + seed (2 lần), pytest + coverage ≥ 75%, contract (Postgres `pgvector/pgvector:pg16` + Redis service) | Python 3.12 (`.python-version`) |
 | `docker` | `docker compose config` với `.env.example`; build image `api` và `web` (không push) | Buildx |
 
 Chạy lại các bước tương tự ở local: lệnh trong mục "Test" phía trên. E2E Playwright cần stack đầy đủ nên **không** chạy trên CI (xem `16-OPERATIONS.md` §3.2).
