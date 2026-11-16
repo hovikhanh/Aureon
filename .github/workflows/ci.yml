@@ -1,17 +1,28 @@
-# CI for Aureon v2 (09 T-017, DEC-177).
+# CI for Aureon v4 (09 T-017, DEC-177; v4 ops: R-DEC-202).
 #   secrets: gitleaks over the full git history — any finding fails the run (blocks merge).
 #   web:     lint + typecheck + unit test + Next.js build (apps/web returns with the FE tasks).
 #   api:     ruff + mypy + alembic migrate + seed + pytest with coverage gate (fixture mode,
 #            `-m "not live"`) + contract suite.
+#   docker:  `docker compose config` against .env.example + build of the api and web images
+#            (nothing is pushed). Jobs are independent so one red job never hides another.
+# Versions: Python 3.12 (.python-version), Node 22, pnpm from package.json `packageManager`.
 # No secrets are used: every value below is a non-sensitive CI test placeholder (CLAUDE.md §6.4).
 # JWT keys: RS256 test keys are generated in-process by tests/conftest.py (no HS256 JWT_SECRET).
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "v4/**"]
+    tags: ["v*"]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   secrets:
@@ -37,8 +48,6 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 12.6.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -80,7 +89,6 @@ jobs:
       DEMO_MODE: "true"
       DEMO_PASSWORD: ci-test-pass  # fallback for all 10 demo accounts (08 §2)
 
-    needs: secrets
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -112,13 +120,12 @@ jobs:
       # `uv run pytest -m contract`); no JS install is required for the api job.
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 12.6.0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
+          enable-cache: true
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -150,3 +157,35 @@ jobs:
 
       - name: Contract validation
         run: pnpm contract:validate
+
+  docker:
+    name: docker (compose config / image build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The compose file must be valid with nothing but the committed placeholder file.
+      - name: Compose config (from .env.example)
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max

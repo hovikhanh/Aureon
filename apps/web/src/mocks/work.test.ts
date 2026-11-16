@@ -1,9 +1,17 @@
 /** T-625F — mock BFF `/work/*` + `/workflow/*` mirrors the BE rules (scope, 409/422, workload, approvals). */
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOCK_USERS, claimsFor, mockId } from "./fixtures";
 import { handleMock } from "./router";
 import { resetMockStore } from "./store";
 import { empId } from "./work-store";
+
+// The mock marks projects/milestones "late" against the current date; pin it to the demo business
+// date (DEMO_REFERENCE_DATE) so the result does not drift with the wall clock. Only Date is faked.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-20T00:00:00Z"));
+});
+afterAll(() => vi.useRealTimers());
 
 const user = (email: string) => claimsFor(MOCK_USERS.find((u) => u.email === email)!);
 const CEO = user("ceo@abc.demo");
