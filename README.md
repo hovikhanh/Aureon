@@ -5,7 +5,7 @@
 
 **Phiên bản:** Aureon **v4 demo** = v3 AI-EOS + CRM (D-02). Môi trường: **demo nội bộ trên Docker một máy** (D-01), không phải production. Nhánh `v4/demo-readiness`. Số phiên bản API vẫn tự báo `3.0.0` (`GET /health`).
 
-Mục lục: [Tổng quan](#1-tổng-quan) · [Kiến trúc](#2-kiến-trúc) · [Yêu cầu hệ thống](#3-yêu-cầu-hệ-thống) · [Cài đặt lần đầu](#4-cài-đặt-lần-đầu) · [**Khởi động hằng ngày / sau khi bật máy**](#5-khởi-động-hằng-ngày--sau-khi-bật-máy) · [Truy cập](#6-truy-cập) · [Database](#7-quản-lý-database) · [Xử lý sự cố](#8-xử-lý-sự-cố) · [Phát triển & test](#9-phát-triển--kiểm-thử) · [Phiên bản & thay đổi](#10-phiên-bản--lịch-sử-thay-đổi)
+Mục lục: [Tổng quan](#1-tổng-quan) · [Kiến trúc](#2-kiến-trúc) · [Yêu cầu hệ thống](#3-yêu-cầu-hệ-thống) · [Cài đặt / dựng lại](#4-cài-đặt-lần-đầu--dựng-lại-trên-máy-mới) · [**Khởi động hằng ngày / sau khi bật máy**](#5-khởi-động-hằng-ngày--sau-khi-bật-máy) · [Truy cập](#6-truy-cập) · [Database](#7-quản-lý-database) · [Xử lý sự cố](#8-xử-lý-sự-cố) · [Phát triển & test](#9-phát-triển--kiểm-thử) · [Phiên bản & thay đổi](#10-phiên-bản--lịch-sử-thay-đổi)
 
 ---
 
@@ -93,36 +93,63 @@ Cấu hình đã kiểm chứng (máy demo hiện tại):
 
 Với máy chỉ có CPU như trên, một lượt chat AI mất khoảng 13–67 giây (nhanh hơn khi câu hỏi lặp lại và máy rảnh). Có GPU thì có thể dùng `qwen2.5:7b-instruct`.
 
-## 4. Cài đặt lần đầu
+## 4. Cài đặt lần đầu / dựng lại trên máy mới
 
-Chỉ làm một lần trên máy mới. Những lần sau xem [mục 5](#5-khởi-động-hằng-ngày--sau-khi-bật-máy).
+Dùng cho máy mới hoặc sau khi cài lại Windows. Những lần sau xem [mục 5](#5-khởi-động-hằng-ngày--sau-khi-bật-máy). Bản phát hành chuẩn là **tag `v4.0.0`** (commit `fb02460`, nhánh `v4/demo-readiness`); nhánh `main` vẫn là v3, đừng dùng.
+
+### 4.1. Chuẩn bị máy
+
+| Nền tảng | Cần cài |
+|---|---|
+| **Windows 11/10 + WSL2** | (1) PowerShell quản trị: `wsl --install -d Ubuntu-22.04`, khởi động lại. (2) Cài **Docker Desktop**, bật *Settings → Resources → WSL integration* cho Ubuntu. (3) Tạo/ sửa `%UserProfile%\.wslconfig` cấp ≥ 12 GB RAM, 4 CPU (`[wsl2]` / `memory=12GB` / `processors=4`), rồi `wsl --shutdown`. (4) Trong Ubuntu: `sudo apt update && sudo apt install -y git curl build-essential` |
+| **Linux** (Ubuntu/Debian) | `sudo apt install -y git curl build-essential`, cài Docker Engine + plugin Compose v2 (`docker compose version` ≥ 2.29), `sudo usermod -aG docker $USER` rồi đăng nhập lại |
+
+Công cụ dùng chung (chỉ cần để phát triển/kiểm thử trên host; **chạy demo bằng Docker không cần**): `uv` (`curl -LsSf https://astral.sh/uv/install.sh | sh`), Node.js 22 + `pnpm 12.6.0` (`corepack enable && corepack prepare pnpm@12.6.0 --activate`). Python 3.12 do `uv` tự cài theo `.python-version`.
+
+> Luôn đặt repo **trong ổ WSL** (`~/Aureon`), không dưới `/mnt/c` (chậm, sai quyền file, hỏng bind mount `./keys`). Trên Windows chạy `git config --global core.autocrlf input` **trước khi clone** để script `.sh` không bị đổi sang CRLF.
+
+### 4.2. Các bước
 
 ```bash
-# 1. Mã nguồn (trong ổ WSL, không đặt dưới /mnt/c)
-git clone https://github.com/hovikhanh/Aureon.git && cd Aureon
-git checkout v4.0.0          # tag phát hành (hoặc nhánh v4/demo-readiness)
+# 1. Mã nguồn + bản phát hành v4
+git clone https://github.com/hovikhanh/Aureon.git ~/Aureon && cd ~/Aureon
+git checkout v4.0.0                      # detached HEAD là bình thường; muốn commit thì: git switch -c <nhánh>
 
-# 2. Cấu hình: điền giá trị dev (mật khẩu demo DEMO_*_PASSWORD, NEXTAUTH_SECRET, POSTGRES_*, ...)
-cp .env.example .env
-#    Không đặt DEMO_VP_SALES_PASSWORD / DEMO_HR_MANAGER_PASSWORD (alias cũ, được ưu tiên hơn
-#    DEMO_SALES_PASSWORD / DEMO_HR_PASSWORD). Cấu hình demo v4 khuyến nghị: docs/3.EXECUTION/16-OPERATIONS.md §2
+# 2. Cấu hình (.env KHÔNG nằm trong Git)
+#    a) Có bản sao lưu:  cp /đường/dẫn/backup/.env .env        (xem mục 7.2)
+#    b) Làm mới:        cp .env.example .env  rồi điền giá trị dev (POSTGRES_*, NEXTAUTH_SECRET,
+#       DB_ENCRYPTION_KEY = `python3 -c "import secrets; print(secrets.token_hex(32))"`,
+#       DEMO_*_PASSWORD, ADMIN_BOOTSTRAP_*). Giá trị có khoảng trắng/ký tự đặc biệt phải đặt trong '...'
+./scripts/check_env.sh                   # chỉ in TÊN key; exit 0 = bash, dotenv và Compose đọc giống nhau
 
-# 3. Cặp khóa RS256 cho JWT → ./keys (gitignored, mount vào container)
-./scripts/generate_keys.sh keys
+# 3. Khóa ký JWT RS256 → ./keys (gitignored)
+#    a) Có bản sao lưu: tar xzf backup/aureon-secrets-*.tgz keys    b) Làm mới:
+./scripts/generate_keys.sh keys          # khóa mới → mọi phiên đăng nhập cũ hết hiệu lực, KHÔNG mất dữ liệu
 
-# 4. Build và chạy toàn bộ stack
+# 4. Build image và chạy toàn bộ stack (lần đầu lâu: tải image và image api bake sẵn model OCR)
+docker compose config --quiet            # kiểm tra cấu hình hợp lệ
 docker compose up -d --build
 
-# 5. Model AI local (một lần; lưu trong volume ollama_data)
+# 5. Model AI local (một lần; lưu trong volume aureon_ollama_data)
 docker exec ollama ollama pull qwen2.5:3b-instruct
 docker exec ollama ollama pull bge-m3
 
 # 6. Kiểm tra
-docker compose ps                       # chờ mọi service "healthy" (lần đầu ClamAV có thể mất vài phút)
-curl -s localhost:4000/health/ready     # {"status":"ready", ... "signing_keys":"ok"}
+docker compose ps                        # chờ mọi service "healthy" (ClamAV lần đầu có thể mất vài phút)
+curl -s localhost:4000/health/ready      # {"status":"ready", ... "signing_keys":"ok"}
 ```
 
-`api` tự chạy `alembic upgrade head` rồi seed dữ liệu demo (idempotent: chạy lại không nhân đôi dữ liệu) mỗi lần khởi động; không cần chạy migration hay seed bằng tay.
+`api` tự chạy `alembic upgrade head` rồi seed dữ liệu demo (idempotent) mỗi lần khởi động; không cần chạy migration hay seed bằng tay. Mở `http://localhost:3000` và đăng nhập (mục 6).
+
+### 4.3. Cái gì không có trong Git
+
+| Thành phần | Khôi phục |
+|---|---|
+| `.env` | Sao lưu (mục 7.2) hoặc tạo lại từ `.env.example` (bước 2) |
+| `keys/*.pem` | Sao lưu hoặc `generate_keys.sh` (bước 3) |
+| Dữ liệu DB (nghiệp vụ, người dùng đã nhập) | `pg_restore` từ bản dump (mục 7.2). Không có dump: dữ liệu demo tự dựng lại bằng seed, **dữ liệu nhập tay sẽ mất** |
+| Model Ollama | `ollama pull` (bước 5) hoặc restore volume |
+| `var/idp-storage` (file IDP đã tải lên) | Chỉ từ sao lưu (mục 7.2); tài liệu mẫu nằm ở `data/` |
 
 ## 5. Khởi động hằng ngày / sau khi bật máy
 
@@ -196,6 +223,52 @@ Mật khẩu nằm trong `.env` (`DEMO_<ROLE>_PASSWORD`), **không** ghi ở đ�
 | Backup | `mkdir -p var/backup && docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > var/backup/aureon-$(date +%Y%m%d-%H%M).dump` (thư mục `var/` đã gitignore) |
 | Restore | `docker compose stop api celery-worker celery-beat web`, rồi `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < var/backup/<file>.dump`, rồi `docker compose up -d`. Restore vào một Postgres mới tinh sẽ báo 2 lỗi GRANT cho role `app_audit_writer` (role chưa tồn tại); dữ liệu vẫn được khôi phục đủ |
 
+### 7.1. Dừng, khởi động lại, build lại, cập nhật phiên bản
+
+| Việc | Lệnh |
+|---|---|
+| Dừng (giữ dữ liệu) | `docker compose stop` |
+| Khởi động lại | `docker compose up -d` (hoặc `docker compose restart <service>`) |
+| Build lại sau khi đổi code | `docker compose build api web && docker compose up -d --no-deps --force-recreate api celery-worker celery-beat web` |
+| Build lại không cache | `docker compose build --no-cache api web` |
+| Cập nhật lên phiên bản mới | **Backup trước (7.2)**, rồi `git fetch --tags && git checkout <tag mới>`, `./scripts/check_env.sh`, `docker compose up -d --build`; migration tự chạy. Quay lại: `git checkout v4.0.0`, `docker compose up -d --build` (nếu migration đã đi lên thì restore dump) |
+
+### 7.2. Backup và restore khi chuyển máy / cài lại Windows
+
+Làm **trước** khi cài lại, rồi chép thư mục `backup/` ra ổ ngoài hoặc cloud riêng tư (không đưa vào Git; `var/` và `.env` đã gitignore). Stack phải đang chạy.
+
+```bash
+mkdir -p ~/aureon-backup && cd ~/Aureon
+# 1. Cấu hình + khóa (chứa secret: giữ nơi an toàn, không đẩy lên Git/public cloud)
+tar czf ~/aureon-backup/aureon-secrets-$(date +%F).tgz .env keys
+# 2. Database
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > ~/aureon-backup/aureon-db-$(date +%F).dump
+# 3. File tài liệu IDP đã tải lên
+tar czf ~/aureon-backup/aureon-idp-storage-$(date +%F).tgz var/idp-storage
+# 4. (tùy chọn, ~4 GB) model Ollama để khỏi tải lại
+docker run --rm -v aureon_ollama_data:/d -v ~/aureon-backup:/b alpine tar czf /b/ollama-$(date +%F).tgz -C /d .
+# 5. Chắc chắn mọi nhánh/tag đã lên GitHub
+git push origin --all && git push origin --tags
+```
+
+Phải đảm bảo bản sao lưu nằm **ngoài ổ đĩa sẽ bị format** (ổ WSL là một file `ext4.vhdx` trên ổ C: sẽ mất khi cài lại Windows).
+
+**Restore trên máy mới** (sau mục 4.1 và bước 1 của 4.2):
+
+```bash
+cd ~/Aureon
+tar xzf ~/aureon-backup/aureon-secrets-*.tgz              # trả .env + keys
+./scripts/check_env.sh
+tar xzf ~/aureon-backup/aureon-idp-storage-*.tgz          # trả var/idp-storage
+docker compose up -d --build postgres                      # dựng DB rỗng trước
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < ~/aureon-backup/aureon-db-*.dump
+docker compose up -d --build                               # dựng phần còn lại
+# (tùy chọn) trả model Ollama; nếu bỏ qua thì chạy bước 5 của 4.2
+docker volume create aureon_ollama_data && docker run --rm -v aureon_ollama_data:/d -v ~/aureon-backup:/b alpine tar xzf /b/ollama-*.tgz -C /d
+```
+
+Restore vào Postgres mới tinh báo 2 lỗi GRANT cho role `app_audit_writer`; dữ liệu vẫn đủ. Khi khôi phục `.env` cũ thì dùng đúng `DB_ENCRYPTION_KEY` cũ, nếu không các cột PII mã hóa không đọc được.
+
 Lệnh **xóa dữ liệu**, chỉ dùng khi chủ động muốn:
 
 - `docker compose down -v`: xóa mọi volume.
@@ -268,6 +341,19 @@ curl -s -X POST localhost:4000/api/v1/auth/login -H 'content-type: application/j
   -d '{"email":"ceo@abc.demo","password":"<password>"}'
 ```
 
+### CI (GitHub Actions)
+
+Workflow `.github/workflows/ci.yml` chạy khi push lên `main` hoặc `v4/**`, khi push tag `v*`, mọi pull request và chạy tay (`workflow_dispatch`). Bốn job độc lập, **không** dùng secret thật (chỉ giá trị giả của CI):
+
+| Job | Nội dung | Phiên bản |
+|---|---|---|
+| `secrets (gitleaks)` | quét toàn bộ lịch sử Git bằng gitleaks v8.24.3 | — |
+| `web` | `pnpm lint`, `typecheck`, `test` (Vitest), `build:web` | Node 22, pnpm 12.6.0 (từ `packageManager`) |
+| `api` | ruff, ruff format, mypy, migrate + seed (2 lần), pytest + coverage ≥ 75%, contract (Postgres `pgvector/pgvector:pg16` + Redis service) | Python 3.12 (`.python-version`) |
+| `docker` | `docker compose config` với `.env.example`; build image `api` và `web` (không push) | Buildx |
+
+Chạy lại các bước tương tự ở local: lệnh trong mục "Test" phía trên. E2E Playwright cần stack đầy đủ nên **không** chạy trên CI (xem `16-OPERATIONS.md` §3.2).
+
 ### Git
 
 Làm việc trên nhánh tính năng, Conventional Commits (`feat(scope): ...`), không commit `.env`, `keys/`, `var/`. Quy tắc đầy đủ: `CLAUDE.md` §5.10, §11.
@@ -277,7 +363,7 @@ Làm việc trên nhánh tính năng, Conventional Commits (`feat(scope): ...`),
 | Mục | Giá trị |
 |---|---|
 | Phiên bản | Aureon v4 demo (API tự báo `3.0.0`) |
-| Nhánh | `v4/demo-readiness` (chưa push) |
+| Nhánh / tag | `v4/demo-readiness` · tag phát hành `v4.0.0` (`fb02460`), đã có trên GitHub |
 | DB | Alembic `0028_crm_leads_contacts_activity` |
 | Commit | Xem `git log --oneline -1`; mốc các đợt ghi ở bảng dưới |
 
@@ -300,7 +386,7 @@ Làm việc trên nhánh tính năng, Conventional Commits (`feat(scope): ...`),
 - Chat AI trên máy chỉ có CPU: 13–67 giây mỗi lượt khi máy đang tải.
 - Trích xuất tài liệu không hiện tiến độ từng bước.
 - CRM chưa có pipeline cấu hình, snapshot dự báo, deal nhiều sản phẩm.
-- Hardening production (TLS, mạng, xoay secret, MFA, CI security) thuộc backlog Phase 8: [deliverables/v4-demo/10-PRODUCTION-BACKLOG.md](deliverables/v4-demo/10-PRODUCTION-BACKLOG.md).
+- Hardening production (TLS, mạng, xoay secret, MFA) thuộc backlog Phase 8: [deliverables/v4-demo/10-PRODUCTION-BACKLOG.md](deliverables/v4-demo/10-PRODUCTION-BACKLOG.md).
 
 ## Tài liệu
 
@@ -309,17 +395,3 @@ Spec ở `docs/` (bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`). Vận hành c
 ## License
 
 Proprietary — © CyEyes. All rights reserved. Dữ liệu demo hoàn toàn giả định (DEC-136).
-
-## Phụ lục — Khôi phục trên máy mới / sau khi cài lại Windows
-
-Git **không** chứa các thứ sau (gitignored có chủ đích); phải tạo lại hoặc mang theo bản sao lưu riêng:
-
-| Thành phần | Cách khôi phục |
-|---|---|
-| `.env` (mật khẩu, secret) | `cp .env.example .env` rồi điền giá trị; hoặc chép lại từ bản sao lưu riêng. Kiểm tra: `./scripts/check_env.sh` |
-| `keys/*.pem` (khóa JWT RS256) | `./scripts/generate_keys.sh keys` (khóa mới → mọi phiên đăng nhập cũ hết hạn, không mất dữ liệu) |
-| Dữ liệu DB demo | Tự dựng lại: `api` chạy migration + seed khi khởi động (xem mục 4) |
-| Model Ollama | `docker exec ollama ollama pull qwen2.5:3b-instruct && docker exec ollama ollama pull bge-m3` |
-| `var/idp-storage` (file IDP đã upload) | Không tái tạo được; tài liệu mẫu nằm ở `data/` và có thể tải lại |
-
-Thứ tự trên Windows: cài WSL2 + Docker Desktop (bật WSL integration) → clone vào ổ WSL (không dưới `/mnt/c`) → làm theo mục 4.

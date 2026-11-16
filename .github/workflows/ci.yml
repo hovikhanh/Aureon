@@ -130,6 +130,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # pgcrypto key for level-4 PII columns (migration 0008). Random per run, never committed.
+      - name: Generate throwaway DB_ENCRYPTION_KEY
+        run: echo "DB_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
       - name: Ruff lint
         run: uv run ruff check .
 
