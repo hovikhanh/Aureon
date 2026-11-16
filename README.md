@@ -95,7 +95,7 @@ Với máy chỉ có CPU như trên, một lượt chat AI mất khoảng 13–6
 
 ## 4. Cài đặt lần đầu / dựng lại trên máy mới
 
-Dùng cho máy mới hoặc sau khi cài lại Windows. Những lần sau xem [mục 5](#5-khởi-động-hằng-ngày--sau-khi-bật-máy). Bản phát hành chuẩn là **tag `v4.0.0`** (commit `fb02460`, nhánh `v4/demo-readiness`); nhánh `main` vẫn là v3, đừng dùng.
+Dùng cho máy mới hoặc sau khi cài lại Windows. Những lần sau xem [mục 5](#5-khởi-động-hằng-ngày--sau-khi-bật-máy). Bản phát hành chuẩn là **tag `v4.0.1`** (nhánh `v4/demo-readiness`; `v4.0.0` = `fb02460`, trước khi sửa CI); nhánh `main` vẫn là v3, đừng dùng.
 
 ### 4.1. Chuẩn bị máy
 
@@ -231,7 +231,7 @@ Mật khẩu nằm trong `.env` (`DEMO_<ROLE>_PASSWORD`), **không** ghi ở đ�
 | Khởi động lại | `docker compose up -d` (hoặc `docker compose restart <service>`) |
 | Build lại sau khi đổi code | `docker compose build api web && docker compose up -d --no-deps --force-recreate api celery-worker celery-beat web` |
 | Build lại không cache | `docker compose build --no-cache api web` |
-| Cập nhật lên phiên bản mới | **Backup trước (7.2)**, rồi `git fetch --tags && git checkout <tag mới>`, `./scripts/check_env.sh`, `docker compose up -d --build`; migration tự chạy. Quay lại: `git checkout v4.0.0`, `docker compose up -d --build` (nếu migration đã đi lên thì restore dump) |
+| Cập nhật lên phiên bản mới | **Backup trước (7.2)**, rồi `git fetch --tags && git checkout <tag mới>`, `./scripts/check_env.sh`, `docker compose up -d --build`; migration tự chạy. Quay lại: `git checkout v4.0.1`, `docker compose up -d --build` (nếu migration đã đi lên thì restore dump) |
 
 ### 7.2. Backup và restore khi chuyển máy / cài lại Windows
 
@@ -363,12 +363,13 @@ Làm việc trên nhánh tính năng, Conventional Commits (`feat(scope): ...`),
 | Mục | Giá trị |
 |---|---|
 | Phiên bản | Aureon v4 demo (API tự báo `3.0.0`) |
-| Nhánh / tag | `v4/demo-readiness` · tag phát hành `v4.0.0` (`fb02460`), đã có trên GitHub |
+| Nhánh / tag | `v4/demo-readiness` · tag phát hành `v4.0.1` (CI xanh 4/4 job); `v4.0.0` = `fb02460` |
 | DB | Alembic `0028_crm_leads_contacts_activity` |
 | Commit | Xem `git log --oneline -1`; mốc các đợt ghi ở bảng dưới |
 
 | Ngày | Thay đổi | Commit |
 |---|---|---|
+| 2026-11-17 | **v4.0.1:** CI chạy lại được (4 job xanh: gitleaks, web, api, docker); README dựng lại/backup/restore; ghim Python 3.12; 10 false positive gitleaks suppress theo fingerprint; test Vitest không còn phụ thuộc ngày | `v4.0.1` |
 | 2026-11-09 | **Khôi phục sau khi bật máy:** preflight khóa JWT, kho file, DB trước khi `api`, worker, beat chạy; `/health/ready` báo `signing_keys`; `docker-compose.yml` include stack đầy đủ (hết tình trạng tách hai mạng); test không phụ thuộc `.env` của host; README viết lại | `595e613`, `67c7218` + commit README |
 | 2026-11-09 | CEO toàn quyền CRUD (D-21), MGR xem hóa đơn mình tạo (D-20), CRM Lead/Contact/Activity, AI local `qwen2.5:3b-instruct` (D-19), trang quản lý Sản phẩm, Rủi ro, Điều hành | `8f7ec68..cdc794a` |
 | 2026-11-08 | Một ngày nghiệp vụ, số liệu Finance/Sales nhất quán, RBAC D-07, AI trung thực, Deep Navy | `15f4139..432126f` |
