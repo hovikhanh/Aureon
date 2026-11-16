@@ -8,3 +8,22 @@ dd125a4cbacb366ec702d7c508835735d34d105f:apps/api/tests/model_gateway/conftest.p
 56f5ca57a3e562ee528fdcdf00d9eb602d65242d:docs/3.EXECUTION/11-AGENT-WORKFLOW.md:generic-api-key:266
 # this file's own first version quoted that heading in a comment (commit 1a7be13):
 1a7be13865da47da1d92043d61fb9b778a32fe84:.gitleaksignore:generic-api-key:6
+
+# --- v4 review 2026-11-17: 10 findings verified one by one; none is a real secret.
+# Exact fingerprints only (commit:file:rule:line); no path/regex allowlist.
+# i18n key names in `threshold_key=`/`detail_key=` kwargs (EP-RPT-08 schema fields); the value is a translation key
+# present in apps/web/messages/*.json, not a credential. False positive — deliverables/GITLEAKS-AUDIT.md #1-#4.
+0effd10e2c1e5a396fb31f1309170f830ef2dc0d:apps/api/src/app/modules/ai/services/acceptance_service.py:generic-api-key:85
+0effd10e2c1e5a396fb31f1309170f830ef2dc0d:apps/api/src/app/modules/ai/services/acceptance_service.py:generic-api-key:86
+0effd10e2c1e5a396fb31f1309170f830ef2dc0d:apps/api/src/app/modules/ai/services/acceptance_service.py:generic-api-key:122
+0effd10e2c1e5a396fb31f1309170f830ef2dc0d:apps/api/src/app/modules/ai/services/acceptance_service.py:generic-api-key:123
+# False positive: pytest client fixture named `api` followed by a comma (`_recompute(api, fixed_opex_weekly=…)`),
+# and the audit report quoting that very line. No credential involved — GITLEAKS-AUDIT.md #7.
+1e3494493b00ca52aa762fd20cd8ad56897efc98:deliverables/GITLEAKS-AUDIT.md:generic-api-key:45
+7caeb2977294bbdac2417e3f4f91a369283652af:apps/api/tests/integration/finance/test_cash_flow.py:generic-api-key:66
+# Test-only throwaway passwords for users created in rolled-back DB transactions / in-memory mock BFF.
+# Verified 2026-11-17: none appears in .env or .env.example — GITLEAKS-AUDIT.md #5, #6; test_ceo_full_crud_d21.
+8f7ec685b1c8174e0395ee1df2c04a36c974c9b9:apps/api/tests/integration/test_ceo_full_crud_d21.py:generic-api-key:338
+b8d231c7b9374b4c7e73b6d2d3f807cb9cd5dcf6:apps/web/src/mocks/onboarding.test.ts:generic-api-key:68
+96a4ac93aa15d0dd805f86a9f95aaecae853818f:apps/web/src/mocks/onboarding.test.ts:generic-api-key:68
+8e63057143b7c0df98fa34c92e94bc6e491345e9:apps/api/tests/integration/test_user_admin_t614.py:generic-api-key:20

@@ -116,3 +116,24 @@ Không có secret thật → rewrite **không mang lại lợi ích bảo mật*
 ## Version
 
 - Draft 0.1 — 2026-11-03. Audit-only.
+
+## 11. Kết quả xử lý (2026-11-17, phương án B)
+
+Quét lại đúng như CI (clone từ GitHub, gitleaks v8.24.3, `--redact`): **10 finding**, tất cả rule `generic-api-key`. Từng finding được đọc tại commit gốc (giá trị bị che) và đối chiếu `.env`/`.env.example`. **Không có secret thật; không cần rotate; không rewrite history.**
+
+| # | Vị trí @commit | Phân loại | Bằng chứng |
+|---|---|---|---|
+| 1 | `deliverables/GITLEAKS-AUDIT.md:45` @`1e34944` | False positive | Báo cáo trích dẫn dòng `_recompute(api, …)` của #10 |
+| 2 | `tests/integration/test_ceo_full_crud_d21.py:338` @`8f7ec68` | Mật khẩu test giả | Literal 18 ký tự trong body tạo user của test (DB rollback); không có trong `.env`/`.env.example` |
+| 3–6 | `acceptance_service.py:85,86,122,123` @`0effd10` | False positive | `threshold_key=`/`detail_key=` là i18n key (EP-RPT-08) |
+| 7 | `apps/web/src/mocks/onboarding.test.ts:68` @`b8d231c` | Mật khẩu test giả | Mock BFF in-memory của Vitest; không trong `.env` |
+| 8 | cùng file/dòng @`96a4ac9` | Mật khẩu test giả | Bản sao của #7 ở commit khác |
+| 9 | `tests/integration/test_user_admin_t614.py:20` @`8e63057` | Mật khẩu test giả | Hằng test, user tạo trong transaction rollback |
+| 10 | `tests/integration/finance/test_cash_flow.py:66` @`7caeb29` | False positive | Fixture pytest tên `api` + dấu phẩy |
+
+Mục "chưa đủ cơ sở kết luận": **không có**. #2 và #8 là hai finding chưa nằm trong audit gốc (cùng bản chất #9/#7).
+
+Biện pháp: **chỉ** thêm 10 fingerprint chính xác (`commit:file:rule:line`) vào `.gitleaksignore`; **không** thêm `.gitleaks.toml`, không allowlist theo path/regex. Hệ quả: dòng tương tự ở commit mới vẫn bị bắt.
+
+Kiểm chứng: clone sạch → có `.gitleaksignore` mới: `no leaks found`, exit 0; thêm commit chứa secret giả ngẫu nhiên → bị bắt (1 leak, exit 1).
+Đề xuất cho người duy trì `13-DECISION-LOG.md`: ghi một R-DEC cho việc này (CLAUDE.md §2.3 xếp gitleaks là mục cần DEC).
