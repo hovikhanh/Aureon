@@ -100,7 +100,7 @@ Chỉ làm một lần trên máy mới. Những lần sau xem [mục 5](#5-kh�
 ```bash
 # 1. Mã nguồn (trong ổ WSL, không đặt dưới /mnt/c)
 git clone https://github.com/hovikhanh/Aureon.git && cd Aureon
-git checkout v4/demo-readiness
+git checkout v4.0.0          # tag phát hành (hoặc nhánh v4/demo-readiness)
 
 # 2. Cấu hình: điền giá trị dev (mật khẩu demo DEMO_*_PASSWORD, NEXTAUTH_SECRET, POSTGRES_*, ...)
 cp .env.example .env
@@ -309,3 +309,17 @@ Spec ở `docs/` (bắt đầu từ `docs/1.CONTEXT/00-INDEX.md`). Vận hành c
 ## License
 
 Proprietary — © CyEyes. All rights reserved. Dữ liệu demo hoàn toàn giả định (DEC-136).
+
+## Phụ lục — Khôi phục trên máy mới / sau khi cài lại Windows
+
+Git **không** chứa các thứ sau (gitignored có chủ đích); phải tạo lại hoặc mang theo bản sao lưu riêng:
+
+| Thành phần | Cách khôi phục |
+|---|---|
+| `.env` (mật khẩu, secret) | `cp .env.example .env` rồi điền giá trị; hoặc chép lại từ bản sao lưu riêng. Kiểm tra: `./scripts/check_env.sh` |
+| `keys/*.pem` (khóa JWT RS256) | `./scripts/generate_keys.sh keys` (khóa mới → mọi phiên đăng nhập cũ hết hạn, không mất dữ liệu) |
+| Dữ liệu DB demo | Tự dựng lại: `api` chạy migration + seed khi khởi động (xem mục 4) |
+| Model Ollama | `docker exec ollama ollama pull qwen2.5:3b-instruct && docker exec ollama ollama pull bge-m3` |
+| `var/idp-storage` (file IDP đã upload) | Không tái tạo được; tài liệu mẫu nằm ở `data/` và có thể tải lại |
+
+Thứ tự trên Windows: cài WSL2 + Docker Desktop (bật WSL integration) → clone vào ổ WSL (không dưới `/mnt/c`) → làm theo mục 4.
