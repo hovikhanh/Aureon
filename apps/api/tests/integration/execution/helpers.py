@@ -15,7 +15,10 @@ from tests.conftest import ApiClient
 
 
 def uniq(prefix: str = "X") -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:12]}"
+    # A letter in the middle caps any digit run at 6: an all-digit hex suffix (~0.4% of draws) would
+    # match the outbox PII guard's BANK_ACCOUNT pattern (\d{10,16}) and fail the test with a 500.
+    h = uuid.uuid4().hex
+    return f"{prefix}-{h[:6]}x{h[6:11]}"
 
 
 # ex 10-role F.O.C.U.S → 7-role v3 (+ scope_pillars khối) — R-DEC-12/12a.
